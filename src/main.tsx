@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
