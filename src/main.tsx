@@ -1,15 +1,17 @@
 import {useEffect, useRef, useState, type CSSProperties} from 'react';
 import {createRoot} from 'react-dom/client';
+import {CornerEditor,imageMarkerHtml} from './imageFrame';
+import {exportStaticTour} from './exportTour';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle} from './storage';
+import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,type FrameCorners} from './storage';
 import './style.css';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'bar' | 'icons';
+type PanelTab = 'points' | 'bar' | 'icons' | 'intro';
 type EmbedFrame = { title:string; url:string };
 const barColorFields:Array<{key:'background'|'outline'|'button'|'buttonOutline'|'icon';label:string}> = [
   {key:'background',label:'Fond de la barre'},
@@ -44,24 +46,28 @@ type PanoramaProps = {
   onNavigate: (id:string)=>void;
   onInfo: (hotspot:Hotspot)=>void;
   onLink: (title:string,url:string)=>void;
+  onImage: (h:Hotspot)=>void;
 };
 function markerFor(h:Hotspot, icons:CustomIcon[]) {
   const icon=icons.find(i=>i.id===h.iconId);
   const sz=Math.max(24,Math.min(120,h.iconSize ?? 46));
-  const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
+  const isImage=h.type==='image';
+  const markerW=isImage?(h.frameWidth??320):sz;
+  const markerH=isImage?(h.frameHeight??200):sz;
+  const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':'i';
   return {
     id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html:icon
+    html:isImage ? imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),markerW,markerH,h.title) : icon
       ? '<span class="nv-marker nv-custom"><img src="'+icon.dataUrl+'" alt="" draggable="false"/></span>'
       : '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>',
-    size:{width:sz,height:sz},anchor:'center center' as const,tooltip:h.title
+    size:{width:markerW,height:markerH},anchor:'center center' as const,tooltip:h.title
   };
 }
-function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
-  const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink});
-  actions.current = {scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink};
+  const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage});
+  actions.current = {scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage};
 
   useEffect(()=>{
     if (!box.current) return;
@@ -85,6 +91,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
           else a.onInfo(h);
         }
         else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
+        else if(h.type==='image') a.onImage(h);
       } else {
         a.onPick(h.id);
       }
@@ -117,6 +124,10 @@ function App(){
   const [help,setHelp]=useState(false);
   const [info,setInfo]=useState<Hotspot|null>(null);
   const [frame,setFrame]=useState<EmbedFrame|null>(null);
+  const [imageZoom,setImageZoom]=useState<Hotspot|null>(null);
+  const [introVisible,setIntroVisible]=useState(false);
+  const [exporting,setExporting]=useState(false);
+  const frameImageInput=useRef<HTMLInputElement>(null);
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
   const iconInput=useRef<HTMLInputElement>(null);
@@ -135,6 +146,7 @@ function App(){
         await document.exitFullscreen();
       }else{
         setPreview(true);
+        if(project.introEnabled && project.introUrl.startsWith('https://'))setIntroVisible(true);
         setMode(null);
         setSelectedId('');
         await node.requestFullscreen();
@@ -184,6 +196,29 @@ function App(){
     setInfo(null);
     if (/^https?:\/\//i.test(link)) setFrame({title,url:link});
     else launchLink(link);
+  }
+  async function exportTour(){
+    if(!project.scenes.length){setStatus('Importe au moins un panorama avant de publier');return;}
+    setExporting(true);
+    setStatus('Préparation du dossier HTML…');
+    try {
+      await exportStaticTour(project);
+      setStatus('Dossier HTML prêt — archive ZIP téléchargée');
+    }catch(err){setStatus('Échec de l’export : '+(err instanceof Error?err.message:String(err)));}
+    finally{setExporting(false);}
+  }
+  async function addFrameImage(file?:File){
+    if(!file||!selectedId||!activeId)return;
+    if(!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size>6_000_000){
+      setStatus('Image invalide : JPG/PNG/WebP et 6 Mo maximum');return;
+    }
+    try {
+      const url=await readImage(file);
+      if(!isSafeFrameImage(url))throw Error('Format non reconnu');
+      patchPoint({imageDataUrl:url});
+      setStatus('Image ajoutée au cadre');
+    }catch{setStatus('Impossible de lire cette image');}
+    if(frameImageInput.current)frameImageInput.current.value='';
   }
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
@@ -277,7 +312,11 @@ function App(){
   }
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
-    const h:Hotspot={id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':'Informations',text:'',target:'',yaw,pitch};
+    const h:Hotspot={
+      id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Cadre photo':'Informations',
+      text:'',target:'',yaw,pitch,
+      ...(mode==='image'?{frameWidth:320,frameHeight:200,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{})
+    };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
   }
@@ -315,8 +354,9 @@ function App(){
       <div className="top-actions">
         <button className="quiet" onClick={startFresh}>Nouveau</button>
         <button className="quiet" onClick={()=>projectInput.current?.click()}>Ouvrir</button>
-        <button className="quiet" onClick={download}>Exporter le projet</button>
-        <button className={preview?'primary':'outline'} onClick={()=>{setPreview(p=>!p);setMode(null);setSelectedId('');}}>{preview?'Quitter l’aperçu':'Prévisualiser'}</button>
+        <button className="quiet" onClick={download}>Sauvegarder le projet</button>
+        <button className="primary" disabled={exporting} onClick={()=>void exportTour()}>{exporting?'Export…':'Exporter HTML / ZIP'}</button>
+        <button className={preview?'primary':'outline'} onClick={()=>{if(!preview && project.introEnabled && project.introUrl.startsWith('https://'))setIntroVisible(true);else setIntroVisible(false);setPreview(p=>!p);setMode(null);setSelectedId('');}}>{preview?'Quitter l’aperçu':'Prévisualiser'}</button>
       </div>
     </header>
     <div className="workspace">
@@ -330,7 +370,7 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour}/>:<div className="empty">
+        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
           <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
           <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
@@ -376,6 +416,7 @@ function App(){
           <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')}>➜ Navigation</button>
           <button className={'tool '+(mode==='information'?'selected':'')} onClick={()=>setMode(mode==='information'?null:'information')}>ⓘ Information</button>
           <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')}>↗ Lien</button>
+          <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')}>▣ Cadre photo</button>
           <button className="tool" onClick={()=>{setPanel('bar');setMode(null);}}>☷ Barre du bas</button>
           <div className="grow"/><button className="tool danger" onClick={removeScene}>⌫ Supprimer scène</button>
         </div>}
@@ -385,26 +426,41 @@ function App(){
           <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points')}>Points</button>
           <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>setPanel('bar')}>Barre du bas</button>
           <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons')}>Mes icônes</button>
+          <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro')}>Intro</button>
         </div>
         {panel==='points' && <div className="properties">
           <div className="section-title">PANORAMA</div>
           {!active?<div className="hint">Importe un panorama pour configurer des points interactifs.</div>:<>
             <label>Nom de la scène<input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/></label>
             <hr/><div className="section-title">POINTS INTERACTIFS <span className="counter">{active.hotspots.length}</span></div>
-            {!selected?<><p className="hint">Choisis Navigation, Information ou Lien sous le panorama, puis clique à l'endroit souhaité.</p>
-                {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':'ⓘ'}</span>{h.title}</button>)}
+            {!selected?<><p className="hint">Choisis Navigation, Information, Lien ou Cadre photo sous le panorama, puis clique sur l’image 360°.</p>
+                {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':'ⓘ'}</span>{h.title}</button>)}
               </>:<>
                 <button className="back" onClick={()=>setSelectedId('')}>← Tous les points</button>
-                <div className="tag">{selected.type==='navigation'?'➜ Navigation':selected.type==='lien'?'↗ Lien':'ⓘ Information'}</div>
+                <div className="tag">{selected.type==='navigation'?'➜ Navigation':selected.type==='lien'?'↗ Lien':selected.type==='image'?'▣ Cadre photo':'ⓘ Information'}</div>
                 <label>Titre<input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/></label>
-                {selected.type==='navigation'?<label>Destination<select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}><option value="">Sélectionner une scène…</option>{project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+                {selected.type==='image'?
+                <>
+                  <button className="import" onClick={()=>frameImageInput.current?.click()}>{selected.imageDataUrl?'Changer l’image':'＋ Importer une image dans le cadre'}</button>
+                  <small className="hint-inline">PNG, JPG ou WebP · 6 Mo maximum</small>
+                  {selected.imageDataUrl&&<CornerEditor image={selected.imageDataUrl} width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()} onChange={(v:FrameCorners)=>patchPoint({frameCorners:v})}/>}
+                  <label>Largeur du cadre : {selected.frameWidth??320} px
+                    <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
+                  </label>
+                  <label>Hauteur du cadre : {selected.frameHeight??200} px
+                    <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
+                  </label>
+                  <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
+                  <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
+                </>
+                :selected.type==='navigation'?<label>Destination<select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}><option value="">Sélectionner une scène…</option>{project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
                   : selected.type==='lien'?<label>Adresse (https://, tel:, mailto:)<input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
                   :<><label>Texte affiché<textarea rows={5} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/></label>
                     <label>Page web intégrée (optionnel)<input type="text" placeholder="https://… menu, catalogue, galerie" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
                     <small className="hint-inline">Si une adresse est renseignée, elle s'ouvre dans la visite à la place du texte.</small></>}
-                <div className="section-title">ICÔNE PERSONNALISÉE</div>
-                {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
-                <label>Taille de l'icône : {selected.iconSize??46} px<input type="range" min="24" max="120" step="2" value={selected.iconSize??46} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>
+                {selected.type!=='image' && <><div className="section-title">ICÔNE PERSONNALISÉE</div>
+                {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}</>}
+                {selected.type!=='image' && <label>Taille de l'icône : {selected.iconSize??46} px<input type="range" min="24" max="120" step="2" value={selected.iconSize??46} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>}
                 <small className="coords">Position : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</small>
                 <button className="delete" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>Supprimer ce point</button>
               </>}
