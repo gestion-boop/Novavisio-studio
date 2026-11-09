@@ -1,5 +1,5 @@
 import {useState, type PointerEvent} from 'react';
-import {defaultFrameCorners, type FrameCorners} from './storage';
+import type {FrameCorners} from './storage';
 
 export type CornerKey = keyof FrameCorners;
 const keys:CornerKey[]=['tl','tr','br','bl'];
