@@ -278,3 +278,33 @@ footer{min-height:31px;padding:5px 20px;border-top:1px solid #283a48;display:fle
   .embed-actions button{width:33px;height:33px;}
   .embed-hint{font-size:10px;padding:5px;}
 }
+
+
+/* V0.5 — cadres photo 4 coins, intro par visite et export HTML */
+.nv-frame-host{position:relative;width:100%;height:100%;display:block;overflow:visible;cursor:pointer;}
+.nv-frame-photo{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:fill;transform-origin:top left;filter:drop-shadow(0 4px 7px #0009)}
+.nv-frame-placeholder{width:100%;height:100%;display:grid;place-items:center;background:#1b3549db;color:#d1ecef;border:2px dashed #59bfc4;border-radius:6px;font:12px/1.4 sans-serif;text-align:center;padding:10px;}
+.corner-editor{display:flex;flex-direction:column;gap:12px;min-width:0;}
+.corner-editor-stage{position:relative;width:100%;background:linear-gradient(135deg,#13293b,#244052);border:1px solid #41677b;min-height:125px;overflow:hidden;border-radius:8px;touch-action:none}
+.corner-editor-photo{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:.82}
+.corner-editor-empty{position:absolute;inset:0;display:grid;place-items:center;color:#aac4d0;font-size:11px;padding:14px;text-align:center}
+.corner-editor-guides{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.corner-handle{position:absolute;width:29px;height:29px;transform:translate(-50%,-50%);background:#0a4753;border:2px solid #9df9e9;border-radius:50%;display:grid;place-items:center;color:white;font-size:9px;font-weight:800;cursor:grab;touch-action:none;user-select:none;z-index:2}
+.corner-handle.grabbing{cursor:grabbing;background:#bd6943}
+.corner-editor-coordinates{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.corner-coord{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:7px;background:#203a4d;border:1px solid #395465;border-radius:7px;}
+.corner-coord>span{grid-column:span 2;font-size:10px;color:#bee3eb;font-weight:600}
+.properties .corner-coord label{font-size:10px;display:flex;flex-direction:row;gap:3px;align-items:center}
+.corner-coord input{padding:4px!important;width:100%;min-width:0}
+.properties label.toggle-row{display:flex;flex-direction:row;align-items:center;gap:8px;line-height:1.4;font-size:12px}
+.properties label.toggle-row input{width:17px;height:17px;flex:none;accent-color:#14c9c1}
+.image-lightbox{position:absolute;inset:0;background:#030c17da;z-index:110;display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(6px)}
+.image-lightbox.with-fade{animation:nvZoomFade .45s ease both}
+.image-lightbox img{max-width:95%;max-height:88%;object-fit:contain;box-shadow:0 22px 90px #0009}
+.lightbox-close{position:absolute;top:20px;right:20px;z-index:1;width:42px;height:42px;background:#4f202c;color:white;border:1px solid #d2b5af;border-radius:50%}
+@keyframes nvZoomFade{from{opacity:0;transform:scale(.975)}to{opacity:1;transform:scale(1)}}
+.intro-overlay{position:absolute;inset:0;z-index:125;background:#0b1b29;animation:nvZoomFade .4s ease both}
+.intro-overlay iframe{border:0;width:100%;height:100%;display:block}
+.intro-bottom-actions{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:1}
+.intro-enter{background:linear-gradient(135deg,#58232e,#260c15);border:1px solid #edd3a8;border-radius:999px;padding:14px 22px;min-width:192px;display:flex;justify-content:center;gap:13px;align-items:center;font-size:13px;font-weight:700;color:#f6e8c6;box-shadow:0 7px 29px #0009;white-space:nowrap}
+@media(max-width:780px){.corner-editor-coordinates{grid-template-columns:1fr 1fr}.intro-enter{padding:11px 16px}.image-lightbox{padding:6px}}
