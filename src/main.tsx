@@ -1,15 +1,21 @@
 import {useEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,saveProject,uid,validateProject,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject} from './storage';
+import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject} from './storage';
 import './style.css';
 
 type EditMode = Hotspot['type'] | null;
 type PanelTab = 'points' | 'bar' | 'icons';
-const glyphs:Record<string,string> = {home:'⌂', info:'ⓘ',calendar:'▦',map:'⌖',phone:'☎',web:'◎',arrow:'➜',menu:'☷',star:'★'};
+const glyphs = {home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid};
+type GlyphKey = keyof typeof glyphs;
+function BarGlyph({name}:{name:string}) {
+  const Glyph = glyphs[name as GlyphKey] ?? Info;
+  return <Glyph size={29} strokeWidth={1.9} aria-hidden="true" />;
+}
 function safeLink(raw:string):string|null {
   const link = raw.trim();
   if (!/^(https?:\/\/|mailto:|tel:)/i.test(link)) return null;
@@ -52,7 +58,9 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo}:P
     if (!box.current) return;
     const viewer = new Viewer({
       container:box.current, panorama:scene.dataUrl,
-      navbar:['zoom','move','fullscreen'], defaultZoomLvl:25,
+      // Le bouton plein écran natif n'agrandit que le lecteur 360° et cache les éléments personnalisés.
+      // La vue complète (lecteur + barre) est désormais gérée par App.
+      navbar:[], defaultZoomLvl:25,
       plugins:[MarkersPlugin]
     });
     viewerRef.current = viewer;
@@ -99,6 +107,29 @@ function App(){
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
   const iconInput=useRef<HTMLInputElement>(null);
+  const viewAreaRef=useRef<HTMLDivElement>(null);
+  const [isFullscreen,setIsFullscreen]=useState(false);
+  useEffect(()=>{
+    const update=()=>setIsFullscreen(document.fullscreenElement===viewAreaRef.current);
+    document.addEventListener('fullscreenchange',update);
+    return ()=>document.removeEventListener('fullscreenchange',update);
+  },[]);
+  async function toggleFullscreen(){
+    const node=viewAreaRef.current;
+    if(!node)return;
+    try {
+      if(document.fullscreenElement){
+        await document.exitFullscreen();
+      }else{
+        setPreview(true);
+        setMode(null);
+        setSelectedId('');
+        await node.requestFullscreen();
+      }
+    }catch{
+      setStatus('Le plein écran n’est pas disponible sur ce navigateur');
+    }
+  }
 
   useEffect(()=>{
     loadProject().then(p=>{
@@ -263,21 +294,31 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area">{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={setInfo}/>:<div className="empty">
+        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={setInfo}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
           <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
           <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
         </div>}
+          {active && <button type="button" className="view-fullscreen-button" onClick={()=>void toggleFullscreen()} title={isFullscreen?'Quitter le plein écran':'Passer en plein écran'} aria-label={isFullscreen?'Quitter le plein écran':'Passer en plein écran'}>
+            {isFullscreen?<Minimize size={20} strokeWidth={2.1}/>:<Maximize size={20} strokeWidth={2.1}/>}
+          </button>}
           {active && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite">
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <button type="button" key={item.id} className={'visitor-bar-button '+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title}>
-                <span className="visitor-bar-icon">{icon?<img alt="" src={icon.dataUrl} style={{width:Math.min(item.iconSize??32,72),height:Math.min(item.iconSize??32,72)}}/>:glyphs[item.builtinIcon??'info']??'◉'}</span>
+              return <button type="button" key={item.id} className={'visitor-bar-button '+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+                <span className="visitor-bar-icon">{icon?<img alt="" src={icon.dataUrl} style={{width:Math.min(item.iconSize??44,56),height:Math.min(item.iconSize??44,56)}}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button>;
             })}
           </nav>}
+          {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
+            <div className="modal" onClick={event=>event.stopPropagation()}>
+              <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer">✕</button>
+              <h2>{info.title}</h2><p className="preserve">{info.text||'Aucune information renseignée.'}</p>
+              <button className="primary" onClick={()=>setInfo(null)}>Fermer</button>
+            </div>
+          </div>}
         </div>
         {active && !preview && <div className="toolbar">
           <span>OUTILS</span>
@@ -320,10 +361,11 @@ function App(){
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
           <div className="bar-items-list">{project.bottomBar.map(item=><button key={item.id} className={'bar-item-row '+(selectedBarId===item.id?'current':'')} onClick={()=>setSelectedBarId(item.id)}>
-            <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:glyphs[item.builtinIcon??'info']??'◉'}</span>
+            <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
             <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':'Lien'}</small>
           </button>)}</div>
           <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
+          <button className="preset-button" onClick={()=>{if(window.confirm('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
           {selectedBar && <>
             <hr/>
             <div className="section-title">CONFIGURER LE BOUTON</div>
@@ -337,7 +379,7 @@ function App(){
             <div className="section-title">CHOISIR L’ICÔNE</div>
             {iconSelector(selectedBar.iconId,id=>patchBar({iconId:id}))}
             {!selectedBar.iconId && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
-              {Object.keys(glyphs).map(key=><option value={key} key={key}>{glyphs[key]} {key}</option>)}
+              {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
             </select></label>}
             <label>Taille : {selectedBar.iconSize??32} px<input type="range" min="20" max="72" step="2" value={selectedBar.iconSize??32} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
             <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
@@ -354,7 +396,7 @@ function App(){
         </div>}
       </aside>
     </div>
-    <footer><span>NovaVisio Studio · Prototype v0.2</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
+    <footer><span>NovaVisio Studio · Prototype v0.3</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
@@ -366,10 +408,6 @@ function App(){
       <p><b>5.</b> Tes modifications sont sauvegardées dans ce navigateur. Exporte ton projet pour conserver une copie.</p>
       <p className="warning">Prototype : l’export HTML autonome n’est pas encore disponible. N’efface pas les données du navigateur sans exporter ton projet.</p>
       <button className="primary" onClick={()=>setHelp(false)}>Compris</button>
-    </div></div>}
-    {info&&<div className="overlay" onClick={()=>setInfo(null)}><div className="modal" onClick={e=>e.stopPropagation()}>
-      <button className="close" onClick={()=>setInfo(null)}>✕</button><h2>{info.title}</h2><p className="preserve">{info.text||'Aucun texte renseigné.'}</p>
-      <button className="primary" onClick={()=>setInfo(null)}>Fermer</button>
     </div></div>}
   </div>;
 }
