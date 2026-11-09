@@ -1,4 +1,4 @@
-# NovaVisio Studio — prototype V0.3
+# NovaVisio Studio — prototype V0.4
 
 Éditeur indépendant de visites virtuelles 360° interactives, conçu pour NovaVisio. Interface en français, thème bleu nuit et turquoise.
 
@@ -32,6 +32,12 @@ npm run preview
 - **Barre inférieure personnalisable** : créer, renommer, déplacer et supprimer ses boutons, choisir leurs icônes et leur taille.
 - Modèle visuel inspiré de la référence « Au Bureau » : capsule argentée et 5 boutons bordeaux à pictogrammes dorés, sans libellés apparents (accessibles au survol et aux lecteurs d'écran).
 - **Plein écran de la visite entière** : le bouton dédié dans l'angle supérieur droit étend la scène et sa barre personnalisée, sans la masquer. Le plein écran passe en mode aperçu pour activer les boutons.
+- Les liens HTTP(S) des boutons et hotspots s'ouvrent **dans une iframe intégrée à la visite**, y compris en plein écran. Les actions `tel:` et `mailto:` restent externes.
+- Pour les icônes d'information, un champ « Page intégrée (optionnel) » permet de substituer une page web au texte.
+- Certains sites bloquent l'affichage en iframe via `X-Frame-Options` ou `Content-Security-Policy` : le panneau propose alors « Ouvrir à part ».
+- L'onglet **Barre du bas** inclut un éditeur de couleurs (fond, contours, boutons, pictogrammes), épaisseur des contours, arrondi et restauration du thème d'origine.
+- Les commandes grises natives de Photo Sphere Viewer sont masquées ; seule la barre créée dans NovaVisio Studio est affichée en bas.
+
 - Les visites déjà enregistrées conservent leurs boutons. Dans « Barre du bas », utiliser « Appliquer le modèle 5 icônes » pour remplacer l'ancienne barre.
 - Actions des boutons : navigation vers une scène, panneau d'information, site web, réservation, lien téléphonique ou email.
 - Les icônes et la barre sont intégrées dans l'export du projet éditable.
