@@ -1,4 +1,4 @@
-# NovaVisio Studio — prototype V0.2
+# NovaVisio Studio — prototype V0.3
 
 Éditeur indépendant de visites virtuelles 360° interactives, conçu pour NovaVisio. Interface en français, thème bleu nuit et turquoise.
 
@@ -30,6 +30,9 @@ npm run preview
 - **Import de tes propres icônes** PNG, JPG, WebP ou GIF animé dans « Mes icônes » (jusqu'à 1,5 Mo par fichier).
 - Application de ces icônes aux points interactifs avec réglage de leur taille.
 - **Barre inférieure personnalisable** : créer, renommer, déplacer et supprimer ses boutons, choisir leurs icônes et leur taille.
+- Modèle visuel inspiré de la référence « Au Bureau » : capsule argentée et 5 boutons bordeaux à pictogrammes dorés, sans libellés apparents (accessibles au survol et aux lecteurs d'écran).
+- **Plein écran de la visite entière** : le bouton dédié dans l'angle supérieur droit étend la scène et sa barre personnalisée, sans la masquer. Le plein écran passe en mode aperçu pour activer les boutons.
+- Les visites déjà enregistrées conservent leurs boutons. Dans « Barre du bas », utiliser « Appliquer le modèle 5 icônes » pour remplacer l'ancienne barre.
 - Actions des boutons : navigation vers une scène, panneau d'information, site web, réservation, lien téléphonique ou email.
 - Les icônes et la barre sont intégrées dans l'export du projet éditable.
 - Prévisualisation interactive.
