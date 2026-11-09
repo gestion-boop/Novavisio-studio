@@ -1,15 +1,23 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useRef, useState, type CSSProperties} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject} from './storage';
+import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle} from './storage';
 import './style.css';
 
 type EditMode = Hotspot['type'] | null;
 type PanelTab = 'points' | 'bar' | 'icons';
+type EmbedFrame = { title:string; url:string };
+const barColorFields:Array<{key:'background'|'outline'|'button'|'buttonOutline'|'icon';label:string}> = [
+  {key:'background',label:'Fond de la barre'},
+  {key:'outline',label:'Contour de la barre'},
+  {key:'button',label:'Fond des boutons'},
+  {key:'buttonOutline',label:'Contour des boutons'},
+  {key:'icon',label:'Couleur des pictogrammes'}
+];
 const glyphs = {home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid};
 type GlyphKey = keyof typeof glyphs;
 function BarGlyph({name}:{name:string}) {
@@ -35,6 +43,7 @@ type PanoramaProps = {
   onPick: (id:string)=>void;
   onNavigate: (id:string)=>void;
   onInfo: (hotspot:Hotspot)=>void;
+  onLink: (title:string,url:string)=>void;
 };
 function markerFor(h:Hotspot, icons:CustomIcon[]) {
   const icon=icons.find(i=>i.id===h.iconId);
@@ -48,11 +57,11 @@ function markerFor(h:Hotspot, icons:CustomIcon[]) {
     size:{width:sz,height:sz},anchor:'center center' as const,tooltip:h.title
   };
 }
-function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
-  const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo});
-  actions.current = {scene,mode,preview,onCreate,onPick,onNavigate,onInfo};
+  const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink});
+  actions.current = {scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink};
 
   useEffect(()=>{
     if (!box.current) return;
@@ -71,8 +80,11 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo}:P
       if (!h) return;
       if (a.preview) {
         if(h.type==='navigation' && h.target) a.onNavigate(h.target);
-        else if(h.type==='information') a.onInfo(h);
-        else if(h.type==='lien' && h.url) launchLink(h.url);
+        else if(h.type==='information') {
+          if (h.url && safeLink(h.url)) a.onLink(h.title,h.url);
+          else a.onInfo(h);
+        }
+        else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
       } else {
         a.onPick(h.id);
       }
@@ -104,6 +116,7 @@ function App(){
   const [status,setStatus]=useState('Initialisation…');
   const [help,setHelp]=useState(false);
   const [info,setInfo]=useState<Hotspot|null>(null);
+  const [frame,setFrame]=useState<EmbedFrame|null>(null);
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
   const iconInput=useRef<HTMLInputElement>(null);
@@ -152,6 +165,26 @@ function App(){
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
   const totalPoints=project.scenes.reduce((n,s)=>n+s.hotspots.length,0);
   const selectedBar=project.bottomBar.find(b=>b.id===selectedBarId) ?? null;
+  const barCss = {
+    '--nv-bar-bg':project.barStyle.background,
+    '--nv-bar-outline':project.barStyle.outline,
+    '--nv-button-bg':project.barStyle.button,
+    '--nv-button-outline':project.barStyle.buttonOutline,
+    '--nv-icon-color':project.barStyle.icon,
+    '--nv-bar-border-width':project.barStyle.outlineWidth+'px',
+    '--nv-button-border-width':project.barStyle.buttonOutlineWidth+'px',
+    '--nv-bar-roundness':project.barStyle.roundness+'px'
+  } as CSSProperties;
+  function changeBarStyle(update:Partial<BarStyle>) {
+    setProject(p=>({...p,barStyle:{...p.barStyle,...update}}));
+  }
+  function openLinkInTour(title:string,raw:string) {
+    const link=safeLink(raw);
+    if (!link) {setStatus('Lien invalide : utilise https://, tel: ou mailto:');return;}
+    setInfo(null);
+    if (/^https?:\/\//i.test(link)) setFrame({title,url:link});
+    else launchLink(link);
+  }
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
   }
@@ -177,8 +210,11 @@ function App(){
     if(item.type==='navigation'){
       const dest=item.target || project.scenes[0]?.id;
       if(dest && project.scenes.some(s=>s.id===dest))setActiveId(dest);
-    }else if(item.type==='information')setInfo({id:item.id,type:'information',title:item.title,text:item.text,target:'',yaw:0,pitch:0});
-    else if(item.url)launchLink(item.url);
+    }else if(item.type==='information') {
+      if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url);
+      else {setFrame(null);setInfo({id:item.id,type:'information',title:item.title,text:item.text,target:'',yaw:0,pitch:0});}
+    }
+    else if(item.url)openLinkInTour(item.title,item.url);
   }
   async function addIconFiles(list:FileList|null){
     if(!list?.length)return;
@@ -294,7 +330,7 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={setInfo}/>:<div className="empty">
+        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
           <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
           <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
@@ -302,7 +338,7 @@ function App(){
           {active && <button type="button" className="view-fullscreen-button" onClick={()=>void toggleFullscreen()} title={isFullscreen?'Quitter le plein écran':'Passer en plein écran'} aria-label={isFullscreen?'Quitter le plein écran':'Passer en plein écran'}>
             {isFullscreen?<Minimize size={20} strokeWidth={2.1}/>:<Maximize size={20} strokeWidth={2.1}/>}
           </button>}
-          {active && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite">
+          {active && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
@@ -312,6 +348,21 @@ function App(){
               </button>;
             })}
           </nav>}
+          {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
+            <section className="embed-shell" aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
+              <div className="embed-header">
+                <span className="embed-title">{frame.title}</span>
+                <div className="embed-actions">
+                  <a href={frame.url} target="_blank" rel="noopener noreferrer">Ouvrir à part ↗</a>
+                  <button type="button" onClick={()=>setFrame(null)} aria-label="Fermer le contenu intégré">✕</button>
+                </div>
+              </div>
+              <iframe key={frame.url} title={frame.title} src={frame.url}
+                sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                referrerPolicy="strict-origin-when-cross-origin" allow="fullscreen" loading="lazy" />
+              <p className="embed-hint">Si le site refuse l'intégration, utilise « Ouvrir à part ».</p>
+            </section>
+          </div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
             <div className="modal" onClick={event=>event.stopPropagation()}>
               <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer">✕</button>
