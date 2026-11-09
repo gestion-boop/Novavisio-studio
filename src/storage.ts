@@ -1,5 +1,20 @@
 export type Hotspot = { id: string; type: 'navigation' | 'information' | 'lien'; title: string; text: string; target: string; yaw: number; pitch: number; iconId?: string; iconSize?: number; url?: string };
 export type CustomIcon = { id: string; name: string; dataUrl: string };
+export type BarStyle = {
+  background: string;
+  outline: string;
+  button: string;
+  buttonOutline: string;
+  icon: string;
+  outlineWidth: number;
+  buttonOutlineWidth: number;
+  roundness: number;
+};
+export const defaultBarStyle = ():BarStyle => ({
+  background:'#c2c5c6', outline:'#987974',button:'#5d131a',
+  buttonOutline:'#4a1518',icon:'#f4d69a',
+  outlineWidth:2,buttonOutlineWidth:1,roundness:60
+});
 export type BottomBarItem = {
   id: string;
   title: string;
@@ -21,7 +36,7 @@ export const defaultBar = ():BottomBarItem[] => [
 export const isSafeIconDataUrl = (value: unknown): value is string =>
   typeof value === 'string' && /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
 export type Scene = { id: string; name: string; dataUrl: string; hotspots: Hotspot[] };
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; bottomBar: BottomBarItem[]; updatedAt: string };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; updatedAt: string };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -51,7 +66,7 @@ export async function saveProject(project:StudioProject):Promise<void> {
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
-export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],bottomBar:defaultBar(),updatedAt:new Date().toISOString()});
+export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],bottomBar:defaultBar(),barStyle:defaultBarStyle(),updatedAt:new Date().toISOString()});
 export const uid = () => crypto.randomUUID();
 export function readImage(file:File):Promise<string> {
   return new Promise((resolve,reject) => {
@@ -72,6 +87,16 @@ export function validateProject(value:unknown):StudioProject {
     if (!icon || typeof icon.id !== 'string' || typeof icon.name !== 'string' || icon.name.length > 150 || !isSafeIconDataUrl(icon.dataUrl) || icon.dataUrl.length > 3_000_000) {
       throw new Error('Icône importée non valide');
     }
+  }
+  // Les projets antérieurs à V0.4 reprennent automatiquement le thème Bordeaux.
+  const barStyle = {...defaultBarStyle(),...(p.barStyle ?? {})};
+  const isColor = (v:unknown)=>typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v);
+  if (!isColor(barStyle.background) || !isColor(barStyle.outline) ||
+      !isColor(barStyle.button) || !isColor(barStyle.buttonOutline) || !isColor(barStyle.icon) ||
+      !Number.isInteger(barStyle.outlineWidth) || barStyle.outlineWidth < 0 || barStyle.outlineWidth > 8 ||
+      !Number.isInteger(barStyle.buttonOutlineWidth) || barStyle.buttonOutlineWidth < 0 || barStyle.buttonOutlineWidth > 8 ||
+      !Number.isInteger(barStyle.roundness) || barStyle.roundness < 0 || barStyle.roundness > 60) {
+    throw new Error('Style de la barre non valide');
   }
   const bottomBar = p.bottomBar ?? defaultBar();
   if(!Array.isArray(bottomBar) || bottomBar.length > 30) throw new Error('Barre d’icônes non valide');
@@ -95,5 +120,5 @@ export function validateProject(value:unknown):StudioProject {
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048))) throw new Error('Point interactif non valide');
     }
   }
-  return {...p,version:1,name:p.name,scenes:p.scenes,icons,bottomBar,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  return {...p,version:1,name:p.name,scenes:p.scenes,icons,bottomBar,barStyle,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
