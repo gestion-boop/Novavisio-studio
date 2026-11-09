@@ -399,7 +399,9 @@ function App(){
                 <label>Titre<input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/></label>
                 {selected.type==='navigation'?<label>Destination<select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}><option value="">Sélectionner une scène…</option>{project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
                   : selected.type==='lien'?<label>Adresse (https://, tel:, mailto:)<input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
-                  :<label>Texte affiché<textarea rows={5} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/></label>}
+                  :<><label>Texte affiché<textarea rows={5} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/></label>
+                    <label>Page web intégrée (optionnel)<input type="text" placeholder="https://… menu, catalogue, galerie" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
+                    <small className="hint-inline">Si une adresse est renseignée, elle s'ouvre dans la visite à la place du texte.</small></>}
                 <div className="section-title">ICÔNE PERSONNALISÉE</div>
                 {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
                 <label>Taille de l'icône : {selected.iconSize??46} px<input type="range" min="24" max="120" step="2" value={selected.iconSize??46} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>
@@ -411,6 +413,22 @@ function App(){
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
+          <div className="style-settings">
+            <div className="section-title">COULEURS ET CONTOURS</div>
+            <div className="style-colors">
+              {barColorFields.map(field=><label className="style-color-field" key={field.key}>
+                <span>{field.label}</span>
+                <span className="style-picker"><input type="color" value={project.barStyle[field.key]} aria-label={field.label} onChange={e=>changeBarStyle({[field.key]:e.target.value})}/><small>{project.barStyle[field.key]}</small></span>
+              </label>)}
+            </div>
+            <label>Épaisseur du contour de la barre : {project.barStyle.outlineWidth} px
+              <input type="range" min="0" max="8" step="1" value={project.barStyle.outlineWidth} onChange={e=>changeBarStyle({outlineWidth:Number(e.target.value)})}/></label>
+            <label>Épaisseur du contour des boutons : {project.barStyle.buttonOutlineWidth} px
+              <input type="range" min="0" max="8" step="1" value={project.barStyle.buttonOutlineWidth} onChange={e=>changeBarStyle({buttonOutlineWidth:Number(e.target.value)})}/></label>
+            <label>Arrondi de la barre : {project.barStyle.roundness} px
+              <input type="range" min="0" max="60" step="1" value={project.barStyle.roundness} onChange={e=>changeBarStyle({roundness:Number(e.target.value)})}/></label>
+            <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
+          </div>
           <div className="bar-items-list">{project.bottomBar.map(item=><button key={item.id} className={'bar-item-row '+(selectedBarId===item.id?'current':'')} onClick={()=>setSelectedBarId(item.id)}>
             <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
             <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':'Lien'}</small>
@@ -425,7 +443,9 @@ function App(){
               <option value="navigation">Aller vers un panorama</option><option value="information">Afficher des informations</option><option value="lien">Ouvrir un lien / réserver / appeler</option>
             </select></label>
             {selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
-            : selectedBar.type==='information'?<label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
+            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
+              <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
+              <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
             <div className="section-title">CHOISIR L’ICÔNE</div>
             {iconSelector(selectedBar.iconId,id=>patchBar({iconId:id}))}
@@ -447,7 +467,7 @@ function App(){
         </div>}
       </aside>
     </div>
-    <footer><span>NovaVisio Studio · Prototype v0.3</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
+    <footer><span>NovaVisio Studio · Prototype v0.4</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
