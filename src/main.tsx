@@ -36,7 +36,7 @@ function Panorama({scene,mode,preview,onCreate,onPick,onNavigate,onInfo}:Panoram
       plugins:[MarkersPlugin]
     });
     viewerRef.current = viewer;
-    const markers = viewer.getPlugin(MarkersPlugin)!;
+    const markers = viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
     markers.addEventListener('select-marker',({marker})=>{
       const a=actions.current;
       const h=a.scene.hotspots.find(item=>item.id===marker.id);
@@ -58,7 +58,7 @@ function Panorama({scene,mode,preview,onCreate,onPick,onNavigate,onInfo}:Panoram
     return ()=>{viewerRef.current=null; viewer.destroy();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
-    viewerRef.current?.getPlugin(MarkersPlugin)?.setMarkers(scene.hotspots.map(markerFor));
+    (viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin | undefined)?.setMarkers(scene.hotspots.map(markerFor));
   },[scene.hotspots]);
   return <div ref={box} className="panorama" />;
 }
