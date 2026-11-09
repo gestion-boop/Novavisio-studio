@@ -388,19 +388,29 @@ function App(){
               </button>;
             })}
           </nav>}
+          {introVisible && project.introEnabled && project.introUrl && <div className="intro-overlay">
+            <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
+            <div className="intro-bottom-actions">
+              <button type="button" className="intro-enter" onClick={()=>setIntroVisible(false)}>Entrer dans la visite <span aria-hidden="true">→</span></button>
+            </div>
+          </div>}
+          {imageZoom?.imageDataUrl && <div className={'image-lightbox '+(imageZoom.fadeOnClick!==false?'with-fade':'')} onClick={()=>setImageZoom(null)}>
+            <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={()=>setImageZoom(null)}>✕</button>
+            <img src={imageZoom.imageDataUrl} alt={imageZoom.title} onClick={e=>e.stopPropagation()}/>
+          </div>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
             <section className="embed-shell" aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
               <div className="embed-header">
                 <span className="embed-title">{frame.title}</span>
                 <div className="embed-actions">
-                  <a href={frame.url} target="_blank" rel="noopener noreferrer">Ouvrir à part ↗</a>
+                  
                   <button type="button" onClick={()=>setFrame(null)} aria-label="Fermer le contenu intégré">✕</button>
                 </div>
               </div>
               <iframe key={frame.url} title={frame.title} src={frame.url}
                 sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                 referrerPolicy="strict-origin-when-cross-origin" allow="fullscreen" loading="lazy" />
-              <p className="embed-hint">Si le site refuse l'intégration, utilise « Ouvrir à part ».</p>
+              <p className="embed-hint">Certains sites externes n'autorisent pas leur affichage dans une iframe.</p>
             </section>
           </div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
@@ -513,6 +523,17 @@ function App(){
             <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
           </>}
         </div>}
+        {panel==='intro' && <div className="properties">
+          <div className="section-title">INTRODUCTION DE LA VISITE</div>
+          <p className="hint">Chaque visite possède son URL d’introduction. Le splash screen s’affiche au lancement et le bouton « Entrer dans la visite » donne accès au panorama.</p>
+          <label className="toggle-row"><input type="checkbox" checked={project.introEnabled} onChange={e=>setProject(p=>({...p,introEnabled:e.target.checked}))}/> Activer l’introduction</label>
+          <label>Adresse HTTPS de l'introduction
+            <input type="url" value={project.introUrl} placeholder="https://intro-au-bureau-narbonne.vercel.app/" onChange={e=>setProject(p=>({...p,introUrl:e.target.value}))}/>
+          </label>
+          <small className="hint-inline">Exemple : intro-au-bureau-narbonne.vercel.app. Renseigne une URL différente pour chaque projet.</small>
+          <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setPreview(true);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
+          <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
+        </div>}
         {panel==='icons' && <div className="properties">
           <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
           <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
@@ -523,10 +544,11 @@ function App(){
         </div>}
       </aside>
     </div>
-    <footer><span>NovaVisio Studio · Prototype v0.4</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
+    <footer><span>NovaVisio Studio · Prototype v0.5</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
+    <input ref={frameImageInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void addFrameImage(e.target.files?.[0])}/>
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
