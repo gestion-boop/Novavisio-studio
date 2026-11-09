@@ -4,25 +4,45 @@ import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,saveProject,uid,validateProject,type Hotspot,type Scene,type StudioProject} from './storage';
+import {loadProject,newProject,readImage,saveProject,uid,validateProject,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject} from './storage';
 import './style.css';
 
 type EditMode = Hotspot['type'] | null;
+type PanelTab = 'points' | 'bar' | 'icons';
+const glyphs:Record<string,string> = {home:'⌂', info:'ⓘ',calendar:'▦',map:'⌖',phone:'☎',web:'◎',arrow:'➜',menu:'☷',star:'★'};
+function safeLink(raw:string):string|null {
+  const link = raw.trim();
+  if (!/^(https?:\/\/|mailto:|tel:)/i.test(link)) return null;
+  try { const url=new URL(link); return ['https:','http:','mailto:','tel:'].includes(url.protocol)?link:null; }
+  catch { return null; }
+}
+function launchLink(link:string) {
+  const verified=safeLink(link);
+  if (!verified) return false;
+  if (/^https?:/i.test(verified)) window.open(verified,'_blank','noopener,noreferrer');
+  else window.location.href=verified;
+  return true;
+}
 type PanoramaProps = {
-  scene: Scene; mode: EditMode; preview: boolean;
+  scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean;
   onCreate: (yaw:number,pitch:number)=>void;
   onPick: (id:string)=>void;
   onNavigate: (id:string)=>void;
   onInfo: (hotspot:Hotspot)=>void;
 };
-function markerFor(h:Hotspot) {
+function markerFor(h:Hotspot, icons:CustomIcon[]) {
+  const icon=icons.find(i=>i.id===h.iconId);
+  const sz=Math.max(24,Math.min(120,h.iconSize ?? 46));
+  const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   return {
     id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html:'<span class="nv-marker" aria-label="Point interactif">' + (h.type==='navigation'?'➜':'i') + '</span>',
-    size:{width:46,height:46},anchor:'center center' as const,tooltip:h.title
+    html:icon
+      ? '<span class="nv-marker nv-custom"><img src="'+icon.dataUrl+'" alt="" draggable="false"/></span>'
+      : '<span class="nv-marker" aria-label="Point interactif">'+symbol+'</span>',
+    size:{width:sz,height:sz},anchor:'center center' as const,tooltip:h.title
   };
 }
-function Panorama({scene,mode,preview,onCreate,onPick,onNavigate,onInfo}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo});
@@ -44,6 +64,7 @@ function Panorama({scene,mode,preview,onCreate,onPick,onNavigate,onInfo}:Panoram
       if (a.preview) {
         if(h.type==='navigation' && h.target) a.onNavigate(h.target);
         else if(h.type==='information') a.onInfo(h);
+        else if(h.type==='lien' && h.url) launchLink(h.url);
       } else {
         a.onPick(h.id);
       }
@@ -54,12 +75,12 @@ function Panorama({scene,mode,preview,onCreate,onPick,onNavigate,onInfo}:Panoram
         a.onCreate(event.data.yaw,event.data.pitch);
       }
     });
-    markers.setMarkers(scene.hotspots.map(markerFor));
+    markers.setMarkers(scene.hotspots.map(h=>markerFor(h,icons)));
     return ()=>{viewerRef.current=null; viewer.destroy();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
-    (viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin | undefined)?.setMarkers(scene.hotspots.map(markerFor));
-  },[scene.hotspots]);
+    (viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin | undefined)?.setMarkers(scene.hotspots.map(h=>markerFor(h,icons)));
+  },[scene.hotspots,icons]);
   return <div ref={box} className="panorama" />;
 }
 
@@ -68,6 +89,8 @@ function App(){
   const [ready,setReady]=useState(false);
   const [activeId,setActiveId]=useState('');
   const [selectedId,setSelectedId]=useState('');
+  const [selectedBarId,setSelectedBarId]=useState('');
+  const [panel,setPanel]=useState<PanelTab>('points');
   const [mode,setMode]=useState<EditMode>(null);
   const [preview,setPreview]=useState(false);
   const [status,setStatus]=useState('Initialisation…');
@@ -75,6 +98,7 @@ function App(){
   const [info,setInfo]=useState<Hotspot|null>(null);
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
+  const iconInput=useRef<HTMLInputElement>(null);
 
   useEffect(()=>{
     loadProject().then(p=>{
@@ -96,8 +120,73 @@ function App(){
   const active=project.scenes.find(s=>s.id===activeId) ?? null;
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
   const totalPoints=project.scenes.reduce((n,s)=>n+s.hotspots.length,0);
+  const selectedBar=project.bottomBar.find(b=>b.id===selectedBarId) ?? null;
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
+  }
+  function patchBar(update:Partial<BottomBarItem>){
+    setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===selectedBarId?{...b,...update}:b)}));
+  }
+  function addBar(type:BottomBarItem['type']='information'){
+    if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}
+    const newItem:BottomBarItem={id:uid(),title:type==='navigation'?'Nouvelle navigation':type==='lien'?'Nouveau lien':'Nouvelle information',type,target:'',text:'',url:'',builtinIcon:type==='navigation'?'arrow':type==='lien'?'web':'info'};
+    setProject(p=>({...p,bottomBar:[...p.bottomBar,newItem]}));setSelectedBarId(newItem.id);setPanel('bar');
+  }
+  function moveBar(direction:number){
+    if(!selectedBarId)return;
+    setProject(p=>{
+      const items=[...p.bottomBar];const i=items.findIndex(b=>b.id===selectedBarId);const j=i+direction;
+      if(i<0||j<0||j>=items.length)return p;
+      [items[i],items[j]]=[items[j],items[i]];
+      return {...p,bottomBar:items};
+    });
+  }
+  function triggerBar(item:BottomBarItem){
+    if(!preview){setSelectedBarId(item.id);setPanel('bar');setSelectedId('');return;}
+    if(item.type==='navigation'){
+      const dest=item.target || project.scenes[0]?.id;
+      if(dest && project.scenes.some(s=>s.id===dest))setActiveId(dest);
+    }else if(item.type==='information')setInfo({id:item.id,type:'information',title:item.title,text:item.text,target:'',yaw:0,pitch:0});
+    else if(item.url)launchLink(item.url);
+  }
+  async function addIconFiles(list:FileList|null){
+    if(!list?.length)return;
+    const incoming:CustomIcon[]=[];
+    for(const file of Array.from(list)){
+      if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)){setStatus('Format autorisé : PNG, JPG, WebP ou GIF');continue;}
+      if(file.size > 1_500_000){setStatus('Icône trop lourde (1,5 Mo maximum)');continue;}
+      try {
+        const dataUrl=await readImage(file);
+        if(!isSafeIconDataUrl(dataUrl))throw new Error('Format de fichier non reconnu');
+        incoming.push({id:uid(),name:file.name.replace(/\\.[^/.]+$/,'').slice(0,100),dataUrl});
+      }catch{setStatus('Icône non reconnue : '+file.name);}
+    }
+    if(incoming.length){
+      setProject(p=>({...p,icons:[...p.icons,...incoming].slice(0,150)}));
+      setStatus(incoming.length+' icône(s) ajoutée(s)');
+      if(selectedId)patchPoint({iconId:incoming[0].id});
+      if(selectedBarId)patchBar({iconId:incoming[0].id});
+    }
+    if(iconInput.current)iconInput.current.value='';
+  }
+  function deleteIcon(id:string){
+    if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
+    setProject(p=>({...p,
+      icons:p.icons.filter(i=>i.id!==id),
+      scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>h.iconId===id?{...h,iconId:undefined}:h)})),
+      bottomBar:p.bottomBar.map(b=>b.iconId===id?{...b,iconId:undefined}:b)
+    }));
+  }
+  function iconSelector(iconId:string|undefined,apply:(value:string|undefined)=>void){
+    return <div className="icon-field">
+      <div className="icon-choice-row">
+        <button type="button" className={!iconId?'icon-choice chosen':'icon-choice'} title="Icône par défaut" onClick={()=>apply(undefined)}>◉</button>
+        {project.icons.map(icon=><button key={icon.id} type="button" title={icon.name} className={icon.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>apply(icon.id)}>
+          <img src={icon.dataUrl} alt={icon.name}/></button>)}
+        <button type="button" className="icon-choice icon-upload" title="Importer une icône" onClick={()=>iconInput.current?.click()}>＋</button>
+      </div>
+      <small className="hint-inline">PNG transparent recommandé · GIF animé accepté</small>
+    </div>;
   }
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
@@ -121,14 +210,14 @@ function App(){
   }
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
-    const h:Hotspot={id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':'Informations',text:'',target:'',yaw,pitch};
+    const h:Hotspot={id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':'Informations',text:'',target:'',yaw,pitch};
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
-    setSelectedId(h.id);setMode(null);
+    setSelectedId(h.id);setPanel('points');setMode(null);
   }
   function removeScene(){
     if(!active||!window.confirm('Supprimer le panorama « '+active.name+' » ?'))return;
     const remaining=project.scenes.filter(s=>s.id!==active.id).map(s=>({...s,hotspots:s.hotspots.filter(h=>h.target!==active.id)}));
-    setProject(p=>({...p,scenes:remaining}));setActiveId(remaining[0]?.id??'');setSelectedId('');
+    setProject(p=>({...p,scenes:remaining,bottomBar:p.bottomBar.map(b=>b.target===active.id?{...b,target:''}:b)}));setActiveId(remaining[0]?.id??'');setSelectedId('');
   }
   function download(){
     const blob=new Blob([JSON.stringify(project)],{type:'application/json'});
