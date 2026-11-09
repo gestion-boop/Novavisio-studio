@@ -1,9 +1,26 @@
 export type Hotspot = { id: string; type: 'navigation' | 'information' | 'lien'; title: string; text: string; target: string; yaw: number; pitch: number; iconId?: string; iconSize?: number; url?: string };
 export type CustomIcon = { id: string; name: string; dataUrl: string };
+export type BottomBarItem = {
+  id: string;
+  title: string;
+  type: 'navigation' | 'information' | 'lien';
+  target: string;
+  text: string;
+  url: string;
+  iconId?: string;
+  iconSize?: number;
+  builtinIcon?: string;
+};
+export const defaultBar = ():BottomBarItem[] => [
+  {id:crypto.randomUUID(),title:'Accueil',type:'navigation',target:'',text:'',url:'',builtinIcon:'home'},
+  {id:crypto.randomUUID(),title:'Informations',type:'information',target:'',text:'',url:'',builtinIcon:'info'},
+  {id:crypto.randomUUID(),title:'Réserver',type:'lien',target:'',text:'',url:'',builtinIcon:'calendar'},
+  {id:crypto.randomUUID(),title:'Itinéraire',type:'lien',target:'',text:'',url:'',builtinIcon:'map'},
+];
 export const isSafeIconDataUrl = (value: unknown): value is string =>
   typeof value === 'string' && /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
 export type Scene = { id: string; name: string; dataUrl: string; hotspots: Hotspot[] };
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; updatedAt: string };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; bottomBar: BottomBarItem[]; updatedAt: string };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -33,7 +50,7 @@ export async function saveProject(project:StudioProject):Promise<void> {
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
-export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],updatedAt:new Date().toISOString()});
+export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],bottomBar:defaultBar(),updatedAt:new Date().toISOString()});
 export const uid = () => crypto.randomUUID();
 export function readImage(file:File):Promise<string> {
   return new Promise((resolve,reject) => {
@@ -55,6 +72,18 @@ export function validateProject(value:unknown):StudioProject {
       throw new Error('Icône importée non valide');
     }
   }
+  const bottomBar = p.bottomBar ?? defaultBar();
+  if(!Array.isArray(bottomBar) || bottomBar.length > 30) throw new Error('Barre d’icônes non valide');
+  for(const item of bottomBar) {
+    if (!item || typeof item.id !== 'string' || typeof item.title !== 'string' || item.title.length > 120 ||
+      !['navigation','information','lien'].includes(item.type) ||
+      typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
+      item.url.length > 2048 || item.text.length > 8000 ||
+      (item.iconId !== undefined && (typeof item.iconId !== 'string' || !icons.some(icon => icon.id === item.iconId))) ||
+      (item.iconSize !== undefined && (!Number.isFinite(item.iconSize) || item.iconSize < 20 || item.iconSize > 100)) ||
+      (item.builtinIcon !== undefined && typeof item.builtinIcon !== 'string')
+    ) throw new Error('Bouton de la barre non valide');
+  }
   for (const scene of p.scenes) {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
@@ -65,5 +94,5 @@ export function validateProject(value:unknown):StudioProject {
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048))) throw new Error('Point interactif non valide');
     }
   }
-  return {...p,version:1,name:p.name,scenes:p.scenes,icons,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  return {...p,version:1,name:p.name,scenes:p.scenes,icons,bottomBar,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
