@@ -12,10 +12,11 @@ export type BottomBarItem = {
   builtinIcon?: string;
 };
 export const defaultBar = ():BottomBarItem[] => [
-  {id:crypto.randomUUID(),title:'Accueil',type:'navigation',target:'',text:'',url:'',builtinIcon:'home'},
+  {id:crypto.randomUUID(),title:'Carte',type:'information',target:'',text:'',url:'',builtinIcon:'utensils'},
+  {id:crypto.randomUUID(),title:'Photos',type:'information',target:'',text:'',url:'',builtinIcon:'images'},
+  {id:crypto.randomUUID(),title:'Espaces',type:'navigation',target:'',text:'',url:'',builtinIcon:'grid'},
+  {id:crypto.randomUUID(),title:'Appeler',type:'lien',target:'',text:'',url:'',builtinIcon:'phone'},
   {id:crypto.randomUUID(),title:'Informations',type:'information',target:'',text:'',url:'',builtinIcon:'info'},
-  {id:crypto.randomUUID(),title:'Réserver',type:'lien',target:'',text:'',url:'',builtinIcon:'calendar'},
-  {id:crypto.randomUUID(),title:'Itinéraire',type:'lien',target:'',text:'',url:'',builtinIcon:'map'},
 ];
 export const isSafeIconDataUrl = (value: unknown): value is string =>
   typeof value === 'string' && /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
