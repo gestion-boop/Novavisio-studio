@@ -1,6 +1,9 @@
-export type Hotspot = { id: string; type: 'navigation' | 'information'; title: string; text: string; target: string; yaw: number; pitch: number };
+export type Hotspot = { id: string; type: 'navigation' | 'information' | 'lien'; title: string; text: string; target: string; yaw: number; pitch: number; iconId?: string; iconSize?: number; url?: string };
+export type CustomIcon = { id: string; name: string; dataUrl: string };
+export const isSafeIconDataUrl = (value: unknown): value is string =>
+  typeof value === 'string' && /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
 export type Scene = { id: string; name: string; dataUrl: string; hotspots: Hotspot[] };
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; updatedAt: string };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; updatedAt: string };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -30,7 +33,7 @@ export async function saveProject(project:StudioProject):Promise<void> {
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
-export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],updatedAt:new Date().toISOString()});
+export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],updatedAt:new Date().toISOString()});
 export const uid = () => crypto.randomUUID();
 export function readImage(file:File):Promise<string> {
   return new Promise((resolve,reject) => {
@@ -44,12 +47,23 @@ export function validateProject(value:unknown):StudioProject {
   if (!value || typeof value !== 'object') throw new Error('Format de projet incorrect');
   const p = value as Partial<StudioProject>;
   if (p.version !== 1 || typeof p.name !== 'string' || !Array.isArray(p.scenes) || p.scenes.length > 500) throw new Error('Projet non reconnu');
+  // Les anciens projets V0.1 n'ont pas encore de bibliothèque d'icônes.
+  const icons = p.icons ?? [];
+  if (!Array.isArray(icons) || icons.length > 150) throw new Error('Bibliothèque d’icônes non valide');
+  for (const icon of icons) {
+    if (!icon || typeof icon.id !== 'string' || typeof icon.name !== 'string' || icon.name.length > 150 || !isSafeIconDataUrl(icon.dataUrl) || icon.dataUrl.length > 3_000_000) {
+      throw new Error('Icône importée non valide');
+    }
+  }
   for (const scene of p.scenes) {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
     for (const h of scene.hotspots) {
-      if (!h || typeof h.id !== 'string' || !['navigation','information'].includes(h.type) || typeof h.title !== 'string' || typeof h.text !== 'string' || typeof h.target !== 'string' || !Number.isFinite(h.yaw) || !Number.isFinite(h.pitch)) throw new Error('Point interactif non valide');
+      if (!h || typeof h.id !== 'string' || !['navigation','information','lien'].includes(h.type) || typeof h.title !== 'string' || typeof h.text !== 'string' || typeof h.target !== 'string' || !Number.isFinite(h.yaw) || !Number.isFinite(h.pitch) ||
+        (h.iconId !== undefined && (typeof h.iconId !== 'string' || !icons.some(icon=>icon.id===h.iconId))) ||
+        (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 24 || h.iconSize > 120)) ||
+        (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048))) throw new Error('Point interactif non valide');
     }
   }
-  return {...p,version:1,name:p.name,scenes:p.scenes,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  return {...p,version:1,name:p.name,scenes:p.scenes,icons,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
