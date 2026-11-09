@@ -1,4 +1,4 @@
-# NovaVisio Studio — prototype V0.1
+# NovaVisio Studio — prototype V0.2
 
 Éditeur indépendant de visites virtuelles 360° interactives, conçu pour NovaVisio. Interface en français, thème bleu nuit et turquoise.
 
@@ -27,6 +27,11 @@ npm run preview
 - Gestion des scènes avec miniatures, renommage et suppression.
 - Ajout de hotspots de navigation entre scènes.
 - Ajout de hotspots d'information avec titre et texte.
+- **Import de tes propres icônes** PNG, JPG, WebP ou GIF animé dans « Mes icônes » (jusqu'à 1,5 Mo par fichier).
+- Application de ces icônes aux points interactifs avec réglage de leur taille.
+- **Barre inférieure personnalisable** : créer, renommer, déplacer et supprimer ses boutons, choisir leurs icônes et leur taille.
+- Actions des boutons : navigation vers une scène, panneau d'information, site web, réservation, lien téléphonique ou email.
+- Les icônes et la barre sont intégrées dans l'export du projet éditable.
 - Prévisualisation interactive.
 - Sauvegarde automatique locale avec IndexedDB.
 - Export / réimport d'un projet éditable au format `.nvstudio.json`, comprenant les médias.
