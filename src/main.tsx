@@ -263,46 +263,107 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area">{active?<Panorama key={active.id} scene={active} mode={mode} preview={preview} onCreate={newPoint} onPick={setSelectedId} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={setInfo}/>:<div className="empty">
+        <div className="view-area">{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={setInfo}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
           <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
           <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
-        </div>}</div>
+        </div>}
+          {active && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite">
+            {project.bottomBar.map(item=>{
+              const icon=project.icons.find(i=>i.id===item.iconId);
+              const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
+              return <button type="button" key={item.id} className={'visitor-bar-button '+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title}>
+                <span className="visitor-bar-icon">{icon?<img alt="" src={icon.dataUrl} style={{width:Math.min(item.iconSize??32,72),height:Math.min(item.iconSize??32,72)}}/>:glyphs[item.builtinIcon??'info']??'◉'}</span>
+                <span className="visitor-bar-label">{item.title}</span>
+              </button>;
+            })}
+          </nav>}
+        </div>
         {active && !preview && <div className="toolbar">
           <span>OUTILS</span>
           <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')}>➜ Navigation</button>
           <button className={'tool '+(mode==='information'?'selected':'')} onClick={()=>setMode(mode==='information'?null:'information')}>ⓘ Information</button>
+          <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')}>↗ Lien</button>
+          <button className="tool" onClick={()=>{setPanel('bar');setMode(null);}}>☷ Barre du bas</button>
           <div className="grow"/><button className="tool danger" onClick={removeScene}>⌫ Supprimer scène</button>
         </div>}
       </main>
       <aside className="right panel">
-        <div className="section-title">PROPRIÉTÉS</div>
-        {!active?<div className="hint">Sélectionne un panorama pour afficher ses propriétés.</div>:<div className="properties">
-          <label>Nom du panorama<input value={active.name} onChange={e=>patchScene(s=>({...s,name:e.target.value}))}/></label>
-          <hr/><div className="section-title">POINTS INTERACTIFS <span className="counter">{active.hotspots.length}</span></div>
-          {!selected?<><div className="hint">{mode?'Clique à l’endroit voulu sur le panorama pour créer le point.':'Choisis un point existant ou utilise les outils sous le panorama.'}</div>
-            {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{h.type==='navigation'?'➜':'ⓘ'}</span>{h.title}</button>)}
-          </>:<><button className="back" onClick={()=>setSelectedId('')}>← Tous les points</button>
-            <div className="tag">{selected.type==='navigation'?'➜ Navigation':'ⓘ Information'}</div>
-            <label>Titre du point<input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/></label>
-            {selected.type==='navigation'?<label>Scène de destination<select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}>
-              <option value="">Sélectionner…</option>{project.scenes.filter(s=>s.id!==activeId).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-            :<label>Texte affiché<textarea rows={6} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/></label>}
-            <small className="coords">Position : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</small>
-            <button className="delete" onClick={()=>{patchScene(s=>({...s,hotspots:s.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>Supprimer ce point</button>
+        <div className="side-tabs" role="tablist" aria-label="Options d'édition">
+          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points')}>Points</button>
+          <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>setPanel('bar')}>Barre du bas</button>
+          <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons')}>Mes icônes</button>
+        </div>
+        {panel==='points' && <div className="properties">
+          <div className="section-title">PANORAMA</div>
+          {!active?<div className="hint">Importe un panorama pour configurer des points interactifs.</div>:<>
+            <label>Nom de la scène<input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/></label>
+            <hr/><div className="section-title">POINTS INTERACTIFS <span className="counter">{active.hotspots.length}</span></div>
+            {!selected?<><p className="hint">Choisis Navigation, Information ou Lien sous le panorama, puis clique à l'endroit souhaité.</p>
+                {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':'ⓘ'}</span>{h.title}</button>)}
+              </>:<>
+                <button className="back" onClick={()=>setSelectedId('')}>← Tous les points</button>
+                <div className="tag">{selected.type==='navigation'?'➜ Navigation':selected.type==='lien'?'↗ Lien':'ⓘ Information'}</div>
+                <label>Titre<input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/></label>
+                {selected.type==='navigation'?<label>Destination<select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}><option value="">Sélectionner une scène…</option>{project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+                  : selected.type==='lien'?<label>Adresse (https://, tel:, mailto:)<input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
+                  :<label>Texte affiché<textarea rows={5} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/></label>}
+                <div className="section-title">ICÔNE PERSONNALISÉE</div>
+                {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
+                <label>Taille de l'icône : {selected.iconSize??46} px<input type="range" min="24" max="120" step="2" value={selected.iconSize??46} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>
+                <small className="coords">Position : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</small>
+                <button className="delete" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>Supprimer ce point</button>
+              </>}
           </>}
+        </div>}
+        {panel==='bar' && <div className="properties">
+          <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
+          <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
+          <div className="bar-items-list">{project.bottomBar.map(item=><button key={item.id} className={'bar-item-row '+(selectedBarId===item.id?'current':'')} onClick={()=>setSelectedBarId(item.id)}>
+            <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:glyphs[item.builtinIcon??'info']??'◉'}</span>
+            <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':'Lien'}</small>
+          </button>)}</div>
+          <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
+          {selectedBar && <>
+            <hr/>
+            <div className="section-title">CONFIGURER LE BOUTON</div>
+            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
+            <label>Action<select value={selectedBar.type} onChange={e=>patchBar({type:e.target.value as BottomBarItem['type']})}>
+              <option value="navigation">Aller vers un panorama</option><option value="information">Afficher des informations</option><option value="lien">Ouvrir un lien / réserver / appeler</option>
+            </select></label>
+            {selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+            : selectedBar.type==='information'?<label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
+            :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
+            <div className="section-title">CHOISIR L’ICÔNE</div>
+            {iconSelector(selectedBar.iconId,id=>patchBar({iconId:id}))}
+            {!selectedBar.iconId && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
+              {Object.keys(glyphs).map(key=><option value={key} key={key}>{glyphs[key]} {key}</option>)}
+            </select></label>}
+            <label>Taille : {selectedBar.iconSize??32} px<input type="range" min="20" max="72" step="2" value={selectedBar.iconSize??32} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
+            <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
+            <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
+          </>}
+        </div>}
+        {panel==='icons' && <div className="properties">
+          <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
+          <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
+          <button className="import" onClick={()=>iconInput.current?.click()}>＋ Importer mes icônes</button>
+          <small className="hint-inline">Formats : PNG (transparent), JPG, WebP, GIF animé · 1,5 Mo maximum par fichier.</small>
+          <div className="asset-grid">{project.icons.map(icon=><div className="asset-card" key={icon.id}><img src={icon.dataUrl} alt={icon.name}/><span title={icon.name}>{icon.name}</span><button title={'Supprimer '+icon.name} onClick={()=>deleteIcon(icon.id)}>✕</button></div>)}</div>
+          {!project.icons.length && <p className="hint">Ta bibliothèque est vide. Les icônes intégrées restent disponibles en attendant.</p>}
         </div>}
       </aside>
     </div>
-    <footer><span>NovaVisio Studio · Prototype v0.1</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
+    <footer><span>NovaVisio Studio · Prototype v0.2</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
+    <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
       <p><b>2.</b> Choisis « Navigation » ou « Information », puis clique sur l’image pour placer le point.</p>
-      <p><b>3.</b> Paramètre son contenu à droite et teste en mode « Prévisualiser ».</p>
-      <p><b>4.</b> Tes modifications sont sauvegardées dans ce navigateur. Exporte ton projet pour conserver une copie.</p>
+      <p><b>3.</b> Dans « Barre du bas », ajoute des boutons et choisis leur action. Dans « Mes icônes », importe tes PNG, WebP ou GIF.</p><p><b>4.</b> Paramètre les points et boutons dans la colonne de droite, puis teste en mode « Prévisualiser ».</p>
+      <p><b>5.</b> Tes modifications sont sauvegardées dans ce navigateur. Exporte ton projet pour conserver une copie.</p>
       <p className="warning">Prototype : l’export HTML autonome n’est pas encore disponible. N’efface pas les données du navigateur sans exporter ton projet.</p>
       <button className="primary" onClick={()=>setHelp(false)}>Compris</button>
     </div></div>}
