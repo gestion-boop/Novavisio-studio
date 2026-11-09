@@ -1,4 +1,4 @@
-# NovaVisio Studio — prototype V0.4
+# NovaVisio Studio — prototype V0.5
 
 Éditeur indépendant de visites virtuelles 360° interactives, conçu pour NovaVisio. Interface en français, thème bleu nuit et turquoise.
 
@@ -41,6 +41,11 @@ npm run preview
 - Les visites déjà enregistrées conservent leurs boutons. Dans « Barre du bas », utiliser « Appliquer le modèle 5 icônes » pour remplacer l'ancienne barre.
 - Actions des boutons : navigation vers une scène, panneau d'information, site web, réservation, lien téléphonique ou email.
 - Les icônes et la barre sont intégrées dans l'export du projet éditable.
+- **Introduction personnalisée par visite** : URL HTTPS de splash screen, activation optionnelle et bouton pour entrer dans la visite.
+- **Cadres photo dans les panoramas** : import d'une image, taille, quatre coins ajustables indépendamment pour suivre la perspective et agrandissement optionnel en fondu au clic.
+- **Dossier de publication HTML** exporté en ZIP avec `index.html`, `assets/` (lecteur CSS/JS), `media/` (panoramas, cadres et icônes), `data/visite.json` et `LISEZ-MOI.txt`.
+- **Lecteur public indépendant** : fonctionne sans NovaVisio Studio sur un hébergement de fichiers statiques, et ne propose pas « Ouvrir à part » dans les fenêtres iframe.
+
 - Prévisualisation interactive.
 - Sauvegarde automatique locale avec IndexedDB.
 - Export / réimport d'un projet éditable au format `.nvstudio.json`, comprenant les médias.
@@ -49,7 +54,7 @@ npm run preview
 
 **Prototype expérimental : ne pas utiliser comme outil de production sans tests.**
 
-- L'export est un **fichier de projet éditable**. L'export HTML/ZIP autonome n'est pas encore implémenté.
+- Deux exports distincts : **Sauvegarder le projet** (éditable au format `.nvstudio.json`) et **Exporter HTML / ZIP** (visite publique autonome).
 - Le stockage est local au navigateur et limité à un projet ouvert à la fois.
 - Les grandes images occupent beaucoup d'espace ; la sauvegarde peut échouer si le quota du navigateur est dépassé.
 - Les panoramas doivent déjà être assemblés en photos 360° équirectangulaires (rapport 2:1 recommandé).
@@ -82,3 +87,17 @@ src/
 ## Technologies et licences
 
 React, TypeScript, Vite et Photo Sphere Viewer. Respecter les licences des dépendances tierces. Le nom NovaVisio et les ressources de marque appartiennent à leurs titulaires respectifs.
+
+## Publication de la visite HTML
+
+1. Ouvrir un projet contenant au moins un panorama, vérifier les liens et, si besoin, activer l'introduction.
+2. Cliquer sur **Exporter HTML / ZIP**.
+3. Décompresser l'archive. À l'intérieur, un dossier `nom-de-visite/` contient `index.html`, `assets/`, `media/`, `data/` et `LISEZ-MOI.txt`.
+4. Déposer l'ensemble du contenu de ce dossier dans un hébergement statique (Vercel, FTP, etc.).
+5. Ouvrir la page `index.html` via une adresse HTTP(S).
+
+Ne jamais déplacer `index.html` sans les dossiers associés. Pour tester sur ordinateur, lancer un petit serveur HTTP (par exemple `python3 -m http.server 8080`) dans le dossier exporté. Un double-clic direct sur `index.html` n'est pas garanti avec les modules JavaScript modernes.
+
+La page d'introduction externe et les liens iframe nécessitent Internet. Certains sites externes interdisent leur intégration iframe ; aucun lien « Ouvrir à part » n'apparaît dans l'interface de la visite, conformément au design demandé.
+
+Ce prototype ne garantit pas encore les performances sur des dizaines d'images 8K ou plus, et la sauvegarde locale dépend du quota du navigateur.
