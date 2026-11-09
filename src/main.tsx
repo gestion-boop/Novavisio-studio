@@ -38,7 +38,7 @@ function markerFor(h:Hotspot, icons:CustomIcon[]) {
     id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
     html:icon
       ? '<span class="nv-marker nv-custom"><img src="'+icon.dataUrl+'" alt="" draggable="false"/></span>'
-      : '<span class="nv-marker" aria-label="Point interactif">'+symbol+'</span>',
+      : '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>',
     size:{width:sz,height:sz},anchor:'center center' as const,tooltip:h.title
   };
 }
@@ -164,8 +164,8 @@ function App(){
     if(incoming.length){
       setProject(p=>({...p,icons:[...p.icons,...incoming].slice(0,150)}));
       setStatus(incoming.length+' icône(s) ajoutée(s)');
-      if(selectedId)patchPoint({iconId:incoming[0].id});
-      if(selectedBarId)patchBar({iconId:incoming[0].id});
+      if(panel==='points' && selectedId)patchPoint({iconId:incoming[0].id});
+      if(panel==='bar' && selectedBarId)patchBar({iconId:incoming[0].id});
     }
     if(iconInput.current)iconInput.current.value='';
   }
