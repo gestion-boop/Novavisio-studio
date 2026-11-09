@@ -50,7 +50,7 @@ export const defaultBar = ():BottomBarItem[] => [
 export const isSafeIconDataUrl = (value: unknown): value is string =>
   typeof value === 'string' && /^data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(value);
 export const isSafeFrameImage = (value:unknown):value is string =>
-  typeof value === 'string' && /^data:image\\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
+  typeof value === 'string' && /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value);
 export const validateFrameCorners = (corners:unknown):corners is FrameCorners => {
   if (!corners || typeof corners !== 'object') return false;
   return (['tl','tr','br','bl'] as const).every(key=>{
