@@ -1,5 +1,9 @@
 export type Corner = {x:number;y:number};
 export type FrameCorners = {tl:Corner;tr:Corner;br:Corner;bl:Corner};
+export type FrameSphericalCorners=[
+  {yaw:number;pitch:number},{yaw:number;pitch:number},
+  {yaw:number;pitch:number},{yaw:number;pitch:number}
+];
 export const defaultFrameCorners = ():FrameCorners => ({
   tl:{x:7,y:7},tr:{x:93,y:7},br:{x:93,y:93},bl:{x:7,y:93}
 });
@@ -14,6 +18,7 @@ export type Hotspot = {
   frameReferenceHeight?:number;
   frameReferenceZoom?:number;
   frameCorners?:FrameCorners;
+  frameSphericalCorners?:FrameSphericalCorners;
   fadeOnClick?:boolean;
 };
 export type CustomIcon = { id: string; name: string; dataUrl: string };
@@ -207,6 +212,11 @@ export function validateProject(value:unknown):StudioProject {
         (h.frameReferenceHeight !== undefined && (!Number.isFinite(h.frameReferenceHeight) || h.frameReferenceHeight < 100 || h.frameReferenceHeight > 3000)) ||
         (h.frameReferenceZoom !== undefined && (!Number.isFinite(h.frameReferenceZoom) || h.frameReferenceZoom < 0 || h.frameReferenceZoom > 100)) ||
         (h.frameCorners !== undefined && !validateFrameCorners(h.frameCorners)) ||
+        (h.frameSphericalCorners !== undefined && (
+          !Array.isArray(h.frameSphericalCorners)||h.frameSphericalCorners.length!==4||
+          !h.frameSphericalCorners.every(p=>p && Number.isFinite(p.yaw) && Math.abs(p.yaw)<100 &&
+            Number.isFinite(p.pitch) && Math.abs(p.pitch)<=Math.PI/2+0.001)
+        )) ||
         (h.fadeOnClick !== undefined && typeof h.fadeOnClick !== 'boolean')
       ) throw new Error('Point interactif non valide');
     }
