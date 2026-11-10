@@ -3,6 +3,7 @@ import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {frameWorldCorners} from './sphericalFrame';
 import {syncMarkers,resetMarkers} from './markerSync';
+import {startPosterBounce} from './posterBounce';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
@@ -108,7 +109,9 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
     // Fullscreen and mobile orientation changes both resize the panorama viewport.
     const observer=new ResizeObserver(refreshMarkers);
     if(container.current)observer.observe(container.current);
-    return ()=>{if(pending)cancelAnimationFrame(pending);observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
+    // Léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
+    const stopBounce=startPosterBounce(instance,()=>handlers.current.scene,()=>loadedScene.current===handlers.current.scene.id);
+    return ()=>{stopBounce();if(pending)cancelAnimationFrame(pending);observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
   },[]);
   useEffect(()=>{
     const instance=viewer.current;

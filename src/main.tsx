@@ -14,6 +14,7 @@ import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,Arr
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers} from './markerSync';
+import {startPosterBounce} from './posterBounce';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
@@ -186,7 +187,9 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     });
     const height=box.current?.clientHeight||550;
     resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel()));
-    return ()=>{if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
+    // Aperçu seulement : léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
+    const stopBounce=startPosterBounce(viewer,()=>actions.current.scene,()=>actions.current.preview&&loadedSceneRef.current===actions.current.scene.id);
+    return ()=>{stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
     const viewer=viewerRef.current;
