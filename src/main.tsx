@@ -131,7 +131,7 @@ function App(){
   const [videoZoom,setVideoZoom]=useState<Hotspot|null>(null);
   const [introVisible,setIntroVisible]=useState(false);
   const [exporting,setExporting]=useState(false);
-  const frameImageInput=useRef<HTMLInputElement>(null);
+  const [photoFeedback,setPhotoFeedback]=useState('');
   const videoInput=useRef<HTMLInputElement>(null);
   const audioInput=useRef<HTMLInputElement>(null);
   const upload=useRef<HTMLInputElement>(null);
@@ -239,17 +239,52 @@ function App(){
     if(audioInput.current)audioInput.current.value='';
   }
   async function addFrameImage(file?:File){
-    if(!file||!selectedId||!activeId)return;
-    if(!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size>6_000_000){
-      setStatus('Image invalide : JPG/PNG/WebP et 6 Mo maximum');return;
+    if(!file)return;
+    const sceneId=activeId,hotspotId=selectedId;
+    if(!sceneId||!hotspotId){setPhotoFeedback('Sélectionne un cadre photo avant d’importer une image.');return;}
+    setPhotoFeedback('Import de la photo…');
+    if(file.size>40*1024*1024){
+      setPhotoFeedback('Photo trop volumineuse (40 Mo maximum).');
+      return;
     }
     try {
-      const url=await readImage(file);
-      if(!isSafeFrameImage(url))throw Error('Format non reconnu');
-      patchPoint({imageDataUrl:url});
-      setStatus('Image ajoutée au cadre');
-    }catch{setStatus('Impossible de lire cette image');}
-    if(frameImageInput.current)frameImageInput.current.value='';
+      // Utilise le décodage natif du navigateur : accepte aussi les HEIC/HEIF
+      // lorsque le navigateur les décode. Limite la taille pour une sauvegarde fiable.
+      const imageUrl=URL.createObjectURL(file);
+      let img:HTMLImageElement;
+      try {
+        img=new Image();
+        img.decoding='async';
+        await new Promise<void>((resolve,reject)=>{
+          img.onload=()=>resolve();
+          img.onerror=()=>reject(new Error('Image incompatible avec ce navigateur. Utilise JPG, PNG ou WebP.'));
+          img.src=imageUrl;
+        });
+      } finally {URL.revokeObjectURL(imageUrl);}
+      if(!img.naturalWidth||!img.naturalHeight)throw Error('Dimensions d’image incorrectes');
+      const scale=Math.min(1,2560/Math.max(img.naturalWidth,img.naturalHeight));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+      canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+      const ctx=canvas.getContext('2d');
+      if(!ctx)throw Error('Conversion de la photo non disponible');
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      // WebP préserve les transparences des PNG et réduit sensiblement le poids du projet.
+      let data=canvas.toDataURL('image/webp',0.88);
+      if(!isSafeFrameImage(data)||data.length>12_000_000){
+        data=canvas.toDataURL('image/jpeg',0.78);
+      }
+      if(!isSafeFrameImage(data)||data.length>12_000_000)throw Error('Image trop lourde après conversion. Réduis sa résolution.');
+      setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==sceneId?sc:{
+        ...sc,hotspots:sc.hotspots.map(h=>h.id===hotspotId?{...h,imageDataUrl:data}:h)
+      })}));
+      setPhotoFeedback('Photo intégrée dans le cadre.');
+      setStatus('Photo ajoutée au panorama');
+    }catch(e){
+      const message=e instanceof Error?e.message:'Impossible de lire cette photo.';
+      setPhotoFeedback(message);
+      setStatus('Import photo : '+message);
+    }
   }
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
@@ -502,8 +537,17 @@ function App(){
                 <label>Titre<input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/></label>
                 {selected.type==='image'?
                 <>
-                  <button className="import" onClick={()=>frameImageInput.current?.click()}>{selected.imageDataUrl?'Changer l’image':'＋ Importer une image dans le cadre'}</button>
-                  <small className="hint-inline">PNG, JPG ou WebP · 6 Mo maximum</small>
+                  <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
+                    onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
+                    onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
+                    <span className="photo-upload-icon">＋</span>
+                    <strong>{selected.imageDataUrl?'Changer la photo du cadre':'Choisir une photo'}</strong>
+                    <span>Cliquer ici ou déposer une photo dans ce cadre</span>
+                    <input type="file" accept="image/*,.heic,.heif" onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void addFrameImage(file);e.currentTarget.value='';}}/>
+                  </label>
+                  <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo maximum, optimisé automatiquement</small>
+                  {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
+                  {selected.imageDataUrl&&<img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo intégrée au cadre"/>}
                   {selected.imageDataUrl&&<CornerEditor image={selected.imageDataUrl} width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()} onChange={(v:FrameCorners)=>patchPoint({frameCorners:v})}/>}
                   <label>Largeur du cadre : {selected.frameWidth??320} px
                     <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
@@ -631,7 +675,6 @@ function App(){
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
-    <input ref={frameImageInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void addFrameImage(e.target.files?.[0])}/>
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
