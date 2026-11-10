@@ -1,4 +1,5 @@
-import type {MarkersPlugin,MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
+import type {Viewer} from '@photo-sphere-viewer/core';
+import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 
 /**
  * Differential marker update.
@@ -20,14 +21,16 @@ const sameValue=(a:unknown,b:unknown):boolean=>{
   return false;
 };
 
-export function resetMarkers(plugin:MarkersPlugin,next:MarkerConfig[]){
+export function resetMarkers(viewer:Viewer,next:MarkerConfig[]){
+  const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
   plugin.setMarkers(next);
   applied.set(plugin,new Map(next.map(m=>[m.id,m])));
 }
 
-export function syncMarkers(plugin:MarkersPlugin,next:MarkerConfig[]){
+export function syncMarkers(viewer:Viewer,next:MarkerConfig[]){
+  const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
   const previous=applied.get(plugin);
-  if(!previous){resetMarkers(plugin,next);return;}
+  if(!previous){resetMarkers(viewer,next);return;}
   const live=new Set(plugin.getMarkers().map(m=>m.id));
   const wanted=new Set(next.map(m=>m.id));
   for(const id of live){
@@ -65,4 +68,6 @@ export function syncMarkers(plugin:MarkersPlugin,next:MarkerConfig[]){
     previous.set(config.id,config);
   }
   plugin.renderMarkers();
+  // renderMarkers() only refreshes the DOM overlay: WebGL layers (photo / video frames) need an explicit repaint.
+  viewer.needsUpdate();
 }

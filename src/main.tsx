@@ -143,8 +143,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
         if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>
           (h.type==='image'&&!h.imageDataUrl)||
           (h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)))return;
-        const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
-        syncMarkers(plugin,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel()));
+        syncMarkers(viewer,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel()));
       });
     };
     viewer.addEventListener('zoom-updated',onZoom);
@@ -173,7 +172,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       }
     });
     const height=box.current?.clientHeight||550;
-    resetMarkers(markers,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel()));
+    resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel()));
     return ()=>{if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
@@ -188,21 +187,20 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     }).then(success=>{
       if(disposed||!success)return;
       loadedSceneRef.current=next.id;
-      const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
       const height=box.current?.clientHeight||550;
-      resetMarkers(plugin,markersForScene(next,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel()));
+      resetMarkers(viewer,markersForScene(next,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel()));
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
     return ()=>{disposed=true;};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
     const refresh=()=>{
       const element=box.current;
-      const p=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
-      if(!element||!p)return;
+      const v=viewerRef.current;
+      if(!element||!v)return;
       const a=actions.current;
       if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
-      syncMarkers(p,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,viewerRef.current?.getZoomLevel()??60));
+      syncMarkers(v,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,v.getZoomLevel()));
     };
     refresh();
     if(!box.current)return;
@@ -213,9 +211,9 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
   },[]);
   useEffect(()=>{
     const element=box.current;
-    const plugin=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
-    if(!element||!plugin||loadedSceneRef.current!==scene.id)return;
-    syncMarkers(plugin,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,viewerRef.current?.getZoomLevel()??60));
+    const v=viewerRef.current;
+    if(!element||!v||loadedSceneRef.current!==scene.id)return;
+    syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel()));
   },[scene.id,scene.hotspots,icons,selectedId,preview]);
   useEffect(()=>{
     const root=box.current;
@@ -269,6 +267,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
           });
           plugin.updateMarker({id:centerMarkerId(h.id),position:center},false);
           plugin.renderMarkers();
+          viewer.needsUpdate(); // repaint the WebGL photo/video layer while dragging
         }catch{
           // If the frame was deleted during a drag, the edit will simply stop.
         }

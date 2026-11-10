@@ -89,7 +89,7 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      syncMarkers(plugin,current.scene.hotspots.map(h=>
+      syncMarkers(instance,current.scene.hotspots.map(h=>
         publicMarker(h,current.icons,viewHeight,instance.getZoomLevel())));
     };
     refreshMarkers();
@@ -115,9 +115,8 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
     }).then(success=>{
       if(disposed||!success)return;
       loadedScene.current=next.id;
-      const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
       const height=container.current?.clientHeight||550;
-      resetMarkers(plugin,next.hotspots.map(h=>
+      resetMarkers(instance,next.hotspots.map(h=>
         publicMarker(h,handlers.current.icons,height,instance.getZoomLevel())));
     }).catch(()=>{/* Keep previous panorama if the new photo cannot load. */});
     return ()=>{disposed=true;};
