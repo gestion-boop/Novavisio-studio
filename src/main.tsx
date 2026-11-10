@@ -568,10 +568,23 @@ function App(){
   function moveHotspot(id:string,yaw:number,pitch:number){
     patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch}:h)}));
   }
-  function dropIcon(iconId:string,yaw:number,pitch:number){
-    const icon=project.icons.find(i=>i.id===iconId);
-    if(!active||!icon)return;
-    const h:Hotspot={id:uid(),type:'information',title:icon.name,text:'',target:'',yaw,pitch,iconId};
+  function dropIcon(payload:string,yaw:number,pitch:number){
+    // `payload` = identifiant d'une icône seule, ou JSON d'un jeu complet (normal + survol + clic).
+    let set:{iconId:string;hoverIconId?:string;pressedIconId?:string}|null=null;
+    if(payload.startsWith('{')){
+      try{
+        const v=JSON.parse(payload) as Record<string,unknown>;
+        if(typeof v.iconId==='string')set={iconId:v.iconId,
+          hoverIconId:typeof v.hoverIconId==='string'?v.hoverIconId:undefined,
+          pressedIconId:typeof v.pressedIconId==='string'?v.pressedIconId:undefined};
+      }catch{/* payload invalide : ignoré */}
+    }else set={iconId:payload};
+    const exists=(id?:string)=>!!id&&project.icons.some(i=>i.id===id);
+    if(!active||!set||!exists(set.iconId))return;
+    const icon=project.icons.find(i=>i.id===set!.iconId)!;
+    const h:Hotspot={id:uid(),type:'information',title:icon.name,text:'',target:'',yaw,pitch,iconId:set.iconId,
+      ...(exists(set.hoverIconId)?{hoverIconId:set.hoverIconId}:{}),
+      ...(exists(set.pressedIconId)?{pressedIconId:set.pressedIconId}:{})};
     patchScene(sc=>({...sc,hotspots:[...sc.hotspots,h]}));
     setPanel('points');setSelectedId(h.id);setMode(null);
     setStatus('Icône positionnée : déplace-la dans le panorama pour l’ajuster');
@@ -753,6 +766,44 @@ function App(){
         hoverIconId:b.hoverIconId===id?undefined:b.hoverIconId,
         pressedIconId:b.pressedIconId===id?undefined:b.pressedIconId}))
     }));
+  }
+  // Jeux d'icônes déjà utilisés dans le projet (barre + points) : la même combinaison normal / survol / clic n'apparaît qu'une fois.
+  type IconSet={key:string;iconId:string;hoverIconId?:string;pressedIconId?:string;users:string[]};
+  function collectIconSets():IconSet[]{
+    const known=(id?:string)=>id&&project.icons.some(i=>i.id===id)?id:undefined;
+    const map=new Map<string,IconSet>();
+    const add=(user:string,i?:string,h?:string,pr?:string)=>{
+      const iconId=known(i);
+      if(!iconId)return;
+      const hoverIconId=known(h),pressedIconId=known(pr);
+      const key=iconId+'|'+(hoverIconId??'')+'|'+(pressedIconId??'');
+      const entry=map.get(key)??{key,iconId,hoverIconId,pressedIconId,users:[]};
+      if(entry.users.length<4&&!entry.users.includes(user))entry.users.push(user);
+      map.set(key,entry);
+    };
+    project.bottomBar.forEach(b=>add('Barre : '+b.title,b.iconId,b.hoverIconId,b.pressedIconId));
+    project.scenes.forEach(sc=>sc.hotspots.forEach(h=>{
+      if(h.type!=='image'&&h.type!=='video')add(sc.name+' : '+h.title,h.iconId,h.hoverIconId,h.pressedIconId);
+    }));
+    return [...map.values()];
+  }
+  function iconSetCells(set:IconSet){
+    const src=(id?:string)=>project.icons.find(i=>i.id===id)?.dataUrl;
+    const normal=src(set.iconId),hover=src(set.hoverIconId)??normal,pressed=src(set.pressedIconId)??hover;
+    return [['Normal',normal],['Survol',hover],['Clic',pressed]] as const;
+  }
+  function iconSetPicker(current:{iconId?:string;hoverIconId?:string;pressedIconId?:string},apply:(set:{iconId:string;hoverIconId?:string;pressedIconId?:string})=>void){
+    const sets=collectIconSets().filter(set=>!(set.iconId===current.iconId&&set.hoverIconId===current.hoverIconId&&set.pressedIconId===current.pressedIconId));
+    if(!sets.length)return null;
+    return <div className="icon-set-picker">
+      <div className="icon-state-label">RÉUTILISER UN JEU D’ICÔNES DÉJÀ CRÉÉ</div>
+      <small className="hint-inline">Un clic applique d’un coup le PNG normal, survol et clic d’un autre bouton ou point.</small>
+      <div className="icon-set-grid">{sets.map(set=><button type="button" key={set.key} className="icon-set"
+        title={'Utilisé par : '+set.users.join(', ')}
+        onClick={()=>{apply(set);setStatus('Jeu d’icônes appliqué : normal, survol et clic');}}>
+        {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
+      </button>)}</div>
+    </div>;
   }
   // Un seul état à la fois : on voit l'icône de CE bouton, pas toute la bibliothèque.
   function iconStateEditor(key:string,label:string,iconId:string|undefined,apply:(value:string|undefined)=>void,fallback:string){
@@ -1148,6 +1199,7 @@ function App(){
 
               {!['image','video'].includes(selected.type) && <>
                 <div className="section-title">ICÔNE DU POINT</div>
+                {iconSetPicker(selected,set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId}))}
                 {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
                 {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
                 {iconStateEditor('pt-hover','PNG au survol (optionnel)',selected.hoverIconId,id=>patchPoint({hoverIconId:id}),'Identique au normal')}
@@ -1265,6 +1317,7 @@ function App(){
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
             <div className="section-title">MES PNG — NORMAL, SURVOL, CLIC</div>
+            {iconSetPicker(selectedBar,set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId}))}
             {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id}),'Icône par défaut')}
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
             {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
@@ -1298,6 +1351,15 @@ function App(){
               <img src={icon.dataUrl} alt=""/><span>{icon.name}</span>
             </button>)}
           </div>
+          {collectIconSets().length>0&&<>
+            <div className="section-title">JEUX D’ICÔNES (NORMAL + SURVOL + CLIC)</div>
+            <div className="icon-set-grid">{collectIconSets().map(set=><button type="button" key={set.key} className="icon-set" draggable
+              onDragStart={e=>{e.dataTransfer.setData('application/x-nv-icon',JSON.stringify({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId}));e.dataTransfer.effectAllowed='copy';}}
+              onClick={()=>setStatus('Glisse ce jeu dans le panorama pour créer un point avec ses 3 états')}
+              title={'Faire glisser sur le panorama · utilisé par : '+set.users.join(', ')}>
+              {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
+            </button>)}</div>
+          </>}
           <button className="import" type="button" onClick={()=>iconInput.current?.click()}>＋ Importer une icône PNG</button>
           <div className="section-title">ICÔNES DE LA BARRE DU BAS</div>
           {project.bottomBar.map(item=><button type="button" className="elements-entry" key={item.id}

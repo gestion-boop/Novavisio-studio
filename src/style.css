@@ -1191,3 +1191,14 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .scenes.is-sorting .scene{pointer-events:none}
 @media (hover:none){.scene-slot .scene-grip{opacity:1}}
 .scene small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Jeux d'icônes (normal + survol + clic) */
+.icon-set-picker{display:flex;flex-direction:column;gap:7px;padding:10px;border:1px solid #2c6c78;border-radius:11px;background:#10303a}
+.icon-set-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px}
+.icon-set{display:flex;gap:4px;justify-content:space-between;padding:6px;border:1px solid #3c5a6d;border-radius:10px;background:#183142;cursor:pointer;min-height:0}
+.icon-set:hover{border-color:#4bebde;box-shadow:0 4px 10px rgba(0,0,0,.35)}
+.icon-set[draggable=true]{cursor:grab}
+.icon-set-cell{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0}
+.icon-set-cell img{width:34px;height:34px;object-fit:contain}
+.icon-set-cell small{font-size:8.5px;color:#8fb0bd;letter-spacing:.2px}
+.scene-slot .scene{padding-right:30px}
