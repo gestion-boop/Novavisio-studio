@@ -38,12 +38,24 @@ export function perspectiveMatrix(corners:FrameCorners,width:number,height:numbe
 export function escapeAttribute(text:string):string {
   return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-export function imageMarkerHtml(src:string|undefined,corners:FrameCorners,width:number,height:number,title:string):string {
+/** Render pointer-friendly controls directly over a selected photo/video in the 360° panorama. */
+export function directCornerControls(corners:FrameCorners):string {
+  const polygon=keys.map(key=>corners[key].x+','+corners[key].y).join(' ');
+  return '<svg class="nv-direct-guides" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none">'+
+    '<polygon points="'+polygon+'" fill="rgba(48,222,205,.09)" stroke="#68f6e7" stroke-width=".6" stroke-dasharray="2 1"/>'+
+    '</svg>'+
+    keys.map(key=>'<button type="button" class="nv-direct-corner" data-corner="'+key+
+      '" aria-label="Déplacer le coin '+titles[key]+
+      '" title="'+titles[key]+'" style="left:'+corners[key].x+'%;top:'+corners[key].y+'%">'+
+      '<span>'+key.toUpperCase()+'</span></button>').join('');
+}
+export function imageMarkerHtml(src:string|undefined,corners:FrameCorners,width:number,height:number,title:string,editing=false):string {
   const transform=perspectiveMatrix(corners,width,height);
   const content=src
     ? '<img alt="" src="'+escapeAttribute(src)+'" draggable="false" class="nv-frame-photo" style="transform:'+transform+'"/>'
     : '<span class="nv-frame-placeholder">＋ Ajouter une image</span>';
-  return '<span class="nv-frame-host" aria-label="'+escapeAttribute(title)+'">'+content+'</span>';
+  return '<span class="nv-frame-host '+(editing?'nv-frame-editing':'')+'" aria-label="'+escapeAttribute(title)+'">'+content+
+    (editing?directCornerControls(corners):'')+'</span>';
 }
 type CornerEditorProps={
   corners:FrameCorners;image?:string;
