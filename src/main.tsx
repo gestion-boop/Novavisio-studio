@@ -1191,7 +1191,7 @@ function App(){
     setStatus('Espace créé sans dupliquer ni supprimer aucun panorama');
   }
   function renameSpace(spaceId:string,name:string){
-    if(!safeSpaceName(name))return;
+    if(!safeSpaceName(name).trim())return;
     setProject(p=>({...p,spaces:(p.spaces??[]).map(space=>
       space.id===spaceId?{...space,name:safeSpaceName(name)}:space)}));
   }
