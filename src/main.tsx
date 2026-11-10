@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type CSSProperties} from 'react';
 import {createRoot} from 'react-dom/client';
-import {imageMarkerHtml,responsiveFrameSize,perspectiveMatrix} from './imageFrame';
+import {CornerEditor,imageMarkerHtml,responsiveFrameSize,perspectiveMatrix} from './imageFrame';
 import {exportStaticTour} from './exportTour';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
