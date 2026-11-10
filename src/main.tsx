@@ -233,6 +233,46 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     root.addEventListener('pointerdown',onDown,true);
     return ()=>root.removeEventListener('pointerdown',onDown,true);
   },[scene.id,scene.dataUrl]);
+  useEffect(()=>{
+    const root=box.current;
+    if(!root)return;
+    const onDown=(e:PointerEvent)=>{
+      const t=e.target;
+      if(!(t instanceof HTMLElement)||t.closest('.nv-direct-corner'))return;
+      const item=t.closest<HTMLElement>('.nv-drag-target');
+      const a=actions.current;
+      if(!item||a.preview||a.mode||item.dataset.nvMarkerId!==a.selectedId)return;
+      const viewer=viewerRef.current,id=item.dataset.nvMarkerId;
+      if(!viewer||!id)return;
+      e.preventDefault();e.stopImmediatePropagation();
+      let final:{yaw:number;pitch:number}|null=null;
+      const move=(p:PointerEvent)=>{
+        if(p.pointerId!==e.pointerId)return;
+        p.preventDefault();p.stopImmediatePropagation();
+        const rect=root.getBoundingClientRect();
+        const at=viewer.dataHelper.viewerCoordsToSphericalCoords({x:p.clientX-rect.left,y:p.clientY-rect.top});
+        if(!at)return;
+        final=at;
+        try{(viewer.getPlugin(MarkersPlugin) as MarkersPlugin).updateMarker({id,position:at});}catch{}
+      };
+      const clear=()=>{document.removeEventListener('pointermove',move,true);document.removeEventListener('pointerup',up,true);document.removeEventListener('pointercancel',cancel,true);};
+      const up=(p:PointerEvent)=>{if(p.pointerId!==e.pointerId)return;move(p);clear();if(final)actions.current.onMarkerMove(id,final.yaw,final.pitch);};
+      const cancel=(p:PointerEvent)=>{if(p.pointerId===e.pointerId)clear();};
+      document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',up,true);document.addEventListener('pointercancel',cancel,true);
+    };
+    const over=(e:DragEvent)=>{if(e.dataTransfer?.types.includes('application/x-nv-icon'))e.preventDefault();};
+    const drop=(e:DragEvent)=>{
+      const icon=e.dataTransfer?.getData('application/x-nv-icon');
+      if(!icon||actions.current.preview)return;
+      const viewer=viewerRef.current;if(!viewer)return;
+      e.preventDefault();
+      const rect=root.getBoundingClientRect();
+      const pos=viewer.dataHelper.viewerCoordsToSphericalCoords({x:e.clientX-rect.left,y:e.clientY-rect.top});
+      if(pos)actions.current.onAssetDrop(icon,pos.yaw,pos.pitch);
+    };
+    root.addEventListener('pointerdown',onDown,true);root.addEventListener('dragover',over);root.addEventListener('drop',drop);
+    return ()=>{root.removeEventListener('pointerdown',onDown,true);root.removeEventListener('dragover',over);root.removeEventListener('drop',drop);};
+  },[]);
   return <div ref={box} className="panorama" />;
 }
 
