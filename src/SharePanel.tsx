@@ -1,14 +1,13 @@
 import {useEffect,useState} from 'react';
-import {cloudConfigured,supabase,signInWithEmail,readLink,writeLink,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,readLink,writeLink,type CloudLink} from './cloud';
 import {SHARE_DAYS,createShareLink,listShares,revokeShare,shareStatus,shareUrl,type ShareDays,type ShareRow} from './share';
 import type {StudioProject} from './storage';
+import {LoginBox} from './LoginBox';
 
 const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'});
 
 type Props={project:StudioProject;onClose:()=>void;onStatus:(message:string)=>void};
 export function SharePanel({project,onClose,onStatus}:Props){
-  const [email,setEmail]=useState('');
-  const [sent,setSent]=useState(false);
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [days,setDays]=useState<ShareDays>(7);
   const [busy,setBusy]=useState('');
@@ -73,13 +72,8 @@ export function SharePanel({project,onClose,onStatus}:Props){
     <button className="close" onClick={onClose}>✕</button>
     <h2>Lien public</h2>
     {!cloudConfigured?<p className="warning">Supabase n’est pas configuré sur ce déploiement : les liens publics sont indisponibles.</p>
-    :!userEmail?<>
-      <p>Pour envoyer un lien, connecte-toi d’abord (lien magique par e-mail, sans mot de passe).</p>
-      {sent?<p>Lien envoyé à <b>{email}</b>. Ouvre-le sur cet appareil, puis reviens ici.</p>:<>
-        <input type="email" placeholder="ton@email.fr" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/>
-        <button className="primary" disabled={!email.includes('@')||!!busy} onClick={()=>void run('Envoi du lien…',async()=>{await signInWithEmail(email.trim());setSent(true);})}>Recevoir le lien de connexion</button>
-      </>}
-    </>:<>
+    :!userEmail?<LoginBox intro="Pour envoyer un lien, connecte-toi d’abord (lien magique par e-mail, ou e-mail et mot de passe)."/>
+    :<>
       <p className="hint-inline">Choisis combien de temps le lien reste ouvert. Passé ce délai, <b>plus rien n’est accessible</b>.</p>
       <div className="share-days" role="radiogroup" aria-label="Durée du lien">
         {SHARE_DAYS.map(d=><button type="button" key={d} role="radio" aria-checked={days===d} className={'share-day'+(days===d?' is-on':'')} onClick={()=>setDays(d)}>

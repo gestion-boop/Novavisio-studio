@@ -20,6 +20,12 @@ export function shareUrl(token:string):string{
   return base+'share.html?t='+encodeURIComponent(token);
 }
 
+/** Adresse du Studio (celle à donner à une personne invitée). */
+export function studioUrl():string{
+  const host=window.location.hostname;
+  return host.endsWith('.vercel.app')?'https://novavisio-studio.vercel.app/':new URL('./',window.location.href).toString();
+}
+
 const friendly=(message:string)=>
   /not_authenticated/.test(message)?'Connecte-toi d’abord.':
   /unknown_revision/.test(message)?'Cette révision n’existe pas dans le cloud.':

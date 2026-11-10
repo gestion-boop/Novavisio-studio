@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
-import {cloudConfigured,supabase,signInWithEmail,signOut,listCloudProjects,saveToCloud,openCloudProject,readLink,writeLink,type CloudProject,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,signOut,listCloudProjects,saveToCloud,openCloudProject,readLink,writeLink,type CloudProject,type CloudLink} from './cloud';
 import type {StudioProject} from './storage';
+import {LoginBox} from './LoginBox';
 
 type Props={
   project:StudioProject;
@@ -13,9 +14,7 @@ type Props={
   autoLabel:string;
 };
 export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel}:Props){
-  const [email,setEmail]=useState('');
   const [userEmail,setUserEmail]=useState<string|null>(null);
-  const [sent,setSent]=useState(false);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
   const [items,setItems]=useState<CloudProject[]>([]);
@@ -65,13 +64,8 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
     <h2>Cloud Supabase</h2>
     {!cloudConfigured?<>
       <p className="warning">Supabase n’est pas configuré. Définis <code>NEXT_PUBLIC_SUPABASE_URL</code> et <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> (clé <b>publishable</b> uniquement) dans les variables d’environnement du déploiement, puis redéploie.</p>
-    </>:!userEmail?<>
-      <p>Connecte-toi par lien magique (aucun mot de passe). Rien n’est envoyé au cloud sans ton action.</p>
-      {sent?<p>Lien envoyé à <b>{email}</b>. Ouvre-le sur cet appareil, puis reviens ici.</p>:<>
-        <input type="email" placeholder="ton@email.fr" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="email"/>
-        <button className="primary" disabled={!email.includes('@')||!!busy} onClick={()=>void run('Envoi du lien…',async()=>{await signInWithEmail(email.trim());setSent(true);})}>Recevoir le lien de connexion</button>
-      </>}
-    </>:<>
+    </>:!userEmail?<LoginBox intro="Connecte-toi pour sauvegarder tes visites dans Supabase, ou pour ouvrir une visite à laquelle on t’a invité."/>
+    :<>
       <p>Connecté : <b>{userEmail}</b> · <button className="quiet" onClick={()=>void signOut()}>Se déconnecter</button></p>
       <label className="toggle-row cloud-auto"><input type="checkbox" checked={autoEnabled} onChange={e=>onAutoChange(e.target.checked)}/> <span><b>Sauvegarde instantanée dans Supabase</b><small>{autoLabel}</small></span></label>
       <p className="hint-inline">Chaque enregistrement manuel ci-dessous ajoute une <b>nouvelle révision</b> : rien n’est jamais remplacé ni supprimé dans le cloud.</p>
@@ -82,7 +76,7 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
       <h3>Visites dans le cloud</h3>
       {!items.length&&<p className="hint-inline">Aucune visite cloud pour l’instant.</p>}
       <ul className="cloud-list">{items.map(item=><li key={item.id}>
-        <span><b>{item.name}</b><small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small></span>
+        <span><b>{item.name}{item.shared&&<em className="shared-tag"> · partagée avec toi</em>}</b><small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small></span>
         <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
       </li>)}</ul>
     </>}

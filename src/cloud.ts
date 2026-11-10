@@ -17,6 +17,8 @@ export const BUCKET='nvstudio-media';
 export const MEDIA_PREFIX='nvmedia:';
 
 let client:SupabaseClient|null=null;
+/** Adresse et clé publiques du projet Supabase (pour un client temporaire). */
+export const cloudEndpoint=()=>({url:URL_ENV as string,key:KEY_ENV as string});
 export function supabase():SupabaseClient{
   if(!cloudConfigured)throw new Error('Supabase n’est pas configuré (URL + clé publishable).');
   client??=createClient(URL_ENV!,KEY_ENV!,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
@@ -81,28 +83,33 @@ export async function signInWithEmail(email:string){
   const {error}=await supabase().auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
   if(error)throw new Error(error.message);
 }
+export async function signInWithPassword(email:string,password:string){
+  const {error}=await supabase().auth.signInWithPassword({email,password});
+  if(error)throw new Error(/invalid login|invalid credentials/i.test(error.message)?'E-mail ou mot de passe incorrect (ou adresse pas encore confirmée par e-mail).':error.message);
+}
 export async function signOut(){await supabase().auth.signOut();}
 
-export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean};
+export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean};
 export async function listCloudProjects():Promise<CloudProject[]>{
   const db=supabase();
-  let projectsRes=await db.from('nvstudio_projects').select('id,name,created_at,working_version,working_updated_at').order('created_at',{ascending:false});
+  let projectsRes=await db.from('nvstudio_projects').select('id,name,created_at,owner_id,working_version,working_updated_at').order('created_at',{ascending:false});
   if(projectsRes.error&&setupMissing(projectsRes.error.message)){
     // Sauvegarde automatique pas encore installée : liste simple, sans les copies de travail.
-    projectsRes=await db.from('nvstudio_projects').select('id,name,created_at').order('created_at',{ascending:false}) as typeof projectsRes;
+    projectsRes=await db.from('nvstudio_projects').select('id,name,created_at,owner_id').order('created_at',{ascending:false}) as typeof projectsRes;
   }
   const revisions=await db.from('nvstudio_revisions').select('project_id,revision,name,created_at').order('revision',{ascending:false});
   if(projectsRes.error)throw new Error(projectsRes.error.message);
   if(revisions.error)throw new Error(revisions.error.message);
   const latest=new Map<string,{revision:number;name:string;created_at:string}>();
   for(const r of revisions.data??[])if(!latest.has(r.project_id))latest.set(r.project_id,r);
+  const me=(await db.auth.getUser()).data.user?.id;
   return (projectsRes.data??[]).map(p=>{
-    const row=p as {id:string;name:string;created_at:string;working_version?:number;working_updated_at?:string|null};
+    const row=p as {id:string;name:string;created_at:string;owner_id?:string;working_version?:number;working_updated_at?:string|null};
     const l=latest.get(row.id);
     const hasWorking=(row.working_version??0)>0;
     const times=[l?.created_at,hasWorking?row.working_updated_at??undefined:undefined,row.created_at].filter(Boolean) as string[];
     return {id:row.id,name:row.name||l?.name||'Visite',created_at:row.created_at,revision:l?.revision??0,
-      updated_at:times.sort().reverse()[0],autosave:hasWorking};
+      updated_at:times.sort().reverse()[0],autosave:hasWorking,shared:!!row.owner_id&&!!me&&row.owner_id!==me};
   });
 }
 
@@ -119,6 +126,8 @@ function cloneStructure<T>(value:T):T{
 
 /** Médias déjà envoyés pendant cette session : on ne les relit, ne les recalcule et ne les renvoie pas à chaque enregistrement. */
 const uploadedMedia=new Map<string,Map<string,string>>();
+/** Médias déjà présents en mémoire (envoyés ou téléchargés) : on ne les retélécharge pas quand une autre personne modifie la visite. */
+const mediaByRef=new Map<string,string>();
 async function uploadMedia(snapshot:StudioProject,projectId:string,uid:string,onProgress:(msg:string)=>void){
   const db=supabase();
   const cache=uploadedMedia.get(projectId)??new Map<string,string>();
@@ -139,6 +148,7 @@ async function uploadMedia(snapshot:StudioProject,projectId:string,uid:string,on
     if(error&&!/already exists|duplicate|409/i.test(error.message+' '+((error as {statusCode?:string}).statusCode??'')))
       throw new Error('Envoi d’un média impossible : '+error.message);
     cache.set(dataUrl,MEDIA_PREFIX+path);
+    mediaByRef.set(MEDIA_PREFIX+path,dataUrl);
     slot.set(MEDIA_PREFIX+path);
   }
 }
@@ -179,18 +189,25 @@ export async function saveToCloud(project:StudioProject,link:CloudLink|null,onPr
 export async function cloudLatestRevision(projectId:string):Promise<number>{return latestRevision(projectId);}
 
 /** Numéro de version de la copie de travail dans le cloud (0 = jamais enregistrée). */
-export async function fetchWorkingMeta(projectId:string):Promise<{version:number;updatedAt:string|null}>{
-  const {data,error}=await supabase().from('nvstudio_projects').select('working_version,working_updated_at').eq('id',projectId).maybeSingle();
-  if(error){if(setupMissing(error.message))throw new CloudSetupError(SETUP_HELP);throw new Error('Lecture du cloud impossible : '+error.message);}
+export async function fetchWorkingMeta(projectId:string):Promise<{version:number;updatedAt:string|null;updatedBy:string|null}>{
+  const db=supabase();
+  let res=await db.from('nvstudio_projects').select('working_version,working_updated_at,working_updated_by').eq('id',projectId).maybeSingle();
+  if(res.error&&/working_updated_by/.test(res.error.message)){
+    // Migration « collaboration » pas encore installée : on lit sans le nom de la dernière personne.
+    res=await db.from('nvstudio_projects').select('working_version,working_updated_at').eq('id',projectId).maybeSingle() as typeof res;
+  }
+  if(res.error){if(setupMissing(res.error.message))throw new CloudSetupError(SETUP_HELP);throw new Error('Lecture du cloud impossible : '+res.error.message);}
+  const data=res.data as {working_version:number;working_updated_at:string|null;working_updated_by?:string|null}|null;
   if(!data)throw new Error('Cette visite n’existe plus dans le cloud.');
-  return {version:data.working_version as number,updatedAt:(data.working_updated_at as string|null)??null};
+  return {version:data.working_version,updatedAt:data.working_updated_at??null,updatedBy:data.working_updated_by??null};
 }
 
 /**
  * Sauvegarde INSTANTANÉE : met à jour la copie de travail dans le cloud (en place, une ligne par visite).
  * Refuse (CloudConflictError) si une autre version a été enregistrée ailleurs depuis la dernière synchronisation de cet appareil.
  */
-export async function saveWorking(project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void):Promise<CloudLink>{
+export type SaveResult=CloudLink&{updatedBy?:string};
+export async function saveWorking(project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void,takeover=false):Promise<SaveResult>{
   const db=supabase();
   const uid=await currentUserId();
   let projectId=link?.projectId;
@@ -216,18 +233,23 @@ export async function saveWorking(project:StudioProject,link:CloudLink|null,onPr
   const snapshot=cloneStructure(project);
   await uploadMedia(snapshot,projectId,uid,onProgress);
   onProgress('Enregistrement…');
-  const {data,error}=await db.rpc('nvstudio_save_working',{p_project:projectId,p_expected:expected,p_name:project.name.slice(0,200)||'Visite',p_snapshot:snapshot});
+  const args={p_project:projectId,p_expected:expected,p_name:project.name.slice(0,200)||'Visite',p_snapshot:snapshot};
+  let {data,error}=await db.rpc('nvstudio_save_working',{...args,p_takeover:takeover});
+  if(error&&/p_takeover|Could not find the function|schema cache/i.test(error.message)){
+    // Migration « collaboration » pas encore installée : on utilise la version simple de la fonction (travail seul).
+    ({data,error}=await db.rpc('nvstudio_save_working',args));
+  }
   if(error){
     if(/conflict/.test(error.message)){
       const meta=await fetchWorkingMeta(projectId);
       throw new CloudConflictError(meta.version);
     }
     if(setupMissing(error.message))throw new CloudSetupError(SETUP_HELP);
-    if(/unknown_project/.test(error.message))throw new Error('Cette visite n’existe plus dans le cloud.');
+    if(/unknown_project/.test(error.message))throw new Error('Tu n’as plus accès à cette visite (accès retiré, ou visite supprimée). Tes modifications restent sur cet appareil.');
     throw new Error('Enregistrement cloud refusé : '+error.message);
   }
-  const version=(data as {version:number}).version;
-  return {projectId,revision:link?.revision??0,version};
+  const out=data as {version:number;updated_by?:string};
+  return {projectId,revision:link?.revision??0,version:out.version,updatedBy:out.updated_by};
 }
 
 /** Remplace les références `nvmedia:` d'un instantané par les vrais médias téléchargés. */
@@ -239,13 +261,14 @@ async function hydrateSnapshot(snapshot:StudioProject,onProgress:(msg:string)=>v
   for(const slot of slots){
     n++;
     const ref=slot.get()!;
-    const cached=cache.get(ref);
+    const cached=cache.get(ref)??mediaByRef.get(ref);
     if(cached){slot.set(cached);continue;}
     onProgress('Téléchargement des médias '+n+'/'+slots.length+'…');
     const {data:blob,error:dlError}=await db.storage.from(BUCKET).download(ref.slice(MEDIA_PREFIX.length));
     if(dlError||!blob)throw new Error('Média introuvable : '+(dlError?.message??ref));
     const dataUrl=await blobToDataUrl(blob);
     cache.set(ref,dataUrl);
+    mediaByRef.set(ref,dataUrl);
     slot.set(dataUrl);
   }
   return validateProject(snapshot);
@@ -273,4 +296,43 @@ export async function loadFromCloud(projectId:string,onProgress:(msg:string)=>vo
   const snapshot=row.snapshot as StudioProject;
   const project=await hydrateSnapshot(snapshot,onProgress);
   return {project,link:{projectId,revision:row.revision}};
+}
+
+/* ---------- Travail à plusieurs (« lien privé ») ---------- */
+export type Member={email:string;created_at:string};
+const collabFriendly=(m:string)=>
+  /not_owner/.test(m)?'Seul le propriétaire de la visite peut gérer les accès.':
+  /invalid_email/.test(m)?'Adresse e-mail non valide.':
+  /nvstudio_add_member|nvstudio_remove_member|nvstudio_members|schema cache|Could not find the function|does not exist/i.test(m)?
+    'Le travail à plusieurs n’est pas encore installé : exécute le fichier SQL « 20261110030000_nvstudio_collaboration » dans Supabase.':m;
+export async function listMembers(projectId:string):Promise<Member[]>{
+  const {data,error}=await supabase().from('nvstudio_members').select('email,created_at').eq('project_id',projectId).order('created_at',{ascending:true});
+  if(error)throw new Error(collabFriendly(error.message));
+  return (data??[]) as Member[];
+}
+export async function addMember(projectId:string,email:string){
+  const {error}=await supabase().rpc('nvstudio_add_member',{p_project:projectId,p_email:email});
+  if(error)throw new Error(collabFriendly(error.message));
+}
+export async function removeMember(projectId:string,email:string){
+  const {error}=await supabase().rpc('nvstudio_remove_member',{p_project:projectId,p_email:email});
+  if(error)throw new Error(collabFriendly(error.message));
+}
+/**
+ * Crée le compte (e-mail + mot de passe) de la personne invitée. Un client TEMPORAIRE est utilisé : la session du propriétaire
+ * n'est pas touchée et le mot de passe n'est jamais enregistré par le Studio (il part uniquement vers Supabase).
+ * 'created' = compte actif ; 'confirm' = la personne doit d'abord confirmer son adresse (e-mail envoyé par Supabase) ;
+ * 'exists' = un compte existe déjà avec cette adresse (son mot de passe actuel reste valable).
+ */
+export async function createCollaboratorAccount(email:string,password:string):Promise<'created'|'confirm'|'exists'>{
+  const {url,key}=cloudEndpoint();
+  const temp=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'nvstudio-invite-temp'}});
+  const {data,error}=await temp.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+  if(error){
+    if(/already registered|already been registered/i.test(error.message))return 'exists';
+    if(/signups? not allowed|signup.*disabled/i.test(error.message))throw new Error('Les inscriptions sont désactivées dans Supabase (Authentication → Sign In / Providers → « Allow new users to sign up »). Active-les le temps de créer l’accès.');
+    throw new Error(error.message);
+  }
+  if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0)return 'exists';
+  return data.session?'created':'confirm';
 }

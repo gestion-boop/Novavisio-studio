@@ -63,3 +63,11 @@
 - La copie locale (IndexedDB) reste active : sans réseau tout est conservé et repart au retour de la connexion (nouvel essai automatique).
 - Protection multi-appareils : la copie de travail a un numéro de version. Une écriture basée sur une version périmée est refusée (`conflict`) ; l'application s'arrête et demande : ouvrir la version du cloud ou garder la sienne.
 - Un projet vide ou illisible n'est jamais envoyé ; « Nouveau » ou l'ouverture d'un fichier coupent le lien avec la visite cloud actuelle (elle reste intacte).
+
+## Travail à plusieurs (« lien privé »)
+
+- Migration à exécuter en dernier : `supabase/migrations/20261110030000_nvstudio_collaboration.sql` (après `…000000_init` et `…020000_autosave`). Elle ajoute les tables `nvstudio_members` et `nvstudio_working_history`, des fonctions d'accès, remplace `nvstudio_save_working` (version avec `p_takeover`) et ouvre la lecture des médias aux personnes invitées.
+- Le propriétaire invite une adresse e-mail + mot de passe (bouton **Lien privé**). Le compte est créé par `auth.signUp` depuis un client temporaire (la session du propriétaire n'est pas touchée ; le mot de passe n'est jamais stocké par le Studio). Si Supabase a activé « Confirm email », la personne doit d'abord confirmer son adresse. Si les inscriptions sont désactivées (« Allow new users to sign up »), les réactiver le temps de créer l'accès.
+- Une personne invitée peut ouvrir, modifier et sauvegarder la copie de travail et ses médias ; elle ne peut ni inviter, ni créer de lien public, ni toucher aux révisions.
+- Règle de sauvegarde : **la dernière personne qui agit a la main**. Un enregistrement qui arrive après celui d'une autre personne la remplace ; la version remplacée est archivée dans `nvstudio_working_history` (jamais supprimée). Une fenêtre sans modification en cours se met à jour toute seule (toutes les ~4 s) avec la version de l'autre personne.
+- Retirer un accès supprime seulement la ligne `nvstudio_members` : le compte de la personne n'est pas supprimé.

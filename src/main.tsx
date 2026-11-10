@@ -9,9 +9,10 @@ import {CloudPanel} from './CloudPanel';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {type CloudLink} from './cloud';
 import {SharePanel} from './SharePanel';
+import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2,Lock} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers} from './markerSync';
@@ -380,6 +381,7 @@ function App(){
   const [exporting,setExporting]=useState(false);
   const [cloudOpen,setCloudOpen]=useState(false);
   const [shareOpen,setShareOpen]=useState(false);
+  const [privateOpen,setPrivateOpen]=useState(false);
   const [photoFeedback,setPhotoFeedback]=useState('');
   const videoInput=useRef<HTMLInputElement>(null);
   const audioInput=useRef<HTMLInputElement>(null);
@@ -500,21 +502,18 @@ function App(){
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
   // Sauvegarde instantanée dans Supabase (en plus de la copie locale).
-  const cloud=useCloudSync(project,ready&&!lock);
+  // Une autre personne a enregistré et tu n'avais rien en cours : ta fenêtre prend sa version (sans changer de panorama).
+  const cloud=useCloudSync(project,ready&&!lock,(remote,by)=>{
+    const up=ensureFrameReferences(remote,viewAreaRef.current?.clientHeight||550);
+    setProject(up);
+    setActiveId(id=>up.scenes.some(sc=>sc.id===id)?id:up.scenes[0]?.id??'');
+    setStatus('Mis à jour : modifié par '+(by??'une autre personne'));
+    return up;
+  });
   const cloudLabel=(st:SyncState):string=>
     st.kind==='off'?'':st.kind==='login'?'Non connecté':st.kind==='idle'?'Connecté':st.kind==='paused'?'En pause':
     st.kind==='pending'?'Envoi…':st.kind==='saving'?st.progress:st.kind==='saved'?'Enregistré':
-    st.kind==='error'?'Échec — nouvel essai':st.kind==='conflict'?'Conflit':'À installer';
-  async function openCloudVersionInPlace(){
-    try{
-      if(project.scenes.length)download(); // sauvegarde de sécurité de la version actuelle avant de la remplacer
-      const {project:cloudProject,link}=await cloud.loadCloudVersion();
-      const up=ensureFrameReferences(cloudProject,viewAreaRef.current?.clientHeight||550);
-      setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);
-      cloud.markSynced(up,link);
-      setStatus('Version du cloud ouverte');
-    }catch(e){window.alert('Impossible d’ouvrir la version du cloud : '+(e instanceof Error?e.message:String(e)));}
-  }
+    st.kind==='error'?'Échec — nouvel essai':'À installer';
 
   const active=project.scenes.find(s=>s.id===activeId) ?? null;
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
@@ -1132,7 +1131,7 @@ function App(){
           <input aria-label="Nom du projet" value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/>
         </div>
         <span className="save-chip">{status}</span>
-        {cloud.state.kind!=='off'&&<button type="button" className={'cloud-chip is-'+cloud.state.kind} onClick={()=>cloud.state.kind==='error'?cloud.retryNow():setCloudOpen(true)} title="Sauvegarde instantanée dans Supabase">☁ {cloudLabel(cloud.state)}</button>}
+        {cloud.state.kind!=='off'&&<button type="button" className={'cloud-chip is-'+cloud.state.kind} onClick={()=>cloud.state.kind==='error'?cloud.retryNow():setCloudOpen(true)} title={cloud.state.kind==='saved'&&cloud.state.note?cloud.state.note:'Sauvegarde instantanée dans Supabase'}>☁ {cloudLabel(cloud.state)}</button>}
       </div>
       <div className="top-actions">
         <div className="mode-switch-group">
@@ -1153,6 +1152,9 @@ function App(){
         <button className="share-btn" onClick={()=>setShareOpen(true)} title="Créer un lien public à durée limitée (3, 5, 7 ou 10 jours)">
           <Link2 size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Lien public
         </button>
+        <button className="share-btn private-btn" onClick={()=>setPrivateOpen(true)} title="Inviter une personne (e-mail + mot de passe) à travailler sur cette visite">
+          <Lock size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Lien privé
+        </button>
         <button className="quiet" onClick={startFresh} title="Nouveau projet">Nouveau</button>
         <button className="quiet" onClick={()=>projectInput.current?.click()} title="Ouvrir un projet .nvstudio.json">Ouvrir</button>
         <button className="quiet" onClick={download} title="Sauvegarder le projet localement">
@@ -1167,14 +1169,6 @@ function App(){
         </button>
       </div>
     </header>
-    {cloud.state.kind==='conflict'&&<div className="nv-banner" role="alert">
-      <p><b>Cette visite a été modifiée ailleurs dans le cloud</b> (autre appareil ou autre navigateur). La sauvegarde instantanée est suspendue pour ne rien écraser.</p>
-      <div className="nv-banner-actions">
-        <button className="primary" onClick={()=>void openCloudVersionInPlace()}>Ouvrir la version du cloud</button>
-        <button className="quiet" onClick={()=>{if(window.confirm('Garder CETTE version remplace la copie de travail du cloud. Continuer ?'))cloud.overwriteCloud(cloud.state.kind==='conflict'?cloud.state.cloudVersion:0);}}>Garder ma version (remplace le cloud)</button>
-        <button className="quiet" onClick={()=>cloud.setEnabled(false)}>Mettre en pause</button>
-      </div>
-    </div>}
     {cloud.state.kind==='setup'&&<div className="nv-banner" role="alert">
       <p><b>La sauvegarde instantanée n’est pas encore installée dans Supabase.</b> Ton travail reste enregistré sur cet appareil. Pour l’activer : ouvre le SQL Editor de Supabase et exécute le fichier <code>20261110020000_nvstudio_autosave.sql</code> (et <code>20261110000000_nvstudio_init.sql</code> si ce n’est pas déjà fait).</p>
       <div className="nv-banner-actions">
@@ -1720,6 +1714,7 @@ function App(){
     <input ref={replaceIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void replaceIconEverywhere(e.target.files?.[0])}/>
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
+    {privateOpen&&<PrivatePanel project={project} onClose={()=>setPrivateOpen(false)} onStatus={setStatus}/>}
     {shareOpen&&<SharePanel project={project} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}

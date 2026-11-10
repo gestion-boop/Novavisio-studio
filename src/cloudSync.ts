@@ -1,12 +1,14 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {CloudConflictError,CloudSetupError,cloudConfigured,openCloudProject,readLink,saveWorking,supabase,writeLink,type CloudLink} from './cloud';
+import {CloudConflictError,CloudSetupError,cloudConfigured,fetchWorkingMeta,openCloudProject,readLink,saveWorking,supabase,writeLink,type CloudLink} from './cloud';
 import type {StudioProject} from './storage';
 
 /**
- * Sauvegarde instantanée dans Supabase.
+ * Sauvegarde instantanée dans Supabase, y compris à plusieurs.
  *  - chaque modification est envoyée ~0,7 s plus tard (copie de travail mise à jour sur place) ;
  *  - le travail local (IndexedDB) reste la copie rapide : sans réseau, tout est conservé ici et repart au retour de la connexion ;
- *  - jamais d'écrasement : si le cloud contient une version plus récente (autre appareil), on s'arrête et on demande.
+ *  - règle à plusieurs : LA DERNIÈRE PERSONNE QUI AGIT A LA MAIN. Si l'autre a enregistré entre-temps, ton action reprend la main
+ *    (sa version est archivée côté serveur, rien n'est perdu définitivement). Si tu n'as rien en cours, c'est TA fenêtre qui se met
+ *    à jour toute seule avec la version de l'autre personne.
  */
 export type SyncState=
   |{kind:'off'}
@@ -15,14 +17,14 @@ export type SyncState=
   |{kind:'paused'}
   |{kind:'pending'}
   |{kind:'saving';progress:string}
-  |{kind:'saved';at:number}
+  |{kind:'saved';at:number;note?:string}
   |{kind:'error';message:string}
-  |{kind:'conflict';cloudVersion:number}
   |{kind:'setup';message:string};
 
 const ENABLED_KEY='nvstudio-cloud-auto';
 const FP_KEY='nvstudio-cloud-fp';
 const DEBOUNCE_MS=700;
+const POLL_MS=4000;
 
 /** Empreinte légère du projet (les longs médias sont résumés) : sert à ne pas renvoyer un projet déjà synchronisé. */
 export function fingerprint(project:StudioProject):string{
@@ -33,16 +35,21 @@ export function fingerprint(project:StudioProject):string{
 }
 const readFp=():{projectId:string;version:number;fp:string}|null=>{try{return JSON.parse(localStorage.getItem(FP_KEY)||'null');}catch{return null;}};
 const writeFp=(v:{projectId:string;version:number;fp:string}|null)=>{try{if(v)localStorage.setItem(FP_KEY,JSON.stringify(v));else localStorage.removeItem(FP_KEY);}catch{/* ignoré */}};
+const plainLink=(l:CloudLink):CloudLink=>({projectId:l.projectId,revision:l.revision,...(l.version!==undefined?{version:l.version}:{})});
 
-export function useCloudSync(project:StudioProject,active:boolean){
+/** `onRemote` remplace le projet affiché par celui d'une autre personne et renvoie l'objet projet réellement affiché. */
+export function useCloudSync(project:StudioProject,active:boolean,onRemote:(project:StudioProject,by:string|null)=>StudioProject){
   const [signedIn,setSignedIn]=useState(false);
   const [enabled,setEnabledState]=useState(()=>{try{return localStorage.getItem(ENABLED_KEY)!=='off';}catch{return true;}});
   const [state,setState]=useState<SyncState>(cloudConfigured?{kind:'login'}:{kind:'off'});
   const projectRef=useRef(project);projectRef.current=project;
+  const onRemoteRef=useRef(onRemote);onRemoteRef.current=onRemote;
   const syncedRef=useRef<StudioProject|null>(null);
   const runningRef=useRef(false);
+  const adoptingRef=useRef(false);
+  const takeoverRef=useRef(false);
   const timerRef=useRef<number|undefined>(undefined);
-  const blockedRef=useRef<'conflict'|'setup'|null>(null);
+  const blockedRef=useRef<'setup'|null>(null);
   const attemptRef=useRef(0);
   const canRunRef=useRef(false);
   const runRef=useRef<()=>Promise<void>>(async()=>{});
@@ -65,20 +72,30 @@ export function useCloudSync(project:StudioProject,active:boolean){
   },[]);
 
   runRef.current=async()=>{
-    if(runningRef.current||blockedRef.current||!canRunRef.current)return;
+    if(runningRef.current||adoptingRef.current||blockedRef.current||!canRunRef.current)return;
     const target=projectRef.current;
     if(target===syncedRef.current||!target.scenes.length)return;
     runningRef.current=true;
     setState({kind:'saving',progress:'Envoi…'});
+    let note:string|undefined;
     try{
-      const link=await saveWorking(target,readLink(),progress=>setState({kind:'saving',progress}));
-      writeLink(link);
-      writeFp({projectId:link.projectId,version:link.version??0,fp:fingerprint(target)});
+      const link=await saveWorking(target,readLink(),progress=>setState({kind:'saving',progress}),takeoverRef.current);
+      if(takeoverRef.current)note='Tu as repris la main (la version précédente est archivée)';
+      takeoverRef.current=false;
+      const saved=plainLink(link);
+      writeLink(saved);
+      writeFp({projectId:saved.projectId,version:saved.version??0,fp:fingerprint(target)});
       syncedRef.current=target;attemptRef.current=0;
-      setState({kind:'saved',at:Date.now()});
+      setState({kind:'saved',at:Date.now(),note});
     }catch(e){
-      if(e instanceof CloudConflictError){blockedRef.current='conflict';setState({kind:'conflict',cloudVersion:e.cloudVersion});}
-      else if(e instanceof CloudSetupError){blockedRef.current='setup';setState({kind:'setup',message:e.message});}
+      if(e instanceof CloudConflictError){
+        // La dernière personne qui agit a la main : on reprend la main sur la version du cloud et on renvoie aussitôt.
+        const link=readLink();
+        if(link)writeLink({...link,version:e.cloudVersion});
+        takeoverRef.current=true;
+        attemptRef.current=0;
+        schedule(0);
+      }else if(e instanceof CloudSetupError){blockedRef.current='setup';setState({kind:'setup',message:e.message});}
       else{
         attemptRef.current++;
         setState({kind:'error',message:e instanceof Error?e.message:String(e)});
@@ -119,6 +136,36 @@ export function useCloudSync(project:StudioProject,active:boolean){
     return ()=>window.clearTimeout(timerRef.current);
   },[project,canRun,schedule]);
 
+  // Travail à plusieurs : si quelqu'un d'autre a enregistré et que tu n'as rien en cours, ta fenêtre se met à jour toute seule.
+  useEffect(()=>{
+    if(!canRun)return;
+    let stopped=false;
+    const tick=async()=>{
+      if(stopped||document.hidden||runningRef.current||adoptingRef.current||blockedRef.current)return;
+      const link=readLink();
+      if(!link||link.version===undefined)return;
+      try{
+        const meta=await fetchWorkingMeta(link.projectId);
+        const mine=readLink()?.version??0;
+        if(meta.version<=mine||runningRef.current||stopped)return;
+        if(projectRef.current!==syncedRef.current)return; // tu as des modifications en cours : elles reprendront la main au prochain envoi
+        adoptingRef.current=true;
+        const loaded=await openCloudProject(link.projectId,()=>{});
+        // Pendant le téléchargement, tu as agi : c'est toi qui gardes la main.
+        if(projectRef.current!==syncedRef.current||stopped)return;
+        const shown=onRemoteRef.current(loaded.project,meta.updatedBy);
+        const saved=plainLink(loaded.link);
+        writeLink(saved);
+        writeFp({projectId:saved.projectId,version:saved.version??0,fp:fingerprint(shown)});
+        syncedRef.current=shown;
+        setState({kind:'saved',at:Date.now(),note:'Mis à jour : modifié par '+(meta.updatedBy??'une autre personne')});
+      }catch{/* réseau coupé ou pas encore installé : on réessaie au prochain passage */}
+      finally{adoptingRef.current=false;}
+    };
+    const id=window.setInterval(()=>{void tick();},POLL_MS);
+    return ()=>{stopped=true;window.clearInterval(id);};
+  },[canRun]);
+
   // Envoi immédiat quand on quitte l'onglet ou quand le réseau revient.
   useEffect(()=>{
     const flush=()=>{if(canRunRef.current&&!blockedRef.current)void runRef.current();};
@@ -140,30 +187,18 @@ export function useCloudSync(project:StudioProject,active:boolean){
   const retryNow=useCallback(()=>{attemptRef.current=0;blockedRef.current=null;schedule(0);},[schedule]);
   /** Le projet affiché vient du cloud (ou vient d'y être enregistré) : il est synchronisé, rien à renvoyer. */
   const markSynced=useCallback((synced:StudioProject,link:CloudLink)=>{
-    syncedRef.current=synced;blockedRef.current=null;attemptRef.current=0;
-    writeLink(link);
-    writeFp({projectId:link.projectId,version:link.version??0,fp:fingerprint(synced)});
+    syncedRef.current=synced;blockedRef.current=null;attemptRef.current=0;takeoverRef.current=false;
+    const saved=plainLink(link);
+    writeLink(saved);
+    writeFp({projectId:saved.projectId,version:saved.version??0,fp:fingerprint(synced)});
     setState({kind:'saved',at:Date.now()});
   },[]);
   /** Un autre projet remplace celui-ci : on coupe le lien (le cloud existant reste intact, un nouveau sera créé si besoin). */
   const unlink=useCallback(()=>{
     writeLink(null);writeFp(null);
-    syncedRef.current=null;blockedRef.current=null;attemptRef.current=0;
+    syncedRef.current=null;blockedRef.current=null;attemptRef.current=0;takeoverRef.current=false;
     setState(!cloudConfigured?{kind:'off'}:signedIn?{kind:'idle'}:{kind:'login'});
   },[signedIn]);
-  /** Conflit : on garde CETTE version et on remplace celle du cloud. */
-  const overwriteCloud=useCallback((cloudVersion:number)=>{
-    const link=readLink();
-    if(link)writeLink({...link,version:cloudVersion});
-    blockedRef.current=null;attemptRef.current=0;schedule(0);
-  },[schedule]);
-  /** Conflit : on prend la version du cloud. */
-  const loadCloudVersion=useCallback(async():Promise<{project:StudioProject;link:CloudLink}>=>{
-    const link=readLink();
-    if(!link)throw new Error('Aucune visite cloud liée.');
-    const loaded=await openCloudProject(link.projectId,progress=>setState({kind:'saving',progress}));
-    return loaded;
-  },[]);
 
-  return {state,enabled,setEnabled,retryNow,markSynced,unlink,overwriteCloud,loadCloudVersion,signedIn};
+  return {state,enabled,setEnabled,retryNow,markSynced,unlink,signedIn};
 }
