@@ -89,24 +89,62 @@ export async function unpublish(projectId:string){
  * Ensuite, « Publier » dans le Studio met à jour ce que voient les visiteurs, sans renvoyer de dossier.
  * Un seul fichier, sans dépendance : il fonctionne aussi derrière un lien signé temporaire.
  */
-export function wrapperHtml(url:string,title:string):string{
+/**
+ * A single-file wrapper for Scaleway / NovaVisio. When an intro exists,
+ * its iframe is requested at the very first HTML paint, BEFORE the Studio
+ * visitor loads or downloads any panorama. The tour is prepared underneath.
+ * No private media or credentials are embedded in this wrapper.
+ */
+export function wrapperHtml(url:string,title:string,introUrl='',duration=6):string{
   const esc=(v:string)=>v.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const validIntro=(()=>{try{const u=new URL(introUrl);return u.protocol==='https:'?u.href:'';}catch{return '';}})();
+  const validatedDuration=Math.max(2,Math.min(60,Number.isFinite(duration)?duration:6));
+  const viewerUrl=new URL(url);
+  if(validIntro)viewerUrl.searchParams.set('external_intro','1');
+  const source=viewerUrl.href;
+  const introMarkup=validIntro?`
+<div id="nv-intro-layer" aria-label="Introduction de la visite">
+  <iframe id="nv-intro" src="${esc(validIntro)}" title="Introduction" allow="autoplay; fullscreen" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+</div>
+<script>
+(function(){
+  var tour=document.getElementById('nv-visit');
+  var layer=document.getElementById('nv-intro-layer');
+  var minUntil=Date.now()+${validatedDuration*1000};
+  var ready=false;
+  function reveal(){
+    if(!ready)return;
+    var left=Math.max(0,minUntil-Date.now());
+    if(left){setTimeout(reveal,left);return;}
+    layer.classList.add('nv-intro-done');
+    setTimeout(function(){layer.remove();},420);
+  }
+  window.addEventListener('message',function(event){
+    if(event.source!==tour.contentWindow||event.origin!==new URL(tour.src).origin)return;
+    if(event.data&&event.data.type==='novavisio:tour-ready'){ready=true;reveal();}
+  });
+})();
+</script>`:'';
   return `<!doctype html>
 <html lang="fr">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#07131c">
 <title>${esc(title)}</title>
+<link rel="preconnect" href="${esc(viewerUrl.origin)}">
+${validIntro?'<link rel="preconnect" href="'+esc(new URL(validIntro).origin)+'">':''}
 <style>
-  html,body{margin:0;height:100%;background:#07131c}
-  iframe{position:fixed;inset:0;width:100%;height:100%;border:0}
-  a.fallback{position:fixed;left:10px;bottom:8px;z-index:1;font:11px system-ui,sans-serif;color:#9fd4dc;opacity:.55;text-decoration:none}
-  a.fallback:hover{opacity:1}
+  html,body{margin:0;height:100%;height:100dvh;background:#07131c;overflow:hidden}
+  #nv-visit{position:fixed;inset:0;width:100%;height:100%;border:0}
+  #nv-intro-layer{position:fixed;inset:0;z-index:20;background:#07131c;transition:opacity .4s ease}
+  #nv-intro{width:100%;height:100%;border:0}
+  #nv-intro-layer.nv-intro-done{opacity:0;pointer-events:none}
 </style>
 </head>
 <body>
-<iframe src="${esc(url)}" title="${esc(title)}" allow="fullscreen; autoplay; accelerometer; gyroscope; magnetometer; xr-spatial-tracking" allowfullscreen referrerpolicy="no-referrer"></iframe>
-<a class="fallback" href="${esc(url)}" target="_blank" rel="noopener">Ouvrir la visite dans un nouvel onglet</a>
+${introMarkup}
+<iframe id="nv-visit" src="${esc(source)}" title="${esc(title)}" allow="fullscreen; autoplay; accelerometer; gyroscope; magnetometer; xr-spatial-tracking" allowfullscreen referrerpolicy="no-referrer"></iframe>
 </body>
 </html>
 `;
