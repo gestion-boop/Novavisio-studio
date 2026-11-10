@@ -647,8 +647,15 @@ function App(){
     if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
     setProject(p=>({...p,
       icons:p.icons.filter(i=>i.id!==id),
-      scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>h.iconId===id?{...h,iconId:undefined}:h)})),
-      bottomBar:p.bottomBar.map(b=>b.iconId===id?{...b,iconId:undefined}:b)
+      // Nettoie aussi les PNG de survol et de clic : une référence orpheline empêcherait de rouvrir le projet.
+      scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>({...h,
+        iconId:h.iconId===id?undefined:h.iconId,
+        hoverIconId:h.hoverIconId===id?undefined:h.hoverIconId,
+        pressedIconId:h.pressedIconId===id?undefined:h.pressedIconId}))})),
+      bottomBar:p.bottomBar.map(b=>({...b,
+        iconId:b.iconId===id?undefined:b.iconId,
+        hoverIconId:b.hoverIconId===id?undefined:b.hoverIconId,
+        pressedIconId:b.pressedIconId===id?undefined:b.pressedIconId}))
     }));
   }
   // Un seul état à la fois : on voit l'icône de CE bouton, pas toute la bibliothèque.
@@ -666,9 +673,12 @@ function App(){
         </div>
       </div>
       {open&&<div className="icon-choice-row">
-        {project.icons.map(i=><button key={i.id} type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
-          <img src={i.dataUrl} alt={i.name}/></button>)}
-        {!project.icons.length&&<small className="hint-inline">Ta bibliothèque est vide : importe un fichier.</small>}
+        {project.icons.map(i=><span key={i.id} className="icon-choice-wrap">
+          <button type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
+            <img src={i.dataUrl} alt={i.name}/></button>
+          <button type="button" className="icon-delete" title={'Supprimer « '+i.name+' » de la bibliothèque'} aria-label={'Supprimer '+i.name} onClick={()=>deleteIcon(i.id)}>✕</button>
+        </span>)}
+        <button type="button" className="icon-choice icon-upload" title="Ajouter un nouveau PNG" onClick={()=>{stateTarget.current=apply;stateIconInput.current?.click();}}>＋</button>
       </div>}
     </div>;
   }
