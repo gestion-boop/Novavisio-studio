@@ -46,7 +46,12 @@ function publicProject(zip:JSZip,source:StudioProject):StudioProject {
           'media/videos/ecran-'+String(i+1).padStart(3,'0')+'-'+String(j+1).padStart(3,'0')+'-'+h.id):h.videoUrl
       }))
     })),
-    icons:source.icons.map((icon,i)=>({...icon,dataUrl:addImage(zip,icon.dataUrl,'media/icones/icone-'+String(i+1).padStart(3,'0')+'-'+icon.id)}))
+    icons:source.icons.map((icon,i)=>({...icon,dataUrl:addImage(zip,icon.dataUrl,'media/icones/icone-'+String(i+1).padStart(3,'0')+'-'+icon.id)})),
+    audioTracks:(source.audioTracks??[]).map((track,i)=>({
+      ...track,
+      dataUrl:undefined,
+      url:track.dataUrl?addSoundOrVideo(zip,track.dataUrl,'media/audio/piste-'+String(i+1).padStart(3,'0')+'-'+track.id):track.url
+    }))
   };
 }
 function collectAssets(manifest:BuildManifest,key:string,seen:Set<string>,files:Set<string>) {
