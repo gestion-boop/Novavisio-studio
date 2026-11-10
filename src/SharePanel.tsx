@@ -79,7 +79,7 @@ export function SharePanel({project,onClose,onStatus}:Props){
   };
   const downloadWrapper=()=>{
     if(!pub)return;
-    const blob=new Blob([wrapperHtml(shareUrl(pub.token),project.name||'Visite 360°')],{type:'text/html'});
+    const blob=new Blob([wrapperHtml(shareUrl(pub.token),project.name||'Visite 360°',project.introEnabled?project.introUrl:'',project.introDuration??6)],{type:'text/html'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download='index.html';
     document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
