@@ -12,7 +12,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2,Lock} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers} from './markerSync';
@@ -419,6 +419,62 @@ function App(){
   useEffect(()=>{if(!preview)setGalleryOpen(null);},[preview]);
   const suppressClick=useRef(false);
   const viewAreaRef=useRef<HTMLDivElement>(null);
+  const [creationFullscreen,setCreationFullscreen]=useState(false);
+  const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
+  const creationFallbackRef=useRef(false);
+  useEffect(()=>{
+    const syncFullscreen=()=>{
+      if(document.fullscreenElement===viewAreaRef.current){
+        setCreationFullscreen(true);
+      } else if(!creationFallbackRef.current){
+        // The user pressed Escape or used the browser's own fullscreen exit.
+        setCreationFullscreen(false);
+        setCreationFullscreenFallback(false);
+      }
+    };
+    const exitFallbackOnEscape=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'&&creationFallbackRef.current){
+        creationFallbackRef.current=false;
+        setCreationFullscreen(false);
+        setCreationFullscreenFallback(false);
+      }
+    };
+    document.addEventListener('fullscreenchange',syncFullscreen);
+    document.addEventListener('keydown',exitFallbackOnEscape);
+    return ()=>{
+      document.removeEventListener('fullscreenchange',syncFullscreen);
+      document.removeEventListener('keydown',exitFallbackOnEscape);
+    };
+  },[]);
+  async function toggleCreationFullscreen(){
+    const node=viewAreaRef.current;
+    if(!node)return;
+    if(creationFullscreen){
+      if(document.fullscreenElement===node){
+        try{await document.exitFullscreen();}
+        catch{setStatus('Impossible de quitter le plein écran');}
+      }else{
+        creationFallbackRef.current=false;
+        setCreationFullscreenFallback(false);
+        setCreationFullscreen(false);
+      }
+      return;
+    }
+    // Only the 360° creation is expanded: no Studio header, sidebars or footer.
+    // Do not force preview mode: editing handles must remain usable.
+    try{
+      if(!node.requestFullscreen)throw Error('Fullscreen API unavailable');
+      await node.requestFullscreen();
+      creationFallbackRef.current=false;
+      setCreationFullscreenFallback(false);
+      setCreationFullscreen(true);
+    }catch{
+      // CSS fallback for browsers without the Fullscreen API (some mobile Safari).
+      creationFallbackRef.current=true;
+      setCreationFullscreenFallback(true);
+      setCreationFullscreen(true);
+    }
+  }
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const savedRef=useRef<StudioProject|null>(null);
   const baseRef=useRef<string|null>(null);          // date de la version enregistrée que cet onglet connaît
@@ -1285,7 +1341,7 @@ function App(){
             {preview ? '👁️ APERÇU INTERACTIF' : mode ? '📍 CLIQUEZ DANS LE PANORAMA POUR PLACER LE POINT' : '✏️ MODE ÉDITION'}
           </b>
         </div>
-        <div className="view-area" ref={viewAreaRef}>
+        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')} ref={viewAreaRef}>
           {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!project.scenes.some(s=>s.id===id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
@@ -1294,6 +1350,40 @@ function App(){
             <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
             <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
             <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
+          </div>}
+          {active && !creationFullscreen && <button type="button" className="nv-creation-fullscreen-enter"
+            onClick={()=>void toggleCreationFullscreen()} title="Agrandir uniquement la création 360°" aria-label="Plein écran de la création">
+            <Maximize2 size={18}/> Plein écran création
+          </button>}
+          {active && creationFullscreen && <div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
+            <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
+            <button type="button" className={!preview?'nv-fullscreen-mode is-active':'nv-fullscreen-mode'}
+              onClick={()=>{setPreview(false);setIntroVisible(false);}} title="Retoucher les éléments 360°">
+              <Edit3 size={16}/> Éditer
+            </button>
+            <button type="button" className={preview?'nv-fullscreen-mode is-active':'nv-fullscreen-mode'}
+              onClick={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);}}
+              title="Voir la création sans poignées d'édition">
+              <Eye size={16}/> Voir
+            </button>
+            <button type="button" className="nv-creation-fullscreen-exit"
+              onClick={()=>void toggleCreationFullscreen()} title="Revenir à NovaVisio Studio" aria-label="Quitter le plein écran de création">
+              <Minimize2 size={17}/> Quitter
+            </button>
+          </div>}
+          {active && creationFullscreen && !preview && <div className="nv-creation-fullscreen-palette" role="toolbar" aria-label="Ajouter des éléments dans la création">
+            {([
+              ['navigation','➜ Navigation'],
+              ['information','ⓘ Information'],
+              ['lien','↗ Lien'],
+              ['image','▣ Photo'],
+              ['video','▶ Vidéo']
+            ] as const).map(([type,label])=>(
+              <button key={type} type="button" className={'nv-fullscreen-tool'+(mode===type?' is-active':'')}
+                onClick={()=>{setMode(mode===type?null:type);setSelectedId('');}}
+                title={'Ajouter : '+label}>{label}</button>
+            ))}
+            {mode&&<button type="button" className="nv-fullscreen-tool nv-fullscreen-cancel" onClick={()=>setMode(null)}>Annuler</button>}
           </div>}
           {active && !preview && mode && (
             <div className="mode-active-pill">
