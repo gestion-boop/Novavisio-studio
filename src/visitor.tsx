@@ -8,6 +8,7 @@ import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images
 import {defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import './visitor.css';
+import './media.css';
 
 const symbols={home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid};
 function Symbol({name}:{name:string}) {
