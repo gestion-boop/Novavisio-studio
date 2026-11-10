@@ -65,6 +65,7 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
 };
 export type Scene = {
   id:string;name:string;dataUrl:string;hotspots:Hotspot[];
+  arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;
   audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
 };
 export const isSafeVideoData = (s:unknown):s is string =>
@@ -73,7 +74,7 @@ export const isSafeAudioData = (s:unknown):s is string =>
   typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; updatedAt: string };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -103,7 +104,7 @@ export async function saveProject(project:StudioProject):Promise<void> {
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
-export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],bottomBar:defaultBar(),barStyle:defaultBarStyle(),introUrl:'',introEnabled:false,updatedAt:new Date().toISOString()});
+export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],bottomBar:defaultBar(),barStyle:defaultBarStyle(),introUrl:'',introEnabled:false,introDuration:6,updatedAt:new Date().toISOString()});
 export const uid = () => crypto.randomUUID();
 export function readImage(file:File):Promise<string> {
   return new Promise((resolve,reject) => {
@@ -137,8 +138,10 @@ export function validateProject(value:unknown):StudioProject {
   }
   const introUrl = p.introUrl ?? '';
   const introEnabled = p.introEnabled ?? false;
+  const introDuration = p.introDuration ?? 6;
   if(typeof introUrl !== 'string' || introUrl.length>2048 || typeof introEnabled !== 'boolean') throw new Error('Introduction de visite invalide');
   if(introUrl && !/^https:\/\/[^\s]+$/i.test(introUrl)) throw new Error('L’introduction doit commencer par https://');
+  if(!Number.isFinite(introDuration)||introDuration<2||introDuration>60) throw new Error('Durée d’introduction invalide');
   const bottomBar = p.bottomBar ?? defaultBar();
   if(!Array.isArray(bottomBar) || bottomBar.length > 30) throw new Error('Barre d’icônes non valide');
   for(const item of bottomBar) {
@@ -156,6 +159,10 @@ export function validateProject(value:unknown):StudioProject {
   for (const scene of p.scenes) {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
+    if((scene.arrivalYaw!==undefined && (!Number.isFinite(scene.arrivalYaw)||Math.abs(scene.arrivalYaw)>100)) ||
+       (scene.arrivalPitch!==undefined && (!Number.isFinite(scene.arrivalPitch)||Math.abs(scene.arrivalPitch)>Math.PI/2+0.001)) ||
+       (scene.arrivalZoom!==undefined && (!Number.isFinite(scene.arrivalZoom)||scene.arrivalZoom<0||scene.arrivalZoom>100))
+    ) throw new Error('Vue d’arrivée invalide');
     if ((scene.audioDataUrl !== undefined && (scene.audioDataUrl.length > 34_000_000 || !isSafeAudioData(scene.audioDataUrl))) ||
         (scene.audioUrl !== undefined && scene.audioUrl !== '' && !isSafeMediaUrl(scene.audioUrl)) ||
         (scene.audioEnabled !== undefined && typeof scene.audioEnabled !== 'boolean') ||
@@ -183,5 +190,5 @@ export function validateProject(value:unknown):StudioProject {
       ) throw new Error('Point interactif non valide');
     }
   }
-  return {...p,version:1,name:p.name,scenes:p.scenes,icons,bottomBar,barStyle,introUrl,introEnabled,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  return {...p,version:1,name:p.name,scenes:p.scenes,icons,bottomBar,barStyle,introUrl,introEnabled,introDuration,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
