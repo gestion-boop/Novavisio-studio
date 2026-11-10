@@ -37,3 +37,6 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 .tour-start{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);min-width:190px;display:flex;align-items:center;justify-content:center;gap:10px;border:1px solid #f1d6ae;background:linear-gradient(130deg,#522029,#271012);color:#f7e5c7;border-radius:999px;font-size:14px;font-weight:700;padding:14px 23px;box-shadow:0 5px 28px #0009}
 @keyframes tourFade{from{opacity:0;transform:scale(.975)}to{opacity:1;transform:scale(1)}}
 @media(max-width:700px){.tour-fullscreen{top:10px;right:10px;width:43px;height:43px}.tour-bottom-bar{bottom:12px;gap:8px;min-height:64px;padding:6px 10px}.tour-bar-button{width:48px;height:48px;flex-basis:48px}.tour-bar-icon svg{width:25px;height:25px}.tour-bar-icon img{max-width:44px;max-height:44px}.tour-overlay,.tour-image-viewer{padding:8px}.tour-dialog{height:90vh}.tour-dialog header{padding:7px 10px}.tour-dialog h2{font-size:13px}.tour-embed-note{font-size:10px}}
+
+/* Smaller visitor hotspots; image/video frames still scale in response to zoom. */
+.tour-marker{font-size:16px;border-width:2px;box-shadow:0 2px 8px #0007}
