@@ -1185,7 +1185,11 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .scene-slot .scene{width:100%}
 .scene-slot .scene-grip{position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#6f93a6;font-size:14px;letter-spacing:-3px;line-height:1;padding:10px 6px;touch-action:none;cursor:grab;opacity:.7}
 .scene-slot:hover .scene-grip{opacity:1;color:#4bebde}
-.scene-slot.is-dragging{transition:none;z-index:6;cursor:grabbing;filter:drop-shadow(0 10px 18px rgba(0,0,0,.55))}
+.scene-slot.is-dragging{transition:none;z-index:6;cursor:grabbing}
+.scene-slot.is-dragging.is-settling{transition:transform .15s cubic-bezier(.2,.8,.3,1)}
+.scenes.is-sorting .scene-slot{will-change:transform}
+.scene-slot.is-dragging .scene{box-shadow:0 8px 16px rgba(0,0,0,.5)}
+.scene-thumb-ph{display:block;width:70px;height:46px;flex:none;border-radius:6px;border:1px solid #233e54;background:#0e1d2b}
 .scene-slot.is-dragging .scene{border-color:#4bebde;background:#17324a}
 .scenes.is-sorting,.scenes.is-sorting *{cursor:grabbing!important}
 .scenes.is-sorting .scene{pointer-events:none}

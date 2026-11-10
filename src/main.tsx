@@ -6,6 +6,7 @@ import {exportStaticTour} from './exportTour';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {CloudPanel} from './CloudPanel';
+import {useSceneThumbs} from './thumbs';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -369,6 +370,8 @@ function App(){
   const stateIconInput=useRef<HTMLInputElement>(null);
   const stateTarget=useRef<((id:string|undefined)=>void)|null>(null);
   const [libraryFor,setLibraryFor]=useState<string|null>(null);
+  const sceneThumbs=useSceneThumbs(project.scenes);
+  const sortBusy=useRef(false);
   const scenesRef=useRef<HTMLDivElement>(null);
   const suppressClick=useRef(false);
   const viewAreaRef=useRef<HTMLDivElement>(null);
@@ -595,7 +598,7 @@ function App(){
   // Glisser-déposer des scènes : suit le pointeur en direct (transformations CSS, aucun rendu React pendant le glissement),
   // décale les autres scènes avec une animation, fait défiler la liste près des bords. Souris, stylet et tactile (via la poignée ⋮⋮).
   function startSceneDrag(e:React.PointerEvent<HTMLDivElement>,index:number){
-    if(e.button!==0)return;
+    if(e.button!==0||sortBusy.current)return;
     if(e.pointerType==='touch'&&!(e.target as HTMLElement).closest('.scene-grip'))return;
     const container=scenesRef.current;
     if(!container)return;
@@ -607,7 +610,8 @@ function App(){
     const tops=slots.map(n=>n.offsetTop),heights=slots.map(n=>n.offsetHeight);
     const gap=parseFloat(getComputedStyle(container).rowGap)||8;
     const step=heights[index]+gap;
-    let started=false,to=index,lastY=startY,raf=0;
+    const crect=container.getBoundingClientRect(); // la liste ne bouge pas pendant le glissement
+    let started=false,to=index,lastY=startY,raf=0,zoneSince=0;
     const layout=()=>{
       const last=slots.length-1;
       const raw=lastY-startY+(container.scrollTop-startScroll);
@@ -626,12 +630,20 @@ function App(){
       });
       to=target;
     };
-    const tick=()=>{
-      const r=container.getBoundingClientRect(),edge=44;
-      let v=0;
-      if(lastY<r.top+edge)v=-Math.min(18,Math.ceil((r.top+edge-lastY)/3));
-      else if(lastY>r.bottom-edge)v=Math.min(18,Math.ceil((lastY-(r.bottom-edge))/3));
-      if(v){container.scrollTop+=v;layout();}
+    const tick=(now:number)=>{
+      // Défilement doux : zone étroite, délai avant démarrage, vitesse progressive (jamais de saut brusque).
+      const edge=30;
+      const depth=lastY<crect.top+edge?crect.top+edge-lastY:lastY>crect.bottom-edge?lastY-(crect.bottom-edge):0;
+      if(!depth)zoneSince=0;
+      else{
+        if(!zoneSince)zoneSince=now;
+        if(now-zoneSince>140){
+          const ratio=Math.min(1,depth/edge);
+          const v=Math.max(1,Math.round(13*ratio*ratio))*(lastY<crect.top+edge?-1:1);
+          container.scrollTop+=v;
+          layout();
+        }
+      }
       raf=requestAnimationFrame(tick);
     };
     const move=(ev:PointerEvent)=>{
@@ -656,11 +668,19 @@ function App(){
       if(!started)return;
       suppressClick.current=true;
       window.setTimeout(()=>{suppressClick.current=false;},0);
-      // On applique le nouvel ordre AVANT de retirer les décalages visuels : aucun saut à l'écran.
-      if(commit&&to!==index)flushSync(()=>moveScene(id,to>index?to+1:to));
-      slots.forEach(n=>{n.style.transition='none';n.style.transform='';n.classList.remove('is-dragging');});
-      container.classList.remove('is-sorting');
-      requestAnimationFrame(()=>slots.forEach(n=>{n.style.transition='';}));
+      sortBusy.current=true;
+      // La scène glisse jusqu'à sa place (au lieu de sauter), puis l'ordre est appliqué sans aucun saut à l'écran.
+      const apply=commit&&to!==index;
+      const finalTop=to>index?tops[to]+heights[to]-heights[index]:tops[to];
+      el.classList.add('is-settling');
+      el.style.transform='translateY('+(apply?finalTop-tops[index]:0)+'px)';
+      if(!apply)slots.forEach(n=>{if(n!==el)n.style.transform='';});
+      window.setTimeout(()=>{
+        if(apply)flushSync(()=>moveScene(id,to>index?to+1:to));
+        slots.forEach(n=>{n.style.transition='none';n.style.transform='';n.classList.remove('is-dragging','is-settling');});
+        container.classList.remove('is-sorting');
+        requestAnimationFrame(()=>{slots.forEach(n=>{n.style.transition='';});sortBusy.current=false;});
+      },160);
     };
     const up=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(true);};
     const cancel=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(false);};
@@ -968,7 +988,7 @@ function App(){
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
             onClick={()=>{setActiveId(s.id);setSelectedId('');setMode(null);}}>
-            <img src={s.dataUrl} alt="Miniature du panorama" draggable={false} decoding="async"/>
+            {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
             <span>
               <strong>{s.name}</strong>
               <small>Scène {i+1}{i===0?' · accueil':''} · {s.hotspots.length} point(s)</small>
