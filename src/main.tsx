@@ -141,6 +141,61 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     if(!element||!plugin)return;
     plugin.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,element.clientHeight||550,selectedId,preview)));
   },[scene.hotspots,icons,selectedId,preview]);
+  useEffect(()=>{
+    const root=box.current;
+    if(!root)return;
+    const onDown=(event:PointerEvent)=>{
+      const target=event.target;
+      if(!(target instanceof HTMLElement))return;
+      const button=target.closest<HTMLButtonElement>('.nv-direct-corner');
+      if(!button || actions.current.preview || !actions.current.selectedId)return;
+      const key=button.dataset.corner as keyof FrameCorners | undefined;
+      if(!key || !['tl','tr','br','bl'].includes(key))return;
+      const hotspot=actions.current.scene.hotspots.find(h=>h.id===actions.current.selectedId);
+      const host=button.closest<HTMLElement>('.nv-frame-host');
+      if(!hotspot || !host || hotspot.type!=='image')return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      let changed=false;
+      const corners=structuredClone(hotspot.frameCorners??defaultFrameCorners());
+      const photo=host.querySelector<HTMLImageElement>('.nv-frame-photo');
+      const polygon=host.querySelector<SVGPolygonElement>('.nv-direct-guides polygon');
+      const redraw=(pointer:PointerEvent)=>{
+        if(pointer.pointerId!==event.pointerId)return;
+        pointer.preventDefault();
+        pointer.stopImmediatePropagation();
+        const rect=host.getBoundingClientRect();
+        if(rect.width<1 ||rect.height<1)return;
+        const x=Math.max(0,Math.min(100,Math.round(100*(pointer.clientX-rect.left)/rect.width)));
+        const y=Math.max(0,Math.min(100,Math.round(100*(pointer.clientY-rect.top)/rect.height)));
+        corners[key]={x,y};
+        button.style.left=x+'%';
+        button.style.top=y+'%';
+        if(polygon)polygon.setAttribute('points',(['tl','tr','br','bl'] as const).map(k=>corners[k].x+','+corners[k].y).join(' '));
+        if(photo)photo.style.transform=perspectiveMatrix(corners,rect.width,rect.height);
+        changed=true;
+      };
+      const cleanup=()=>{
+        document.removeEventListener('pointermove',redraw,true);
+        document.removeEventListener('pointerup',finish,true);
+        document.removeEventListener('pointercancel',cancel,true);
+      };
+      const finish=(up:PointerEvent)=>{
+        if(up.pointerId!==event.pointerId)return;
+        redraw(up);cleanup();
+        if(changed)actions.current.onCornerChange(hotspot.id,key,corners[key].x,corners[key].y);
+      };
+      const cancel=(up:PointerEvent)=>{
+        if(up.pointerId!==event.pointerId)return;
+        cleanup();
+      };
+      document.addEventListener('pointermove',redraw,true);
+      document.addEventListener('pointerup',finish,true);
+      document.addEventListener('pointercancel',cancel,true);
+    };
+    root.addEventListener('pointerdown',onDown,true);
+    return ()=>root.removeEventListener('pointerdown',onDown,true);
+  },[scene.id,scene.dataUrl]);
   return <div ref={box} className="panorama" />;
 }
 
@@ -470,7 +525,9 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}}/>:<div className="empty">
+        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          onCornerChange={(id,key,x,y)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
+            {...h,frameCorners:{...(h.frameCorners??defaultFrameCorners()),[key]:{x,y}}}:h)}))}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
           <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
           <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
@@ -581,7 +638,7 @@ function App(){
                   <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo maximum, optimisé automatiquement</small>
                   {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
                   {selected.imageDataUrl&&<img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo intégrée au cadre"/>}
-                  {selected.imageDataUrl&&<CornerEditor image={selected.imageDataUrl} width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()} onChange={(v:FrameCorners)=>patchPoint({frameCorners:v})}/>}
+                  {selected.imageDataUrl && <p className="hint">Le cadrage se règle maintenant directement dans le panorama : déplace les quatre poignées turquoise sur le cadre photo. Le rendu conserve les mêmes proportions en plein écran.</p>}
                   <label>Largeur du cadre : {selected.frameWidth??320} px
                     <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
                   </label>
