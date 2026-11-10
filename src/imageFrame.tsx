@@ -67,7 +67,7 @@ export function directCornerControls(corners:FrameCorners):string {
     keys.map(key=>'<button type="button" class="nv-direct-corner" data-corner="'+key+
       '" aria-label="Déplacer le coin '+titles[key]+
       '" title="'+titles[key]+'" style="left:'+corners[key].x+'%;top:'+corners[key].y+'%">'+
-      '<span>'+key.toUpperCase()+'</span></button>').join('');
+      '<span class="nv-corner-label" aria-hidden="true">'+key.toUpperCase()+'</span></button>').join('');
 }
 export function imageMarkerHtml(src:string|undefined,corners:FrameCorners,width:number,height:number,title:string,editing=false):string {
   const transform=perspectiveMatrix(corners,width,height);
@@ -89,8 +89,8 @@ export function CornerEditor({corners,image,width,height,onChange}:CornerEditorP
     if(!container)return;
     const r=container.getBoundingClientRect();
     if(!r.width||!r.height)return;
-    const x=Math.round(Math.max(0,Math.min(100,100*(event.clientX-r.left)/r.width)));
-    const y=Math.round(Math.max(0,Math.min(100,100*(event.clientY-r.top)/r.height)));
+    const x=Math.round(Math.max(-100,Math.min(200,100*(event.clientX-r.left)/r.width)));
+    const y=Math.round(Math.max(-100,Math.min(200,100*(event.clientY-r.top)/r.height)));
     onChange({...corners,[key]:{x,y}});
   }
   const shape=keys.map(key=>corners[key].x+','+corners[key].y).join(' ');
@@ -111,8 +111,8 @@ export function CornerEditor({corners,image,width,height,onChange}:CornerEditorP
     <div className="corner-editor-coordinates">
       {keys.map(key=><div className="corner-coord" key={key}>
         <span>{titles[key]}</span>
-        <label>X <input type="number" min="0" max="100" value={corners[key].x} onChange={e=>onChange({...corners,[key]:{...corners[key],x:Math.max(0,Math.min(100,Number(e.target.value)||0))}})}/></label>
-        <label>Y <input type="number" min="0" max="100" value={corners[key].y} onChange={e=>onChange({...corners,[key]:{...corners[key],y:Math.max(0,Math.min(100,Number(e.target.value)||0))}})}/></label>
+        <label>X <input type="number" min="-100" max="200" value={corners[key].x} onChange={e=>onChange({...corners,[key]:{...corners[key],x:Math.max(-100,Math.min(200,Number(e.target.value)||0))}})}/></label>
+        <label>Y <input type="number" min="-100" max="200" value={corners[key].y} onChange={e=>onChange({...corners,[key]:{...corners[key],y:Math.max(-100,Math.min(200,Number(e.target.value)||0))}})}/></label>
       </div>)}
     </div>
   </div>;
