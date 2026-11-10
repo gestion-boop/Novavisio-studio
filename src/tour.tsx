@@ -171,7 +171,11 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [galleryId,setGalleryId]=useState<string|null>(null);
   const [arrival,setArrival]=useState<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [video,setVideo]=useState<Hotspot|null>(null);
-  const [showIntro,setShowIntro]=useState(()=>Boolean(project?.introEnabled && project.introUrl?.startsWith('https://')));
+  const [showIntro,setShowIntro]=useState(()=>Boolean(
+    project?.introEnabled && project.introUrl?.startsWith('https://') &&
+    // A generated Scaleway wrapper already starts the intro at HTML first paint.
+    !(window.parent!==window && new URLSearchParams(window.location.search).get('external_intro')==='1')
+  ));
   const [introCompleted,setIntroCompleted]=useState(false);
   const [firstPanoramaReady,setFirstPanoramaReady]=useState(false);
   const [fullscreen,setFullscreen]=useState(false);
