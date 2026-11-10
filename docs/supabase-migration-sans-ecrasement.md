@@ -71,3 +71,9 @@
 - Une personne invitée peut ouvrir, modifier et sauvegarder la copie de travail et ses médias ; elle ne peut ni inviter, ni créer de lien public, ni toucher aux révisions.
 - Règle de sauvegarde : **la dernière personne qui agit a la main**. Un enregistrement qui arrive après celui d'une autre personne la remplace ; la version remplacée est archivée dans `nvstudio_working_history` (jamais supprimée). Une fenêtre sans modification en cours se met à jour toute seule (toutes les ~4 s) avec la version de l'autre personne.
 - Retirer un accès supprime seulement la ligne `nvstudio_members` : le compte de la personne n'est pas supprimé.
+
+## E-mails de connexion / confirmation résistants aux robots (liens « à bouton »)
+
+Par défaut, le lien des e-mails Supabase est consommé dès qu'il est ouvert : les antivirus et messageries qui l'ouvrent à l'avance le rendent inutilisable (`otp_expired`). Le Studio sait valider un lien **au clic** : `https://…/?token_hash=…&type=email`. Dans Supabase → Authentication → Email Templates, remplacer le lien des modèles « Confirm signup » et « Magic Link » par :
+
+    <p><a href="{{ .SiteURL }}/?token_hash={{ .TokenHash }}&type=email">Confirmer mon adresse et ouvrir NovaVisio Studio</a></p>

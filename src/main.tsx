@@ -7,7 +7,7 @@ import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {CloudPanel} from './CloudPanel';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {type CloudLink} from './cloud';
+import {confirmEmailLink,type CloudLink} from './cloud';
 import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
@@ -381,6 +381,12 @@ function App(){
   const [exporting,setExporting]=useState(false);
   const [cloudOpen,setCloudOpen]=useState(false);
   const [authNotice,setAuthNotice]=useState<string|null>(null);
+  // Lien de confirmation « à bouton » : ?token_hash=…&type=… (le jeton n'est consommé qu'au clic).
+  const [emailLink,setEmailLink]=useState<{tokenHash:string;type:string;busy:boolean;error:string;done:boolean}|null>(()=>{
+    const q=new URLSearchParams(window.location.search);
+    const tokenHash=q.get('token_hash'),type=q.get('type');
+    return tokenHash&&type?{tokenHash,type,busy:false,error:'',done:false}:null;
+  });
   useEffect(()=>{
     // Retour d'un lien reçu par e-mail (connexion / confirmation) : Supabase ajoute l'erreur dans l'adresse.
     const params=new URLSearchParams(window.location.hash.replace(/^#/,''));
@@ -1179,6 +1185,26 @@ function App(){
         </button>
       </div>
     </header>
+    {emailLink&&<div className="overlay"><div className="modal cloud-panel">
+      <h2>{emailLink.done?'Adresse confirmée ✓':'Confirmer mon accès'}</h2>
+      {emailLink.done?<>
+        <p>Tu es connecté. Tu peux maintenant ouvrir la visite partagée : clique sur <b>Cloud</b> en haut, puis <b>Ouvrir</b> à côté de la visite.</p>
+        <button className="primary" onClick={()=>{setEmailLink(null);setCloudOpen(true);}}>Ouvrir le panneau Cloud</button>
+      </>:<>
+        <p>Clique sur le bouton pour confirmer ton adresse e-mail et accéder à NovaVisio Studio.</p>
+        <button className="primary" disabled={emailLink.busy} onClick={async()=>{
+          setEmailLink(l=>l&&{...l,busy:true,error:''});
+          try{
+            await confirmEmailLink(emailLink.tokenHash,emailLink.type);
+            window.history.replaceState(null,'',window.location.pathname);
+            setEmailLink(l=>l&&{...l,busy:false,done:true});
+          }catch(e){setEmailLink(l=>l&&{...l,busy:false,error:e instanceof Error?e.message:String(e)});}
+        }}>{emailLink.busy?'Confirmation…':'Confirmer mon adresse'}</button>
+        {emailLink.error&&<><p className="warning">{emailLink.error}</p>
+          <p className="hint-inline">Demande à la personne qui t’a invité de recréer ton accès, ou utilise « Cloud » → « Lien magique » pour recevoir un nouveau lien.</p>
+          <button className="quiet" onClick={()=>{window.history.replaceState(null,'',window.location.pathname);setEmailLink(null);setCloudOpen(true);}}>Aller à la connexion</button></>}
+      </>}
+    </div></div>}
     {authNotice&&<div className="nv-banner" role="alert">
       <p><b>{authNotice}</b> Un lien de connexion ne fonctionne qu’<b>une seule fois</b> et pendant environ 1 heure. Certaines messageries (Outlook, antivirus, filtres) l’ouvrent à l’avance et le rendent inutilisable. Demande-en un nouveau et clique dessus tout de suite, dans ce navigateur.</p>
       <div className="nv-banner-actions">

@@ -96,6 +96,13 @@ export async function resendConfirmation(email:string){
   const {error}=await supabase().auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
   if(error)throw new Error(error.message);
 }
+/** Valide un lien reçu par e-mail (jeton) : appelé seulement au CLIC, pour que les robots des messageries ne consomment pas le lien. */
+export async function confirmEmailLink(tokenHash:string,type:string){
+  const allowed=['email','signup','magiclink','recovery','invite','email_change'];
+  if(!allowed.includes(type)||!/^[A-Za-z0-9_-]{10,200}$/.test(tokenHash))throw new Error('Lien incomplet ou invalide.');
+  const {error}=await supabase().auth.verifyOtp({token_hash:tokenHash,type:type as 'email'});
+  if(error)throw new Error(/expired|invalid/i.test(error.message)?'Ce lien a expiré ou a déjà été utilisé.':error.message);
+}
 export async function signOut(){await supabase().auth.signOut();}
 
 export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean};
