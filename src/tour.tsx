@@ -4,6 +4,7 @@ import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plug
 import {frameWorldCorners} from './sphericalFrame';
 import {syncMarkers,resetMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
+import {PanoramaGallery,galleryEntries} from './gallery';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
@@ -152,6 +153,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [modal,setModal]=useState<{title:string;url?:string;text?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
+  const [galleryId,setGalleryId]=useState<string|null>(null);
   const [arrival,setArrival]=useState<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [video,setVideo]=useState<Hotspot|null>(null);
   const [showIntro,setShowIntro]=useState(()=>Boolean(project?.introEnabled && project.introUrl?.startsWith('https://')));
@@ -200,6 +202,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   };
   const information=(h:Hotspot)=>setModal({title:h.title,text:h.text});
   const act=(item:BottomBarItem)=>{
+    if(item.type==='gallery'){setGalleryId(item.id);return;}
     if(item.type==='navigation'){
       move(item.target||project.scenes[0].id);
     }else if(item.url && checkedLink(item.url)){
@@ -237,6 +240,13 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
           <p className="tour-dialog-text">{modal.text||'Aucune information renseignée.'}</p>}
       </section>
     </div>}
+    {galleryId&&(()=>{
+      const item=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
+      if(!item)return null;
+      return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={current.id}
+        entries={galleryEntries(item,project.scenes).map(e=>({sceneId:e.sceneId,label:e.label,thumb:project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined}))}
+        onPick={id=>{move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
+    })()}
     {photo?.imageDataUrl&&<ZoomImage variant="tour" src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
     {showIntro&&project.introUrl&&<div className="tour-intro">
       <iframe title={'Introduction de '+project.name} src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>

@@ -66,3 +66,22 @@
   .nv-zoom-in{animation:nvBackdropIn .2s ease both}
   .nv-zoom-out{animation:nvBackdropOut .15s ease both}
 }
+
+/* Galerie de panoramas (bouton de la barre) */
+.nv-gallery-overlay{position:absolute;inset:0;z-index:140;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(2,9,14,.78);backdrop-filter:blur(6px);animation:nvBackdropIn .3s ease both}
+.nv-gallery{width:min(94vw,980px);max-height:min(88vh,760px);display:flex;flex-direction:column;gap:12px;padding:16px 16px 18px;border:1px solid #2c6c78;border-radius:18px;background:linear-gradient(165deg,#10303a,#0a1c26);box-shadow:0 24px 80px #000a;color:#e7fff9;animation:nvGalleryIn .38s cubic-bezier(.2,.8,.25,1) both}
+.nv-gallery header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.nv-gallery h2{margin:0;font-size:18px}
+.nv-gallery-close{width:38px;height:38px;border-radius:50%;border:1px solid #5b8e98;background:#12414b;color:#fff;display:grid;place-items:center;cursor:pointer}
+.nv-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;overflow:auto;padding:2px}
+.nv-gallery-card{display:flex;flex-direction:column;gap:7px;padding:7px;border:1px solid #2f6470;border-radius:13px;background:#0f2a35;color:#e7fff9;text-align:left;cursor:pointer;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.nv-gallery-card:hover{transform:translateY(-3px);border-color:#4bebde;box-shadow:0 10px 24px #0008}
+.nv-gallery-card.is-current{border-color:#4bebde;box-shadow:0 0 0 2px #4bebde55}
+.nv-gallery-thumb{display:block;aspect-ratio:16/10;border-radius:9px;overflow:hidden;background:#0a1c26}
+.nv-gallery-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.nv-gallery-ph{display:block;width:100%;height:100%;background:linear-gradient(110deg,#0f2a35 30%,#16404c 50%,#0f2a35 70%);background-size:200% 100%;animation:nvGalleryShimmer 1.4s linear infinite}
+.nv-gallery-card strong{font-size:13px;line-height:1.25;padding:0 2px 2px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.nv-gallery-empty{margin:8px 0;color:#a9c8d1}
+@keyframes nvGalleryIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes nvGalleryShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.nv-gallery{animation:nvBackdropIn .2s ease both}.nv-gallery-ph{animation:none}}

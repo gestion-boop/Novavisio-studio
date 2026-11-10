@@ -43,10 +43,14 @@ export const defaultBarStyle = ():BarStyle => ({
   buttonOutline:'#4a1518',icon:'#f4d69a',
   outlineWidth:2,buttonOutlineWidth:1,roundness:60
 });
+/** Une vignette de la galerie : panorama + nom affiché (vide = nom du panorama). */
+export type GalleryItem = { sceneId: string; label: string };
 export type BottomBarItem = {
   id: string;
   title: string;
-  type: 'navigation' | 'information' | 'lien';
+  type: 'navigation' | 'information' | 'lien' | 'gallery';
+  gallery?: GalleryItem[];
+  galleryTitle?: string;
   target: string;
   text: string;
   url: string;
@@ -197,7 +201,10 @@ export function validateProject(value:unknown):StudioProject {
   if(!Array.isArray(bottomBar) || bottomBar.length > 30) throw new Error('Barre d’icônes non valide');
   for(const item of bottomBar) {
     if (!item || typeof item.id !== 'string' || typeof item.title !== 'string' || item.title.length > 120 ||
-      !['navigation','information','lien'].includes(item.type) ||
+      !['navigation','information','lien','gallery'].includes(item.type) ||
+      (item.gallery !== undefined && (!Array.isArray(item.gallery) || item.gallery.length > 200 ||
+        !item.gallery.every(g => g && typeof g.sceneId === 'string' && typeof g.label === 'string' && g.label.length <= 100))) ||
+      (item.galleryTitle !== undefined && (typeof item.galleryTitle !== 'string' || item.galleryTitle.length > 100)) ||
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||
       (item.iconId !== undefined && (typeof item.iconId !== 'string' || !icons.some(icon => icon.id === item.iconId))) ||
