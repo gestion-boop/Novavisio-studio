@@ -97,7 +97,7 @@ export function SharePanel({project,onClose,onStatus}:Props){
     :<>
       <div className="permanent-card">
         <div className="icon-state-label">LIEN PERMANENT · POUR NOVATOUR</div>
-        <small className="hint-inline">Envoie le fichier <b>index.html</b> ci-dessous <b>une seule fois</b> dans NovaTour. Ensuite, chaque clic sur <b>« Publier »</b> met à jour la visite affichée dans NovaTour : plus de dossier à renvoyer.</small>
+        <small className="hint-inline">Envoie le fichier <b>index.html</b> ci-dessous dans NovaVisio. Ensuite, <b>« Publier »</b> met à jour la visite sans renvoyer de dossier. <b>Si tu avais déjà transmis un ancien index.html, remplace-le une fois pour activer l’intro immédiate avant le chargement.</b></small>
         {pubNote&&<small className="warning-inline">{pubNote}</small>}
         {publicationActive(pub)&&pub?<>
           <input readOnly value={shareUrl(pub.token)} onFocus={e=>e.currentTarget.select()}/>
