@@ -56,8 +56,9 @@ type ViewerProps={
   linked:(title:string,url:string)=>void;
   image:(h:Hotspot,from?:ZoomOrigin|null)=>void;
   video:(h:Hotspot,from?:ZoomOrigin|null)=>void;
+  onReady:(sceneId:string)=>void;
 };
-function Pano({scene,icons,arrival,navigate,info,linked,image,video}:ViewerProps){
+function Pano({scene,icons,arrival,navigate,info,linked,image,video,onReady}:ViewerProps){
   const container=useRef<HTMLDivElement>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic : point de départ du zoom photo/vidéo
   useEffect(()=>{
@@ -69,8 +70,8 @@ function Pano({scene,icons,arrival,navigate,info,linked,image,video}:ViewerProps
   },[]);
   const viewer=useRef<Viewer|null>(null);
   const loadedScene=useRef<string|null>(null);
-  const handlers=useRef({scene,icons,arrival,navigate,info,linked,image,video});
-  handlers.current={scene,icons,arrival,navigate,info,linked,image,video};
+  const handlers=useRef({scene,icons,arrival,navigate,info,linked,image,video,onReady});
+  handlers.current={scene,icons,arrival,navigate,info,linked,image,video,onReady};
   useEffect(()=>{
     if(!container.current)return;
     const instance=new Viewer({
@@ -84,6 +85,8 @@ function Pano({scene,icons,arrival,navigate,info,linked,image,video}:ViewerProps
     });
     viewer.current=instance;
     loadedScene.current=scene.id;
+    // Notify when the first 360° texture is decoded: only then dismiss the intro.
+    instance.addEventListener('ready',()=>handlers.current.onReady(scene.id));
     const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
     plugin.addEventListener('select-marker',({marker})=>{
       const a=handlers.current;
@@ -141,6 +144,13 @@ function Pano({scene,icons,arrival,navigate,info,linked,image,video}:ViewerProps
     }).catch(()=>{/* Keep previous panorama if the new photo cannot load. */});
     return ()=>{disposed=true;instance.removeEventListener('panorama-loaded',onLoaded);};
   },[scene.id,scene.dataUrl]);
+  useEffect(()=>{
+    const instance=viewer.current;
+    if(!instance||loadedScene.current!==scene.id)return;
+    // Images, icon files and screen videos may arrive after the main panorama.
+    syncMarkers(instance,scene.hotspots.map(h=>
+      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel())));
+  },[scene.id,scene.hotspots,icons]);
   return <div className="tour-panorama" ref={container}/>;
 }
 /**
@@ -162,21 +172,35 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [arrival,setArrival]=useState<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [video,setVideo]=useState<Hotspot|null>(null);
   const [showIntro,setShowIntro]=useState(()=>Boolean(project?.introEnabled && project.introUrl?.startsWith('https://')));
+  const [introCompleted,setIntroCompleted]=useState(false);
+  const [firstPanoramaReady,setFirstPanoramaReady]=useState(false);
   const [fullscreen,setFullscreen]=useState(false);
+  const firstSceneId=project?.scenes[0]?.id??'';
   useEffect(()=>{
     if(!showIntro||!project?.introEnabled||!project.introUrl)return;
-    const finish=()=>{setShowIntro(false);setSceneId(project.scenes[0]?.id??'');};
-    const timer=window.setTimeout(finish,(project.introDuration??6)*1000);
-    const onMessage=(e:MessageEvent)=>{
+    // The intro starts before the media download. Its duration isn't restarted
+    // when progressive media hydration triggers a new project object.
+    const timer=window.setTimeout(()=>setIntroCompleted(true),(project.introDuration??6)*1000);
+    const onMessage=(event:MessageEvent)=>{
       try{
-        if(e.origin!==new URL(project.introUrl).origin)return;
-        const kind=typeof e.data==='string'?e.data:e.data?.type;
-        if(['intro:done','intro-finished','novavisio:intro-finished'].includes(kind))finish();
+        if(event.origin!==new URL(project.introUrl).origin)return;
+        const kind=typeof event.data==='string'?event.data:event.data?.type;
+        if(['intro:done','intro-finished','novavisio:intro-finished'].includes(kind))setIntroCompleted(true);
       }catch{}
     };
     window.addEventListener('message',onMessage);
     return ()=>{window.clearTimeout(timer);window.removeEventListener('message',onMessage);};
-  },[showIntro,project]);
+  },[showIntro,project?.introEnabled,project?.introUrl,project?.introDuration]);
+  useEffect(()=>{
+    // Never reveal a loading screen between the intro and the first panorama.
+    if(showIntro&&introCompleted&&firstPanoramaReady)setShowIntro(false);
+  },[showIntro,introCompleted,firstPanoramaReady]);
+  const reportPanoramaReady=(id:string)=>{
+    if(id!==firstSceneId)return;
+    setFirstPanoramaReady(true);
+    // The static Scala/WebCloud wrapper can reveal the live visit when its viewer is ready.
+    if(window.parent!==window)window.parent.postMessage({type:'novavisio:tour-ready'},'*');
+  };
   const wrap=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     const sync=()=>setFullscreen(document.fullscreenElement===wrap.current);
@@ -223,7 +247,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
   return <main className="tour-app" ref={wrap}>
-    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}}/>:<div className="tour-loading">Chargement du panorama…</div>}
+    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
