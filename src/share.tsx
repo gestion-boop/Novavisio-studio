@@ -26,15 +26,14 @@ function sceneRefs(scene:StudioProject['scenes'][number]):string[]{
   const refs=[scene.dataUrl,scene.audioDataUrl,...scene.hotspots.flatMap(h=>[h.imageDataUrl,h.videoDataUrl])];
   return [...new Set(refs.filter(isRef))];
 }
-/** Copie du projet où seuls les médias déjà téléchargés sont remplacés par une adresse locale. Une scène n'apparaît que complète. */
+/** Hydratation progressive : le panorama est visible dès qu'il est chargé, sans attendre les médias secondaires. */
 function hydrate(snapshot:StudioProject,loaded:Map<string,string>):StudioProject{
   const p=structuredClone(snapshot);
   const swap=(v?:string)=>isRef(v)?loaded.get(v):v;
   p.icons.forEach(i=>{i.dataUrl=swap(i.dataUrl)??'';});
   p.audioTracks.forEach(t=>{t.dataUrl=swap(t.dataUrl);});
-  p.scenes.forEach((scene,idx)=>{
-    const ready=sceneRefs(snapshot.scenes[idx]).every(r=>loaded.has(r));
-    if(!ready){scene.dataUrl='';scene.audioDataUrl=undefined;scene.hotspots.forEach(h=>{h.imageDataUrl=undefined;h.videoDataUrl=undefined;});return;}
+  p.scenes.forEach(scene=>{
+    // A 360° scene no longer waits for big framed images, videos or audio.
     scene.dataUrl=swap(scene.dataUrl)??'';
     scene.audioDataUrl=swap(scene.audioDataUrl);
     scene.hotspots.forEach(h=>{h.imageDataUrl=swap(h.imageDataUrl);h.videoDataUrl=swap(h.videoDataUrl);});
@@ -68,11 +67,23 @@ function Share(){
     let job=pending.current.get(id);
     if(!job){
       job=(async()=>{
-        // Réseau lent ou coupure brève : 3 tentatives avant d'abandonner ce panorama.
-        for(let attempt=0;;attempt++){
-          try{for(const ref of sceneRefs(scene))await fetchRef(ref);break;}
-          catch(e){if(attempt>=2||!alive.current)throw e;await new Promise(r=>setTimeout(r,1500*(attempt+1)));}
+        const download=async(ref:string)=>{
+          for(let attempt=0;attempt<3;attempt++){
+            try{await fetchRef(ref);return;}
+            catch(e){
+              if(attempt===2||!alive.current)throw e;
+              await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));
+            }
+          }
+        };
+        // Priority #1: 360° texture. Release the panorama as soon as it arrives.
+        const panoRef=isRef(scene.dataUrl)?scene.dataUrl:null;
+        if(panoRef){
+          await download(panoRef);
+          if(alive.current)setVersion(v=>v+1);
         }
+        // Priority #2: images and videos embedded in this scene, downloaded in parallel.
+        await Promise.allSettled(sceneRefs(scene).filter(ref=>ref!==panoRef).map(download));
         if(alive.current)setVersion(v=>v+1);
       })().catch(()=>{pending.current.delete(id);});
       pending.current.set(id,job);
@@ -97,16 +108,27 @@ function Share(){
         validateProject(probe);
         const snap=res.snapshot;
         snapshotRef.current=snap;
-        // Les icônes d'abord (légères), puis le 1er panorama : la visite s'ouvre aussitôt.
-        for(const icon of snap.icons)if(isRef(icon.dataUrl))await fetchRef(icon.dataUrl);
-        if(snap.scenes[0])await ensureScene(snap.scenes[0].id);
+        // Show the intro NOW, before downloading the first panorama or its icons.
+        // The viewer is preloaded under the intro; no intermediate loading screen.
         if(!alive.current)return;
         setPhase({kind:'ok',snapshot:snap,expiresAt:res.expires_at??null});
-        // Ensuite : la musique, puis les autres panoramas en arrière-plan.
-        void (async()=>{
-          for(const t of snap.audioTracks)if(isRef(t.dataUrl))await fetchRef(t.dataUrl).catch(()=>undefined);
+        const fetchIcons=async()=>{
+          await Promise.allSettled(snap.icons.filter(i=>isRef(i.dataUrl)).map(i=>fetchRef(i.dataUrl)));
           if(alive.current)setVersion(v=>v+1);
-          for(const s of snap.scenes.slice(1)){if(!alive.current)return;await ensureScene(s.id);}
+        };
+        const fetchAudio=async()=>{
+          await Promise.allSettled(snap.audioTracks.filter(t=>isRef(t.dataUrl)).map(t=>fetchRef(t.dataUrl!)));
+          if(alive.current)setVersion(v=>v+1);
+        };
+        void fetchIcons();
+        void fetchAudio();
+        // The first 360° picture has network priority. Others follow without blocking the intro.
+        void (async()=>{
+          if(snap.scenes[0])await ensureScene(snap.scenes[0].id);
+          for(const scene of snap.scenes.slice(1)){
+            if(!alive.current)return;
+            await ensureScene(scene.id);
+          }
         })();
       }catch(e){
         if(alive.current)setPhase({kind:'error',message:e instanceof Error?e.message:'Impossible de charger la visite'});
