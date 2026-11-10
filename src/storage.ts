@@ -301,3 +301,101 @@ export async function readPanorama(file:File):Promise<string> {
     return readImage(file);
   }
 }
+
+/* ---------- Fichiers projet volumineux (.nvstudio.json) ----------
+ * Un navigateur ne peut pas manipuler un texte de plus de ~512 Mo d'un seul bloc ; un projet avec beaucoup de grands panoramas
+ * dépasse vite cette taille. Écriture et lecture se font donc par morceaux, sans jamais créer une chaîne géante.
+ * Le format du fichier reste le même JSON qu'avant : les anciens fichiers restent lisibles, et ceux-ci aussi par les anciennes versions.
+ */
+export const MAX_PROJECT_FILE_BYTES = 1_500_000_000;
+const MEDIA_MIN_LENGTH = 4096;
+
+/** Morceaux de texte JSON du projet, à passer à `new Blob(parts)`. Chaque média (data:…) reste une chaîne à part. */
+export function projectJsonParts(project: unknown): string[] {
+  const media: string[] = [];
+  const skeleton = JSON.stringify(project, (_key, value) => {
+    if (typeof value === 'string' && value.length > MEDIA_MIN_LENGTH && value.startsWith('data:')) {
+      media.push(value);
+      return '@@NVMEDIA' + (media.length - 1) + '@@';
+    }
+    return value;
+  });
+  const parts: string[] = [];
+  const re = /"@@NVMEDIA(\d+)@@"/g;
+  let last = 0, match: RegExpExecArray | null;
+  while ((match = re.exec(skeleton))) {
+    parts.push(skeleton.slice(last, match.index) + '"');
+    parts.push(media[Number(match[1])]);
+    last = match.index + match[0].length - 1; // le guillemet fermant démarre le morceau suivant
+  }
+  parts.push(skeleton.slice(last));
+  return parts;
+}
+
+/** Lit un fichier projet de n'importe quelle taille (jusqu'à 1,5 Go) en flux, avec progression en pourcentage. */
+export async function readProjectFile(file: File, onProgress?: (percent: number) => void): Promise<unknown> {
+  if (file.size > MAX_PROJECT_FILE_BYTES) {
+    throw new Error('Fichier trop volumineux (' + Math.round(file.size / 1e6) + ' Mo, maximum ' + Math.round(MAX_PROJECT_FILE_BYTES / 1e6) + ' Mo)');
+  }
+  const START = ':"data:';
+  const reader = file.stream().getReader();
+  const decoder = new TextDecoder('utf-8');
+  const skeleton: string[] = [];
+  const media: string[] = [];
+  const st = { mode: 'out' as 'out' | 'media' };
+  let pending = '';
+  let current: string[] = [];
+  let read = 0, lastPercent = -1;
+  const feed = (chunk: string) => {
+    let text = pending + chunk;
+    pending = '';
+    while (text.length) {
+      if (st.mode === 'out') {
+        const i = text.indexOf(START);
+        if (i < 0) {
+          const keep = Math.min(START.length - 1, text.length);
+          skeleton.push(text.slice(0, text.length - keep));
+          pending = text.slice(text.length - keep);
+          text = '';
+        } else {
+          skeleton.push(text.slice(0, i + 2) + '@@NVMEDIA' + media.length + '@@');
+          text = text.slice(i + 2); // commence par « data: » : c'est la valeur du média
+          st.mode = 'media';
+          current = [];
+        }
+      } else {
+        const q = text.indexOf('"');
+        if (q < 0) { current.push(text); text = ''; }
+        else {
+          current.push(text.slice(0, q));
+          media.push(current.join(''));
+          current = [];
+          text = text.slice(q); // le guillemet fermant revient dans le squelette
+          st.mode = 'out';
+        }
+      }
+    }
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    read += value.byteLength;
+    const percent = Math.min(99, Math.floor((read / Math.max(1, file.size)) * 100));
+    if (onProgress && percent !== lastPercent) { lastPercent = percent; onProgress(percent); }
+    feed(decoder.decode(value, { stream: true }));
+  }
+  feed(decoder.decode());
+  if (st.mode === 'media') throw new Error('Fichier incomplet ou tronqué');
+  skeleton.push(pending);
+  const root = JSON.parse(skeleton.join(''));
+  const restore = (v: unknown): unknown => {
+    if (typeof v === 'string') {
+      const m = /^@@NVMEDIA(\d+)@@$/.exec(v);
+      return m && Number(m[1]) < media.length ? media[Number(m[1])] : v;
+    }
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) v[i] = restore(v[i]); return v; }
+    if (v && typeof v === 'object') { const o = v as Record<string, unknown>; for (const k of Object.keys(o)) o[k] = restore(o[k]); return o; }
+    return v;
+  };
+  return restore(root);
+}

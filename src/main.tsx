@@ -21,7 +21,7 @@ import {startPosterBounce} from './posterBounce';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,type GalleryItem,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,type GalleryItem,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
 import './style.css';
 import './media.css';
 
@@ -1253,7 +1253,7 @@ function App(){
     setProject(p=>({...p,scenes:remaining,spaces:(p.spaces??[]).map(space=>({...space,sceneIds:space.sceneIds.filter(id=>id!==active.id)})),bottomBar:p.bottomBar.map(b=>({...b,target:b.target===active.id?'':b.target,...(b.gallery?{gallery:b.gallery.filter(g=>g.sceneId!==active.id)}:{})}))}));setActiveId(remaining[0]?.id??'');setSelectedId('');
   }
   function download(){
-    const blob=new Blob([JSON.stringify(project)],{type:'application/json'});
+    const blob=new Blob(projectJsonParts(project),{type:'application/json'}); // par morceaux : pas de limite de ~512 Mo
     const url=URL.createObjectURL(blob);
     const link=document.createElement('a');
     link.href=url;link.download=(project.name.replace(/[^a-zA-Z0-9-]/g,'_')||'visite')+'.nvstudio.json';
@@ -1262,8 +1262,9 @@ function App(){
   async function openProject(file?:File){
     if(!file)return;
     try {
-      if(file.size>250*1024*1024)throw new Error('Fichier trop volumineux');
-      const imported=ensureFrameReferences(validateProject(JSON.parse(await file.text())),viewAreaRef.current?.clientHeight||550);
+      setStatus('Lecture du fichier… 0 %');
+      const raw=await readProjectFile(file,pct=>setStatus('Lecture du fichier… '+pct+' %'));
+      const imported=ensureFrameReferences(validateProject(raw),viewAreaRef.current?.clientHeight||550);
       if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
       setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
       cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
@@ -1274,7 +1275,7 @@ function App(){
   function downloadRawStored(){
     const raw=rawStoredRef.current;
     if(!raw){window.alert('Aucune donnée brute à télécharger.');return;}
-    const url=URL.createObjectURL(new Blob([JSON.stringify(raw)],{type:'application/json'}));
+    const url=URL.createObjectURL(new Blob(projectJsonParts(raw),{type:'application/json'}));
     const link=document.createElement('a');link.href=url;link.download='projet-enregistre-brut.json';
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
   }
