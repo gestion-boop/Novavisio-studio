@@ -1,4 +1,5 @@
 import {useEffect, useRef, useState, type CSSProperties} from 'react';
+import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
@@ -368,8 +369,8 @@ function App(){
   const stateIconInput=useRef<HTMLInputElement>(null);
   const stateTarget=useRef<((id:string|undefined)=>void)|null>(null);
   const [libraryFor,setLibraryFor]=useState<string|null>(null);
-  const [dragScene,setDragScene]=useState<string|null>(null);
-  const [dropAt,setDropAt]=useState<number|null>(null);
+  const scenesRef=useRef<HTMLDivElement>(null);
+  const suppressClick=useRef(false);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const savedRef=useRef<StudioProject|null>(null);
@@ -577,6 +578,84 @@ function App(){
   }
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
+  }
+  // Glisser-déposer des scènes : suit le pointeur en direct (transformations CSS, aucun rendu React pendant le glissement),
+  // décale les autres scènes avec une animation, fait défiler la liste près des bords. Souris, stylet et tactile (via la poignée ⋮⋮).
+  function startSceneDrag(e:React.PointerEvent<HTMLDivElement>,index:number){
+    if(e.button!==0)return;
+    if(e.pointerType==='touch'&&!(e.target as HTMLElement).closest('.scene-grip'))return;
+    const container=scenesRef.current;
+    if(!container)return;
+    const slots=Array.from(container.querySelectorAll<HTMLElement>(':scope > .scene-slot'));
+    const el=slots[index];
+    const id=project.scenes[index]?.id;
+    if(!el||!id)return;
+    const pointerId=e.pointerId,startY=e.clientY,startScroll=container.scrollTop;
+    const tops=slots.map(n=>n.offsetTop),heights=slots.map(n=>n.offsetHeight);
+    const gap=parseFloat(getComputedStyle(container).rowGap)||8;
+    const step=heights[index]+gap;
+    let started=false,to=index,lastY=startY,raf=0;
+    const layout=()=>{
+      const last=slots.length-1;
+      const raw=lastY-startY+(container.scrollTop-startScroll);
+      const dy=Math.max(tops[0]-tops[index],Math.min(tops[last]+heights[last]-tops[index]-heights[index],raw));
+      el.style.transform='translateY('+dy+'px)';
+      const center=tops[index]+heights[index]/2+dy;
+      let target=index;
+      slots.forEach((n,j)=>{
+        if(j===index)return;
+        const c=tops[j]+heights[j]/2;
+        let shift=0;
+        // 1 px de tolérance : une scène collée au bord haut/bas doit bien passer devant/derrière la dernière.
+        if(j<index&&c>center-1){shift=step;target=Math.min(target,j);}
+        else if(j>index&&c<center+1){shift=-step;target=Math.max(target,j);}
+        n.style.transform=shift?'translateY('+shift+'px)':'';
+      });
+      to=target;
+    };
+    const tick=()=>{
+      const r=container.getBoundingClientRect(),edge=44;
+      let v=0;
+      if(lastY<r.top+edge)v=-Math.min(18,Math.ceil((r.top+edge-lastY)/3));
+      else if(lastY>r.bottom-edge)v=Math.min(18,Math.ceil((lastY-(r.bottom-edge))/3));
+      if(v){container.scrollTop+=v;layout();}
+      raf=requestAnimationFrame(tick);
+    };
+    const move=(ev:PointerEvent)=>{
+      if(ev.pointerId!==pointerId)return;
+      lastY=ev.clientY;
+      if(!started){
+        if(Math.abs(ev.clientY-startY)<5)return;
+        started=true;
+        el.classList.add('is-dragging');
+        container.classList.add('is-sorting');
+        raf=requestAnimationFrame(tick);
+      }
+      ev.preventDefault();
+      layout();
+    };
+    const finish=(commit:boolean)=>{
+      document.removeEventListener('pointermove',move);
+      document.removeEventListener('pointerup',up);
+      document.removeEventListener('pointercancel',cancel);
+      document.removeEventListener('keydown',key);
+      cancelAnimationFrame(raf);
+      if(!started)return;
+      suppressClick.current=true;
+      window.setTimeout(()=>{suppressClick.current=false;},0);
+      // On applique le nouvel ordre AVANT de retirer les décalages visuels : aucun saut à l'écran.
+      if(commit&&to!==index)flushSync(()=>moveScene(id,to>index?to+1:to));
+      slots.forEach(n=>{n.style.transition='none';n.style.transform='';n.classList.remove('is-dragging');});
+      container.classList.remove('is-sorting');
+      requestAnimationFrame(()=>slots.forEach(n=>{n.style.transition='';}));
+    };
+    const up=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(true);};
+    const cancel=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(false);};
+    const key=(ev:KeyboardEvent)=>{if(ev.key==='Escape')finish(false);};
+    document.addEventListener('pointermove',move,{passive:false});
+    document.addEventListener('pointerup',up);
+    document.addEventListener('pointercancel',cancel);
+    document.addEventListener('keydown',key);
   }
   // Réordonne les scènes. `insertAt` = position d'insertion (0..n) dans l'ordre actuel.
   // Les liens de navigation utilisent les identifiants : aucun lien n'est cassé par le changement d'ordre.
@@ -828,23 +907,9 @@ function App(){
         <button className="import" onClick={()=>upload.current?.click()}>
           <Plus size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Importer des panoramas 360°
         </button>
-        <div className="scenes" onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setDropAt(null);}}>{project.scenes.map((s,i)=><div key={s.id}
-          className={'scene-slot'+(dragScene===s.id?' is-dragging':'')+(dropAt===i?' drop-before':'')+(dropAt===i+1&&i===project.scenes.length-1?' drop-after':'')}
-          draggable
-          onDragStart={e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('application/x-nv-scene',s.id);e.dataTransfer.setData('text/plain',s.name);setDragScene(s.id);}}
-          onDragEnd={()=>{setDragScene(null);setDropAt(null);}}
-          onDragOver={e=>{
-            if(!dragScene)return;
-            e.preventDefault();e.dataTransfer.dropEffect='move';
-            const r=e.currentTarget.getBoundingClientRect();
-            setDropAt(e.clientY<r.top+r.height/2?i:i+1);
-          }}
-          onDrop={e=>{
-            e.preventDefault();
-            const id=dragScene,at=dropAt;
-            setDragScene(null);setDropAt(null);
-            if(id!==null&&at!==null)moveScene(id,at);
-          }}>
+        <div className="scenes" ref={scenesRef}>{project.scenes.map((s,i)=><div key={s.id} className="scene-slot"
+          onPointerDown={e=>startSceneDrag(e,i)}
+          onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
           <button className={'scene '+(s.id===activeId?'active':'')} title="Glisse pour changer l’ordre (ou Alt + ↑ / ↓)"
             onKeyDown={e=>{
               if(!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
@@ -852,12 +917,13 @@ function App(){
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
             onClick={()=>{setActiveId(s.id);setSelectedId('');setMode(null);}}>
-            <img src={s.dataUrl} alt="Miniature du panorama" draggable={false}/>
+            <img src={s.dataUrl} alt="Miniature du panorama" draggable={false} decoding="async"/>
             <span>
               <strong>{s.name}</strong>
               <small>Scène {i+1}{i===0?' · accueil':''} · {s.hotspots.length} point(s)</small>
             </span>
           </button>
+          <span className="scene-grip" aria-hidden="true" title="Glisse pour changer l’ordre">⋮⋮</span>
         </div>)}</div>
         <div className="helper">
           <strong>✦ Guide rapide</strong>
