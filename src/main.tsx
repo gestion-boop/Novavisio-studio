@@ -4,7 +4,8 @@ import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup} from './media';
 import {ContinuousMusic} from './continuousMusic';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download} from 'lucide-react';
+import {CloudPanel} from './CloudPanel';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers} from './markerSync';
@@ -356,6 +357,7 @@ function App(){
   const [videoZoom,setVideoZoom]=useState<Hotspot|null>(null);
   const [introVisible,setIntroVisible]=useState(false);
   const [exporting,setExporting]=useState(false);
+  const [cloudOpen,setCloudOpen]=useState(false);
   const [photoFeedback,setPhotoFeedback]=useState('');
   const videoInput=useRef<HTMLInputElement>(null);
   const audioInput=useRef<HTMLInputElement>(null);
@@ -751,6 +753,9 @@ function App(){
         <button className="quiet" onClick={()=>projectInput.current?.click()} title="Ouvrir un projet .nvstudio.json">Ouvrir</button>
         <button className="quiet" onClick={download} title="Sauvegarder le projet localement">
           <Download size={13} style={{marginRight:4,verticalAlign:'-1px'}}/> Sauvegarder
+        </button>
+        <button className="quiet" onClick={()=>setCloudOpen(true)} title="Synchroniser avec Supabase">
+          <Cloud size={13} style={{marginRight:4,verticalAlign:'-1px'}}/> Cloud
         </button>
         <button className="primary" disabled={exporting} onClick={()=>void exportTour()}>
           <Sparkles size={14} style={{marginRight:5,verticalAlign:'-2px'}}/>
@@ -1214,6 +1219,8 @@ function App(){
     <input ref={replaceIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void replaceIconEverywhere(e.target.files?.[0])}/>
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
+    {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
+      onOpen={p=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>

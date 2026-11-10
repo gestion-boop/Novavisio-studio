@@ -42,3 +42,10 @@
 - Connexion Supabase à ChatGPT toujours à effectuer avant inspection ou intervention sur les données réelles.
 
 **Rien dans ce fichier n'exécute de migration ni ne crée de base de données.**
+
+## Implémentation (branche de travail, non activée tant que la migration n'est pas exécutée)
+
+- `supabase/migrations/20261110000000_nvstudio_init.sql` : crée seulement `nvstudio_projects`, `nvstudio_revisions` et le bucket privé `nvstudio-media`. RLS active, politiques SELECT/INSERT uniquement (aucune UPDATE/DELETE), `unique(project_id, revision)`. Sans `if not exists` : échoue si un nom existe déjà.
+- `src/cloud.ts` + `src/CloudPanel.tsx` : bouton **Cloud**. Connexion par lien magique ; chaque envoi INSERT une nouvelle révision ; refus si le cloud a une révision plus récente ; médias envoyés en objets adressés par hash (jamais réécrits). Ouvrir une visite cloud exige une confirmation et télécharge d'abord une sauvegarde `.nvstudio.json`.
+- Variables (clé publique uniquement) : `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (ou `VITE_*`).
+- Côté Supabase (Auth) : définir Site URL / Redirect URL sur l'adresse du Studio, et envisager de désactiver les inscriptions publiques.
