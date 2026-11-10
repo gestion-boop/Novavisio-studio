@@ -5,10 +5,11 @@ export const defaultFrameCorners = ():FrameCorners => ({
 });
 export type Hotspot = {
   id:string;
-  type:'navigation'|'information'|'lien'|'image';
+  type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
-  iconId?:string;iconSize?:number;url?:string;
+  iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;url?:string;
   imageDataUrl?:string;
+  videoDataUrl?:string;videoUrl?:string;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
   frameWidth?:number;frameHeight?:number;
   frameCorners?:FrameCorners;
   fadeOnClick?:boolean;
@@ -37,6 +38,8 @@ export type BottomBarItem = {
   text: string;
   url: string;
   iconId?: string;
+  hoverIconId?: string;
+  pressedIconId?: string;
   iconSize?: number;
   builtinIcon?: string;
 };
@@ -59,7 +62,16 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
       Number.isFinite(v.x) && Number.isFinite(v.y) && v.x>=0 && v.x<=100 && v.y>=0 && v.y<=100;
   });
 };
-export type Scene = { id: string; name: string; dataUrl: string; hotspots: Hotspot[] };
+export type Scene = {
+  id:string;name:string;dataUrl:string;hotspots:Hotspot[];
+  audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
+};
+export const isSafeVideoData = (s:unknown):s is string =>
+  typeof s==='string' && /^data:video\/(?:mp4|webm);base64,[A-Za-z0-9+/=]+$/.test(s);
+export const isSafeAudioData = (s:unknown):s is string =>
+  typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
+export const isSafeMediaUrl = (s:unknown):s is string =>
+  typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
 export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; updatedAt: string };
 
 const DB_NAME = 'novavisio-studio-v1';
@@ -134,6 +146,8 @@ export function validateProject(value:unknown):StudioProject {
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||
       (item.iconId !== undefined && (typeof item.iconId !== 'string' || !icons.some(icon => icon.id === item.iconId))) ||
+      (item.hoverIconId !== undefined && (typeof item.hoverIconId !== 'string' || !icons.some(icon => icon.id === item.hoverIconId))) ||
+      (item.pressedIconId !== undefined && (typeof item.pressedIconId !== 'string' || !icons.some(icon => icon.id === item.pressedIconId))) ||
       (item.iconSize !== undefined && (!Number.isFinite(item.iconSize) || item.iconSize < 20 || item.iconSize > 100)) ||
       (item.builtinIcon !== undefined && typeof item.builtinIcon !== 'string')
     ) throw new Error('Bouton de la barre non valide');
@@ -141,12 +155,25 @@ export function validateProject(value:unknown):StudioProject {
   for (const scene of p.scenes) {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
+    if ((scene.audioDataUrl !== undefined && (scene.audioDataUrl.length > 34_000_000 || !isSafeAudioData(scene.audioDataUrl))) ||
+        (scene.audioUrl !== undefined && scene.audioUrl !== '' && !isSafeMediaUrl(scene.audioUrl)) ||
+        (scene.audioEnabled !== undefined && typeof scene.audioEnabled !== 'boolean') ||
+        (scene.audioLoop !== undefined && typeof scene.audioLoop !== 'boolean') ||
+        (scene.audioVolume !== undefined && (!Number.isFinite(scene.audioVolume) || scene.audioVolume<0 || scene.audioVolume>100))
+       ) throw new Error('Piste audio non valide');
     for (const h of scene.hotspots) {
-      if (!h || typeof h.id !== 'string' || !['navigation','information','lien','image'].includes(h.type) || typeof h.title !== 'string' || typeof h.text !== 'string' || typeof h.target !== 'string' || !Number.isFinite(h.yaw) || !Number.isFinite(h.pitch) ||
+      if (!h || typeof h.id !== 'string' || !['navigation','information','lien','image','video'].includes(h.type) || typeof h.title !== 'string' || typeof h.text !== 'string' || typeof h.target !== 'string' || !Number.isFinite(h.yaw) || !Number.isFinite(h.pitch) ||
         (h.iconId !== undefined && (typeof h.iconId !== 'string' || !icons.some(icon=>icon.id===h.iconId))) ||
+        (h.hoverIconId !== undefined && (typeof h.hoverIconId !== 'string' || !icons.some(icon=>icon.id===h.hoverIconId))) ||
+        (h.pressedIconId !== undefined && (typeof h.pressedIconId !== 'string' || !icons.some(icon=>icon.id===h.pressedIconId))) ||
         (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 24 || h.iconSize > 120)) ||
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
+        (h.videoDataUrl !== undefined && (h.videoDataUrl.length > 42_000_000 || !isSafeVideoData(h.videoDataUrl))) ||
+        (h.videoUrl !== undefined && h.videoUrl !== '' && !isSafeMediaUrl(h.videoUrl)) ||
+        (h.videoAutoplay !== undefined && typeof h.videoAutoplay !== 'boolean') ||
+        (h.videoLoop !== undefined && typeof h.videoLoop !== 'boolean') ||
+        (h.videoOpenFullscreen !== undefined && typeof h.videoOpenFullscreen !== 'boolean') ||
         (h.frameWidth !== undefined && (!Number.isFinite(h.frameWidth) || h.frameWidth < 80 || h.frameWidth > 900)) ||
         (h.frameHeight !== undefined && (!Number.isFinite(h.frameHeight) || h.frameHeight < 60 || h.frameHeight > 700)) ||
         (h.frameCorners !== undefined && !validateFrameCorners(h.frameCorners)) ||
