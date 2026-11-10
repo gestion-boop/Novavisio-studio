@@ -13,7 +13,7 @@ import './style.css';
 import './media.css';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'bar' | 'icons' | 'intro';
+type PanelTab = 'points' | 'bar' | 'icons' | 'intro' | 'elements';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -59,6 +59,9 @@ type PanoramaProps = {
   onVideo: (h:Hotspot)=>void;
   selectedId:string;
   onCornerChange:(id:string,corner:keyof FrameCorners,x:number,y:number)=>void;
+  onMarkerMove:(id:string,yaw:number,pitch:number)=>void;
+  onAssetDrop:(iconId:string,yaw:number,pitch:number)=>void;
+  onCameraChange:(yaw:number,pitch:number,zoom:number)=>void;
 };
 function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean) {
   const isMedia=h.type==='image'||h.type==='video';
@@ -68,19 +71,22 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
   const height=scaled?.height??sz;
   const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
+  const content=h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),width,height,h.title,!preview&&selectedId===h.id):
+    h.type==='video'?videoMarkerHtml(h,width,height):
+    iconHtml || '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
+  const editing=!preview&&selectedId===h.id;
   return {
     id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html:h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),width,height,h.title,!preview&&selectedId===h.id):
-      h.type==='video'?videoMarkerHtml(h,width,height):
-      iconHtml || '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>',
+    html:editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+'</span>':content,
     size:{width,height},anchor:'center center' as const,tooltip:h.title
   };
 }
-function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
-  const actions = useRef({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange});
-  actions.current = {scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange};
+  const loadedSceneRef=useRef<string|null>(null);
+  const actions = useRef({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     if (!box.current) return;
@@ -88,10 +94,21 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       container:box.current, panorama:scene.dataUrl,
       // Le bouton plein écran natif n'agrandit que le lecteur 360° et cache les éléments personnalisés.
       // La vue complète (lecteur + barre) est désormais gérée par App.
-      navbar:[], defaultZoomLvl:25,
+      navbar:[],defaultZoomLvl:scene.arrivalZoom??60,
+      defaultYaw:scene.arrivalYaw??0,defaultPitch:scene.arrivalPitch??0,
+      minFov:35,maxFov:75,fisheye:false,loadingTxt:'',
+      defaultTransition:{speed:260,rotation:false,effect:'fade'},
       plugins:[MarkersPlugin]
     });
     viewerRef.current = viewer;
+    loadedSceneRef.current=scene.id;
+    const reportCamera=()=>{
+      const camera=viewer.getPosition();
+      actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
+    };
+    viewer.addEventListener('ready',reportCamera);
+    viewer.addEventListener('position-updated',reportCamera);
+    viewer.addEventListener('zoom-updated',reportCamera);
     const markers = viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
     markers.addEventListener('select-marker',({marker})=>{
       const a=actions.current;
@@ -118,7 +135,25 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     });
     const height=box.current?.clientHeight||550;
     markers.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,height,selectedId,preview)));
-    return ()=>{viewerRef.current=null; viewer.destroy();};
+    return ()=>{viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
+  },[]);
+  useEffect(()=>{
+    const viewer=viewerRef.current;
+    if(!viewer||loadedSceneRef.current===scene.id)return;
+    let disposed=false;
+    const next=scene;
+    void viewer.setPanorama(next.dataUrl,{
+      showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
+      position:{yaw:next.arrivalYaw??0,pitch:next.arrivalPitch??0},
+      zoom:next.arrivalZoom??60
+    }).then(success=>{
+      if(disposed||!success)return;
+      loadedSceneRef.current=next.id;
+      const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
+      const height=box.current?.clientHeight||550;
+      plugin.setMarkers(next.hotspots.map(h=>markerFor(h,actions.current.icons,height,actions.current.selectedId,actions.current.preview)));
+    }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
+    return ()=>{disposed=true;};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
     const refresh=()=>{
@@ -126,6 +161,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       const p=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
       if(!element||!p)return;
       const a=actions.current;
+      if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
       p.setMarkers(a.scene.hotspots.map(h=>markerFor(h,a.icons,height,a.selectedId,a.preview)));
     };
@@ -135,13 +171,13 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     const observer=new ResizeObserver(refresh);
     observer.observe(box.current);
     return ()=>observer.disconnect();
-  },[scene.id,scene.dataUrl]);
+  },[]);
   useEffect(()=>{
     const element=box.current;
     const plugin=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
-    if(!element||!plugin)return;
+    if(!element||!plugin||loadedSceneRef.current!==scene.id)return;
     plugin.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,element.clientHeight||550,selectedId,preview)));
-  },[scene.hotspots,icons,selectedId,preview]);
+  },[scene.id,scene.hotspots,icons,selectedId,preview]);
   useEffect(()=>{
     const root=box.current;
     if(!root)return;
