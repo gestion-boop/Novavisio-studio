@@ -7,6 +7,7 @@ import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
 import {defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
+import {iconStateHtml,IconStateVisual,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
 import './visitor.css';
 import './media.css';
 
@@ -28,12 +29,13 @@ type ViewerProps={
   info:(h:Hotspot)=>void;
   linked:(title:string,url:string)=>void;
   image:(h:Hotspot)=>void;
+  video:(h:Hotspot)=>void;
 };
-function Pano({scene,icons,navigate,info,linked,image}:ViewerProps){
+function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
   const container=useRef<HTMLDivElement>(null);
   const viewer=useRef<Viewer|null>(null);
-  const handlers=useRef({scene,navigate,info,linked,image});
-  handlers.current={scene,navigate,info,linked,image};
+  const handlers=useRef({scene,navigate,info,linked,image,video});
+  handlers.current={scene,navigate,info,linked,image,video};
   useEffect(()=>{
     if(!container.current)return;
     const instance=new Viewer({
@@ -49,6 +51,7 @@ function Pano({scene,icons,navigate,info,linked,image}:ViewerProps){
       if(!h)return;
       if(h.type==='navigation'){if(h.target)a.navigate(h.target);}
       else if(h.type==='image')a.image(h);
+      else if(h.type==='video' && h.videoOpenFullscreen!==false)a.video(h);
       else if(h.url && checkedLink(h.url))a.linked(h.title,h.url);
       else if(h.type==='information')a.info(h);
     });
@@ -62,7 +65,8 @@ function Pano({scene,icons,navigate,info,linked,image}:ViewerProps){
         const custom=icons.find(icon=>icon.id===h.iconId);
         const iconHtml=h.type==='image'?
           imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
-          custom?'<span class="tour-marker tour-marker-custom"><img alt="" src="'+custom.dataUrl+'"/></span>':
+          h.type==='video'?videoMarkerHtml(h,w,hh):
+          custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
           '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
         return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},anchor:'center center' as const,html:iconHtml,tooltip:h.title};
       }));
@@ -82,6 +86,7 @@ function Tour(){
   const [sceneId,setSceneId]=useState(()=>project?.scenes[0]?.id??'');
   const [modal,setModal]=useState<{title:string;url?:string;text?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
+  const [video,setVideo]=useState<Hotspot|null>(null);
   const [showIntro,setShowIntro]=useState(()=>Boolean(project?.introEnabled && project.introUrl?.startsWith('https://')));
   const [fullscreen,setFullscreen]=useState(false);
   const wrap=useRef<HTMLDivElement>(null);
@@ -103,7 +108,7 @@ function Tour(){
   } as CSSProperties;
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const current=project.scenes.find(s=>s.id===sceneId)??project.scenes[0];
-  const move=(id:string)=>{if(project.scenes.some(s=>s.id===id)){setSceneId(id);setModal(null);setPhoto(null);}};
+  const move=(id:string)=>{if(project.scenes.some(s=>s.id===id)){setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
   const openLink=(title:string,url:string)=>{
     const checked=checkedLink(url);
     if(!checked)return;
@@ -127,18 +132,20 @@ function Tour(){
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
   return <main className="tour-app" ref={wrap}>
-    <Pano key={current.id} scene={current} icons={project.icons??[]} navigate={move} info={information} linked={openLink} image={h=>setPhoto(h)}/>
+    <Pano key={current.id} scene={current} icons={project.icons??[]} navigate={move} info={information} linked={openLink} image={h=>setPhoto(h)} video={h=>setVideo(h)}/>
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
     {project.bottomBar?.length>0&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
         const icon=project.icons?.find(i=>i.id===item.iconId);
-        return <button type="button" className="tour-bar-button" key={item.id} onClick={()=>act(item)} aria-label={item.title} title={item.title}>
-          <span className="tour-bar-icon">{icon?<img src={icon.dataUrl} alt="" style={{width:Math.min(item.iconSize??44,56),height:Math.min(item.iconSize??44,56)}}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
+        return <button type="button" className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={item.title} title={item.title}>
+          <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={Math.min(item.iconSize??44,56)}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
         </button>;
       })}
     </nav>}
+    <SceneAudio key={current.id} scene={current} paused={showIntro||!!video||!!modal||!!photo}/>
+    {video&&<VideoPopup hotspot={video} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label="Fermer" onClick={()=>setModal(null)}><X/></button></header>
