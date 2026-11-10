@@ -1622,3 +1622,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   .toolbar .tool{min-height:46px;padding:0 14px;font-size:14px}
   .side-tabs button{min-height:50px;font-size:13px}
 }
+
+/* Lien permanent */
+.permanent-card{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid #2c8c78;border-radius:13px;background:#0e3a35}
+.permanent-card input{padding:9px 10px;border-radius:9px;border:1px solid #2c6c78;background:#0b1f2a;color:#e7fff9;font-size:12px;width:100%;box-sizing:border-box}

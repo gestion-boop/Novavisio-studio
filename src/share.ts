@@ -27,6 +27,8 @@ export function studioUrl():string{
 }
 
 const friendly=(message:string)=>
+  /nvstudio_publish|nvstudio_unpublish|nvstudio_publications/i.test(message)?'La publication permanente n’est pas encore installée : exécute le fichier SQL « 20261110040000_nvstudio_publication » dans Supabase.':
+  /not_owner/.test(message)?'Seul le propriétaire de la visite peut publier.':
   /not_authenticated/.test(message)?'Connecte-toi d’abord.':
   /unknown_revision/.test(message)?'Cette révision n’existe pas dans le cloud.':
   /invalid_duration/.test(message)?'Durée non autorisée (3, 5, 7 ou 10 jours).':
@@ -56,4 +58,56 @@ export async function listShares(projectId:string):Promise<ShareRow[]>{
 export async function revokeShare(id:string){
   const {error}=await supabase().rpc('nvstudio_revoke_share',{p_share:id});
   if(error)throw new Error(friendly(error.message));
+}
+
+/* ---------- Lien permanent (publication) ---------- */
+export type Publication={token:string;published_revision:number;published_at:string;revoked_at:string|null};
+export const publicationActive=(p:Publication|null)=>!!p&&!p.revoked_at;
+
+export async function getPublication(projectId:string):Promise<Publication|null>{
+  const {data,error}=await supabase().from('nvstudio_publications').select('token,published_revision,published_at,revoked_at').eq('project_id',projectId).maybeSingle();
+  if(error)throw new Error(friendly(error.message));
+  return (data as Publication|null)??null;
+}
+/** Enregistre la visite telle qu'elle est maintenant (nouvelle révision) puis fait pointer l'adresse permanente dessus. */
+export async function publishPermanent(project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void):Promise<{link:CloudLink;publication:Publication}>{
+  const saved=await saveToCloud(project,link,onProgress);
+  writeLink(saved);
+  onProgress('Publication…');
+  const {data,error}=await supabase().rpc('nvstudio_publish',{p_project:saved.projectId,p_revision:saved.revision});
+  if(error)throw new Error(friendly(error.message));
+  const out=data as {token:string;published_at:string;revision:number};
+  return {link:saved,publication:{token:out.token,published_revision:out.revision,published_at:out.published_at,revoked_at:null}};
+}
+export async function unpublish(projectId:string){
+  const {error}=await supabase().rpc('nvstudio_unpublish',{p_project:projectId});
+  if(error)throw new Error(friendly(error.message));
+}
+
+/**
+ * Petit fichier index.html à envoyer UNE SEULE FOIS dans NovaTour : il affiche la visite publiée depuis le Studio.
+ * Ensuite, « Publier » dans le Studio met à jour ce que voient les visiteurs, sans renvoyer de dossier.
+ * Un seul fichier, sans dépendance : il fonctionne aussi derrière un lien signé temporaire.
+ */
+export function wrapperHtml(url:string,title:string):string{
+  const esc=(v:string)=>v.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<style>
+  html,body{margin:0;height:100%;background:#07131c}
+  iframe{position:fixed;inset:0;width:100%;height:100%;border:0}
+  a.fallback{position:fixed;left:10px;bottom:8px;z-index:1;font:11px system-ui,sans-serif;color:#9fd4dc;opacity:.55;text-decoration:none}
+  a.fallback:hover{opacity:1}
+</style>
+</head>
+<body>
+<iframe src="${esc(url)}" title="${esc(title)}" allow="fullscreen; autoplay; accelerometer; gyroscope; magnetometer; xr-spatial-tracking" allowfullscreen referrerpolicy="no-referrer"></iframe>
+<a class="fallback" href="${esc(url)}" target="_blank" rel="noopener">Ouvrir la visite dans un nouvel onglet</a>
+</body>
+</html>
+`;
 }

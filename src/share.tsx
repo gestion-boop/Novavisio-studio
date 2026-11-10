@@ -14,7 +14,7 @@ type Phase=
   |{kind:'invalid'}
   |{kind:'expired'}
   |{kind:'error';message:string}
-  |{kind:'ok';snapshot:StudioProject;expiresAt:string};
+  |{kind:'ok';snapshot:StudioProject;expiresAt:string|null};
 
 const PLACEHOLDER:Record<MediaKind,string>={
   panorama:'data:image/jpeg;base64,AAAA',icon:'data:image/png;base64,AAAA',frame:'data:image/png;base64,AAAA',
@@ -88,9 +88,9 @@ function Share(){
         if(!/^[a-f0-9]{64}$/.test(token)||!cloudConfigured){setPhase({kind:'invalid'});return;}
         const {data,error}=await supabase().rpc('nvstudio_get_share',{p_token:token});
         if(error)throw new Error('Service indisponible');
-        const res=data as {status:string;snapshot?:StudioProject;expires_at?:string};
+        const res=data as {status:string;snapshot?:StudioProject;expires_at?:string|null;permanent?:boolean};
         if(res.status==='expired'){setPhase({kind:'expired'});return;}
-        if(res.status!=='ok'||!res.snapshot||!res.expires_at){setPhase({kind:'invalid'});return;}
+        if(res.status!=='ok'||!res.snapshot||(!res.expires_at&&!res.permanent)){setPhase({kind:'invalid'});return;}
         // Vérifie la structure avec des médias factices du bon type (les vrais ne sont pas encore téléchargés).
         const probe=structuredClone(res.snapshot);
         mediaSlots(probe).forEach(s=>{if(isRef(s.get()))s.set(PLACEHOLDER[s.kind]);});
@@ -101,7 +101,7 @@ function Share(){
         for(const icon of snap.icons)if(isRef(icon.dataUrl))await fetchRef(icon.dataUrl);
         if(snap.scenes[0])await ensureScene(snap.scenes[0].id);
         if(!alive.current)return;
-        setPhase({kind:'ok',snapshot:snap,expiresAt:res.expires_at});
+        setPhase({kind:'ok',snapshot:snap,expiresAt:res.expires_at??null});
         // Ensuite : la musique, puis les autres panoramas en arrière-plan.
         void (async()=>{
           for(const t of snap.audioTracks)if(isRef(t.dataUrl))await fetchRef(t.dataUrl).catch(()=>undefined);
@@ -121,7 +121,7 @@ function Share(){
 
   // Une page laissée ouverte passe l'échéance : l'accès se ferme.
   useEffect(()=>{
-    if(phase.kind!=='ok')return;
+    if(phase.kind!=='ok'||!phase.expiresAt)return; // lien permanent : pas d'échéance
     const ms=new Date(phase.expiresAt).getTime()-Date.now();
     if(!Number.isFinite(ms))return;
     const timer=window.setTimeout(()=>setPhase({kind:'expired'}),Math.min(Math.max(ms,0),2_000_000_000));

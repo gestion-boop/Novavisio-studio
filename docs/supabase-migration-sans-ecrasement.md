@@ -77,3 +77,9 @@
 Par défaut, le lien des e-mails Supabase est consommé dès qu'il est ouvert : les antivirus et messageries qui l'ouvrent à l'avance le rendent inutilisable (`otp_expired`). Le Studio sait valider un lien **au clic** : `https://…/?token_hash=…&type=email`. Dans Supabase → Authentication → Email Templates, remplacer le lien des modèles « Confirm signup » et « Magic Link » par :
 
     <p><a href="{{ .SiteURL }}/?token_hash={{ .TokenHash }}&type=email">Confirmer mon adresse et ouvrir NovaVisio Studio</a></p>
+
+## Lien permanent (publication, pour NovaTour)
+
+- Migration : `supabase/migrations/20261110040000_nvstudio_publication.sql` (après `…010000_share_links`). Ajoute `nvstudio_publications`, `nvstudio_publish`, `nvstudio_unpublish` et étend `nvstudio_get_share` / `nvstudio_share_active`.
+- « Publier » (panneau **Lien public**) enregistre une révision immuable et fait pointer l'adresse permanente dessus ; l'adresse `…/share.html?t=<jeton>` ne change jamais, son contenu change à chaque publication. « Arrêter la publication » la ferme sans rien supprimer.
+- Le bouton « Télécharger index.html pour NovaTour » produit un seul fichier (iframe plein écran vers l'adresse permanente) à envoyer **une fois** dans NovaTour.

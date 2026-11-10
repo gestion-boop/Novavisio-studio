@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {cloudConfigured,supabase,readLink,writeLink,type CloudLink} from './cloud';
-import {SHARE_DAYS,createShareLink,listShares,revokeShare,shareStatus,shareUrl,type ShareDays,type ShareRow} from './share';
+import {SHARE_DAYS,createShareLink,getPublication,listShares,publicationActive,publishPermanent,revokeShare,shareStatus,shareUrl,unpublish,wrapperHtml,type Publication,type ShareDays,type ShareRow} from './share';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 
@@ -14,11 +14,15 @@ export function SharePanel({project,onClose,onStatus}:Props){
   const [error,setError]=useState('');
   const [link,setLink]=useState<CloudLink|null>(readLink());
   const [shares,setShares]=useState<ShareRow[]>([]);
+  const [pub,setPub]=useState<Publication|null>(null);
+  const [pubNote,setPubNote]=useState('');
+  const [pubCopied,setPubCopied]=useState(false);
   const [created,setCreated]=useState<{url:string;expires:string;copied:boolean}|null>(null);
   const [copiedId,setCopiedId]=useState('');
 
   async function refresh(projectId:string|undefined){
-    if(!projectId){setShares([]);return;}
+    if(!projectId){setShares([]);setPub(null);return;}
+    try{setPub(await getPublication(projectId));setPubNote('');}catch(e){setPub(null);setPubNote(e instanceof Error?e.message:String(e));}
     try{setShares(await listShares(projectId));}catch(e){setError(e instanceof Error?e.message:String(e));}
   }
   useEffect(()=>{
@@ -63,6 +67,23 @@ export function SharePanel({project,onClose,onStatus}:Props){
     onStatus('Lien public créé : valable '+days+' jours');
     await refresh(res.link.projectId);
   });
+  const publish=()=>run('Préparation…',async()=>{
+    const res=await publishPermanent(project,link,setBusy);
+    writeLink(res.link);setLink(res.link);setPub(res.publication);setPubNote('');
+    onStatus('Visite publiée : l’adresse permanente est à jour');
+    await refresh(res.link.projectId);
+  });
+  const stopPublication=()=>{
+    if(!link||!window.confirm('Arrêter la publication ? L’adresse permanente cessera de fonctionner (rien n’est supprimé : tu pourras republier).'))return;
+    void run('Arrêt…',async()=>{await unpublish(link.projectId);onStatus('Publication arrêtée');await refresh(link.projectId);});
+  };
+  const downloadWrapper=()=>{
+    if(!pub)return;
+    const blob=new Blob([wrapperHtml(shareUrl(pub.token),project.name||'Visite 360°')],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='index.html';
+    document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+  };
   const revoke=(row:ShareRow)=>{
     if(!window.confirm('Désactiver ce lien tout de suite ? Les personnes qui l’ont reçu n’auront plus accès à la visite.'))return;
     void run('Désactivation…',async()=>{await revokeShare(row.id);onStatus('Lien désactivé');await refresh(link?.projectId);});
@@ -74,6 +95,26 @@ export function SharePanel({project,onClose,onStatus}:Props){
     {!cloudConfigured?<p className="warning">Supabase n’est pas configuré sur ce déploiement : les liens publics sont indisponibles.</p>
     :!userEmail?<LoginBox intro="Pour envoyer un lien, connecte-toi d’abord (lien magique par e-mail, ou e-mail et mot de passe)."/>
     :<>
+      <div className="permanent-card">
+        <div className="icon-state-label">LIEN PERMANENT · POUR NOVATOUR</div>
+        <small className="hint-inline">Envoie le fichier <b>index.html</b> ci-dessous <b>une seule fois</b> dans NovaTour. Ensuite, chaque clic sur <b>« Publier »</b> met à jour la visite affichée dans NovaTour : plus de dossier à renvoyer.</small>
+        {pubNote&&<small className="warning-inline">{pubNote}</small>}
+        {publicationActive(pub)&&pub?<>
+          <input readOnly value={shareUrl(pub.token)} onFocus={e=>e.currentTarget.select()}/>
+          <small className="hint-inline">Publiée le <b>{fmt(pub.published_at)}</b>. Les visiteurs voient cette version.</small>
+          <div className="cloud-actions">
+            <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void publish()}>Publier la mise à jour</button>
+            <button className="quiet" onClick={downloadWrapper}>Télécharger index.html pour NovaTour</button>
+            <button className="quiet" onClick={()=>void navigator.clipboard.writeText(shareUrl(pub.token)).then(()=>{setPubCopied(true);setTimeout(()=>setPubCopied(false),1800);}).catch(()=>undefined)}>{pubCopied?'Copié ✓':'Copier l’adresse'}</button>
+            <a className="quiet share-open" href={shareUrl(pub.token)} target="_blank" rel="noopener">Ouvrir</a>
+            <button className="quiet" disabled={!!busy} onClick={stopPublication}>Arrêter la publication</button>
+          </div>
+        </>:<>
+          {pub&&<small className="hint-inline">Publication arrêtée le {fmt(pub.revoked_at??pub.published_at)}. L’adresse est fermée.</small>}
+          <button className="primary" disabled={!!busy||!project.scenes.length||!!pubNote} onClick={()=>void publish()}>{pub?'Republier la visite':'Publier la visite'}</button>
+        </>}
+      </div>
+      <div className="icon-state-label">LIEN À DURÉE LIMITÉE</div>
       <p className="hint-inline">Choisis combien de temps le lien reste ouvert. Passé ce délai, <b>plus rien n’est accessible</b>.</p>
       <div className="share-days" role="radiogroup" aria-label="Durée du lien">
         {SHARE_DAYS.map(d=><button type="button" key={d} role="radio" aria-checked={days===d} className={'share-day'+(days===d?' is-on':'')} onClick={()=>setDays(d)}>
