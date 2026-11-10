@@ -65,7 +65,7 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
   return (['tl','tr','br','bl'] as const).every(key=>{
     const v=(corners as Record<string,unknown>)[key] as Partial<Corner> | undefined;
     return !!v && typeof v.x==='number' && typeof v.y==='number' &&
-      Number.isFinite(v.x) && Number.isFinite(v.y) && v.x>=0 && v.x<=100 && v.y>=0 && v.y<=100;
+      Number.isFinite(v.x) && Number.isFinite(v.y) && v.x>=-100 && v.x<=200 && v.y>=-100 && v.y<=200;
   });
 };
 export type Scene = {
