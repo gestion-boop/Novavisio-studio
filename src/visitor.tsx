@@ -7,7 +7,8 @@ import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
 import {defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
-import {iconStateHtml,IconStateVisual,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
+import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup} from './media';
+import {ContinuousMusic} from './continuousMusic';
 import './visitor.css';
 import './media.css';
 
@@ -200,7 +201,7 @@ function Tour(){
         </button>;
       })}
     </nav>}
-    <SceneAudio key={current.id} scene={current} paused={showIntro||!!video||!!modal||!!photo}/>
+    <ContinuousMusic project={project} scene={current} paused={showIntro||!!video}/>
     {video&&<VideoPopup hotspot={video} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
