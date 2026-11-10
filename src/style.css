@@ -1153,3 +1153,8 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 }
 .nv-marker-move-grip:hover{background:#05a8a9;}
 .nv-marker-move-grip:active{cursor:grabbing;transform:none!important;}
+
+
+/* The markers overlay itself must never cover the sphere as a click shield. */
+.panorama .psv-markers{pointer-events:none;}
+.panorama .psv-marker{pointer-events:auto;}
