@@ -94,7 +94,7 @@ export const isSafeAudioData = (s:unknown):s is string =>
   typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; hiddenIconSets?: string[] };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -260,8 +260,22 @@ export function validateProject(value:unknown):StudioProject {
     }
   }
   // Jeux d'icônes que l'utilisateur a retirés de la liste de suggestions (n'affecte aucun bouton ni point).
+  // Additive model: legacy visits have no spaces and remain intact.
+  const spaces=p.spaces??[];
+  if(!Array.isArray(spaces)||spaces.length>80)throw new Error('Espaces invalides');
+  const sceneIds=new Set(p.scenes.map(scene=>scene.id));
+  const spaceIds=new Set<string>();
+  for(const space of spaces){
+    if(!space||typeof space.id!=='string'||!space.id||space.id.length>100||spaceIds.has(space.id)||
+       typeof space.name!=='string'||!space.name.trim()||space.name.length>100||
+       !Array.isArray(space.sceneIds)||space.sceneIds.length>p.scenes.length||
+       new Set(space.sceneIds).size!==space.sceneIds.length||
+       space.sceneIds.some((id:unknown)=>typeof id!=='string'||!sceneIds.has(id as string)))
+       throw new Error('Un espace contient des références de panoramas invalides');
+    spaceIds.add(space.id);
+  }
   const hiddenIconSets = Array.isArray(p.hiddenIconSets) ? p.hiddenIconSets.filter(k => typeof k === 'string' && k.length < 600).slice(0, 300) : undefined;
-  return {...p,version:1,name:p.name,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,introUrl,introEnabled,introDuration,hiddenIconSets,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  return {...p,version:1,name:p.name,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,introUrl,introEnabled,introDuration,spaces,hiddenIconSets,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
 
 /**
