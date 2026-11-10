@@ -5,9 +5,15 @@ import type {FrameCorners,Hotspot} from './storage';
  * Scale those dimensions to the current panoramic viewport, including fullscreen.
  * Both corners and aspect ratio remain unchanged.
  */
-export function responsiveFrameSize(h:Hotspot,viewerHeight:number,defaultReference=550){
+export function responsiveFrameSize(h:Hotspot,viewerHeight:number,zoom=60,defaultReference=550){
   const reference=Math.max(100,h.frameReferenceHeight??defaultReference);
-  const factor=Math.max(.3,Math.min(4,viewerHeight/reference));
+  const refZoom=h.frameReferenceZoom??60;
+  // An HTML marker keeps a fixed pixel size unless we compensate for the camera FOV.
+  // Match its apparent scale to the surrounding panorama while users zoom to edit.
+  const fov=(level:number)=>(75-40*Math.max(0,Math.min(100,level))/100)*Math.PI/180;
+  const zoomFactor=Math.tan(fov(refZoom)/2)/Math.tan(fov(zoom)/2);
+  const viewportFactor=Math.max(.3,Math.min(4,viewerHeight/reference));
+  const factor=Math.max(.35,Math.min(4.5,viewportFactor*zoomFactor));
   return {
     width:Math.round((h.frameWidth??320)*factor),
     height:Math.round((h.frameHeight??200)*factor)
