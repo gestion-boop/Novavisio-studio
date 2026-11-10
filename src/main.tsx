@@ -2,7 +2,8 @@ import {useEffect, useRef, useState, type CSSProperties} from 'react';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize,perspectiveMatrix} from './imageFrame';
 import {exportStaticTour} from './exportTour';
-import {IconStateVisual,iconStateHtml,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
+import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup} from './media';
+import {ContinuousMusic} from './continuousMusic';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
@@ -13,7 +14,7 @@ import './style.css';
 import './media.css';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'bar' | 'icons' | 'intro' | 'elements';
+type PanelTab = 'points' | 'bar' | 'icons' | 'intro' | 'elements' | 'music';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -418,16 +419,32 @@ function App(){
     if(videoInput.current)videoInput.current.value='';
   }
   async function addAudio(file?:File){
-    if(!file||!activeId)return;
+    if(!file)return;
     if(!['audio/mpeg','audio/mp3','audio/ogg','audio/wav','audio/x-wav','audio/webm','audio/mp4'].includes(file.type)||
       file.size>14*1024*1024){setStatus('Audio : MP3, WAV, OGG ou WebM · 14 Mo maximum');return;}
     try{
       const data=await readImage(file);
       if(!isSafeAudioData(data))throw Error('Fichier audio incompatible');
-      patchScene(sc=>({...sc,audioDataUrl:data,audioUrl:'',audioEnabled:true}));
-      setStatus('Ambiance sonore assignée à ce panorama');
+      const id=uid(),name=file.name.replace(/\\.[^.]+$/,'').slice(0,120);
+      setProject(p=>({...p,
+        audioTracks:[...(p.audioTracks??[]),{id,name,dataUrl:data,volume:65,loop:true}],
+        scenes:p.scenes.map(sc=>sc.id===activeId?{...sc,musicTrackId:id}:sc)
+      }));
+      setPanel('music');
+      setStatus('Musique ajoutée à la bibliothèque, assignée au panorama actuel');
     }catch{setStatus('Impossible de lire ce son');}
     if(audioInput.current)audioInput.current.value='';
+  }
+  function assignMusic(trackId:string,sceneId:string,checked:boolean){
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===sceneId?
+      {...sc,musicTrackId:checked?trackId:undefined,audioEnabled:checked?false:sc.audioEnabled}:sc)}));
+  }
+  function removeTrack(trackId:string){
+    if(!window.confirm('Supprimer cette musique et ses affectations aux panoramas ?'))return;
+    setProject(p=>({...p,
+      audioTracks:p.audioTracks.filter(track=>track.id!==trackId),
+      scenes:p.scenes.map(sc=>sc.musicTrackId===trackId?{...sc,musicTrackId:undefined}:sc)
+    }));
   }
   async function addFrameImage(file?:File){
     if(!file)return;
@@ -676,7 +693,7 @@ function App(){
 
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} onClose={()=>setVideoZoom(null)}/>}
-          {active && preview && <SceneAudio key={active.id} scene={active} paused={!!videoZoom||introVisible||!!frame||!!info||!!imageZoom}/>}
+          {active && <ContinuousMusic project={project} scene={active} paused={!preview||!!videoZoom||introVisible}/>}
           {imageZoom?.imageDataUrl && <div className={'image-lightbox '+(imageZoom.fadeOnClick!==false?'with-fade':'')} onClick={()=>setImageZoom(null)}>
             <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={()=>setImageZoom(null)}>✕</button>
             <img src={imageZoom.imageDataUrl} alt={imageZoom.title} onClick={e=>e.stopPropagation()}/>
@@ -722,6 +739,7 @@ function App(){
           <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons')}>Mes icônes</button>
           <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro')}>Intro</button>
           <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements')}>Éléments</button>
+          <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music')}>Musique</button>
         </div>
         {panel==='points' && <div className="properties">
           <div className="section-title">PANORAMA</div>
@@ -734,20 +752,19 @@ function App(){
               {active.arrivalYaw!==undefined&&<small>Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
             </div>
             <div className="scene-audio-settings">
-              <div className="section-title">AMBIANCE SONORE DE CETTE SCÈNE</div>
-              <button type="button" className="import" onClick={()=>audioInput.current?.click()}>{active.audioDataUrl?'Remplacer le son':'＋ Importer un fichier audio'}</button>
-              <label>Ou adresse HTTPS du son<input type="url" placeholder="https://…/musique.mp3" value={active.audioUrl??''}
-                onChange={e=>patchScene(sc=>({...sc,audioUrl:e.target.value,audioDataUrl:undefined}))}/></label>
-              {active.audioUrl && !isSafeMediaUrl(active.audioUrl)&&<small className="warning-inline">Indique une URL HTTPS valide.</small>}
-              <label className="toggle-row"><input type="checkbox" checked={active.audioEnabled??Boolean(active.audioDataUrl||active.audioUrl)}
-                onChange={e=>patchScene(sc=>({...sc,audioEnabled:e.target.checked}))}/> Lecture de la bande sonore à l’entrée dans la scène</label>
-              <label className="toggle-row"><input type="checkbox" checked={active.audioLoop!==false}
-                onChange={e=>patchScene(sc=>({...sc,audioLoop:e.target.checked}))}/> Lire en boucle</label>
-              <label>Volume du son : {active.audioVolume??65} %
-                <input type="range" min="0" max="100" value={active.audioVolume??65}
-                  onChange={e=>patchScene(sc=>({...sc,audioVolume:Number(e.target.value)}))}/></label>
-              {(active.audioDataUrl||active.audioUrl)&&<button type="button" className="style-reset" onClick={()=>patchScene(sc=>({...sc,audioUrl:'',audioDataUrl:undefined,audioEnabled:false}))}>Supprimer la bande sonore</button>}
-              <small className="hint-inline">Le son est associé à ce panorama. Certains navigateurs imposent un clic pour activer l’audio.</small>
+              <div className="section-title">MUSIQUE DE CE PANORAMA</div>
+              <label>Musique active
+                <select value={active.musicTrackId??''} onChange={e=>{
+                  const id=e.target.value;
+                  patchScene(sc=>({...sc,musicTrackId:id||undefined,audioEnabled:id?false:sc.audioEnabled}));
+                }}>
+                  <option value="">Aucune musique de la bibliothèque</option>
+                  {(project.audioTracks??[]).map(track=><option value={track.id} key={track.id}>{track.name}</option>)}
+                </select>
+              </label>
+              <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une musique</button>
+              <button type="button" className="style-reset" onClick={()=>setPanel('music')}>Gérer les musiques et leurs panoramas</button>
+              <small className="hint-inline">Une même musique joue sans interruption lorsque tu navigues entre les panoramas auxquels elle est attribuée.</small>
             </div>
             <hr/><div className="section-title">POINTS INTERACTIFS <span className="counter">{active.hotspots.length}</span></div>
             {!selected?<><p className="hint">Choisis Navigation, Information, Lien, Cadre photo ou Écran vidéo sous le panorama, puis clique sur l’image 360°.</p>
@@ -913,6 +930,25 @@ function App(){
           <small className="hint-inline">La transition est automatique à la fin de cette durée, ou dès que l’intro envoie l’événement intro:done.</small>
           <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setPreview(true);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
+        </div>}
+        {panel==='music' && <div className="properties">
+          <div className="section-title">BIBLIOTHÈQUE MUSICALE <span className="counter">{project.audioTracks?.length??0}</span></div>
+          <p className="hint">Attribue une piste à plusieurs panoramas : elle joue en continu, en boucle, sans recommencer lors du passage d’une scène à l’autre. Choisis une autre piste là où tu souhaites changer d’ambiance.</p>
+          <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une piste MP3, WAV, OGG</button>
+          {(project.audioTracks??[]).map(track=><div className="music-track-card" key={track.id}>
+            <div className="music-track-title"><strong>{track.name}</strong><button type="button" onClick={()=>removeTrack(track.id)} title="Supprimer cette piste">✕</button></div>
+            <label>Nom<input value={track.name} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,name:e.target.value}:t)}))}/></label>
+            <label>Volume : {track.volume} %
+              <input type="range" min="0" max="100" value={track.volume} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,volume:Number(e.target.value)}:t)}))}/>
+            </label>
+            <label className="toggle-row"><input type="checkbox" checked={track.loop} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,loop:e.target.checked}:t)}))}/> Lecture en boucle</label>
+            <div className="section-title">PANORAMAS À SONORISER</div>
+            {project.scenes.map(sc=><label className="music-scene-check" key={sc.id}>
+              <input type="checkbox" checked={sc.musicTrackId===track.id} onChange={e=>assignMusic(track.id,sc.id,e.target.checked)}/>
+              <span>{sc.name}</span>
+            </label>)}
+          </div>)}
+          {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties">
           <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
