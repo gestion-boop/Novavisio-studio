@@ -1318,7 +1318,7 @@ function App(){
         </button>
         <button className="primary" disabled={exporting} onClick={()=>void exportTour()}>
           <Sparkles size={14} style={{marginRight:5,verticalAlign:'-2px'}}/>
-          {exporting?'Export…':'Exporter HTML / ZIP'}
+          {exporting?'Export…':currentSpace?'Exporter cet espace':'Exporter HTML / ZIP'}
         </button>
       </div>
     </header>
@@ -1446,17 +1446,22 @@ function App(){
       <aside className="left panel">
         <div className="section-title">
           <span>PANORAMAS</span>
-          <span className="counter">{project.scenes.length}</span>
+          <span className="counter">{visibleScenes.length}</span>
         </div>
+        {currentSpace&&<div className="nv-space-sidebar-context">
+          <strong>{currentSpace.name}</strong>
+          <small>Les originaux restent dans « Projet complet ».</small>
+          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
+        </div>}
         <button className="import" onClick={()=>upload.current?.click()}>
           <Plus size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Importer des panoramas 360°
         </button>
-        <div className="scenes" ref={scenesRef}>{project.scenes.map((s,i)=><div key={s.id} className="scene-slot"
-          onPointerDown={e=>startSceneDrag(e,i)}
+        <div className="scenes" ref={scenesRef}>{visibleScenes.map((s,i)=><div key={s.id} className="scene-slot"
+          onPointerDown={e=>{if(!currentSpace)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
           <button className={'scene '+(s.id===activeId?'active':'')} title="Glisse pour changer l’ordre (ou Alt + ↑ / ↓)"
             onKeyDown={e=>{
-              if(!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
+              if(currentSpace||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
               e.preventDefault();
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
@@ -1467,8 +1472,15 @@ function App(){
               <small>Scène {i+1}{i===0?' · accueil':''} · {s.hotspots.length} point(s)</small>
             </span>
           </button>
-          <span className="scene-grip" aria-hidden="true" title="Glisse pour changer l’ordre">⋮⋮</span>
-        </div>)}</div>
+          {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
+             aria-label={'Retirer '+s.name+' de cet espace'}
+             onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}>✕</button>:
+            <span className="scene-grip" aria-hidden="true" title="Glisse pour changer l’ordre">⋮⋮</span>}
+        </div>)}
+        {currentSpace&&!visibleScenes.length&&<div className="nv-space-empty-list">
+          <p>Aucun panorama dans cet espace.</p>
+          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>Choisir des panoramas</button>
+        </div>}</div>
         <div className="helper">
           <strong>✦ Guide rapide</strong>
           <p>Clique sur un point dans le 360° pour modifier directement ses propriétés à droite.</p>
@@ -1477,20 +1489,22 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top">
-          <span>PROJET / <strong>{active?.name??'Nouvelle visite'}</strong></span>
+          <span>{currentSpace?currentSpace.name:'PROJET COMPLET'} / <strong>{active?.name??'Sélectionner un panorama'}</strong></span>
           <b className={preview ? 'status-preview' : mode ? 'status-adding' : 'status-edit'}>
             {preview ? '👁️ APERÇU INTERACTIF' : mode ? '📍 CLIQUEZ DANS LE PANORAMA POUR PLACER LE POINT' : '✏️ MODE ÉDITION'}
           </b>
         </div>
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')} ref={viewAreaRef}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!project.scenes.some(s=>s.id===id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
             onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
-            <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
-            <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
-            <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
+            <div className="empty-icon">◎</div><h1>{currentSpace?'Cet espace est vide':'Ta première visite commence ici'}</h1>
+            <p>{currentSpace?'Sélectionne les panoramas de la visite principale à inclure dans cet espace.':'Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.'}</p>
+            <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):upload.current?.click()}>
+              {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
+            </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
           </div>}
           {active && !creationFullscreen && <button type="button" className="nv-creation-fullscreen-enter"
             onClick={()=>void toggleCreationFullscreen()} title="Agrandir uniquement la création 360°" aria-label="Plein écran de la création">
@@ -1556,7 +1570,7 @@ function App(){
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;
             return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id}
-              entries={galleryEntries(item,project.scenes).map(e=>({sceneId:e.sceneId,label:e.label,thumb:sceneThumbs[e.sceneId]}))}
+              entries={galleryEntries(item,visibleScenes).map(e=>({sceneId:e.sceneId,label:e.label,thumb:sceneThumbs[e.sceneId]}))}
               onPick={id=>{selectScene(id);setGalleryOpen(null);}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
           {imageZoom?.imageDataUrl && <ZoomImage variant="studio" src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
@@ -1603,8 +1617,8 @@ function App(){
           <button className={'tool '+(panel==='bar'?'selected':'')} onClick={()=>{setPanel('bar');setMode(null);setSelectedId('');}}>
             ☷ Barre du bas
           </button>
-          <div className="grow"/><button className="tool danger" onClick={removeScene} title="Supprimer la scène active">
-            <Trash2 size={13} style={{marginRight:4,verticalAlign:'-2px'}}/> Supprimer scène
+          <div className="grow"/><button className="tool danger" onClick={removeScene} title={currentSpace?'Retirer de cet espace (original conservé)':'Supprimer définitivement le panorama'}>
+            <Trash2 size={13} style={{marginRight:4,verticalAlign:'-2px'}}/> {currentSpace?'Retirer de l’espace':'Supprimer scène'}
           </button>
         </div>}
       </main>
@@ -1707,7 +1721,7 @@ function App(){
                 <label>Scène de destination
                   <select value={selected.target} onChange={e=>patchPoint({target:e.target.value,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined})}>
                     <option value="">Sélectionner une scène…</option>
-                    {project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                    {visibleScenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
                   </select>
                 </label>
                 {selected.target&&<div className="arrival-view-card is-inspector">
