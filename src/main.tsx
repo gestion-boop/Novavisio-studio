@@ -6,10 +6,11 @@ import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup} from './media'
 import {ContinuousMusic} from './continuousMusic';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
-import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
+import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
+import {frameWorldCorners,editingFrameControls,replaceWorldCorner,moveWorldFrame,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameCorners} from './storage';
+import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameCorners,type FrameSphericalCorners} from './storage';
 import './style.css';
 import './media.css';
 
@@ -59,12 +60,22 @@ type PanoramaProps = {
   onImage: (h:Hotspot)=>void;
   onVideo: (h:Hotspot)=>void;
   selectedId:string;
-  onCornerChange:(id:string,corner:keyof FrameCorners,x:number,y:number)=>void;
+  onWorldFrameChange:(id:string,corners:FrameSphericalCorners,center?:SphericalPoint)=>void;
   onMarkerMove:(id:string,yaw:number,pitch:number)=>void;
   onAssetDrop:(iconId:string,yaw:number,pitch:number)=>void;
   onCameraChange:(yaw:number,pitch:number,zoom:number)=>void;
 };
-function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60) {
+function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60):MarkerConfig {
+  // Image and video layers are rendered ON the sphere, not as HTML billboards.
+  // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
+  if(h.type==='image'&&h.imageDataUrl){
+    return {id:h.id,imageLayer:h.imageDataUrl,position:frameWorldCorners(h),tooltip:h.title,hoverScale:false};
+  }
+  const videoSource=h.videoDataUrl||h.videoUrl;
+  if(h.type==='video'&&videoSource){
+    return {id:h.id,videoLayer:videoSource,position:frameWorldCorners(h),tooltip:h.title,
+      autoplay:h.videoAutoplay!==false,hoverScale:false};
+  }
   const isMedia=h.type==='image'||h.type==='video';
   const sz=Math.max(16,Math.min(80,h.iconSize??28));
   const scaled=isMedia?responsiveFrameSize(h,viewerHeight,zoom):null;
@@ -72,22 +83,32 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
   const height=scaled?.height??sz;
   const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
-  const content=h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),width,height,h.title,!preview&&selectedId===h.id):
+  const content=h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
     h.type==='video'?videoMarkerHtml(h,width,height):
-    iconHtml || '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
+    iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
-  return {
-    id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
+  return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
     html:editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+'</span>':content,
-    size:{width,height},anchor:'center center' as const,tooltip:h.title
-  };
+    size:{width,height},anchor:'center center',tooltip:h.title};
 }
-function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
+function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60):MarkerConfig[]{
+  const all:MarkerConfig[]=[];
+  for(const h of scene.hotspots){
+    all.push(markerFor(h,icons,height,selectedId,preview,zoom));
+    const hasMedia=h.type==='image'?!!h.imageDataUrl:
+      h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;
+    if(!preview&&selectedId===h.id&&hasMedia){
+      all.push(...editingFrameControls(h));
+    }
+  }
+  return all;
+}
+function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
-  const actions = useRef({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange,onMarkerMove,onAssetDrop,onCameraChange};
+  const actions = useRef({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     if (!box.current) return;
