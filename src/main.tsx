@@ -3,6 +3,7 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
+import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {CloudPanel} from './CloudPanel';
@@ -365,6 +366,8 @@ function App(){
   const [project,setProject]=useState<StudioProject>(newProject());
   const [ready,setReady]=useState(false);
   const [activeId,setActiveId]=useState('');
+  const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
+  const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
   const [selectedId,setSelectedId]=useState('');
   const [selectedBarId,setSelectedBarId]=useState('');
   const [panel,setPanel]=useState<PanelTab>('points');
@@ -487,6 +490,7 @@ function App(){
   projectRef.current=project;
   lockRef.current=lock;
   function adopt(p:StudioProject,stamp:string|null){
+    setActiveSpaceId(null);setSpaceManagerOpen(false);
     const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
     savedRef.current=upgraded;baseRef.current=stamp;
     setProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');setSelectedId('');setMode(null);
@@ -587,7 +591,20 @@ function App(){
     st.kind==='pending'?'Envoi…':st.kind==='saving'?st.progress:st.kind==='saved'?'Enregistré':
     st.kind==='error'?'Échec — nouvel essai':'À installer';
 
-  const active=project.scenes.find(s=>s.id===activeId) ?? null;
+  // Subspaces are non-destructive views over the master panorama library.
+  const currentSpace:StudioSpace|null=(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null;
+  const visibleScenes=scenesInSpace(project,currentSpace);
+  const visibleIds=new Set(visibleScenes.map(scene=>scene.id));
+  const active=visibleScenes.find(s=>s.id===activeId) ?? null;
+  useEffect(()=>{
+    if(activeSpaceId && !(project.spaces??[]).some(sp=>sp.id===activeSpaceId)){
+      setActiveSpaceId(null);setSpaceManagerOpen(false);return;
+    }
+    if(activeSpaceId && !visibleIds.has(activeId)){
+      setActiveId(visibleScenes[0]?.id??'');setSelectedId('');
+      setArrivedVia(null);nextArrivalRef.current=null;
+    }
+  },[activeSpaceId,project.spaces,project.scenes,activeId]);
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
   const viaFrom=arrivedVia?project.scenes.find(sc=>sc.id===arrivedVia.fromSceneId):undefined;
   const viaHotspot=active&&arrivedVia&&arrivedVia.sceneId===active.id?
@@ -629,12 +646,12 @@ function App(){
     else launchLink(link);
   }
   async function exportTour(){
-    if(!project.scenes.length){setStatus('Importe au moins un panorama avant de publier');return;}
+    if(!visibleScenes.length){setStatus('Cet espace ne contient aucun panorama à exporter');return;}
     setExporting(true);
     setStatus('Préparation du dossier HTML…');
     try {
-      await exportStaticTour(project);
-      setStatus('Dossier HTML prêt — archive ZIP téléchargée');
+      await exportStaticTour(projectForSpaceExport(project,currentSpace));
+      setStatus(currentSpace?'Espace « '+currentSpace.name+' » exporté en ZIP':'Dossier HTML prêt — archive ZIP téléchargée');
     }catch(err){setStatus('Échec de l’export : '+(err instanceof Error?err.message:String(err)));}
     finally{setExporting(false);}
   }
@@ -728,11 +745,12 @@ function App(){
     }
   }
   function selectScene(id:string){
+    if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
     // Choix direct d'une scène (liste, barre) : aucune flèche n'est en jeu.
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(id);
   }
   function goThroughArrow(h:Hotspot,fromSceneId:string){
-    if(!h.target||!project.scenes.some(s=>s.id===h.target))return;
+    if(!h.target||!visibleIds.has(h.target))return;
     nextArrivalRef.current=h.arrivalYaw!==undefined?{sceneId:h.target,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:h.arrivalZoom??60}:null;
     setArrivedVia({sceneId:h.target,hotspotId:h.id,fromSceneId});
     setActiveId(h.target);setSelectedId('');setMode(null);
@@ -949,8 +967,8 @@ function App(){
     if(!preview){setSelectedBarId(item.id);setPanel('bar');setSelectedId('');return;}
     if(item.type==='gallery'){setGalleryOpen(item.id);return;}
     if(item.type==='navigation'){
-      const dest=item.target || project.scenes[0]?.id;
-      if(dest && project.scenes.some(s=>s.id===dest))selectScene(dest);
+      const dest=item.target && visibleIds.has(item.target)?item.target:visibleScenes[0]?.id;
+      if(dest)selectScene(dest);
     }else if(item.type==='information') {
       if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url);
       else {setFrame(null);setInfo({id:item.id,type:'information',title:item.title,text:item.text,target:'',yaw:0,pitch:0});}
@@ -1128,7 +1146,11 @@ function App(){
       } catch { setStatus('Erreur de lecture : '+file.name); }
     }
     if(next.length){
-      setProject(p=>({...p,scenes:[...p.scenes,...next]}));
+      setProject(p=>({...p,scenes:[...p.scenes,...next],
+        spaces:activeSpaceId?(p.spaces??[]).map(space=>space.id===activeSpaceId?{
+          ...space,sceneIds:[...space.sceneIds,...next.map(scene=>scene.id)]
+        }:space):p.spaces
+      }));
       if(!activeId)setActiveId(next[0].id);
       setStatus(next.length+' panorama(s) importé(s)');
     }
@@ -1146,9 +1168,13 @@ function App(){
     setSelectedId(h.id);setPanel('points');setMode(null);
   }
   function removeScene(){
-    if(!active||!window.confirm('Supprimer le panorama « '+active.name+' » ?'))return;
+    if(!active)return;
+    if(currentSpace){
+      removeSceneFromSpace(currentSpace.id,active.id);return;
+    }
+    if(!window.confirm('Supprimer définitivement le panorama « '+active.name+' » du projet COMPLET et de tous les espaces ?'))return;
     const remaining=project.scenes.filter(s=>s.id!==active.id).map(s=>({...s,hotspots:s.hotspots.filter(h=>h.target!==active.id)}));
-    setProject(p=>({...p,scenes:remaining,bottomBar:p.bottomBar.map(b=>({...b,target:b.target===active.id?'':b.target,...(b.gallery?{gallery:b.gallery.filter(g=>g.sceneId!==active.id)}:{})}))}));setActiveId(remaining[0]?.id??'');setSelectedId('');
+    setProject(p=>({...p,scenes:remaining,spaces:(p.spaces??[]).map(space=>({...space,sceneIds:space.sceneIds.filter(id=>id!==active.id)})),bottomBar:p.bottomBar.map(b=>({...b,target:b.target===active.id?'':b.target,...(b.gallery?{gallery:b.gallery.filter(g=>g.sceneId!==active.id)}:{})}))}));setActiveId(remaining[0]?.id??'');setSelectedId('');
   }
   function download(){
     const blob=new Blob([JSON.stringify(project)],{type:'application/json'});
@@ -1163,7 +1189,7 @@ function App(){
       if(file.size>250*1024*1024)throw new Error('Fichier trop volumineux');
       const imported=ensureFrameReferences(validateProject(JSON.parse(await file.text())),viewAreaRef.current?.clientHeight||550);
       if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
-      setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
+      setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
       cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
       setStatus('Projet importé');
     }catch(e){window.alert('Impossible d’ouvrir ce projet : '+String(e));}
@@ -1185,7 +1211,7 @@ function App(){
   }
   function startFresh(){
     if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
-    setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
+    setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
     cloud.unlink();
   }
   return <div className="app">
