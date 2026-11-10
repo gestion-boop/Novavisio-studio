@@ -1,4 +1,4 @@
-import {supabase,saveToCloud,type CloudLink} from './cloud';
+import {supabase,saveToCloud,writeLink,type CloudLink} from './cloud';
 import type {StudioProject} from './storage';
 
 /**
@@ -31,6 +31,9 @@ const friendly=(message:string)=>
 export async function createShareLink(project:StudioProject,link:CloudLink|null,days:ShareDays,onProgress:(msg:string)=>void):Promise<{link:CloudLink;token:string;expires_at:string}>{
   // 1) La visite telle qu'elle est maintenant est enregistrée dans le cloud (nouvelle révision, rien n'est écrasé).
   const saved=await saveToCloud(project,link,onProgress);
+  // On mémorise tout de suite le lien local ↔ cloud : si la création du lien échoue (ex. fonctions SQL pas encore installées),
+  // la prochaine tentative ajoute une révision à la MÊME visite au lieu d'en créer une seconde en double.
+  writeLink(saved);
   // 2) Le lien pointe sur CETTE révision : les modifications ultérieures ne changent pas ce qu'il montre.
   onProgress('Création du lien…');
   const {data,error}=await supabase().rpc('nvstudio_create_share',{p_project:saved.projectId,p_revision:saved.revision,p_days:days});

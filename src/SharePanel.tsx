@@ -54,8 +54,10 @@ export function SharePanel({project,onClose,onStatus}:Props){
     finally{setBusy('');}
   }
   const create=()=>run('Préparation…',async()=>{
-    const res=await createShareLink(project,link,days,setBusy);
-    writeLink(res.link);setLink(res.link);
+    let res;
+    try{res=await createShareLink(project,link,days,setBusy);}
+    finally{setLink(readLink());} // le lien local est mémorisé dès l'enregistrement, même si la suite échoue
+    writeLink(res.link);
     const url=shareUrl(res.token);
     const copied=await copy(url);
     setCreated({url,expires:res.expires_at,copied});
