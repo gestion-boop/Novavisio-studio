@@ -1,7 +1,8 @@
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Viewer} from '@photo-sphere-viewer/core';
-import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
+import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
+import {frameWorldCorners} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
@@ -22,6 +23,27 @@ function checkedLink(raw:string):string|null {
     const parsed=new URL(raw.trim());
     return ['https:','http:','tel:','mailto:'].includes(parsed.protocol)?parsed.href:null;
   }catch{return null;}
+}
+function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):MarkerConfig {
+  if(h.type==='image'&&h.imageDataUrl){
+    return {id:h.id,imageLayer:h.imageDataUrl,position:frameWorldCorners(h),hoverScale:false};
+  }
+  const source=h.videoDataUrl||h.videoUrl;
+  if(h.type==='video'&&source){
+    return {id:h.id,videoLayer:source,position:frameWorldCorners(h),
+      autoplay:h.videoAutoplay!==false,hoverScale:false};
+  }
+  const isMedia=h.type==='image'||h.type==='video';
+  const size=isMedia?responsiveFrameSize(h,height,zoom):null;
+  const w=size?.width??Math.min(80,Math.max(16,h.iconSize??28));
+  const hh=size?.height??w;
+  const custom=icons.find(icon=>icon.id===h.iconId);
+  const html=h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
+    h.type==='video'?videoMarkerHtml(h,w,hh):
+    custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
+    '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
+  return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},
+    anchor:'center center',html,tooltip:h.title};
 }
 type ViewerProps={
   scene:Scene;
@@ -66,19 +88,8 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      plugin.setMarkers(current.scene.hotspots.map(h=>{
-        const isMedia=h.type==='image'||h.type==='video';
-        const size=isMedia?responsiveFrameSize(h,viewHeight,instance.getZoomLevel()):null;
-        const w=size?.width??Math.min(80,Math.max(16,h.iconSize??28));
-        const hh=size?.height??w;
-        const custom=current.icons.find(icon=>icon.id===h.iconId);
-        const iconHtml=h.type==='image'?
-          imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
-          h.type==='video'?videoMarkerHtml(h,w,hh):
-          custom?iconStateHtml(current.icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
-          '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
-        return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},anchor:'center center' as const,html:iconHtml,tooltip:h.title};
-      }));
+      plugin.setMarkers(current.scene.hotspots.map(h=>
+        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel())));
     };
     refreshMarkers();
     let pending=0;
@@ -105,18 +116,8 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       loadedScene.current=next.id;
       const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
       const height=container.current?.clientHeight||550;
-      plugin.setMarkers(next.hotspots.map(h=>{
-        const media=h.type==='image'||h.type==='video';
-        const size=media?responsiveFrameSize(h,height,instance.getZoomLevel()):null;
-        const w=size?.width??Math.min(120,Math.max(24,h.iconSize??46));
-        const hh=size?.height??w;
-        const custom=handlers.current.icons.find(i=>i.id===h.iconId);
-        const html=h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
-          h.type==='video'?videoMarkerHtml(h,w,hh):
-          custom?iconStateHtml(handlers.current.icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
-          '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
-        return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},anchor:'center center' as const,html,tooltip:h.title};
-      }));
+      plugin.setMarkers(next.hotspots.map(h=>
+        publicMarker(h,handlers.current.icons,height,instance.getZoomLevel())));
     }).catch(()=>{/* Keep previous panorama if the new photo cannot load. */});
     return ()=>{disposed=true;};
   },[scene.id,scene.dataUrl]);
