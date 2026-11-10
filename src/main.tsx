@@ -4,7 +4,7 @@ import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup} from './media';
 import {ContinuousMusic} from './continuousMusic';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
@@ -394,8 +394,8 @@ function App(){
   },[]);
   useEffect(()=>{
     if(!ready)return;
-    setStatus('Sauvegarde…');
     const t=setTimeout(()=>{
+      setStatus('Sauvegarde…');
       saveProject({...project,updatedAt:new Date().toISOString()})
         .then(()=>setStatus('Sauvegardé localement'))
         .catch(()=>setStatus('Erreur de sauvegarde : exporte ton projet'));
@@ -707,42 +707,99 @@ function App(){
   }
   return <div className="app">
     <header className="topbar">
-      <div className="brand"><div className="brand-logo">◉</div><div><strong>NovaVisio <span>Studio</span></strong><small>ÉDITEUR DE VISITES 360°</small></div></div>
-      <div className="project-name"><input aria-label="Nom du projet" value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/><small className="save">{status}</small></div>
+      <div className="brand">
+        <div className="brand-logo">◉</div>
+        <div>
+          <strong>NovaVisio <span>Studio</span></strong>
+          <small>ÉDITEUR DE VISITES 360°</small>
+        </div>
+      </div>
+      <div className="project-name">
+        <div className="project-name-wrapper">
+          <Edit3 size={13} className="project-edit-icon" />
+          <input aria-label="Nom du projet" value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/>
+        </div>
+        <span className="save-chip">{status}</span>
+      </div>
       <div className="top-actions">
-        <button className="quiet" onClick={startFresh}>Nouveau</button>
-        <button className="quiet" onClick={()=>projectInput.current?.click()}>Ouvrir</button>
-        <button className="quiet" onClick={download}>Sauvegarder le projet</button>
-        <button className="primary" disabled={exporting} onClick={()=>void exportTour()}>{exporting?'Export…':'Exporter HTML / ZIP'}</button>
-        <button className={preview?'primary':'outline'} onClick={()=>{if(!preview && project.introEnabled && project.introUrl.startsWith('https://'))setIntroVisible(true);else setIntroVisible(false);setPreview(p=>!p);setMode(null);setSelectedId('');}}>{preview?'Quitter l’aperçu':'Prévisualiser'}</button>
+        <div className="mode-switch-group">
+          <button type="button" className={'mode-btn ' + (!preview ? 'is-active' : '')} onClick={() => { if(preview) { setPreview(false); setIntroVisible(false); } }}>
+            <Edit3 size={13}/> Mode Édition
+          </button>
+          <button type="button" className={'mode-btn ' + (preview ? 'is-active' : '')} onClick={() => {
+            if(!preview) {
+              if (project.introEnabled && project.introUrl.startsWith('https://')) setIntroVisible(true);
+              else setIntroVisible(false);
+              setPreview(true); setMode(null); setSelectedId('');
+            }
+          }}>
+            <Eye size={13}/> Aperçu
+          </button>
+        </div>
+        <button className="quiet" onClick={startFresh} title="Nouveau projet">Nouveau</button>
+        <button className="quiet" onClick={()=>projectInput.current?.click()} title="Ouvrir un projet .nvstudio.json">Ouvrir</button>
+        <button className="quiet" onClick={download} title="Sauvegarder le projet localement">
+          <Download size={13} style={{marginRight:4,verticalAlign:'-1px'}}/> Sauvegarder
+        </button>
+        <button className="primary" disabled={exporting} onClick={()=>void exportTour()}>
+          <Sparkles size={14} style={{marginRight:5,verticalAlign:'-2px'}}/>
+          {exporting?'Export…':'Exporter HTML / ZIP'}
+        </button>
       </div>
     </header>
     <div className="workspace">
       <aside className="left panel">
-        <div className="section-title">PANORAMAS <span className="counter">{project.scenes.length}</span></div>
-        <button className="import" onClick={()=>upload.current?.click()}>＋ Importer des panoramas</button>
+        <div className="section-title">
+          <span>PANORAMAS</span>
+          <span className="counter">{project.scenes.length}</span>
+        </div>
+        <button className="import" onClick={()=>upload.current?.click()}>
+          <Plus size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Importer des panoramas 360°
+        </button>
         <div className="scenes">{project.scenes.map((s,i)=><button key={s.id} className={'scene '+(s.id===activeId?'active':'')} onClick={()=>{setActiveId(s.id);setSelectedId('');setMode(null);}}>
-          <img src={s.dataUrl} alt="Miniature du panorama"/><span><strong>{s.name}</strong><small>Scène {i+1} · {s.hotspots.length} point(s)</small></span>
+          <img src={s.dataUrl} alt="Miniature du panorama"/>
+          <span>
+            <strong>{s.name}</strong>
+            <small>Scène {i+1} · {s.hotspots.length} point(s)</small>
+          </span>
         </button>)}</div>
-        <div className="helper"><strong>✦ Ton studio 360°</strong><p>Importe tes panoramas, relie les scènes et ajoute des points interactifs.</p><button className="help" onClick={()=>setHelp(true)}>Guide de démarrage →</button></div>
+        <div className="helper">
+          <strong>✦ Guide rapide</strong>
+          <p>Clique sur un point dans le 360° pour modifier directement ses propriétés à droite.</p>
+          <button className="help" onClick={()=>setHelp(true)}>Guide de démarrage →</button>
+        </div>
       </aside>
       <main className="editor">
-        <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area" ref={viewAreaRef}>{active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
-          onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
-            {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
-          onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
-          onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
-          <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
-          <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
-          <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
-        </div>}
+        <div className="editor-top">
+          <span>PROJET / <strong>{active?.name??'Nouvelle visite'}</strong></span>
+          <b className={preview ? 'status-preview' : mode ? 'status-adding' : 'status-edit'}>
+            {preview ? '👁️ APERÇU INTERACTIF' : mode ? '📍 CLIQUEZ DANS LE PANORAMA POUR PLACER LE POINT' : '✏️ MODE ÉDITION'}
+          </b>
+        </div>
+        <div className="view-area" ref={viewAreaRef}>
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+            onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
+              {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
+            onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
+            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
+            <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
+            <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
+            <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
+          </div>}
+          {active && !preview && mode && (
+            <div className="mode-active-pill">
+              <span className="mode-active-dot" />
+              <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Cadre photo':'Écran vidéo'}</strong></span>
+              <button type="button" onClick={()=>setMode(null)}>✕ Annuler (Échap)</button>
+            </div>
+          )}
           {active && !preview && <button type="button" className="scene-elements-open" onClick={()=>{setPanel('elements');setMode(null);setSelectedId('');}}>
-            <Info size={18}/> Éléments
+            <Info size={16}/> Éléments
           </button>}
           {active && <button type="button" className="view-fullscreen-button" onClick={()=>void toggleFullscreen()} title={isFullscreen?'Quitter le plein écran':'Passer en plein écran'} aria-label={isFullscreen?'Quitter le plein écran':'Passer en plein écran'}>
             {isFullscreen?<Minimize size={20} strokeWidth={2.1}/>:<Maximize size={20} strokeWidth={2.1}/>}
           </button>}
+          {/* BARRE DU BAS CONSERVÉE INTACTE */}
           {active && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
@@ -755,7 +812,6 @@ function App(){
           </nav>}
           {introVisible && project.introEnabled && project.introUrl && <div className="intro-overlay">
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
-
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} onClose={()=>setVideoZoom(null)}/>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||!!videoZoom||introVisible}/>}
@@ -768,7 +824,6 @@ function App(){
               <div className="embed-header">
                 <span className="embed-title">{frame.title}</span>
                 <div className="embed-actions">
-                  
                   <button type="button" onClick={()=>setFrame(null)} aria-label="Fermer le contenu intégré">✕</button>
                 </div>
               </div>
@@ -787,19 +842,36 @@ function App(){
           </div>}
         </div>
         {active && !preview && <div className="toolbar">
-          <span>OUTILS</span>
-          <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')}>➜ Navigation</button>
-          <button className={'tool '+(mode==='information'?'selected':'')} onClick={()=>setMode(mode==='information'?null:'information')}>ⓘ Information</button>
-          <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')}>↗ Lien</button>
-          <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')}>▣ Cadre photo</button>
-          <button className={'tool '+(mode==='video'?'selected':'')} onClick={()=>setMode(mode==='video'?null:'video')}>▶ Écran vidéo</button>
-          <button className="tool" onClick={()=>{setPanel('bar');setMode(null);}}>☷ Barre du bas</button>
-          <div className="grow"/><button className="tool danger" onClick={removeScene}>⌫ Supprimer scène</button>
+          <span className="toolbar-label">AJOUTER :</span>
+          <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')} title="Lien de navigation vers un autre panorama">
+            ➜ Navigation
+          </button>
+          <button className={'tool '+(mode==='information'?'selected':'')} onClick={()=>setMode(mode==='information'?null:'information')} title="Bulle d'information ou page intégrée">
+            ⓘ Information
+          </button>
+          <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')} title="Lien web, téléphone ou email">
+            ↗ Lien web
+          </button>
+          <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')} title="Cadre photo incrusté en perspective">
+            ▣ Cadre photo
+          </button>
+          <button className={'tool '+(mode==='video'?'selected':'')} onClick={()=>setMode(mode==='video'?null:'video')} title="Écran vidéo animé">
+            ▶ Écran vidéo
+          </button>
+          <div className="toolbar-sep"/>
+          <button className={'tool '+(panel==='bar'?'selected':'')} onClick={()=>{setPanel('bar');setMode(null);setSelectedId('');}}>
+            ☷ Barre du bas
+          </button>
+          <div className="grow"/><button className="tool danger" onClick={removeScene} title="Supprimer la scène active">
+            <Trash2 size={13} style={{marginRight:4,verticalAlign:'-2px'}}/> Supprimer scène
+          </button>
         </div>}
       </main>
       <aside className="right panel">
         <div className="side-tabs" role="tablist" aria-label="Options d'édition">
-          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points')}>Points</button>
+          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points')}>
+            {selectedId ? '◉ Inspecteur' : 'Scène & Points'}
+          </button>
           <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>setPanel('bar')}>Barre du bas</button>
           <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons')}>Mes icônes</button>
           <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro')}>Intro</button>
@@ -807,16 +879,178 @@ function App(){
           <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music')}>Musique</button>
         </div>
         {panel==='points' && <div className="properties">
-          <div className="section-title">PANORAMA</div>
-          {!active?<div className="hint">Importe un panorama pour configurer des points interactifs.</div>:<>
-            <label>Nom de la scène<input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/></label>
-            <div className="arrival-view-card">
-              <div className="section-title">VUE D’ARRIVÉE DU PANORAMA</div>
-              <p>Oriente la visite dans la direction souhaitée et choisis le zoom, puis enregistre ce cadrage.</p>
-              <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme arrivée</button>
-              {active.arrivalYaw!==undefined&&<small>Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
+          {!active?<div className="hint">Importe un panorama pour commencer à créer.</div>:selected ? (
+            /* ============================================================== */
+            /* DIRECT ELEMENT INSPECTOR (QUAND UN ÉLÉMENT DU 360° EST CLIQUÉ) */
+            /* ============================================================== */
+            <div className="element-inspector">
+              <div className="element-inspector-header">
+                <div className="element-inspector-badge">
+                  <span className="badge-glyph">
+                    {selected.type==='navigation'?'➜':selected.type==='lien'?'↗':selected.type==='image'?'▣':selected.type==='video'?'▶':'ⓘ'}
+                  </span>
+                  <div>
+                    <strong>{selected.type==='navigation'?'Navigation':selected.type==='lien'?'Lien web':selected.type==='image'?'Cadre photo':selected.type==='video'?'Écran vidéo':'Information'}</strong>
+                    <small>Paramètres de l’élément sélectionné</small>
+                  </div>
+                </div>
+                <button type="button" className="element-close-btn" onClick={()=>setSelectedId('')} title="Désélectionner et revenir aux paramètres de la scène">
+                  ← Vue d’ensemble
+                </button>
+              </div>
+
+              {active.hotspots.length > 1 && (
+                <div className="point-quick-switcher">
+                  <label>Passer à un autre point :
+                    <select value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
+                      {active.hotspots.map((h, idx) => (
+                        <option key={h.id} value={h.id}>
+                          {idx + 1}. {h.type==='navigation'?'➜ ':h.type==='lien'?'↗ ':h.type==='image'?'▣ ':h.type==='video'?'▶ ':'ⓘ '}
+                          {h.title || 'Point sans titre'}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              <div className="field-group">
+                <label>Titre / Libellé
+                  <input value={selected.title} placeholder="Nom du point..." onChange={e=>patchPoint({title:e.target.value})}/>
+                </label>
+              </div>
+
+              {selected.type==='image' ? <>
+                <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
+                  onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
+                  onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
+                  <span className="photo-upload-icon">＋</span>
+                  <strong>{selected.imageDataUrl?'Changer la photo du cadre':'Choisir une photo'}</strong>
+                  <span>Cliquer ici ou déposer une photo dans ce cadre</span>
+                  <input type="file" accept="image/*,.heic,.heif" onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void addFrameImage(file);e.currentTarget.value='';}}/>
+                </label>
+                <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo max</small>
+                {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
+                {selected.imageDataUrl&&<img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo intégrée au cadre"/>}
+                {selected.imageDataUrl && <p className="hint">💡 Cadrage : déplace directement les quatre poignées turquoise sur le cadre photo dans le 360° pour suivre la perspective.</p>}
+                <label>Largeur : {selected.frameWidth??320} px
+                  <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
+                </label>
+                <label>Hauteur : {selected.frameHeight??200} px
+                  <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
+                </label>
+                <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
+                <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
+              </> : selected.type==='video' ? <>
+                <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
+                <small className="hint-inline">22 Mo max en local, ou renseigne une URL HTTPS directe :</small>
+                <label>Ou URL HTTPS de la vidéo
+                  <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''} onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
+                </label>
+                {selected.videoUrl && !isSafeMediaUrl(selected.videoUrl)&&<small className="warning-inline">Adresse HTTPS invalide.</small>}
+                {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
+                <div className="section-title">ADAPTER L'ÉCRAN À LA PERSPECTIVE</div>
+                <CornerEditor width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()} onChange={v=>patchPoint({frameCorners:v})}/>
+                <label>Largeur : {selected.frameWidth??320} px
+                  <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
+                </label>
+                <label>Hauteur : {selected.frameHeight??200} px
+                  <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
+                </label>
+                <label className="toggle-row"><input type="checkbox" checked={selected.videoAutoplay!==false} onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Démarrer automatiquement (muet)</label>
+                <label className="toggle-row"><input type="checkbox" checked={selected.videoLoop!==false} onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Répéter la vidéo en boucle</label>
+                <label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic avec le son</label>
+                <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
+              </> : selected.type==='navigation' ? (
+                <label>Scène de destination
+                  <select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}>
+                    <option value="">Sélectionner une scène…</option>
+                    {project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                  </select>
+                </label>
+              ) : selected.type==='lien' ? (
+                <label>Adresse (https://, tel:, mailto:)
+                  <input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
+                </label>
+              ) : (
+                <>
+                  <label>Texte affiché
+                    <textarea rows={4} placeholder="Description ou informations..." value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/>
+                  </label>
+                  <label>Page web intégrée (optionnel)
+                    <input type="text" placeholder="https://… menu, réservations" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
+                    <small className="hint-inline">Si renseignée, la page s'ouvre directement dans la visite à la place du texte.</small>
+                  </label>
+                </>
+              )}
+
+              {!['image','video'].includes(selected.type) && <>
+                <div className="section-title">ICÔNE DU POINT</div>
+                <label>Icône personnalisée</label>
+                {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
+                {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
+                <label>PNG au survol (optionnel)</label>
+                {iconSelector(selected.hoverIconId,id=>patchPoint({hoverIconId:id}))}
+                <label>Taille de l'icône : {selected.iconSize??28} px
+                  <input type="range" min="16" max="80" step="2" value={selected.iconSize??28} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
+                </label>
+              </>}
+
+              <div className="coords-card">
+                <span>Position 360° : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</span>
+                <small>💡 Astuce : tu peux glisser ce point directement dans le panorama pour ajuster sa position.</small>
+              </div>
+
+              <button type="button" className="delete" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>
+                <Trash2 size={13} style={{marginRight:6,verticalAlign:'-2px'}}/> Supprimer ce point
+              </button>
             </div>
-            <div className="scene-audio-settings">
+          ) : (
+            /* ============================================================== */
+            /* SCENE OVERVIEW (AUCUN POINT SÉLECTIONNÉ)                        */
+            /* ============================================================== */
+            <div className="scene-overview">
+              <div className="section-title">PARAMÈTRES DU PANORAMA</div>
+              <label>Nom de la scène
+                <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
+              </label>
+
+              <div className="arrival-view-card">
+                <div className="section-title">VUE D’ARRIVÉE DU PANORAMA</div>
+                <p>Oriente la visite dans la direction souhaitée et choisis le zoom, puis enregistre ce cadrage.</p>
+                <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme arrivée</button>
+                {active.arrivalYaw!==undefined&&<small className="arrival-saved">✓ Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
+              </div>
+
+              <div className="section-title">
+                <span>POINTS INTERACTIFS</span>
+                <span className="counter">{active.hotspots.length}</span>
+              </div>
+
+              {active.hotspots.length === 0 ? (
+                <div className="empty-points-card">
+                  <p>Aucun point interactif dans cette scène.</p>
+                  <small>Clique sur un des outils sous le panorama (Navigation, Information, Lien, Cadre, Vidéo) puis clique dans le 360° pour en placer un.</small>
+                </div>
+              ) : (
+                <div className="points-list">
+                  <p className="hint-small">Clique sur un point ci-dessous ou directement dans le panorama 360° pour le modifier :</p>
+                  {active.hotspots.map(h => (
+                    <button key={h.id} type="button" className="point-item-btn" onClick={() => setSelectedId(h.id)}>
+                      <span className="point-item-glyph">
+                        {project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':h.type==='video'?'▶':'ⓘ'}
+                      </span>
+                      <span className="point-item-info">
+                        <strong>{h.title || '(Sans titre)'}</strong>
+                        <small>{h.type==='navigation'?'Navigation':h.type==='lien'?'Lien web':h.type==='image'?'Cadre photo':h.type==='video'?'Écran vidéo':'Information'}</small>
+                      </span>
+                      <ChevronRight size={14} className="point-item-arrow"/>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <hr/>
               <div className="section-title">MUSIQUE DE CE PANORAMA</div>
               <label>Musique active
                 <select value={active.musicTrackId??''} onChange={e=>{
@@ -828,79 +1062,9 @@ function App(){
                 </select>
               </label>
               <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une musique</button>
-              <button type="button" className="style-reset" onClick={()=>setPanel('music')}>Gérer les musiques et leurs panoramas</button>
-              <small className="hint-inline">Une même musique joue sans interruption lorsque tu navigues entre les panoramas auxquels elle est attribuée.</small>
+              <button type="button" className="style-reset" onClick={()=>setPanel('music')}>Gérer la bibliothèque musicale</button>
             </div>
-            <hr/><div className="section-title">POINTS INTERACTIFS <span className="counter">{active.hotspots.length}</span></div>
-            {!selected?<><p className="hint">Choisis Navigation, Information, Lien, Cadre photo ou Écran vidéo sous le panorama, puis clique sur l’image 360°.</p>
-                {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':h.type==='video'?'▶':'ⓘ'}</span>{h.title}</button>)}
-              </>:<>
-                <button className="back" onClick={()=>setSelectedId('')}>← Tous les points</button>
-                <div className="tag">{selected.type==='navigation'?'➜ Navigation':selected.type==='lien'?'↗ Lien':selected.type==='image'?'▣ Cadre photo':selected.type==='video'?'▶ Écran vidéo':'ⓘ Information'}</div>
-                <label>Titre<input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/></label>
-                {selected.type==='image'?
-                <>
-                  <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
-                    onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
-                    onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
-                    <span className="photo-upload-icon">＋</span>
-                    <strong>{selected.imageDataUrl?'Changer la photo du cadre':'Choisir une photo'}</strong>
-                    <span>Cliquer ici ou déposer une photo dans ce cadre</span>
-                    <input type="file" accept="image/*,.heic,.heif" onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void addFrameImage(file);e.currentTarget.value='';}}/>
-                  </label>
-                  <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo maximum, optimisé automatiquement</small>
-                  {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
-                  {selected.imageDataUrl&&<img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo intégrée au cadre"/>}
-                  {selected.imageDataUrl && <p className="hint">La photo est fixée au panorama 360°. Déplace les quatre petits points turquoise pour la perspective, ou le carré central pour déplacer tout le cadre. Le résultat reste immobile sur son support quand tu tournes ou zoomes.</p>}
-                  <label>Largeur du cadre : {selected.frameWidth??320} px
-                    <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value),frameSphericalCorners:undefined})}/>
-                  </label>
-                  <label>Hauteur du cadre : {selected.frameHeight??200} px
-                    <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value),frameSphericalCorners:undefined})}/>
-                  </label>
-                  <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
-                  <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>
-                </>
-                :selected.type==='video'?<>
-                  <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
-                  <small className="hint-inline">22 Mo maximum dans ce prototype ; pour une vidéo longue, utilise une URL HTTPS.</small>
-                  <label>Ou URL HTTPS de la vidéo<input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''}
-                    onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/></label>
-                  {selected.videoUrl && !isSafeMediaUrl(selected.videoUrl)&&<small className="warning-inline">Adresse HTTPS invalide.</small>}
-                  {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
-                  <div className="section-title">ADAPTER L'ÉCRAN À LA PERSPECTIVE</div>
-                  <CornerEditor width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()}
-                    onChange={v=>patchPoint({frameCorners:v})}/>
-                  <label>Largeur : {selected.frameWidth??320} px
-                    <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/></label>
-                  <label>Hauteur : {selected.frameHeight??200} px
-                    <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/></label>
-                  <label className="toggle-row"><input type="checkbox" checked={selected.videoAutoplay!==false} onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Démarrer automatiquement, sans son, à l’arrivée</label>
-                  <label className="toggle-row"><input type="checkbox" checked={selected.videoLoop!==false} onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Répéter la vidéo</label>
-                  <label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Clic sur l’écran → vidéo agrandie avec son</label>
-                  <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
-                </>
-                :selected.type==='navigation'?<label>Destination<select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}><option value="">Sélectionner une scène…</option>{project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
-                  : selected.type==='lien'?<label>Adresse (https://, tel:, mailto:)<input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
-                  :<><label>Texte affiché<textarea rows={5} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/></label>
-                    <label>Page web intégrée (optionnel)<input type="text" placeholder="https://… menu, catalogue, galerie" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
-                    <small className="hint-inline">Si une adresse est renseignée, elle s'ouvre dans la visite à la place du texte.</small></>}
-                {!['image','video'].includes(selected.type) && <>
-                  <div className="section-title">ICÔNE PNG — ÉTATS INTERACTIFS</div>
-                  <label>PNG normal (sans déformation ni changement de fond)</label>
-                  {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
-                  {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
-                  <label>PNG au survol (optionnel)</label>
-                  {iconSelector(selected.hoverIconId,id=>patchPoint({hoverIconId:id}))}
-                  <label>PNG lors du clic (optionnel)</label>
-                  {iconSelector(selected.pressedIconId,id=>patchPoint({pressedIconId:id}))}
-                  <small className="hint-inline">Tu peux fournir trois fichiers PNG distincts. Sans variante, l'original est conservé avec un effet de survol léger.</small>
-                </>}
-                {!['image','video'].includes(selected.type) && <label>Taille de l'icône : {selected.iconSize??28} px<input type="range" min="16" max="80" step="2" value={selected.iconSize??28} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>}
-                <small className="coords">Position : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</small>
-                <button className="delete" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>Supprimer ce point</button>
-              </>}
-          </>}
+          )}
         </div>}
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
