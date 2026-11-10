@@ -54,6 +54,9 @@ export type BottomBarItem = {
   iconSize?: number;
   builtinIcon?: string;
 };
+// Single source of truth for the size of a bottom-bar button (editor, preview and exported tour).
+export const BAR_ICON_DEFAULT = 48;
+export const barIconSize = (item:{iconSize?:number}) => Math.max(20, Math.min(72, item.iconSize ?? BAR_ICON_DEFAULT));
 export const defaultBar = ():BottomBarItem[] => [
   {id:crypto.randomUUID(),title:'Carte',type:'information',target:'',text:'',url:'',builtinIcon:'utensils'},
   {id:crypto.randomUUID(),title:'Photos',type:'information',target:'',text:'',url:'',builtinIcon:'images'},
@@ -199,7 +202,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.iconId !== undefined && (typeof h.iconId !== 'string' || !icons.some(icon=>icon.id===h.iconId))) ||
         (h.hoverIconId !== undefined && (typeof h.hoverIconId !== 'string' || !icons.some(icon=>icon.id===h.hoverIconId))) ||
         (h.pressedIconId !== undefined && (typeof h.pressedIconId !== 'string' || !icons.some(icon=>icon.id===h.pressedIconId))) ||
-        (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 24 || h.iconSize > 120)) ||
+        (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 16 || h.iconSize > 120)) ||
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
         (h.videoDataUrl !== undefined && (h.videoDataUrl.length > 42_000_000 || !isSafeVideoData(h.videoDataUrl))) ||

@@ -35,3 +35,13 @@
 .nv-audio-start,.nv-audio-mute{display:flex;gap:8px;align-items:center;justify-content:center;border:1px solid #a5d5d2;background:#143640da;color:#e2f7f7;border-radius:999px;padding:10px 12px;font-size:12px;cursor:pointer}
 .nv-audio-mute{width:42px;height:42px;padding:0}
 @keyframes nvMediaFade{from{opacity:0}to{opacity:1}}
+
+/* Boutons de barre à PNG : la taille choisie est la taille réelle du bouton (cohérent éditeur / aperçu / export). */
+.visitor-bar-button.has-custom-png,.tour-bar-button.has-custom-png{
+  --nv-bar-size:min(var(--nv-bar-btn,48px),17vw);
+  flex:0 0 auto;width:var(--nv-bar-size);min-width:var(--nv-bar-size);max-width:var(--nv-bar-size);
+  height:var(--nv-bar-size);min-height:var(--nv-bar-size);padding:0;
+}
+.has-custom-png .visitor-bar-icon,.has-custom-png .tour-bar-icon{width:var(--nv-bar-size);height:var(--nv-bar-size);min-width:0;min-height:0;display:block}
+.has-custom-png .nv-bar-png{width:100%!important;height:100%!important;max-width:none;max-height:none}
+.has-custom-png .nv-bar-png img{max-width:none;max-height:none}

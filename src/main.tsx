@@ -12,7 +12,7 @@ import {syncMarkers,resetMarkers} from './markerSync';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
 import './style.css';
 import './media.css';
 
@@ -366,6 +366,9 @@ function App(){
   const iconInput=useRef<HTMLInputElement>(null);
   const replaceIconInput=useRef<HTMLInputElement>(null);
   const replacingIconId=useRef<string|null>(null);
+  const stateIconInput=useRef<HTMLInputElement>(null);
+  const stateTarget=useRef<((id:string|undefined)=>void)|null>(null);
+  const [libraryFor,setLibraryFor]=useState<string|null>(null);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const savedRef=useRef<StudioProject|null>(null);
@@ -649,16 +652,43 @@ function App(){
       bottomBar:p.bottomBar.map(b=>b.iconId===id?{...b,iconId:undefined}:b)
     }));
   }
-  function iconSelector(iconId:string|undefined,apply:(value:string|undefined)=>void){
-    return <div className="icon-field">
-      <div className="icon-choice-row">
-        <button type="button" className={!iconId?'icon-choice chosen':'icon-choice'} title="Icône par défaut" onClick={()=>apply(undefined)}>◉</button>
-        {project.icons.map(icon=><button key={icon.id} type="button" title={icon.name} className={icon.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>apply(icon.id)}>
-          <img src={icon.dataUrl} alt={icon.name}/></button>)}
-        <button type="button" className="icon-choice icon-upload" title="Importer une icône" onClick={()=>iconInput.current?.click()}>＋</button>
+  // Un seul état à la fois : on voit l'icône de CE bouton, pas toute la bibliothèque.
+  function iconStateEditor(key:string,label:string,iconId:string|undefined,apply:(value:string|undefined)=>void,fallback:string){
+    const icon=project.icons.find(i=>i.id===iconId);
+    const open=libraryFor===key;
+    return <div className="icon-state">
+      <div className="icon-state-label">{label}</div>
+      <div className="icon-state-row">
+        <div className="icon-state-preview" title={icon?.name??fallback}>{icon?<img src={icon.dataUrl} alt={icon.name}/>:<span>{fallback}</span>}</div>
+        <div className="icon-state-actions">
+          <button type="button" className="tool" onClick={()=>{stateTarget.current=apply;stateIconInput.current?.click();}}>{icon?'Remplacer par un fichier…':'Importer un fichier…'}</button>
+          <button type="button" className="tool" onClick={()=>setLibraryFor(open?null:key)}>{open?'Fermer la bibliothèque':'Choisir dans ma bibliothèque'}</button>
+          {icon&&<button type="button" className="tool" onClick={()=>apply(undefined)}>Retirer</button>}
+        </div>
       </div>
-      <small className="hint-inline">PNG transparent recommandé · GIF animé accepté</small>
+      {open&&<div className="icon-choice-row">
+        {project.icons.map(i=><button key={i.id} type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
+          <img src={i.dataUrl} alt={i.name}/></button>)}
+        {!project.icons.length&&<small className="hint-inline">Ta bibliothèque est vide : importe un fichier.</small>}
+      </div>}
     </div>;
+  }
+  async function importStateIcon(file?:File){
+    const apply=stateTarget.current;
+    stateTarget.current=null;
+    if(stateIconInput.current)stateIconInput.current.value='';
+    if(!file||!apply)return;
+    if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)||file.size>1_500_000){
+      setStatus('Icône incompatible (PNG, JPG, WebP, GIF ; maximum 1,5 Mo)');return;
+    }
+    try{
+      const dataUrl=await readImage(file);
+      if(!isSafeIconDataUrl(dataUrl))throw Error('Format invalide');
+      const created:CustomIcon={id:uid(),name:file.name.replace(/\.[^/.]+$/,'').slice(0,100),dataUrl};
+      setProject(p=>({...p,icons:[...p.icons,created].slice(0,150)}));
+      apply(created.id);
+      setStatus('PNG appliqué à cet état du bouton uniquement');
+    }catch{setStatus('Impossible de lire cette icône');}
   }
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
@@ -820,8 +850,8 @@ function App(){
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <button type="button" key={item.id} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
-                <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={Math.min(item.iconSize??44,56)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
+              return <button type="button" key={item.id} style={icon?{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties:undefined} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+                <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button>;
             })}
@@ -1002,11 +1032,10 @@ function App(){
 
               {!['image','video'].includes(selected.type) && <>
                 <div className="section-title">ICÔNE DU POINT</div>
-                <label>Icône personnalisée</label>
-                {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
+                {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
                 {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
-                <label>PNG au survol (optionnel)</label>
-                {iconSelector(selected.hoverIconId,id=>patchPoint({hoverIconId:id}))}
+                {iconStateEditor('pt-hover','PNG au survol (optionnel)',selected.hoverIconId,id=>patchPoint({hoverIconId:id}),'Identique au normal')}
+                {iconStateEditor('pt-pressed','PNG au clic (optionnel)',selected.pressedIconId,id=>patchPoint({pressedIconId:id}),'Identique au survol')}
                 <label>Taille de l'icône : {selected.iconSize??28} px
                   <input type="range" min="16" max="80" step="2" value={selected.iconSize??28} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
                 </label>
@@ -1120,17 +1149,15 @@ function App(){
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
             <div className="section-title">MES PNG — NORMAL, SURVOL, CLIC</div>
-            <label>PNG normal</label>
-            {iconSelector(selectedBar.iconId,id=>patchBar({iconId:id}))}
+            {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id}),'Icône par défaut')}
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
-            <label>PNG au survol</label>
-            {iconSelector(selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}))}
-            <label>PNG au clic</label>
-            {iconSelector(selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}))}
+            {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
+            {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
             {!selectedBar.iconId && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
               {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
             </select></label>}
-            <label>Taille : {selectedBar.iconSize??32} px<input type="range" min="20" max="72" step="2" value={selectedBar.iconSize??32} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
+            <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
+            <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>({...b,iconSize:size}))}));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
             <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
             <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
           </>}
@@ -1214,6 +1241,7 @@ function App(){
     </div>
     <footer><span>NovaVisio Studio · Prototype v0.6</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
+    <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
     <input ref={replaceIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void replaceIconEverywhere(e.target.files?.[0])}/>
