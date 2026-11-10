@@ -13,7 +13,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers} from './markerSync';
@@ -423,6 +423,7 @@ function App(){
   const suppressClick=useRef(false);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const [creationFullscreen,setCreationFullscreen]=useState(false);
+  const [fullscreenGalleryOpen,setFullscreenGalleryOpen]=useState(false);
   const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
   const creationFallbackRef=useRef(false);
   useEffect(()=>{
@@ -592,6 +593,7 @@ function App(){
     st.kind==='error'?'Échec — nouvel essai':'À installer';
 
   // Subspaces are non-destructive views over the master panorama library.
+  useEffect(()=>{if(!creationFullscreen)setFullscreenGalleryOpen(false);},[creationFullscreen]);
   const currentSpace:StudioSpace|null=(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null;
   const visibleScenes=scenesInSpace(project,currentSpace);
   const visibleIds=new Set(visibleScenes.map(scene=>scene.id));
@@ -746,8 +748,21 @@ function App(){
   }
   function selectScene(id:string){
     if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
-    // Choix direct d'une scène (liste, barre) : aucune flèche n'est en jeu.
+    // Navigation directe : toujours revenir à la vue d'arrivée par défaut du panorama.
+    // Une arrivée personnalisée PAR FLÈCHE ne s'applique qu'au clic sur cette flèche.
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(id);
+    setSelectedId('');setMode(null);
+  }
+  function chooseFullscreenScene(id:string){
+    if(!visibleIds.has(id))return;
+    selectScene(id);
+    setFullscreenGalleryOpen(false);
+  }
+  function stepFullscreenScene(direction:-1|1){
+    if(!visibleScenes.length)return;
+    const idx=visibleScenes.findIndex(sc=>sc.id===activeId);
+    const next=visibleScenes[(idx+direction+visibleScenes.length)%visibleScenes.length];
+    if(next)chooseFullscreenScene(next.id);
   }
   function goThroughArrow(h:Hotspot,fromSceneId:string){
     if(!h.target||!visibleIds.has(h.target))return;
@@ -1512,6 +1527,12 @@ function App(){
           </button>}
           {active && creationFullscreen && <div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
             <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
+            <button type="button" className={'nv-fullscreen-gallery-toggle'+(fullscreenGalleryOpen?' is-active':'')}
+              aria-expanded={fullscreenGalleryOpen} aria-controls="nv-fullscreen-gallery"
+              onClick={()=>{setFullscreenGalleryOpen(open=>!open);setMode(null);}}
+              title="Choisir un panorama dans la galerie">
+              <Images size={16}/> Galerie <span className="nv-fullscreen-gallery-count">{visibleScenes.length}</span>
+            </button>
             <button type="button" className={!preview?'nv-fullscreen-mode is-active':'nv-fullscreen-mode'}
               onClick={()=>{setPreview(false);setIntroVisible(false);}} title="Retoucher les éléments 360°">
               <Edit3 size={16}/> Éditer
@@ -1526,6 +1547,51 @@ function App(){
               <Minimize2 size={17}/> Quitter
             </button>
           </div>}
+          {active && creationFullscreen && fullscreenGalleryOpen && <aside id="nv-fullscreen-gallery"
+            className="nv-fullscreen-gallery-panel" aria-label="Galerie des panoramas">
+            <header className="nv-fullscreen-gallery-header">
+              <div><small>{currentSpace?.name??project.name}</small><strong>Galerie des panoramas</strong></div>
+              <button type="button" className="nv-fullscreen-gallery-close" onClick={()=>setFullscreenGalleryOpen(false)}
+                aria-label="Fermer la galerie">✕</button>
+            </header>
+            <div className="nv-fullscreen-gallery-nav">
+              <button type="button" onClick={()=>stepFullscreenScene(-1)} title="Panorama précédent">
+                <ChevronLeft size={16}/> Précédent
+              </button>
+              <button type="button" onClick={()=>stepFullscreenScene(1)} title="Panorama suivant">
+                Suivant <ChevronRight size={16}/>
+              </button>
+            </div>
+            {!preview && <div className="nv-fullscreen-gallery-arrival">
+              <div className="nv-fullscreen-gallery-arrival-text">
+                <strong>Vue d’arrivée du panorama</strong>
+                <span>Oriente la caméra et règle le zoom, puis enregistre cette vue. Elle sera utilisée en arrivant ici depuis la galerie, une navigation normale ou l'export.</span>
+              </div>
+              <button type="button" onClick={saveArrivalView}>
+                <Eye size={15}/> Enregistrer la vue actuelle
+              </button>
+              {active.arrivalYaw!==undefined &&
+                <small className="nv-fullscreen-gallery-arrival-saved">
+                  ✓ Vue définie · orientation {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)} %
+                </small>}
+            </div>}
+            <div className="nv-fullscreen-gallery-list">
+              {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
+                className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')}
+                onClick={()=>chooseFullscreenScene(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
+                {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
+                  <span className="nv-fullscreen-gallery-placeholder">◎</span>}
+                <span className="nv-fullscreen-gallery-scene-details">
+                  <strong>{scene.name}</strong>
+                  <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
+                  {scene.arrivalYaw!==undefined&&<em>✓ Vue d'arrivée définie</em>}
+                </span>
+              </button>)}
+            </div>
+            <footer className="nv-fullscreen-gallery-footer">
+              {visibleScenes.length} panorama{visibleScenes.length>1?'s':''} dans cet espace
+            </footer>
+          </aside>}
           {active && creationFullscreen && !preview && <div className="nv-creation-fullscreen-palette" role="toolbar" aria-label="Ajouter des éléments dans la création">
             {([
               ['navigation','➜ Navigation'],
