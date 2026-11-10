@@ -311,6 +311,8 @@ function App(){
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
   const iconInput=useRef<HTMLInputElement>(null);
+  const replaceIconInput=useRef<HTMLInputElement>(null);
+  const replacingIconId=useRef<string|null>(null);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const [isFullscreen,setIsFullscreen]=useState(false);
@@ -562,6 +564,25 @@ function App(){
       if(panel==='bar' && selectedBarId)patchBar({iconId:incoming[0].id});
     }
     if(iconInput.current)iconInput.current.value='';
+  }
+  function requestReplaceIcon(id:string){
+    replacingIconId.current=id;
+    replaceIconInput.current?.click();
+  }
+  async function replaceIconEverywhere(file?:File){
+    const id=replacingIconId.current;
+    if(!file||!id)return;
+    replacingIconId.current=null;
+    if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type) || file.size>1_500_000){
+      setStatus('Icône incompatible (PNG, JPG, WebP, GIF ; maximum 1,5 Mo)');return;
+    }
+    try {
+      const dataUrl=await readImage(file);
+      if(!isSafeIconDataUrl(dataUrl))throw Error('Format invalide');
+      setProject(p=>({...p,icons:p.icons.map(icon=>icon.id===id?{...icon,dataUrl}:icon)}));
+      setStatus('Icône remplacée partout : barre et points de tous les panoramas');
+    }catch{setStatus('Impossible de remplacer cette icône');}
+    if(replaceIconInput.current)replaceIconInput.current.value='';
   }
   function deleteIcon(id:string){
     if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
@@ -824,6 +845,7 @@ function App(){
                   <div className="section-title">ICÔNE PNG — ÉTATS INTERACTIFS</div>
                   <label>PNG normal (sans déformation ni changement de fond)</label>
                   {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
+                  {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
                   <label>PNG au survol (optionnel)</label>
                   {iconSelector(selected.hoverIconId,id=>patchPoint({hoverIconId:id}))}
                   <label>PNG lors du clic (optionnel)</label>
@@ -876,6 +898,7 @@ function App(){
             <div className="section-title">MES PNG — NORMAL, SURVOL, CLIC</div>
             <label>PNG normal</label>
             {iconSelector(selectedBar.iconId,id=>patchBar({iconId:id}))}
+            {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
             <label>PNG au survol</label>
             {iconSelector(selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}))}
             <label>PNG au clic</label>
@@ -955,7 +978,12 @@ function App(){
           <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
           <button className="import" onClick={()=>iconInput.current?.click()}>＋ Importer mes icônes</button>
           <small className="hint-inline">Formats : PNG (transparent), JPG, WebP, GIF animé · 1,5 Mo maximum par fichier.</small>
-          <div className="asset-grid">{project.icons.map(icon=><div className="asset-card" key={icon.id}><img src={icon.dataUrl} alt={icon.name}/><span title={icon.name}>{icon.name}</span><button title={'Supprimer '+icon.name} onClick={()=>deleteIcon(icon.id)}>✕</button></div>)}</div>
+          <div className="asset-grid">{project.icons.map(icon=><div className="asset-card" key={icon.id}>
+            <img src={icon.dataUrl} alt={icon.name}/><span title={icon.name}>{icon.name}</span>
+            <button className="asset-delete" title={'Supprimer '+icon.name} onClick={()=>deleteIcon(icon.id)}>✕</button>
+            <button className="asset-replace" type="button" onClick={()=>requestReplaceIcon(icon.id)}>Remplacer partout</button>
+          </div>)}</div>
+          <p className="hint">Le remplacement conserve l’icône liée à tous les boutons et tous les points 360°, sans les reconfigurer.</p>
           {!project.icons.length && <p className="hint">Ta bibliothèque est vide. Les icônes intégrées restent disponibles en attendant.</p>}
         </div>}
       </aside>
@@ -964,6 +992,7 @@ function App(){
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
+    <input ref={replaceIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void replaceIconEverywhere(e.target.files?.[0])}/>
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
