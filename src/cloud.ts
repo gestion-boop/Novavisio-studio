@@ -340,13 +340,14 @@ export async function removeMember(projectId:string,email:string){
  * 'created' = compte actif ; 'confirm' = la personne doit d'abord confirmer son adresse (e-mail envoyé par Supabase) ;
  * 'exists' = un compte existe déjà avec cette adresse (son mot de passe actuel reste valable).
  */
-export async function createCollaboratorAccount(email:string,password:string):Promise<'created'|'confirm'|'exists'>{
+export async function createCollaboratorAccount(email:string,password:string):Promise<'created'|'confirm'|'exists'|'disabled'>{
   const {url,key}=cloudEndpoint();
   const temp=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'nvstudio-invite-temp'}});
   const {data,error}=await temp.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
   if(error){
     if(/already registered|already been registered/i.test(error.message))return 'exists';
-    if(/signups? not allowed|signup.*disabled/i.test(error.message))throw new Error('Les inscriptions sont désactivées dans Supabase (Authentication → Sign In / Providers → « Allow new users to sign up »). Active-les le temps de créer l’accès.');
+    // Inscriptions fermées : l'adresse est quand même autorisée sur la visite ; le compte doit être créé dans Supabase.
+    if(/signups? not allowed|signup.*disabled|not allowed for this instance/i.test(error.message))return 'disabled';
     throw new Error(error.message);
   }
   if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0)return 'exists';

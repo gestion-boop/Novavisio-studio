@@ -10,7 +10,7 @@ function generatePassword(length=14):string{
   const bytes=crypto.getRandomValues(new Uint32Array(length));
   return Array.from(bytes,b=>ALPHABET[b%ALPHABET.length]).join('');
 }
-type Outcome={email:string;password:string;result:'created'|'confirm'|'exists'};
+type Outcome={email:string;password:string;result:'created'|'confirm'|'exists'|'disabled'};
 const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
 
 /**
@@ -27,6 +27,7 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEna
   const [members,setMembers]=useState<Member[]>([]);
   const [outcome,setOutcome]=useState<Outcome|null>(null);
   const [copied,setCopied]=useState(false);
+  const [includePw,setIncludePw]=useState(false); // compte créé à la main dans Supabase : le mot de passe saisi ici est celui du compte
   const [projectId,setProjectId]=useState<string|null>(readLink()?.projectId??null);
 
   async function refresh(id:string|null){
@@ -55,7 +56,7 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEna
     '1. Ouvre '+studioUrl(),
     '2. Clique sur « Cloud » en haut, puis connecte-toi avec :',
     '   E-mail : '+o.email,
-    o.result==='exists'?'   Mot de passe : celui de ton compte NovaVisio / Supabase existant':'   Mot de passe : '+o.password,
+    (o.result==='exists'||o.result==='disabled')&&!includePw?'   Mot de passe : celui de ton compte existant':'   Mot de passe : '+o.password,
     ...(o.result==='confirm'?['   (Tu vas d’abord recevoir un e-mail de confirmation : clique sur le lien qu’il contient.)']:[]),
     '3. Dans « Visites dans le cloud », clique sur « Ouvrir » à côté de « '+(project.name||'Visite')+' ».',
     '',
@@ -63,7 +64,7 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEna
   ].join('\n');
 
   async function invite(){
-    setBusy('Préparation de la visite dans le cloud…');setError('');setOutcome(null);setCopied(false);
+    setBusy('Préparation de la visite dans le cloud…');setError('');setOutcome(null);setCopied(false);setIncludePw(false);
     try{
       const clean=email.trim().toLowerCase();
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean))throw new Error('Adresse e-mail non valide.');
@@ -124,7 +125,9 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEna
         <div className="icon-state-label">ACCÈS CRÉÉ POUR {outcome.email.toUpperCase()}</div>
         <small className="hint-inline">{outcome.result==='created'?'Le compte est actif : la personne peut se connecter tout de suite.'
           :outcome.result==='confirm'?'Supabase envoie à la personne un e-mail de confirmation : elle doit cliquer sur le lien avant de pouvoir se connecter.'
-          :'Cette adresse a déjà un compte : elle est autorisée sur la visite, mais son mot de passe actuel reste valable (celui saisi ici n’a pas été appliqué).'}</small>
+          :outcome.result==='disabled'?'Les inscriptions sont fermées dans Supabase : l’adresse est bien autorisée sur la visite, mais le compte n’a pas été créé. Crée-le dans Supabase : Authentication → Users → Add user → Create new user (e-mail + mot de passe, case « Auto Confirm User » cochée).'
+          :'Cette adresse a déjà un compte : elle est autorisée sur la visite. Son mot de passe actuel reste valable (celui saisi ici n’a pas été appliqué).'}</small>
+        {(outcome.result==='exists'||outcome.result==='disabled')&&<label className="toggle-row"><input type="checkbox" checked={includePw} onChange={e=>setIncludePw(e.target.checked)}/> Le mot de passe que je viens de saisir est celui du compte (créé dans Supabase) : l’inclure dans le message</label>}
         <button className="primary" onClick={()=>void copy(message(outcome)).then(setCopied)}>{copied?'Message copié ✓':'Copier le message d’invitation'}</button>
         <small className="hint-inline">Le message contient le mot de passe : envoie-le par un canal sûr (message privé).</small>
       </div>}
