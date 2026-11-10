@@ -1,4 +1,4 @@
-# NovaVisio Studio — prototype V0.5
+# NovaVisio Studio — prototype V0.6
 
 Éditeur indépendant de visites virtuelles 360° interactives, conçu pour NovaVisio. Interface en français, thème bleu nuit et turquoise.
 
@@ -101,3 +101,14 @@ Ne jamais déplacer `index.html` sans les dossiers associés. Pour tester sur or
 La page d'introduction externe et les liens iframe nécessitent Internet. Certains sites externes interdisent leur intégration iframe ; aucun lien « Ouvrir à part » n'apparaît dans l'interface de la visite, conformément au design demandé.
 
 Ce prototype ne garantit pas encore les performances sur des dizaines d'images 8K ou plus, et la sauvegarde locale dépend du quota du navigateur.
+
+## Photos, vidéo et son (V0.6)
+
+- Cadres photo : import de JPG/PNG/WebP (et HEIC lorsqu'il est décodable dans le navigateur), puis cadrage directement sur l'image 360° avec quatre poignées turquoise indépendantes.
+- **Taille cohérente en plein écran** : les dimensions du cadre sont enregistrées relativement à la hauteur de la zone d'édition, et recalculées à l'affichage. Cette adaptation est aussi appliquée dans le lecteur HTML exporté.
+- Icônes personnalisées : trois PNG optionnels pour l'état normal, survol et pression, sans ajouter de fond artificiel au visuel original.
+- Écrans vidéo intégrés : MP4/WebM, quatre coins et dimensions réglables, lecture muette automatique (si le navigateur le permet) et ouverture en grand avec son au clic.
+- Bande sonore par panorama : MP3/OGG/WAV ou URL HTTPS, lecture et boucle paramétrables, réglage du volume. Les navigateurs peuvent demander un clic pour activer le son.
+- Les fichiers audio et vidéo importés sont ajoutés à l'archive HTML sous `media/audio` et `media/videos`.
+
+**Compatibilité :** le dossier de publication conserve `index.html`, `assets/`, `media/` et `data/`, afin de rester compatible avec la plateforme NovaTour renommée NovaVisio. Tester la visite exportée après tout changement des médias.
