@@ -67,8 +67,8 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       if(loadedScene.current!==current.scene.id)return;
       plugin.setMarkers(current.scene.hotspots.map(h=>{
         const isMedia=h.type==='image'||h.type==='video';
-        const size=isMedia?responsiveFrameSize(h,viewHeight):null;
-        const w=size?.width??Math.min(120,Math.max(24,h.iconSize??46));
+        const size=isMedia?responsiveFrameSize(h,viewHeight,instance.getZoomLevel()):null;
+        const w=size?.width??Math.min(80,Math.max(16,h.iconSize??28));
         const hh=size?.height??w;
         const custom=current.icons.find(icon=>icon.id===h.iconId);
         const iconHtml=h.type==='image'?
@@ -80,10 +80,15 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       }));
     };
     refreshMarkers();
+    let pending=0;
+    instance.addEventListener('zoom-updated',()=>{
+      if(pending)cancelAnimationFrame(pending);
+      pending=requestAnimationFrame(refreshMarkers);
+    });
     // Fullscreen and mobile orientation changes both resize the panorama viewport.
     const observer=new ResizeObserver(refreshMarkers);
     if(container.current)observer.observe(container.current);
-    return ()=>{observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
+    return ()=>{if(pending)cancelAnimationFrame(pending);observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
   },[]);
   useEffect(()=>{
     const instance=viewer.current;
@@ -101,7 +106,7 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       const height=container.current?.clientHeight||550;
       plugin.setMarkers(next.hotspots.map(h=>{
         const media=h.type==='image'||h.type==='video';
-        const size=media?responsiveFrameSize(h,height):null;
+        const size=media?responsiveFrameSize(h,height,instance.getZoomLevel()):null;
         const w=size?.width??Math.min(120,Math.max(24,h.iconSize??46));
         const hh=size?.height??w;
         const custom=handlers.current.icons.find(i=>i.id===h.iconId);
