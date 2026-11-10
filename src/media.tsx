@@ -41,16 +41,18 @@ export function videoMarkerHtml(h:Hotspot,width:number,height:number):string {
 export function SceneAudio({scene,paused=false}:{scene:Scene;paused?:boolean}) {
   const audio=useRef<HTMLAudioElement>(null);
   const [needsGesture,setNeedsGesture]=useState(false);
+  const [muted,setMuted]=useState(false);
   const src=scene.audioDataUrl||scene.audioUrl;
   useEffect(()=>{
     const el=audio.current;
     if(!el||!src||scene.audioEnabled===false)return;
     el.volume=(scene.audioVolume??65)/100;
+    el.muted=muted;
     if(paused){el.pause();return;}
     let disposed=false;
     el.play().then(()=>{if(!disposed)setNeedsGesture(false);}).catch(()=>{if(!disposed)setNeedsGesture(true);});
     return ()=>{disposed=true;el.pause();};
-  },[scene.id,src,scene.audioEnabled,scene.audioVolume,paused]);
+  },[scene.id,src,scene.audioEnabled,scene.audioVolume,paused,muted]);
   if(!src || scene.audioEnabled===false)return null;
   return <div className="nv-audio-layer">
     <audio ref={audio} src={src} loop={scene.audioLoop!==false} preload="auto"/>
@@ -58,11 +60,9 @@ export function SceneAudio({scene,paused=false}:{scene:Scene;paused?:boolean}) {
       <button type="button" className="nv-audio-start" onClick={()=>{audio.current?.play().then(()=>setNeedsGesture(false)).catch(()=>setNeedsGesture(true));}}>
         <Volume2 size={16}/> Activer le son
       </button>:
-      <button type="button" className="nv-audio-mute" title="Activer ou couper la piste sonore" onClick={()=>{
-        if(!audio.current)return;
-        audio.current.muted=!audio.current.muted;
-        setNeedsGesture(audio.current.muted);
-      }}>{needsGesture?<VolumeX size={16}/>:<Volume2 size={16}/>}</button>}
+      <button type="button" className="nv-audio-mute" title={muted?'Réactiver le son':'Couper le son'} onClick={()=>{
+        setMuted(value=>!value);
+      }}>{muted?<VolumeX size={16}/>:<Volume2 size={16}/>}</button>}
   </div>;
 }
 
