@@ -123,3 +123,18 @@ Ce prototype ne garantit pas encore les performances sur des dizaines d'images 8
 - Lors du cadrage, veiller à être **en mode édition** : en aperçu, le clic sur une image ouvre son agrandissement et non les poignées.
 
 **Limites** : certains écrans peuvent présenter un léger changement d'échelle selon le champ de vision ; valider les cadres sur écran et mobile avant publication définitive.
+
+## V0.8 — Ancrage absolu des cadres photo dans la sphère 360°
+
+Les images insérées ne sont plus des éléments HTML superposés et redimensionnés artificiellement : elles sont désormais positionnées comme des calques 3D `imageLayer` avec quatre coordonnées sphériques `{yaw, pitch}` enregistrées.
+
+- Chaque coin reste fixe dans le panorama indépendamment de la direction du regard, du zoom et du plein écran.
+- Les quatre poignées d'édition visibles font 9 px, avec une zone de saisie invisible de 24 px.
+- On peut descendre un coin au-delà du rectangle initial : le déplacement se fait directement en coordonnées du panorama, sans limite artificielle de 0 à 100 %.
+- Un petit carré central permet de déplacer tout le cadre d'un seul geste.
+- Le bouton de réinitialisation rétablit les quatre coins par défaut ; modifier largeur/hauteur réinitialise également les coins absolus pour permettre une nouvelle adaptation.
+- Les anciens projets sans `frameSphericalCorners` sont convertis à la volée à partir des coordonnées et dimensions enregistrées, sans supprimer leurs images.
+- Les vidéos intégrées utilisent aussi des calques `videoLayer` lorsque leur URL/fichier est renseigné.
+- L'export HTML de NovaVisio conserve exactement la même structure de dossier et les coordonnées 3D dans `data/visite.json`.
+
+Le rendu doit être vérifié sur des panoramas réels, et particulièrement sur les cadres proches des bords et dans les zones fortement déformées par la projection sphérique.
