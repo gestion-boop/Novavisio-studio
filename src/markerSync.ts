@@ -71,3 +71,50 @@ export function syncMarkers(viewer:Viewer,next:MarkerConfig[]){
   // renderMarkers() only refreshes the DOM overlay: WebGL layers (photo / video frames) need an explicit repaint.
   viewer.needsUpdate();
 }
+
+/**
+ * Fondu enchaîné des marqueurs pendant un changement de panorama.
+ * Avant : les flèches / affiches de l'ANCIEN panorama restaient visibles pendant tout le fondu de l'image puis disparaissaient d'un coup,
+ * et celles du NOUVEAU panorama n'apparaissaient qu'à la fin (on voyait le dessous d'une affiche, puis elle surgissait).
+ * Maintenant, les anciens marqueurs s'estompent pendant que les nouveaux apparaissent, en même temps que le fondu de l'image.
+ * Un enchaînement rapide termine proprement le fondu précédent.
+ */
+const fades=new WeakMap<MarkersPlugin,{finish:()=>void}>();
+const easeInOut=(t:number)=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+
+export function crossfadeMarkers(viewer:Viewer,next:MarkerConfig[],ms:number):Promise<void>{
+  const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
+  fades.get(plugin)?.finish();
+  const present=new Set(plugin.getMarkers().map(m=>m.id));
+  // Cas rare : un même identifiant dans les deux scènes → remplacement direct, sans fondu.
+  if(ms<=0||next.some(m=>present.has(m.id))){resetMarkers(viewer,next);return Promise.resolve();}
+  const nextIds=new Set(next.map(m=>m.id));
+  const leaving=[...present].filter(id=>!nextIds.has(id));
+  next.forEach(m=>{try{plugin.addMarker({...m,opacity:0},false);}catch{/* déjà présent */}});
+
+  return new Promise<void>(resolve=>{
+    let raf=0,done=false;
+    const t0=performance.now();
+    const finish=()=>{
+      if(done)return;
+      done=true;cancelAnimationFrame(raf);
+      leaving.forEach(id=>{try{plugin.removeMarker(id,false);}catch{/* déjà retiré */}});
+      next.forEach(m=>{try{plugin.updateMarker({id:m.id,opacity:1},false);}catch{/* ignoré */}});
+      applied.set(plugin,new Map(next.map(m=>[m.id,m])));
+      plugin.renderMarkers();viewer.needsUpdate();
+      if(fades.get(plugin)===handle)fades.delete(plugin);
+      resolve();
+    };
+    const handle={finish};
+    fades.set(plugin,handle);
+    const step=(now:number)=>{
+      if(done)return;
+      const t=Math.min(1,(now-t0)/ms),e=easeInOut(t);
+      leaving.forEach(id=>{try{plugin.updateMarker({id,opacity:1-e},false);}catch{/* ignoré */}});
+      next.forEach(m=>{try{plugin.updateMarker({id:m.id,opacity:e},false);}catch{/* ignoré */}});
+      plugin.renderMarkers();viewer.needsUpdate();
+      if(t>=1)finish();else raf=requestAnimationFrame(step);
+    };
+    raf=requestAnimationFrame(step);
+  });
+}

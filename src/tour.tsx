@@ -2,7 +2,7 @@ import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {frameWorldCorners} from './sphericalFrame';
-import {syncMarkers,resetMarkers} from './markerSync';
+import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import '@photo-sphere-viewer/core/index.css';
@@ -122,19 +122,24 @@ function Pano({scene,icons,arrival,navigate,info,linked,image,video}:ViewerProps
     const pendingArrival=handlers.current.arrival;
     const arrivalFor=pendingArrival&&pendingArrival.sceneId===next.id?pendingArrival:null;
     let disposed=false;
+    // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
+    let fade:Promise<void>|null=null;
+    const markersNow=()=>next.hotspots.map(h=>publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel()));
+    const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),260);};
+    instance.addEventListener('panorama-loaded',onLoaded);
     void instance.setPanorama(next.dataUrl,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
       position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
       zoom:arrivalFor?.zoom??next.arrivalZoom??60
-    }).then(success=>{
+    }).then(async success=>{
       if(disposed||!success)return;
+      if(fade)await fade;else resetMarkers(instance,markersNow());
+      if(disposed)return;
       loadedScene.current=next.id;
-      const height=container.current?.clientHeight||550;
-      resetMarkers(instance,next.hotspots.map(h=>
-        publicMarker(h,handlers.current.icons,height,instance.getZoomLevel())));
+      syncMarkers(instance,markersNow());
     }).catch(()=>{/* Keep previous panorama if the new photo cannot load. */});
-    return ()=>{disposed=true;};
+    return ()=>{disposed=true;instance.removeEventListener('panorama-loaded',onLoaded);};
   },[scene.id,scene.dataUrl]);
   return <div className="tour-panorama" ref={container}/>;
 }

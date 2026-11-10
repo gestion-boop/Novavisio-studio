@@ -16,7 +16,7 @@ import {useSceneThumbs} from './thumbs';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
-import {syncMarkers,resetMarkers} from './markerSync';
+import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
@@ -202,18 +202,24 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
     const next=scene;
     const pending=actions.current.arrival;
     const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
+    // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
+    let fade:Promise<void>|null=null;
+    const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel());
+    const onLoaded=()=>{viewer.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(viewer,markersNow(),260);};
+    viewer.addEventListener('panorama-loaded',onLoaded);
     void viewer.setPanorama(next.dataUrl,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
       position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
       zoom:arrivalFor?.zoom??next.arrivalZoom??60
-    }).then(success=>{
+    }).then(async success=>{
       if(disposed||!success)return;
+      if(fade)await fade;else resetMarkers(viewer,markersNow());
+      if(disposed)return;
       loadedSceneRef.current=next.id;
-      const height=box.current?.clientHeight||550;
-      resetMarkers(viewer,markersForScene(next,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel()));
+      syncMarkers(viewer,markersNow()); // met à jour d'éventuelles modifications survenues pendant la transition
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
-    return ()=>{disposed=true;};
+    return ()=>{disposed=true;viewer.removeEventListener('panorama-loaded',onLoaded);};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
     const refresh=()=>{
