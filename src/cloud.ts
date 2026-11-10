@@ -83,9 +83,18 @@ export async function signInWithEmail(email:string){
   const {error}=await supabase().auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
   if(error)throw new Error(error.message);
 }
+export class EmailNotConfirmedError extends Error{constructor(){super('Cette adresse n’a pas encore été confirmée par e-mail.');this.name='EmailNotConfirmedError';}}
 export async function signInWithPassword(email:string,password:string){
   const {error}=await supabase().auth.signInWithPassword({email,password});
-  if(error)throw new Error(/invalid login|invalid credentials/i.test(error.message)?'E-mail ou mot de passe incorrect (ou adresse pas encore confirmée par e-mail).':error.message);
+  if(error){
+    if(/not confirmed|email_not_confirmed/i.test(error.message+' '+((error as {code?:string}).code??'')))throw new EmailNotConfirmedError();
+    throw new Error(/invalid login|invalid credentials/i.test(error.message)?'E-mail ou mot de passe incorrect.':error.message);
+  }
+}
+/** Renvoie l'e-mail de confirmation d'inscription (le lien précédent a expiré ou a déjà été utilisé). */
+export async function resendConfirmation(email:string){
+  const {error}=await supabase().auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+  if(error)throw new Error(error.message);
 }
 export async function signOut(){await supabase().auth.signOut();}
 

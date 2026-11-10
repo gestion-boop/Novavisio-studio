@@ -380,6 +380,16 @@ function App(){
   const [introVisible,setIntroVisible]=useState(false);
   const [exporting,setExporting]=useState(false);
   const [cloudOpen,setCloudOpen]=useState(false);
+  const [authNotice,setAuthNotice]=useState<string|null>(null);
+  useEffect(()=>{
+    // Retour d'un lien reçu par e-mail (connexion / confirmation) : Supabase ajoute l'erreur dans l'adresse.
+    const params=new URLSearchParams(window.location.hash.replace(/^#/,''));
+    const code=params.get('error_code')??params.get('error');
+    if(!code)return;
+    setAuthNotice(code==='otp_expired'?'Le lien reçu par e-mail a expiré ou a déjà été utilisé.':
+      (params.get('error_description')??'La connexion par lien a échoué.').replace(/\+/g,' '));
+    window.history.replaceState(null,'',window.location.pathname+window.location.search);
+  },[]);
   const [shareOpen,setShareOpen]=useState(false);
   const [privateOpen,setPrivateOpen]=useState(false);
   const [photoFeedback,setPhotoFeedback]=useState('');
@@ -1169,6 +1179,13 @@ function App(){
         </button>
       </div>
     </header>
+    {authNotice&&<div className="nv-banner" role="alert">
+      <p><b>{authNotice}</b> Un lien de connexion ne fonctionne qu’<b>une seule fois</b> et pendant environ 1 heure. Certaines messageries (Outlook, antivirus, filtres) l’ouvrent à l’avance et le rendent inutilisable. Demande-en un nouveau et clique dessus tout de suite, dans ce navigateur.</p>
+      <div className="nv-banner-actions">
+        <button className="primary" onClick={()=>{setAuthNotice(null);setCloudOpen(true);}}>Recevoir un nouveau lien / me connecter avec mon mot de passe</button>
+        <button className="quiet" onClick={()=>setAuthNotice(null)}>Fermer</button>
+      </div>
+    </div>}
     {cloud.state.kind==='setup'&&<div className="nv-banner" role="alert">
       <p><b>La sauvegarde instantanée n’est pas encore installée dans Supabase.</b> Ton travail reste enregistré sur cet appareil. Pour l’activer : ouvre le SQL Editor de Supabase et exécute le fichier <code>20261110020000_nvstudio_autosave.sql</code> (et <code>20261110000000_nvstudio_init.sql</code> si ce n’est pas déjà fait).</p>
       <div className="nv-banner-actions">
