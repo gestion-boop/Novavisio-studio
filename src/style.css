@@ -318,3 +318,45 @@ footer{min-height:31px;padding:5px 20px;border-top:1px solid #283a48;display:fle
 .nv-direct-corner:hover{background:#10bbb5;box-shadow:0 0 0 5px #16cbba55,0 3px 11px #000c;}
 .nv-direct-corner:active{cursor:grabbing;background:#cb7f37;}
 .nv-frame-editing .nv-frame-photo{pointer-events:none;}
+
+
+/* v0.7: Directly editable point assets, background music and compact markers */
+.psv-loader,.psv-loader-container,.psv-loader-spinner{display:none!important}
+.psv-container{background:#0d1925!important}
+.scene-elements-open{position:absolute;top:16px;left:16px;z-index:42;display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:11px;color:#e7fff9;background:#103740e5;border:1px solid #57aea7;box-shadow:0 4px 20px #0007;backdrop-filter:blur(8px);font-size:12px;font-weight:700}
+.scene-elements-open:hover{background:#15535d}
+.side-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.nv-drag-target{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+.nv-drag-target:active{cursor:grabbing}
+.nv-drag-target .nv-frame-host,.nv-drag-target .nv-marker{width:100%;height:100%}
+.elements-list{display:flex;flex-direction:column;gap:6px}
+.elements-entry{display:flex;align-items:center;gap:7px;min-height:46px;width:100%;background:#193344;color:#e8f5fa;border:1px solid #355466;border-radius:8px;padding:7px 9px;text-align:left}
+.elements-entry:hover{background:#285365}
+.elements-entry>span{width:26px;height:28px;flex:none;display:grid;place-items:center;font-size:18px;color:#7fe7e0}
+.elements-entry>span img{width:25px;height:25px;object-fit:contain}
+.elements-entry strong{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px}
+.elements-entry small{font-size:10px;color:#81a6b4}
+.elements-icon-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.elements-icon-grid button{display:flex;flex-direction:column;align-items:center;gap:4px;border:1px dashed #568492;border-radius:9px;background:#1b3444;cursor:grab;padding:8px 3px;color:#bedde6;font-size:10px;min-width:0}
+.elements-icon-grid button:hover{border-color:#5eeade;background:#225164}
+.elements-icon-grid button img{width:37px;height:37px;object-fit:contain}
+.elements-icon-grid button span{white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis}
+.arrival-view-card{display:flex;flex-direction:column;gap:7px;padding:11px;background:#1b3846;border:1px solid #356d73;border-radius:9px}
+.arrival-view-card .section-title{margin-bottom:0}
+.arrival-view-card p{color:#a5c2cb;font-size:11px;line-height:1.55;margin:0}
+.arrival-view-card button{padding:9px;border:1px solid #4fc0b8;border-radius:7px;color:#c4f6ef;background:#1a5660;font-size:11px}
+.arrival-view-card small{color:#84b3bd}
+.music-track-card{display:flex;flex-direction:column;gap:12px;padding:12px;background:#193445;border:1px solid #426275;border-radius:11px}
+.music-track-title{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.music-track-title strong{font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.music-track-title button{border:1px solid #844f59;color:#eeb5bd;background:#4a2934;border-radius:7px;padding:5px 8px}
+.music-scene-check{display:flex!important;flex-direction:row!important;align-items:center!important;gap:9px!important;min-height:31px;padding:5px;border-radius:5px;background:#223e4d}
+.music-scene-check input{width:16px!important;height:16px;flex:none;accent-color:#4bdbcc;padding:0}
+.music-scene-check span{color:#d8eaf2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asset-card{min-height:136px}
+.asset-card .asset-delete{position:absolute;top:4px;right:4px;background:transparent;border:0;color:#f8c5cf;font-size:12px}
+.asset-card .asset-replace{position:static!important;display:block;width:100%;border:1px solid #459e99;border-radius:6px;padding:6px 3px;color:#bbf4ed;background:#20525b;font-size:10px;white-space:normal}
+.asset-card .asset-replace:hover{background:#286c6d}
+.nv-marker{font-size:18px;line-height:1}
+.nv-direct-corner{width:25px!important;height:25px!important;border-width:2px!important}
+.nv-direct-corner:before{content:"";position:absolute;inset:-10px}
