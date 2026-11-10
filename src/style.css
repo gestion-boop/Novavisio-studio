@@ -1206,3 +1206,5 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .icon-set-cell img{width:34px;height:34px;object-fit:contain}
 .icon-set-cell small{font-size:8.5px;color:#8fb0bd;letter-spacing:.2px}
 .scene-slot .scene{padding-right:30px}
+.icon-set{flex-wrap:wrap;position:relative}
+.icon-set-size{flex:0 0 100%;text-align:center;font-size:10px;font-weight:700;color:#4bebde;margin-top:2px}
