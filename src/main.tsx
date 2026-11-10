@@ -2,12 +2,13 @@ import {useEffect, useRef, useState, type CSSProperties} from 'react';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml} from './imageFrame';
 import {exportStaticTour} from './exportTour';
+import {IconStateVisual,iconStateHtml,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,type FrameCorners} from './storage';
+import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameCorners} from './storage';
 import './style.css';
 
 type EditMode = Hotspot['type'] | null;
@@ -47,27 +48,28 @@ type PanoramaProps = {
   onInfo: (hotspot:Hotspot)=>void;
   onLink: (title:string,url:string)=>void;
   onImage: (h:Hotspot)=>void;
+  onVideo: (h:Hotspot)=>void;
 };
-function markerFor(h:Hotspot, icons:CustomIcon[]) {
-  const icon=icons.find(i=>i.id===h.iconId);
-  const sz=Math.max(24,Math.min(120,h.iconSize ?? 46));
-  const isImage=h.type==='image';
-  const markerW=isImage?(h.frameWidth??320):sz;
-  const markerH=isImage?(h.frameHeight??200):sz;
-  const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':'i';
+function markerFor(h:Hotspot,icons:CustomIcon[]) {
+  const isMedia=h.type==='image'||h.type==='video';
+  const sz=Math.max(24,Math.min(120,h.iconSize??46));
+  const width=isMedia?(h.frameWidth??320):sz;
+  const height=isMedia?(h.frameHeight??200):sz;
+  const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
+  const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
   return {
     id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html:isImage ? imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),markerW,markerH,h.title) : icon
-      ? '<span class="nv-marker nv-custom"><img src="'+icon.dataUrl+'" alt="" draggable="false"/></span>'
-      : '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>',
-    size:{width:markerW,height:markerH},anchor:'center center' as const,tooltip:h.title
+    html:h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),width,height,h.title):
+      h.type==='video'?videoMarkerHtml(h,width,height):
+      iconHtml || '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>',
+    size:{width,height},anchor:'center center' as const,tooltip:h.title
   };
 }
-function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
-  const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage});
-  actions.current = {scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage};
+  const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo});
+  actions.current = {scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo};
 
   useEffect(()=>{
     if (!box.current) return;
@@ -92,6 +94,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
         }
         else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
         else if(h.type==='image') a.onImage(h);
+        else if(h.type==='video' && h.videoOpenFullscreen!==false) a.onVideo(h);
       } else {
         a.onPick(h.id);
       }
@@ -125,9 +128,12 @@ function App(){
   const [info,setInfo]=useState<Hotspot|null>(null);
   const [frame,setFrame]=useState<EmbedFrame|null>(null);
   const [imageZoom,setImageZoom]=useState<Hotspot|null>(null);
+  const [videoZoom,setVideoZoom]=useState<Hotspot|null>(null);
   const [introVisible,setIntroVisible]=useState(false);
   const [exporting,setExporting]=useState(false);
   const frameImageInput=useRef<HTMLInputElement>(null);
+  const videoInput=useRef<HTMLInputElement>(null);
+  const audioInput=useRef<HTMLInputElement>(null);
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
   const iconInput=useRef<HTMLInputElement>(null);
@@ -206,6 +212,31 @@ function App(){
       setStatus('Dossier HTML prêt — archive ZIP téléchargée');
     }catch(err){setStatus('Échec de l’export : '+(err instanceof Error?err.message:String(err)));}
     finally{setExporting(false);}
+  }
+  async function addVideo(file?:File){
+    if(!file||!selectedId)return;
+    if(!['video/mp4','video/webm'].includes(file.type)||file.size>22*1024*1024){
+      setStatus('Vidéo : MP4/WebM, 22 Mo maximum pour ce prototype');return;
+    }
+    try{
+      const data=await readImage(file);
+      if(!isSafeVideoData(data))throw Error('Fichier vidéo incompatible');
+      patchPoint({videoDataUrl:data,videoUrl:''});
+      setStatus('Vidéo ajoutée à l’écran');
+    }catch{setStatus('Impossible de lire la vidéo');}
+    if(videoInput.current)videoInput.current.value='';
+  }
+  async function addAudio(file?:File){
+    if(!file||!activeId)return;
+    if(!['audio/mpeg','audio/mp3','audio/ogg','audio/wav','audio/x-wav','audio/webm','audio/mp4'].includes(file.type)||
+      file.size>14*1024*1024){setStatus('Audio : MP3, WAV, OGG ou WebM · 14 Mo maximum');return;}
+    try{
+      const data=await readImage(file);
+      if(!isSafeAudioData(data))throw Error('Fichier audio incompatible');
+      patchScene(sc=>({...sc,audioDataUrl:data,audioUrl:'',audioEnabled:true}));
+      setStatus('Ambiance sonore assignée à ce panorama');
+    }catch{setStatus('Impossible de lire ce son');}
+    if(audioInput.current)audioInput.current.value='';
   }
   async function addFrameImage(file?:File){
     if(!file||!selectedId||!activeId)return;
@@ -313,9 +344,10 @@ function App(){
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
     const h:Hotspot={
-      id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Cadre photo':'Informations',
+      id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Cadre photo':mode==='video'?'Écran vidéo':'Informations',
       text:'',target:'',yaw,pitch,
-      ...(mode==='image'?{frameWidth:320,frameHeight:200,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{})
+      ...(['image','video'].includes(mode)?{frameWidth:320,frameHeight:200,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
+      ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{})
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
@@ -370,7 +402,7 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}}/>:<div className="empty">
+        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
           <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
           <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
@@ -394,6 +426,8 @@ function App(){
               <button type="button" className="intro-enter" onClick={()=>setIntroVisible(false)}>Entrer dans la visite <span aria-hidden="true">→</span></button>
             </div>
           </div>}
+          {videoZoom && <VideoPopup hotspot={videoZoom} onClose={()=>setVideoZoom(null)}/>}
+          {active && preview && <SceneAudio key={active.id} scene={active} paused={!!videoZoom||introVisible||!!frame||!!info||!!imageZoom}/>}
           {imageZoom?.imageDataUrl && <div className={'image-lightbox '+(imageZoom.fadeOnClick!==false?'with-fade':'')} onClick={()=>setImageZoom(null)}>
             <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={()=>setImageZoom(null)}>✕</button>
             <img src={imageZoom.imageDataUrl} alt={imageZoom.title} onClick={e=>e.stopPropagation()}/>
@@ -427,6 +461,7 @@ function App(){
           <button className={'tool '+(mode==='information'?'selected':'')} onClick={()=>setMode(mode==='information'?null:'information')}>ⓘ Information</button>
           <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')}>↗ Lien</button>
           <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')}>▣ Cadre photo</button>
+          <button className={'tool '+(mode==='video'?'selected':'')} onClick={()=>setMode(mode==='video'?null:'video')}>▶ Écran vidéo</button>
           <button className="tool" onClick={()=>{setPanel('bar');setMode(null);}}>☷ Barre du bas</button>
           <div className="grow"/><button className="tool danger" onClick={removeScene}>⌫ Supprimer scène</button>
         </div>}
@@ -443,11 +478,11 @@ function App(){
           {!active?<div className="hint">Importe un panorama pour configurer des points interactifs.</div>:<>
             <label>Nom de la scène<input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/></label>
             <hr/><div className="section-title">POINTS INTERACTIFS <span className="counter">{active.hotspots.length}</span></div>
-            {!selected?<><p className="hint">Choisis Navigation, Information, Lien ou Cadre photo sous le panorama, puis clique sur l’image 360°.</p>
-                {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':'ⓘ'}</span>{h.title}</button>)}
+            {!selected?<><p className="hint">Choisis Navigation, Information, Lien, Cadre photo ou Écran vidéo sous le panorama, puis clique sur l’image 360°.</p>
+                {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':h.type==='video'?'▶':'ⓘ'}</span>{h.title}</button>)}
               </>:<>
                 <button className="back" onClick={()=>setSelectedId('')}>← Tous les points</button>
-                <div className="tag">{selected.type==='navigation'?'➜ Navigation':selected.type==='lien'?'↗ Lien':selected.type==='image'?'▣ Cadre photo':'ⓘ Information'}</div>
+                <div className="tag">{selected.type==='navigation'?'➜ Navigation':selected.type==='lien'?'↗ Lien':selected.type==='image'?'▣ Cadre photo':selected.type==='video'?'▶ Écran vidéo':'ⓘ Information'}</div>
                 <label>Titre<input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/></label>
                 {selected.type==='image'?
                 <>
