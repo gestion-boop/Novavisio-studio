@@ -360,3 +360,32 @@ footer{min-height:31px;padding:5px 20px;border-top:1px solid #283a48;display:fle
 .nv-marker{font-size:18px;line-height:1}
 .nv-direct-corner{width:25px!important;height:25px!important;border-width:2px!important}
 .nv-direct-corner:before{content:"";position:absolute;inset:-10px}
+
+
+/* Spherical photo editing: world-fixed corners, small visible dots and generous hit area. */
+.nv-sphere-handle,.nv-sphere-center{
+  position:relative;display:block;width:24px;height:24px;margin:0;padding:0;
+  border:0!important;border-radius:50%;background:transparent!important;
+  box-shadow:none!important;appearance:none;cursor:crosshair;touch-action:none;
+  outline:none;user-select:none;
+}
+.nv-sphere-handle::after{
+  content:"";position:absolute;top:50%;left:50%;
+  width:9px;height:9px;transform:translate(-50%,-50%);
+  border:1.5px solid #fff;border-radius:50%;background:#0bb9c2;
+  box-shadow:0 1px 5px #001a22bb;pointer-events:none;
+}
+.nv-sphere-center::after{
+  content:"";position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);width:9px;height:9px;
+  border:2px solid #fff;border-radius:2px;background:#177782;
+  box-shadow:0 1px 5px #001a22bb;pointer-events:none;
+}
+.nv-sphere-handle:hover::after,.nv-sphere-handle:focus-visible::after,
+.nv-sphere-center:hover::after{
+  width:12px;height:12px;background:#44d9d0;
+}
+.nv-sphere-handle:active,.nv-sphere-center:active{cursor:grabbing}
+.nv-sphere-handle:focus-visible,.nv-sphere-center:focus-visible{
+  outline:2px solid #4bebde;outline-offset:0;
+}
