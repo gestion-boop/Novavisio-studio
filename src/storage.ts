@@ -88,7 +88,7 @@ export const isSafeAudioData = (s:unknown):s is string =>
   typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; hiddenIconSets?: string[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -247,7 +247,9 @@ export function validateProject(value:unknown):StudioProject {
       ) throw new Error('Point interactif non valide');
     }
   }
-  return {...p,version:1,name:p.name,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,introUrl,introEnabled,introDuration,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  // Jeux d'icônes que l'utilisateur a retirés de la liste de suggestions (n'affecte aucun bouton ni point).
+  const hiddenIconSets = Array.isArray(p.hiddenIconSets) ? p.hiddenIconSets.filter(k => typeof k === 'string' && k.length < 600).slice(0, 300) : undefined;
+  return {...p,version:1,name:p.name,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,introUrl,introEnabled,introDuration,hiddenIconSets,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
 
 /**

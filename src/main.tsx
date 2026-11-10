@@ -870,7 +870,7 @@ function App(){
   }
   // Jeux d'icônes déjà utilisés dans le projet (barre + points) : la même combinaison normal / survol / clic n'apparaît qu'une fois.
   type IconSet={key:string;iconId:string;hoverIconId?:string;pressedIconId?:string;size:number;users:string[]};
-  function collectIconSets():IconSet[]{
+  function allIconSets():IconSet[]{
     const known=(id?:string)=>id&&project.icons.some(i=>i.id===id)?id:undefined;
     const map=new Map<string,IconSet>();
     const add=(user:string,size:number,i?:string,h?:string,pr?:string)=>{
@@ -888,6 +888,25 @@ function App(){
     }));
     return [...map.values()];
   }
+  // Jeux visibles : ceux que l'utilisateur n'a pas retirés de la liste.
+  function collectIconSets():IconSet[]{
+    const hidden=new Set(project.hiddenIconSets??[]);
+    return allIconSets().filter(set=>!hidden.has(set.key));
+  }
+  function hiddenIconSetCount():number{
+    const hidden=new Set(project.hiddenIconSets??[]);
+    return allIconSets().filter(set=>hidden.has(set.key)).length;
+  }
+  // Retirer un jeu de la liste ne modifie AUCUN bouton ni point : c'est seulement un rangement des suggestions.
+  function hideIconSet(key:string){
+    setProject(p=>({...p,hiddenIconSets:[...new Set([...(p.hiddenIconSets??[]),key])]}));
+    setStatus('Jeu retiré de la liste (tes boutons et points ne changent pas)');
+  }
+  function showAllIconSets(){
+    setProject(p=>({...p,hiddenIconSets:undefined}));
+    setStatus('Tous les jeux d’icônes sont de nouveau affichés');
+  }
+  const restoreHiddenLink=()=>hiddenIconSetCount()>0&&<button type="button" className="icon-set-restore" onClick={showAllIconSets}>{hiddenIconSetCount()} jeu{hiddenIconSetCount()>1?'x':''} masqué{hiddenIconSetCount()>1?'s':''} · Tout réafficher</button>;
   function iconSetCells(set:IconSet){
     const src=(id?:string)=>project.icons.find(i=>i.id===id)?.dataUrl;
     const normal=src(set.iconId),hover=src(set.hoverIconId)??normal,pressed=src(set.pressedIconId)??hover;
@@ -895,16 +914,20 @@ function App(){
   }
   function iconSetPicker(current:{iconId?:string;hoverIconId?:string;pressedIconId?:string;size:number},apply:(set:{iconId:string;hoverIconId?:string;pressedIconId?:string;size:number})=>void){
     const sets=collectIconSets().filter(set=>!(set.iconId===current.iconId&&set.hoverIconId===current.hoverIconId&&set.pressedIconId===current.pressedIconId&&set.size===current.size));
-    if(!sets.length)return null;
+    if(!sets.length)return hiddenIconSetCount()>0?<div className="icon-set-picker">{restoreHiddenLink()}</div>:null;
     return <div className="icon-set-picker">
       <div className="icon-state-label">RÉUTILISER UN JEU D’ICÔNES DÉJÀ CRÉÉ</div>
-      <small className="hint-inline">Un clic applique d’un coup le PNG normal, survol, clic <b>et la taille</b> d’un autre bouton ou point. Tu peux ensuite modifier la taille.</small>
-      <div className="icon-set-grid">{sets.map(set=><button type="button" key={set.key} className="icon-set"
-        title={'Utilisé par : '+set.users.join(', ')}
-        onClick={()=>{apply(set);setStatus('Jeu d’icônes appliqué : normal, survol, clic et taille ('+set.size+' px)');}}>
-        {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
-        <span className="icon-set-size">{set.size} px</span>
-      </button>)}</div>
+      <small className="hint-inline">Un clic applique d’un coup le PNG normal, survol, clic <b>et la taille</b> d’un autre bouton ou point. Tu peux ensuite modifier la taille. La croix ✕ retire un jeu de cette liste sans rien changer à tes boutons.</small>
+      <div className="icon-set-grid">{sets.map(set=><div className="icon-set-wrap" key={set.key}>
+        <button type="button" className="icon-set"
+          title={'Utilisé par : '+set.users.join(', ')}
+          onClick={()=>{apply(set);setStatus('Jeu d’icônes appliqué : normal, survol, clic et taille ('+set.size+' px)');}}>
+          {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
+          <span className="icon-set-size">{set.size} px</span>
+        </button>
+        <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}>✕</button>
+      </div>)}</div>
+      {restoreHiddenLink()}
     </div>;
   }
   // Un seul état à la fois : on voit l'icône de CE bouton, pas toute la bibliothèque.
@@ -1509,15 +1532,19 @@ function App(){
               <img src={icon.dataUrl} alt=""/><span>{icon.name}</span>
             </button>)}
           </div>
-          {collectIconSets().length>0&&<>
+          {(collectIconSets().length>0||hiddenIconSetCount()>0)&&<>
             <div className="section-title">JEUX D’ICÔNES (NORMAL + SURVOL + CLIC)</div>
-            <div className="icon-set-grid">{collectIconSets().map(set=><button type="button" key={set.key} className="icon-set" draggable
-              onDragStart={e=>{e.dataTransfer.setData('application/x-nv-icon',JSON.stringify({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,size:set.size}));e.dataTransfer.effectAllowed='copy';}}
-              onClick={()=>setStatus('Glisse ce jeu dans le panorama pour créer un point avec ses 3 états')}
-              title={'Faire glisser sur le panorama · utilisé par : '+set.users.join(', ')}>
-              {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
-              <span className="icon-set-size">{set.size} px</span>
-            </button>)}</div>
+            <div className="icon-set-grid">{collectIconSets().map(set=><div className="icon-set-wrap" key={set.key}>
+              <button type="button" className="icon-set" draggable
+                onDragStart={e=>{e.dataTransfer.setData('application/x-nv-icon',JSON.stringify({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,size:set.size}));e.dataTransfer.effectAllowed='copy';}}
+                onClick={()=>setStatus('Glisse ce jeu dans le panorama pour créer un point avec ses 3 états')}
+                title={'Faire glisser sur le panorama · utilisé par : '+set.users.join(', ')}>
+                {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
+                <span className="icon-set-size">{set.size} px</span>
+              </button>
+              <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}>✕</button>
+            </div>)}</div>
+            {restoreHiddenLink()}
           </>}
           <button className="import" type="button" onClick={()=>iconInput.current?.click()}>＋ Importer une icône PNG</button>
           <div className="section-title">ICÔNES DE LA BARRE DU BAS</div>
