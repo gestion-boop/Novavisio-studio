@@ -15,7 +15,7 @@ import {syncMarkers,resetMarkers} from './markerSync';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
 import './style.css';
 import './media.css';
 
@@ -388,6 +388,13 @@ function App(){
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const savedRef=useRef<StudioProject|null>(null);
+  const baseRef=useRef<string|null>(null);          // date de la version enregistrée que cet onglet connaît
+  const projectRef=useRef<StudioProject>(project);  // dernier état du projet (pour l'enregistrement immédiat)
+  const rawStoredRef=useRef<unknown>(null);          // projet enregistré tel quel, si illisible
+  const savingRef=useRef(false);
+  const lockRef=useRef<unknown>(null);
+  const channelRef=useRef<BroadcastChannel|null>(null);
+  const [lock,setLock]=useState<{kind:'unreadable';reason:string}|{kind:'conflict'}|{kind:'saveError';reason:string}|null>(null);
   const [isFullscreen,setIsFullscreen]=useState(false);
   useEffect(()=>{
     const update=()=>setIsFullscreen(document.fullscreenElement===viewAreaRef.current);
@@ -412,28 +419,95 @@ function App(){
     }
   }
 
+  projectRef.current=project;
+  lockRef.current=lock;
+  function adopt(p:StudioProject,stamp:string|null){
+    const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
+    savedRef.current=upgraded;baseRef.current=stamp;
+    setProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');setSelectedId('');setMode(null);
+  }
   useEffect(()=>{
     loadProject().then(p=>{
       if (p) {
-        const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
-        savedRef.current=upgraded;
-        setProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');
+        rawStoredRef.current=p;
+        try{adopt(p,p.updatedAt??null);rawStoredRef.current=null;}
+        catch(e){
+          // Projet enregistré illisible : on ne touche à RIEN (aucun enregistrement automatique) pour ne pas l'écraser.
+          setLock({kind:'unreadable',reason:e instanceof Error?e.message:String(e)});
+          setReady(true);setStatus('Projet illisible — enregistrement suspendu');return;
+        }
       }
       setReady(true);setStatus('Prêt');
-    }).catch(()=>{setReady(true);setStatus('Stockage indisponible');});
+    }).catch(e=>{
+      setLock({kind:'unreadable',reason:'Stockage du navigateur indisponible ('+(e instanceof Error?e.message:String(e))+')'});
+      setReady(true);setStatus('Stockage indisponible — enregistrement suspendu');
+    });
   },[]);
+  // Enregistrement : jamais pendant un verrou, jamais en écrasant le travail d'un autre onglet.
+  async function persist(snapshot:StudioProject,force=false):Promise<boolean>{
+    if(savingRef.current)return false;
+    savingRef.current=true;
+    setStatus('Sauvegarde…');
+    try{
+      const stamp=await saveProject(snapshot,baseRef.current,force);
+      baseRef.current=stamp;savedRef.current=snapshot;
+      setStatus('Sauvegardé localement');
+      setLock(l=>l&&l.kind!=='unreadable'?null:l);
+      try{channelRef.current?.postMessage({type:'saved',stamp});}catch{/* ignoré */}
+      // Une modification est arrivée pendant l'enregistrement : on enregistre aussi celle-là.
+      window.setTimeout(()=>{if(!lockRef.current&&projectRef.current!==savedRef.current)void persist(projectRef.current);},300);
+      return true;
+    }catch(e){
+      if(e instanceof SaveConflictError){setLock({kind:'conflict'});setStatus('Modifié dans une autre fenêtre');}
+      else{setLock({kind:'saveError',reason:e instanceof Error?e.message:String(e)});setStatus('Erreur de sauvegarde');}
+      return false;
+    }finally{savingRef.current=false;}
+  }
   useEffect(()=>{
     // Ne réécrit pas toute la base (panoramas en base64) juste après le chargement ou sans modification.
-    if(!ready||project===savedRef.current)return;
-    const t=setTimeout(()=>{
-      setStatus('Sauvegarde…');
-      const snapshot=project;
-      saveProject({...snapshot,updatedAt:new Date().toISOString()})
-        .then(()=>{savedRef.current=snapshot;setStatus('Sauvegardé localement');})
-        .catch(()=>setStatus('Erreur de sauvegarde : exporte ton projet'));
-    },1500);
+    if(!ready||lock||project===savedRef.current)return;
+    const t=setTimeout(()=>{void persist(project);},1200);
     return ()=>clearTimeout(t);
-  },[project,ready]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[project,ready,lock]);
+  // Enregistrement immédiat quand on quitte l'onglet, et avertissement avant de fermer avec une modification non enregistrée.
+  useEffect(()=>{
+    const dirty=()=>ready&&!lock&&projectRef.current!==savedRef.current;
+    const flush=()=>{if(dirty())void persist(projectRef.current);};
+    const onHide=()=>{if(document.visibilityState==='hidden')flush();};
+    const onBeforeUnload=(e:BeforeUnloadEvent)=>{
+      if(dirty()||savingRef.current){flush();e.preventDefault();e.returnValue='';}
+    };
+    document.addEventListener('visibilitychange',onHide);
+    window.addEventListener('pagehide',flush);
+    window.addEventListener('beforeunload',onBeforeUnload);
+    return ()=>{
+      document.removeEventListener('visibilitychange',onHide);
+      window.removeEventListener('pagehide',flush);
+      window.removeEventListener('beforeunload',onBeforeUnload);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[ready,lock]);
+  // Plusieurs onglets : on est prévenu dès qu'un autre onglet enregistre.
+  async function reloadFromStore(){
+    try{
+      const p=await loadProject();
+      if(p){adopt(p,p.updatedAt??null);rawStoredRef.current=null;}
+      setLock(null);setStatus('Projet rechargé depuis la version enregistrée');
+    }catch(e){setLock({kind:'unreadable',reason:e instanceof Error?e.message:String(e)});}
+  }
+  useEffect(()=>{
+    if(typeof BroadcastChannel==='undefined')return;
+    const channel=new BroadcastChannel('novavisio-studio-project');
+    channelRef.current=channel;
+    channel.onmessage=ev=>{
+      if(ev.data?.type!=='saved'||ev.data.stamp===baseRef.current)return;
+      if(projectRef.current===savedRef.current)void reloadFromStore(); // aucun travail en cours ici : on se met simplement à jour
+      else setLock({kind:'conflict'});                                 // travail non enregistré ici ET modifs ailleurs : on demande
+    };
+    return ()=>{channel.close();channelRef.current=null;};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
 
   const active=project.scenes.find(s=>s.id===activeId) ?? null;
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
@@ -934,6 +1008,20 @@ function App(){
     }catch(e){window.alert('Impossible d’ouvrir ce projet : '+String(e));}
     finally {if(projectInput.current)projectInput.current.value='';}
   }
+  function downloadRawStored(){
+    const raw=rawStoredRef.current;
+    if(!raw){window.alert('Aucune donnée brute à télécharger.');return;}
+    const url=URL.createObjectURL(new Blob([JSON.stringify(raw)],{type:'application/json'}));
+    const link=document.createElement('a');link.href=url;link.download='projet-enregistre-brut.json';
+    document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
+  function startEmptyOverUnreadable(){
+    if(!window.confirm('Repartir d’un projet vide REMPLACE définitivement le projet enregistré dans ce navigateur. As-tu téléchargé les données brutes ?'))return;
+    baseRef.current=(rawStoredRef.current as {updatedAt?:string}|null)?.updatedAt??null;
+    const fresh=newProject();
+    setProject(fresh);setActiveId('');setSelectedId('');setLock(null);
+    void persist(fresh,true);
+  }
   function startFresh(){
     if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
     setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
@@ -986,6 +1074,31 @@ function App(){
         </button>
       </div>
     </header>
+    {lock&&<div className="nv-banner" role="alert">
+      {lock.kind==='conflict'&&<>
+        <p><b>Ce projet a été modifié dans une autre fenêtre.</b> Rien n’a été écrasé : l’enregistrement automatique est suspendu dans celle-ci pour protéger ton travail.</p>
+        <div className="nv-banner-actions">
+          <button className="primary" onClick={()=>void reloadFromStore()}>Recharger la version enregistrée</button>
+          <button className="quiet" onClick={download}>Télécharger ma version d’abord</button>
+          <button className="quiet" onClick={()=>{if(window.confirm('Garder CETTE fenêtre remplace la version enregistrée par les autres fenêtres. Continuer ?'))void persist(project,true);}}>Garder cette fenêtre (remplace l’autre)</button>
+        </div>
+      </>}
+      {lock.kind==='unreadable'&&<>
+        <p><b>Le projet enregistré dans ce navigateur n’a pas pu être lu.</b> Il n’a pas été modifié ni écrasé, et l’enregistrement automatique est suspendu. Détail : {lock.reason}</p>
+        <div className="nv-banner-actions">
+          <button className="primary" onClick={downloadRawStored}>Télécharger les données brutes</button>
+          <button className="quiet" onClick={()=>window.location.reload()}>Réessayer</button>
+          <button className="quiet" onClick={startEmptyOverUnreadable}>Repartir d’un projet vide (remplace l’ancien)</button>
+        </div>
+      </>}
+      {lock.kind==='saveError'&&<>
+        <p><b>La sauvegarde automatique a échoué :</b> {lock.reason}. Tes dernières modifications ne sont pas enregistrées.</p>
+        <div className="nv-banner-actions">
+          <button className="primary" onClick={download}>Télécharger ma sauvegarde (.nvstudio.json)</button>
+          <button className="quiet" onClick={()=>setLock(null)}>Réessayer</button>
+        </div>
+      </>}
+    </div>}
     <div className="workspace">
       <aside className="left panel">
         <div className="section-title">

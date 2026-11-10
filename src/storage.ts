@@ -109,13 +109,36 @@ export async function loadProject(): Promise<StudioProject|null> {
     tx.oncomplete = () => db.close();
   });
 }
-export async function saveProject(project:StudioProject):Promise<void> {
+/** Le projet enregistré a été modifié ailleurs (autre onglet) depuis le dernier chargement/enregistrement de cet onglet. */
+export class SaveConflictError extends Error {
+  constructor(){super('Le projet a été modifié dans une autre fenêtre.');this.name='SaveConflictError';}
+}
+/**
+ * Enregistre le projet SANS écraser silencieusement le travail d'un autre onglet : la lecture de la version
+ * enregistrée et l'écriture se font dans la même transaction. `expected` = date (`updatedAt`) de la version que
+ * cet onglet a chargée ou enregistrée en dernier ; si elle a changé entre-temps, rien n'est écrit (sauf `force`).
+ * Renvoie la date de la version écrite.
+ */
+export async function saveProject(project:StudioProject,expected:string|null,force=false):Promise<string> {
   const db = await openDb();
   return new Promise((resolve,reject) => {
     const tx = db.transaction('projects','readwrite');
-    tx.objectStore('projects').put(project,'current');
-    tx.oncomplete = () => { db.close(); resolve(); };
-    tx.onerror = () => { db.close(); reject(tx.error); };
+    const store = tx.objectStore('projects');
+    const stamp = new Date().toISOString();
+    const read = store.get('current');
+    let conflict = false;
+    read.onsuccess = () => {
+      const current = read.result as {updatedAt?:string}|undefined;
+      if (current && !force && (current.updatedAt ?? null) !== expected) {
+        conflict = true;
+        tx.abort();
+        return;
+      }
+      store.put({...project,updatedAt:stamp},'current');
+    };
+    tx.oncomplete = () => { db.close(); resolve(stamp); };
+    tx.onabort = () => { db.close(); reject(conflict ? new SaveConflictError() : (tx.error ?? new Error('Écriture annulée'))); };
+    tx.onerror = () => { /* l'erreur est traitée dans onabort */ };
   });
 }
 export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],audioTracks:[],bottomBar:defaultBar(),barStyle:defaultBarStyle(),introUrl:'',introEnabled:false,introDuration:6,updatedAt:new Date().toISOString()});
