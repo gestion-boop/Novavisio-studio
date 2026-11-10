@@ -138,7 +138,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
         const a=actions.current;
         if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>h.type==='image'||h.type==='video'))return;
         const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
-        plugin.setMarkers(a.scene.hotspots.map(h=>markerFor(h,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel())));
+        plugin.setMarkers(markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel()));
       });
     };
     viewer.addEventListener('zoom-updated',onZoom);
@@ -167,7 +167,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       }
     });
     const height=box.current?.clientHeight||550;
-    markers.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,height,selectedId,preview,viewer.getZoomLevel())));
+    markers.setMarkers(markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel()));
     return ()=>{if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
@@ -184,7 +184,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       loadedSceneRef.current=next.id;
       const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
       const height=box.current?.clientHeight||550;
-      plugin.setMarkers(next.hotspots.map(h=>markerFor(h,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel())));
+      plugin.setMarkers(markersForScene(next,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel()));
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
     return ()=>{disposed=true;};
   },[scene.id,scene.dataUrl]);
@@ -196,7 +196,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       const a=actions.current;
       if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
-      p.setMarkers(a.scene.hotspots.map(h=>markerFor(h,a.icons,height,a.selectedId,a.preview,viewerRef.current?.getZoomLevel()??60)));
+      p.setMarkers(markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,viewerRef.current?.getZoomLevel()??60));
     };
     refresh();
     if(!box.current)return;
@@ -209,7 +209,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     const element=box.current;
     const plugin=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
     if(!element||!plugin||loadedSceneRef.current!==scene.id)return;
-    plugin.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,element.clientHeight||550,selectedId,preview,viewerRef.current?.getZoomLevel()??60)));
+    plugin.setMarkers(markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,viewerRef.current?.getZoomLevel()??60));
   },[scene.id,scene.hotspots,icons,selectedId,preview]);
   useEffect(()=>{
     const root=box.current;
