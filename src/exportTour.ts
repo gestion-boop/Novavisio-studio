@@ -22,14 +22,28 @@ function addImage(zip:JSZip,dataUrl:string,path:string):string {
   zip.file(name,parts[2],{base64:true,compression:'STORE'});
   return name;
 }
+function addSoundOrVideo(zip:JSZip,dataUrl:string,path:string):string {
+  const parts=/^data:(audio|video)\/(mp4|webm|mpeg|mp3|ogg|wav|x-wav);base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+  if(!parts)throw Error('Fichier audio ou vidéo non reconnu');
+  const ext=parts[2]==='mpeg'||parts[2]==='mp3'?'mp3':parts[2]==='x-wav'?'wav':parts[2];
+  const file=path+'.'+ext;
+  zip.file(file,parts[3],{base64:true,compression:'STORE'});
+  return file;
+}
 function publicProject(zip:JSZip,source:StudioProject):StudioProject {
   return {...source,
     scenes:source.scenes.map((scene,i)=>({
       ...scene,
       dataUrl:addImage(zip,scene.dataUrl,'media/panoramas/pano-'+String(i+1).padStart(3,'0')+'-'+scene.id),
+      audioDataUrl:undefined,
+      audioUrl:scene.audioDataUrl?addSoundOrVideo(zip,scene.audioDataUrl,
+        'media/audio/scene-'+String(i+1).padStart(3,'0')+'-'+scene.id):scene.audioUrl,
       hotspots:scene.hotspots.map((h,j)=>({
         ...h,
-        imageDataUrl:h.imageDataUrl?addImage(zip,h.imageDataUrl,'media/cadres/cadre-'+String(i+1).padStart(3,'0')+'-'+String(j+1).padStart(3,'0')+'-'+h.id):undefined
+        imageDataUrl:h.imageDataUrl?addImage(zip,h.imageDataUrl,'media/cadres/cadre-'+String(i+1).padStart(3,'0')+'-'+String(j+1).padStart(3,'0')+'-'+h.id):undefined,
+        videoDataUrl:undefined,
+        videoUrl:h.videoDataUrl?addSoundOrVideo(zip,h.videoDataUrl,
+          'media/videos/ecran-'+String(i+1).padStart(3,'0')+'-'+String(j+1).padStart(3,'0')+'-'+h.id):h.videoUrl
       }))
     })),
     icons:source.icons.map((icon,i)=>({...icon,dataUrl:addImage(zip,icon.dataUrl,'media/icones/icone-'+String(i+1).padStart(3,'0')+'-'+icon.id)}))
