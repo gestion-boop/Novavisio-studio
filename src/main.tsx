@@ -1167,6 +1167,61 @@ function App(){
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
   }
+  function selectSpace(spaceId:string|null){
+    const space=spaceId?(project.spaces??[]).find(item=>item.id===spaceId):null;
+    if(spaceId&&!space)return;
+    const first=space?scenesInSpace(project,space)[0]:project.scenes[0];
+    setActiveSpaceId(space?.id??null);
+    setActiveId(first?.id??'');
+    setSelectedId('');setMode(null);setPreview(false);
+    setArrivedVia(null);nextArrivalRef.current=null;
+    setSpaceManagerOpen(false);
+  }
+  function createSpace(){
+    if((project.spaces??[]).length>=80){setStatus('Limite de 80 espaces atteinte');return;}
+    const id=uid(),count=(project.spaces??[]).length+1;
+    const name='Espace '+count;
+    // Start with the complete visit; the user deselects any unwanted panoramas.
+    // The original master project remains untouched.
+    setProject(p=>({...p,spaces:[...(p.spaces??[]),{
+      id,name,sceneIds:p.scenes.map(scene=>scene.id)
+    }]}));
+    setActiveSpaceId(id);setSelectedId('');setPreview(false);setMode(null);
+    setSpaceManagerOpen(true);
+    setStatus('Espace créé sans dupliquer ni supprimer aucun panorama');
+  }
+  function renameSpace(spaceId:string,name:string){
+    if(!safeSpaceName(name))return;
+    setProject(p=>({...p,spaces:(p.spaces??[]).map(space=>
+      space.id===spaceId?{...space,name:safeSpaceName(name)}:space)}));
+  }
+  function setSceneInSpace(spaceId:string,sceneId:string,include:boolean){
+    if(!project.scenes.some(scene=>scene.id===sceneId))return;
+    setProject(p=>({...p,spaces:(p.spaces??[]).map(space=>{
+      if(space.id!==spaceId)return space;
+      const ids=space.sceneIds.filter(id=>id!==sceneId);
+      if(include)ids.push(sceneId);
+      return {...space,sceneIds:ids};
+    })}));
+    if(!include&&activeId===sceneId){
+      const alternative=visibleScenes.find(scene=>scene.id!==sceneId);
+      setActiveId(alternative?.id??'');setSelectedId('');setMode(null);
+    }
+  }
+  function removeSceneFromSpace(spaceId:string,sceneId:string){
+    const sc=project.scenes.find(item=>item.id===sceneId);
+    if(!sc)return;
+    setSceneInSpace(spaceId,sceneId,false);
+    setStatus('« '+sc.name+' » retiré de cet espace uniquement. Original conservé.');
+  }
+  function deleteSpace(spaceId:string){
+    const space=(project.spaces??[]).find(item=>item.id===spaceId);
+    if(!space||!window.confirm('Supprimer uniquement l’espace « '+space.name+' » ? Les panoramas originaux seront conservés.'))return;
+    setProject(p=>({...p,spaces:(p.spaces??[]).filter(item=>item.id!==spaceId)}));
+    setActiveSpaceId(null);setActiveId(project.scenes[0]?.id??'');
+    setSelectedId('');setPreview(false);setMode(null);setSpaceManagerOpen(false);
+    setStatus('Espace supprimé. Tous les panoramas du projet principal sont conservés.');
+  }
   function removeScene(){
     if(!active)return;
     if(currentSpace){
