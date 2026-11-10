@@ -1208,3 +1208,17 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .scene-slot .scene{padding-right:30px}
 .icon-set{flex-wrap:wrap;position:relative}
 .icon-set-size{flex:0 0 100%;text-align:center;font-size:10px;font-weight:700;color:#4bebde;margin-top:2px}
+
+/* Lien public */
+.share-btn{display:inline-flex;align-items:center;padding:8px 13px;border-radius:10px;border:1px solid #4bebde;background:#0f3a40;color:#bffaf3;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
+.share-btn:hover{background:#14505a}
+.share-days{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.share-day{display:flex;flex-direction:column;align-items:center;gap:0;padding:10px 4px;border:1px solid #3c5a6d;border-radius:12px;background:#183142;color:#cfe8ee;cursor:pointer}
+.share-day strong{font-size:22px;line-height:1.1}
+.share-day small{font-size:10px;opacity:.75}
+.share-day.is-on{border:2px solid #4bebde;background:#17505a;color:#fff;box-shadow:0 0 14px rgba(75,235,222,.25)}
+.share-result{display:flex;flex-direction:column;gap:8px;padding:11px;border:1px solid #2c8c78;border-radius:12px;background:#0e3a35}
+.share-result input{padding:9px 10px;border-radius:9px;border:1px solid #2c6c78;background:#0b1f2a;color:#e7fff9;font-size:12px;width:100%;box-sizing:border-box}
+.share-open{display:inline-flex;align-items:center;text-decoration:none}
+.share-row-actions{display:flex;gap:6px;flex:none}
+.share-panel h3{margin:6px 0 0;font-size:13px}

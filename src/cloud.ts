@@ -13,8 +13,8 @@ const URL_ENV=env.VITE_SUPABASE_URL??env.NEXT_PUBLIC_SUPABASE_URL;
 const KEY_ENV=env.VITE_SUPABASE_ANON_KEY??env.VITE_SUPABASE_PUBLISHABLE_KEY??env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY??env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if(KEY_ENV&&/service_role|^sb_secret_/.test(KEY_ENV))throw new Error('Clé secrète détectée : utilise uniquement la clé publishable/anon.');
 export const cloudConfigured=!!URL_ENV&&!!KEY_ENV&&/^https:\/\/[a-z0-9]+\.supabase\.co\/?$/.test(URL_ENV);
-const BUCKET='nvstudio-media';
-const MEDIA_PREFIX='nvmedia:';
+export const BUCKET='nvstudio-media';
+export const MEDIA_PREFIX='nvmedia:';
 
 let client:SupabaseClient|null=null;
 export function supabase():SupabaseClient{
@@ -35,18 +35,20 @@ export function writeLink(link:CloudLink|null){
   try{if(link)localStorage.setItem(LINK_KEY,JSON.stringify(link));else localStorage.removeItem(LINK_KEY);}catch{/* storage unavailable */}
 }
 
-type Slot={get:()=>string|undefined;set:(v:string)=>void};
-function mediaSlots(p:StudioProject):Slot[]{
+export type MediaKind='panorama'|'icon'|'frame'|'video'|'audio';
+export type Slot={kind:MediaKind;get:()=>string|undefined;set:(v:string)=>void};
+export function mediaSlots(p:StudioProject):Slot[]{
   const slots:Slot[]=[];
-  const add=<T extends object>(o:T,key:keyof T)=>slots.push({
+  const add=<T extends object>(o:T,key:keyof T,kind:MediaKind)=>slots.push({
+    kind,
     get:()=>{const v=o[key];return typeof v==='string'?v:undefined;},
     set:v=>{(o as Record<keyof T,unknown>)[key]=v;}
   });
-  p.icons.forEach(i=>add(i,'dataUrl'));
-  p.audioTracks.forEach(t=>add(t,'dataUrl'));
+  p.icons.forEach(i=>add(i,'dataUrl','icon'));
+  p.audioTracks.forEach(t=>add(t,'dataUrl','audio'));
   p.scenes.forEach(s=>{
-    add(s,'dataUrl');add(s,'audioDataUrl');
-    s.hotspots.forEach(h=>{add(h,'imageDataUrl');add(h,'videoDataUrl');});
+    add(s,'dataUrl','panorama');add(s,'audioDataUrl','audio');
+    s.hotspots.forEach(h=>{add(h,'imageDataUrl','frame');add(h,'videoDataUrl','video');});
   });
   return slots;
 }

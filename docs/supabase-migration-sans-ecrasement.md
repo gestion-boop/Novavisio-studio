@@ -49,3 +49,9 @@
 - `src/cloud.ts` + `src/CloudPanel.tsx` : bouton **Cloud**. Connexion par lien magique ; chaque envoi INSERT une nouvelle révision ; refus si le cloud a une révision plus récente ; médias envoyés en objets adressés par hash (jamais réécrits). Ouvrir une visite cloud exige une confirmation et télécharge d'abord une sauvegarde `.nvstudio.json`.
 - Variables (clé publique uniquement) : `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (ou `VITE_*`).
 - Côté Supabase (Auth) : définir Site URL / Redirect URL sur l'adresse du Studio, et envisager de désactiver les inscriptions publiques.
+
+## Liens publics à durée limitée (3, 5, 7 ou 10 jours)
+
+- Migration à exécuter **après** `20261110000000_nvstudio_init.sql` : `supabase/migrations/20261110010000_nvstudio_share_links.sql` (crée `nvstudio_shares`, 4 fonctions `nvstudio_*` et une politique de lecture des médias liée à l'existence d'un lien actif).
+- Le lien est `…/share.html?t=<jeton de 64 caractères>`. L'expiration est calculée par la base (`now() + n jours`) ; passé ce délai, la fonction renvoie « expiré » et les médias ne sont plus téléchargeables. Un lien peut aussi être désactivé avant l'échéance (il n'est jamais supprimé).
+- Un lien pointe sur une **révision précise** : les modifications faites après sa création ne changent pas ce qu'il montre.

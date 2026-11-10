@@ -6,8 +6,9 @@ import {exportStaticTour} from './exportTour';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {CloudPanel} from './CloudPanel';
+import {SharePanel} from './SharePanel';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers} from './markerSync';
@@ -359,6 +360,7 @@ function App(){
   const [introVisible,setIntroVisible]=useState(false);
   const [exporting,setExporting]=useState(false);
   const [cloudOpen,setCloudOpen]=useState(false);
+  const [shareOpen,setShareOpen]=useState(false);
   const [photoFeedback,setPhotoFeedback]=useState('');
   const videoInput=useRef<HTMLInputElement>(null);
   const audioInput=useRef<HTMLInputElement>(null);
@@ -958,6 +960,9 @@ function App(){
             <Eye size={13}/> Aperçu
           </button>
         </div>
+        <button className="share-btn" onClick={()=>setShareOpen(true)} title="Créer un lien public à durée limitée (3, 5, 7 ou 10 jours)">
+          <Link2 size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Lien public
+        </button>
         <button className="quiet" onClick={startFresh} title="Nouveau projet">Nouveau</button>
         <button className="quiet" onClick={()=>projectInput.current?.click()} title="Ouvrir un projet .nvstudio.json">Ouvrir</button>
         <button className="quiet" onClick={download} title="Sauvegarder le projet localement">
@@ -1449,6 +1454,7 @@ function App(){
     <input ref={replaceIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void replaceIconEverywhere(e.target.files?.[0])}/>
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
+    {shareOpen&&<SharePanel project={project} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
       onOpen={p=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>

@@ -40,3 +40,11 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 
 /* Smaller visitor hotspots; image/video frames still scale in response to zoom. */
 .tour-marker{font-size:16px;border-width:2px;box-shadow:0 2px 8px #0007}
+
+/* Page publique d'une visite partagée */
+.tour-loading{position:absolute;inset:0;display:grid;place-items:center;color:#cfe8ee;background:#07131c;font:600 14px system-ui,sans-serif}
+.share-screen{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 0%,#12384a,#07131c 70%);color:#e7fff9;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
+.share-card{max-width:420px;text-align:center;padding:32px 26px;border:1px solid #2c6c78;border-radius:18px;background:#0c2330cc}
+.share-card h1{margin:12px 0 8px;font-size:22px}
+.share-card p{margin:0;color:#a9c8d1;line-height:1.55}
+.share-logo{font-size:34px;color:#4bebde}

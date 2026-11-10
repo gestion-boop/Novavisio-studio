@@ -12,7 +12,8 @@ export default defineConfig({
     rollupOptions:{
       input:{
         studio:resolve(process.cwd(),'index.html'),
-        visitor:resolve(process.cwd(),'visitor.html')
+        visitor:resolve(process.cwd(),'visitor.html'),
+        share:resolve(process.cwd(),'share.html')
       }
     }
   }
