@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {frameWorldCorners} from './sphericalFrame';
+import {syncMarkers,resetMarkers} from './markerSync';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
@@ -88,7 +89,7 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      plugin.setMarkers(current.scene.hotspots.map(h=>
+      syncMarkers(plugin,current.scene.hotspots.map(h=>
         publicMarker(h,current.icons,viewHeight,instance.getZoomLevel())));
     };
     refreshMarkers();
@@ -116,7 +117,7 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       loadedScene.current=next.id;
       const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
       const height=container.current?.clientHeight||550;
-      plugin.setMarkers(next.hotspots.map(h=>
+      resetMarkers(plugin,next.hotspots.map(h=>
         publicMarker(h,handlers.current.icons,height,instance.getZoomLevel())));
     }).catch(()=>{/* Keep previous panorama if the new photo cannot load. */});
     return ()=>{disposed=true;};

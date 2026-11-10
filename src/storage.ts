@@ -223,3 +223,27 @@ export function validateProject(value:unknown):StudioProject {
   }
   return {...p,version:1,name:p.name,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,introUrl,introEnabled,introDuration,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
+
+/**
+ * Panoramas larger than 8192 px wide exceed the texture budget of many GPUs/phones and make
+ * rotation stutter. Larger images are downscaled once at import; smaller files are kept untouched.
+ */
+export const MAX_PANORAMA_WIDTH = 8192;
+export async function readPanorama(file:File):Promise<string> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    try {
+      if (bitmap.width <= MAX_PANORAMA_WIDTH) return await readImage(file);
+      const ratio = MAX_PANORAMA_WIDTH / bitmap.width;
+      const canvas = document.createElement('canvas');
+      canvas.width = MAX_PANORAMA_WIDTH;
+      canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return await readImage(file);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.9);
+    } finally { bitmap.close(); }
+  } catch {
+    return readImage(file);
+  }
+}

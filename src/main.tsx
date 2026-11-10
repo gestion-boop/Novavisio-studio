@@ -7,10 +7,11 @@ import {ContinuousMusic} from './continuousMusic';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
+import {syncMarkers,resetMarkers} from './markerSync';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
 import './style.css';
 import './media.css';
 
@@ -142,7 +143,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
           (h.type==='image'&&!h.imageDataUrl)||
           (h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)))return;
         const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
-        plugin.setMarkers(markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel()));
+        syncMarkers(plugin,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel()));
       });
     };
     viewer.addEventListener('zoom-updated',onZoom);
@@ -171,7 +172,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       }
     });
     const height=box.current?.clientHeight||550;
-    markers.setMarkers(markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel()));
+    resetMarkers(markers,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel()));
     return ()=>{if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
@@ -188,7 +189,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       loadedSceneRef.current=next.id;
       const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
       const height=box.current?.clientHeight||550;
-      plugin.setMarkers(markersForScene(next,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel()));
+      resetMarkers(plugin,markersForScene(next,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel()));
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
     return ()=>{disposed=true;};
   },[scene.id,scene.dataUrl]);
@@ -200,7 +201,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       const a=actions.current;
       if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
-      p.setMarkers(markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,viewerRef.current?.getZoomLevel()??60));
+      syncMarkers(p,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,viewerRef.current?.getZoomLevel()??60));
     };
     refresh();
     if(!box.current)return;
@@ -213,7 +214,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     const element=box.current;
     const plugin=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
     if(!element||!plugin||loadedSceneRef.current!==scene.id)return;
-    plugin.setMarkers(markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,viewerRef.current?.getZoomLevel()??60));
+    syncMarkers(plugin,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,viewerRef.current?.getZoomLevel()??60));
   },[scene.id,scene.hotspots,icons,selectedId,preview]);
   useEffect(()=>{
     const root=box.current;
@@ -365,6 +366,7 @@ function App(){
   const replacingIconId=useRef<string|null>(null);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
+  const savedRef=useRef<StudioProject|null>(null);
   const [isFullscreen,setIsFullscreen]=useState(false);
   useEffect(()=>{
     const update=()=>setIsFullscreen(document.fullscreenElement===viewAreaRef.current);
@@ -393,19 +395,22 @@ function App(){
     loadProject().then(p=>{
       if (p) {
         const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
+        savedRef.current=upgraded;
         setProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');
       }
       setReady(true);setStatus('Prêt');
     }).catch(()=>{setReady(true);setStatus('Stockage indisponible');});
   },[]);
   useEffect(()=>{
-    if(!ready)return;
+    // Ne réécrit pas toute la base (panoramas en base64) juste après le chargement ou sans modification.
+    if(!ready||project===savedRef.current)return;
     const t=setTimeout(()=>{
       setStatus('Sauvegarde…');
-      saveProject({...project,updatedAt:new Date().toISOString()})
-        .then(()=>setStatus('Sauvegardé localement'))
+      const snapshot=project;
+      saveProject({...snapshot,updatedAt:new Date().toISOString()})
+        .then(()=>{savedRef.current=snapshot;setStatus('Sauvegardé localement');})
         .catch(()=>setStatus('Erreur de sauvegarde : exporte ton projet'));
-    },750);
+    },1500);
     return ()=>clearTimeout(t);
   },[project,ready]);
 
@@ -663,7 +668,7 @@ function App(){
       if(!['image/jpeg','image/png','image/webp'].includes(file.type))continue;
       if(file.size>40*1024*1024){setStatus('Image trop lourde (40 Mo maximum pour ce prototype)');continue;}
       try {
-        next.push({id:uid(),name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:await readImage(file),hotspots:[]});
+        next.push({id:uid(),name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:await readPanorama(file),hotspots:[]});
       } catch { setStatus('Erreur de lecture : '+file.name); }
     }
     if(next.length){
