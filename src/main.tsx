@@ -10,7 +10,7 @@ import {useCloudSync,type SyncState} from './cloudSync';
 import {type CloudLink} from './cloud';
 import {SharePanel} from './SharePanel';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers} from './markerSync';
@@ -397,30 +397,6 @@ function App(){
   const lockRef=useRef<unknown>(null);
   const channelRef=useRef<BroadcastChannel|null>(null);
   const [lock,setLock]=useState<{kind:'unreadable';reason:string}|{kind:'conflict'}|{kind:'saveError';reason:string}|null>(null);
-  const [isFullscreen,setIsFullscreen]=useState(false);
-  useEffect(()=>{
-    const update=()=>setIsFullscreen(document.fullscreenElement===viewAreaRef.current);
-    document.addEventListener('fullscreenchange',update);
-    return ()=>document.removeEventListener('fullscreenchange',update);
-  },[]);
-  async function toggleFullscreen(){
-    const node=viewAreaRef.current;
-    if(!node)return;
-    try {
-      if(document.fullscreenElement){
-        await document.exitFullscreen();
-      }else{
-        setPreview(true);
-        if(project.introEnabled && project.introUrl.startsWith('https://'))setIntroVisible(true);
-        setMode(null);
-        setSelectedId('');
-        await node.requestFullscreen();
-      }
-    }catch{
-      setStatus('Le plein écran n’est pas disponible sur ce navigateur');
-    }
-  }
-
   projectRef.current=project;
   lockRef.current=lock;
   function adopt(p:StudioProject,stamp:string|null){
@@ -1068,10 +1044,11 @@ function App(){
           <button type="button" className={'mode-btn ' + (!preview ? 'is-active' : '')} onClick={() => { if(preview) { setPreview(false); setIntroVisible(false); } }}>
             <Edit3 size={13}/> Mode Édition
           </button>
-          <button type="button" className={'mode-btn ' + (preview ? 'is-active' : '')} onClick={() => {
+          <button type="button" className={'mode-btn ' + (preview ? 'is-active' : '')} title="Jouer la visite à partir de la scène affichée" onClick={() => {
             if(!preview) {
-              if (project.introEnabled && project.introUrl.startsWith('https://')) setIntroVisible(true);
-              else setIntroVisible(false);
+              // L'aperçu démarre sur la scène actuellement affichée : pas d'introduction, pas de retour à la 1re scène.
+              // (L'introduction se teste depuis l'onglet « Intro ».)
+              setIntroVisible(false);
               setPreview(true); setMode(null); setSelectedId('');
             }
           }}>
@@ -1195,9 +1172,6 @@ function App(){
           )}
           {active && !preview && <button type="button" className="scene-elements-open" onClick={()=>{setPanel('elements');setMode(null);setSelectedId('');}}>
             <Info size={16}/> Éléments
-          </button>}
-          {active && <button type="button" className="view-fullscreen-button" onClick={()=>void toggleFullscreen()} title={isFullscreen?'Quitter le plein écran':'Passer en plein écran'} aria-label={isFullscreen?'Quitter le plein écran':'Passer en plein écran'}>
-            {isFullscreen?<Minimize size={20} strokeWidth={2.1}/>:<Maximize size={20} strokeWidth={2.1}/>}
           </button>}
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
           {active && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>

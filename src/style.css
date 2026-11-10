@@ -803,29 +803,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .view-area:-webkit-full-screen .panorama {position:absolute;inset:0;}
 .view-area:fullscreen .visitor-bottom-bar,
 .view-area:-webkit-full-screen .visitor-bottom-bar {bottom:clamp(16px,2.5vh,30px);}
-.view-fullscreen-button {
-  position:absolute;top:17px;right:17px;z-index:45;
-  width:46px;height:46px;
-  display:grid;place-items:center;
-  color:#f9e9c1;
-  background:rgba(28,25,28,.88);
-  border:1px solid rgba(240,205,156,.67);
-  border-radius:13px;
-  box-shadow:0 6px 20px #0006;
-  cursor:pointer;
-  transition:transform .12s cubic-bezier(0.2, 0.8, 0.4, 1), background .15s, border-color .15s, box-shadow .15s;
-}
-.view-fullscreen-button:hover {
-  transform:translateY(-2px);
-  background:rgba(71,26,29,.92);
-  border-color:#f0d19c;
-  box-shadow:0 8px 24px rgba(0,0,0,0.5);
-}
-.view-fullscreen-button:active:not(:disabled) {
-  transform:translateY(2px) scale(0.94) !important;
-  box-shadow:inset 0 3px 6px rgba(0,0,0,0.6) !important;
-}
-.view-fullscreen-button svg {pointer-events:none;}
 /* Capsule grise bordée de taupe, pastilles bordeaux brillantes et pictogrammes dorés. */
 .visitor-bottom-bar {
   display:flex;align-items:center;justify-content:flex-start;gap:17px;
@@ -894,7 +871,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   .visitor-bar-button{width:48px;min-width:48px;max-width:48px;height:48px;min-height:48px;}
   .visitor-bar-icon svg{width:24px;height:24px;}
   .visitor-bar-icon img{max-width:43px;max-height:43px;}
-  .view-fullscreen-button{top:10px;right:10px;width:42px;height:42px;}
   .view-area:fullscreen .visitor-bottom-bar{bottom:max(12px,env(safe-area-inset-bottom));}
 }
 
