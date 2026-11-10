@@ -1268,3 +1268,138 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 
 .login-help{padding:9px 11px;border:1px solid #d9a441;border-radius:10px;background:#3a2a0d;color:#ffe9bd;font-size:11.5px;line-height:1.5;display:flex;flex-direction:column;gap:7px}
 .login-help p{margin:0}
+
+
+/* Studio: immersive fullscreen ONLY for the 360° creation (V0.9).
+   The Studio chrome is kept outside the fullscreen element; editing remains available. */
+.view-area.nv-creation-fullscreen-fallback{
+  position:fixed!important;
+  inset:0!important;
+  z-index:1000;
+  width:100vw!important;
+  width:100dvw!important;
+  height:100vh!important;
+  height:100dvh!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:hidden;
+  border:0;
+  background:#07141e;
+}
+.view-area:fullscreen,
+.view-area:-webkit-full-screen{
+  width:100vw;
+  height:100vh;
+  height:100dvh;
+  min-height:0;
+  overflow:hidden;
+  background:#07141e;
+}
+.view-area:is(:fullscreen,.nv-creation-fullscreen-fallback) .panorama{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+}
+.nv-creation-fullscreen-enter,
+.nv-creation-fullscreen-controls,
+.nv-creation-fullscreen-palette{
+  position:absolute;
+  z-index:48;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  border:1px solid rgba(123,209,211,.55);
+  background:rgba(8,27,40,.88);
+  color:#e8fbfc;
+  box-shadow:0 7px 30px rgba(0,0,0,.48);
+  backdrop-filter:blur(12px);
+}
+.nv-creation-fullscreen-enter{
+  top:14px;
+  right:14px;
+  padding:10px 13px;
+  border-radius:11px;
+  font-size:12px;
+  font-weight:700;
+}
+.nv-creation-fullscreen-enter:hover,
+.nv-creation-fullscreen-exit:hover,
+.nv-fullscreen-mode:hover,
+.nv-fullscreen-tool:hover{
+  border-color:#59f1e5;
+  background:rgba(25,82,93,.95);
+  color:#fff;
+}
+.nv-creation-fullscreen-controls{
+  top:max(14px,env(safe-area-inset-top));
+  right:max(14px,env(safe-area-inset-right));
+  padding:7px;
+  border-radius:13px;
+  max-width:calc(100% - 28px);
+}
+.nv-fullscreen-scene-name{
+  display:block;
+  max-width:190px;
+  padding:0 9px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  font-size:11px;
+  color:#a8c6ce;
+  font-weight:600;
+}
+.nv-fullscreen-mode,
+.nv-creation-fullscreen-exit,
+.nv-fullscreen-tool{
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  gap:6px;
+  flex:none;
+  padding:9px 11px;
+  color:#d7ecf0;
+  background:rgba(16,40,53,.92);
+  border:1px solid rgba(74,122,137,.75);
+  border-radius:8px;
+  font-size:12px;
+  font-weight:650;
+}
+.nv-fullscreen-mode.is-active,
+.nv-fullscreen-tool.is-active{
+  border-color:#38e1d2;
+  color:#b7fff7;
+  background:#16515b;
+}
+.nv-creation-fullscreen-exit{
+  background:#4d202b;
+  border-color:#ad7886;
+  color:#ffe6eb;
+}
+.nv-creation-fullscreen-palette{
+  top:max(79px,calc(env(safe-area-inset-top) + 67px));
+  right:max(14px,env(safe-area-inset-right));
+  flex-wrap:wrap;
+  max-width:min(570px,calc(100% - 28px));
+  justify-content:flex-end;
+  padding:7px;
+  border-radius:12px;
+}
+.nv-fullscreen-tool{font-size:11px;padding:8px 9px;}
+.nv-fullscreen-cancel{color:#ffbac2;border-color:#ac666c;background:#4b2028;}
+.view-area:is(:fullscreen,.nv-creation-fullscreen-fallback) .scene-elements-open{display:none;}
+.view-area:is(:fullscreen,.nv-creation-fullscreen-fallback) .mode-active-pill{
+  top:auto;
+  bottom:112px;
+  left:50%;
+  max-width:calc(100% - 25px);
+  font-size:11px;
+}
+@media(max-width:760px){
+  .nv-creation-fullscreen-enter{top:8px;right:8px;font-size:11px;padding:8px 10px;}
+  .nv-creation-fullscreen-controls{top:8px;right:8px;gap:4px;padding:5px;}
+  .nv-fullscreen-scene-name{display:none;}
+  .nv-fullscreen-mode,.nv-creation-fullscreen-exit{font-size:11px;padding:8px 9px;gap:4px;}
+  .nv-creation-fullscreen-palette{top:63px;right:8px;max-width:calc(100% - 16px);padding:5px;gap:4px;}
+  .nv-fullscreen-tool{font-size:10px;padding:6px 7px;}
+}
