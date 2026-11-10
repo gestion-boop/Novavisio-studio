@@ -45,3 +45,24 @@
 .has-custom-png .visitor-bar-icon,.has-custom-png .tour-bar-icon{width:var(--nv-bar-size);height:var(--nv-bar-size);min-width:0;min-height:0;display:block}
 .has-custom-png .nv-bar-png{width:100%!important;height:100%!important;max-width:none;max-height:none}
 .has-custom-png .nv-bar-png img{max-width:none;max-height:none}
+
+/* Zoom progressif photo / vidéo : l'image vient du point cliqué vers le plein écran, avec un fondu */
+@keyframes nvZoomIn{
+  0%{opacity:0;transform:translate(var(--zx,0px),var(--zy,0px)) scale(var(--zs,.14))}
+  45%{opacity:1}
+  100%{opacity:1;transform:translate(0,0) scale(1)}
+}
+@keyframes nvZoomOut{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--zx,0px),var(--zy,0px)) scale(var(--zs,.14))}
+}
+@keyframes nvBackdropIn{from{opacity:0}to{opacity:1}}
+@keyframes nvBackdropOut{from{opacity:1}to{opacity:0}}
+.nv-zoom-in{animation:nvZoomIn .8s cubic-bezier(.3,.6,.25,1) both;will-change:transform,opacity}
+.nv-zoom-out{animation:nvZoomOut .3s cubic-bezier(.5,0,.8,.4) both;will-change:transform,opacity}
+.nv-backdrop-in{animation:nvBackdropIn .5s ease both!important}
+.nv-backdrop-out{animation:nvBackdropOut .3s ease both!important;pointer-events:none}
+@media (prefers-reduced-motion:reduce){
+  .nv-zoom-in{animation:nvBackdropIn .2s ease both}
+  .nv-zoom-out{animation:nvBackdropOut .15s ease both}
+}

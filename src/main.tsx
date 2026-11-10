@@ -3,7 +3,7 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
-import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup} from './media';
+import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {CloudPanel} from './CloudPanel';
 import {SharePanel} from './SharePanel';
@@ -62,8 +62,8 @@ type PanoramaProps = {
   onNavigate: (id:string)=>void;
   onInfo: (hotspot:Hotspot)=>void;
   onLink: (title:string,url:string)=>void;
-  onImage: (h:Hotspot)=>void;
-  onVideo: (h:Hotspot)=>void;
+  onImage: (h:Hotspot,from?:ZoomOrigin|null)=>void;
+  onVideo: (h:Hotspot,from?:ZoomOrigin|null)=>void;
   selectedId:string;
   onWorldFrameChange:(id:string,corners:FrameSphericalCorners,center?:SphericalPoint)=>void;
   onMarkerMove:(id:string,yaw:number,pitch:number)=>void;
@@ -113,9 +113,17 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
+  const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic dans le panorama : point de départ du zoom photo/vidéo
   const actions = useRef({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
   actions.current = {scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
+  useEffect(()=>{
+    const root=box.current;
+    if(!root)return;
+    const remember=(e:PointerEvent)=>{lastPointer.current={x:e.clientX,y:e.clientY};};
+    root.addEventListener('pointerdown',remember,true);
+    return ()=>root.removeEventListener('pointerdown',remember,true);
+  },[]);
   useEffect(()=>{
     if (!box.current) return;
     const viewer = new Viewer({
@@ -162,8 +170,8 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
           else a.onInfo(h);
         }
         else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
-        else if(h.type==='image') a.onImage(h);
-        else if(h.type==='video' && h.videoOpenFullscreen!==false) a.onVideo(h);
+        else if(h.type==='image') a.onImage(h,lastPointer.current);
+        else if(h.type==='video' && h.videoOpenFullscreen!==false) a.onVideo(h,lastPointer.current);
       } else {
         a.onPick(h.id);
       }
@@ -356,6 +364,7 @@ function App(){
   const [info,setInfo]=useState<Hotspot|null>(null);
   const [frame,setFrame]=useState<EmbedFrame|null>(null);
   const [imageZoom,setImageZoom]=useState<Hotspot|null>(null);
+  const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
   const [videoZoom,setVideoZoom]=useState<Hotspot|null>(null);
   const [introVisible,setIntroVisible]=useState(false);
   const [exporting,setExporting]=useState(false);
@@ -1018,7 +1027,7 @@ function App(){
           </b>
         </div>
         <div className="view-area" ref={viewAreaRef}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
@@ -1054,12 +1063,9 @@ function App(){
           {introVisible && project.introEnabled && project.introUrl && <div className="intro-overlay">
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
           </div>}
-          {videoZoom && <VideoPopup hotspot={videoZoom} onClose={()=>setVideoZoom(null)}/>}
+          {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||!!videoZoom||introVisible}/>}
-          {imageZoom?.imageDataUrl && <div className={'image-lightbox '+(imageZoom.fadeOnClick!==false?'with-fade':'')} onClick={()=>setImageZoom(null)}>
-            <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={()=>setImageZoom(null)}>✕</button>
-            <img src={imageZoom.imageDataUrl} alt={imageZoom.title} onClick={e=>e.stopPropagation()}/>
-          </div>}
+          {imageZoom?.imageDataUrl && <ZoomImage variant="studio" src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
             <section className="embed-shell" aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
               <div className="embed-header">

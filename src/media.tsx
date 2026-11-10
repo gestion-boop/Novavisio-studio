@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useLayoutEffect,useRef,useState,type RefObject} from 'react';
 import {Play,Volume2,VolumeX,X} from 'lucide-react';
 import {perspectiveMatrix,escapeAttribute} from './imageFrame';
 import {defaultFrameCorners,type CustomIcon,type Hotspot,type Scene} from './storage';
@@ -66,8 +66,55 @@ export function SceneAudio({scene,paused=false}:{scene:Scene;paused?:boolean}) {
   </div>;
 }
 
-export function VideoPopup({hotspot,onClose}:{hotspot:Hotspot;onClose:()=>void}) {
+
+/** Point (écran) où l'on a cliqué pour ouvrir la photo / vidéo : l'image « vient » de là vers le plein écran. */
+export type ZoomOrigin={x:number;y:number};
+/**
+ * Animation d'ouverture/fermeture : la photo ou la vidéo part de l'endroit cliqué, grossit progressivement
+ * jusqu'au plein écran avec un fondu, et refait le trajet inverse à la fermeture.
+ * Désactivée si `enabled` est faux (option « fondu » du cadre décochée).
+ */
+export function useZoomTransition(origin:ZoomOrigin|null|undefined,enabled:boolean,onClose:()=>void){
+  const overlay=useRef<HTMLDivElement>(null);
+  const body=useRef<HTMLElement>(null);
+  const [closing,setClosing]=useState(false);
+  useLayoutEffect(()=>{
+    const o=overlay.current,b=body.current;
+    if(!o||!b)return;
+    const r=o.getBoundingClientRect();
+    const dx=origin?origin.x-(r.left+r.width/2):0;
+    const dy=origin?origin.y-(r.top+r.height/2):0;
+    b.style.setProperty('--zx',Math.round(dx)+'px');
+    b.style.setProperty('--zy',Math.round(dy)+'px');
+    b.style.setProperty('--zs',origin?'.14':'.6');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+  const requestClose=()=>{
+    if(!enabled){onClose();return;}
+    if(closing)return;
+    setClosing(true);
+    window.setTimeout(onClose,320);
+  };
+  return {overlay,body:body as RefObject<never>,requestClose,
+    overlayClass:enabled?(closing?' nv-backdrop-out':' nv-backdrop-in'):'',
+    bodyClass:enabled?(closing?' nv-zoom-out':' nv-zoom-in'):''};
+}
+
+export function ZoomImage({src,alt,origin,animate,variant,onClose}:{src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}){
+  const z=useZoomTransition(origin,animate,onClose);
+  if(variant==='tour')return <div ref={z.overlay} className={'tour-image-viewer'+z.overlayClass} onClick={z.requestClose}>
+    <button className="tour-close-image" onClick={z.requestClose} type="button" aria-label="Fermer"><X/></button>
+    <img ref={z.body} className={z.bodyClass.trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
+  </div>;
+  return <div ref={z.overlay} className={'image-lightbox'+z.overlayClass} onClick={z.requestClose}>
+    <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={z.requestClose}>✕</button>
+    <img ref={z.body} className={z.bodyClass.trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
+  </div>;
+}
+
+export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=>void;origin?:ZoomOrigin|null}) {
   const ref=useRef<HTMLVideoElement>(null);
+  const z=useZoomTransition(origin,hotspot.fadeOnClick!==false,onClose);
   const [blocked,setBlocked]=useState(false);
   const url=hotspot.videoDataUrl||hotspot.videoUrl;
   useEffect(()=>{
@@ -79,9 +126,9 @@ export function VideoPopup({hotspot,onClose}:{hotspot:Hotspot;onClose:()=>void})
     return ()=>{live=false;el.pause();};
   },[url]);
   if(!url)return null;
-  return <div className="nv-video-overlay" onClick={onClose} role="presentation">
-    <section className="nv-video-dialog" onClick={e=>e.stopPropagation()} aria-label={'Vidéo : '+hotspot.title}>
-      <button type="button" onClick={onClose} className="nv-video-close" aria-label="Fermer la vidéo"><X size={24}/></button>
+  return <div ref={z.overlay} className={'nv-video-overlay'+z.overlayClass} onClick={z.requestClose} role="presentation">
+    <section ref={z.body} className={'nv-video-dialog'+z.bodyClass} onClick={e=>e.stopPropagation()} aria-label={'Vidéo : '+hotspot.title}>
+      <button type="button" onClick={z.requestClose} className="nv-video-close" aria-label="Fermer la vidéo"><X size={24}/></button>
       <video ref={ref} src={url} controls playsInline loop={hotspot.videoLoop!==false} preload="metadata"/>
       {blocked&&<button type="button" className="nv-video-start" onClick={()=>{
         const el=ref.current;if(!el)return;

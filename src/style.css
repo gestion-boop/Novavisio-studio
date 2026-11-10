@@ -991,7 +991,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .properties label.toggle-row{display:flex;flex-direction:row;align-items:center;gap:8px;line-height:1.4;font-size:12px}
 .properties label.toggle-row input{width:17px;height:17px;flex:none;accent-color:#14c9c1}
 .image-lightbox{position:absolute;inset:0;background:#030c17da;z-index:110;display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(6px)}
-.image-lightbox.with-fade{animation:nvZoomFade .45s ease both}
 .image-lightbox img{max-width:95%;max-height:88%;object-fit:contain;box-shadow:0 22px 90px #0009}
 .lightbox-close{position:absolute;top:20px;right:20px;z-index:1;width:42px;height:42px;background:#4f202c;color:white;border:1px solid #d2b5af;border-radius:50%}
 @keyframes nvZoomFade{from{opacity:0;transform:scale(.975)}to{opacity:1;transform:scale(1)}}

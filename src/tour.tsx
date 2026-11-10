@@ -8,7 +8,7 @@ import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
 import {barIconSize,defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
-import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup} from './media';
+import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import './visitor.css';
 import './media.css';
@@ -51,11 +51,19 @@ type ViewerProps={
   navigate:(id:string)=>void;
   info:(h:Hotspot)=>void;
   linked:(title:string,url:string)=>void;
-  image:(h:Hotspot)=>void;
-  video:(h:Hotspot)=>void;
+  image:(h:Hotspot,from?:ZoomOrigin|null)=>void;
+  video:(h:Hotspot,from?:ZoomOrigin|null)=>void;
 };
 function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
   const container=useRef<HTMLDivElement>(null);
+  const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic : point de départ du zoom photo/vidéo
+  useEffect(()=>{
+    const root=container.current;
+    if(!root)return;
+    const remember=(e:PointerEvent)=>{lastPointer.current={x:e.clientX,y:e.clientY};};
+    root.addEventListener('pointerdown',remember,true);
+    return ()=>root.removeEventListener('pointerdown',remember,true);
+  },[]);
   const viewer=useRef<Viewer|null>(null);
   const loadedScene=useRef<string|null>(null);
   const handlers=useRef({scene,icons,navigate,info,linked,image,video});
@@ -79,8 +87,8 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       const h=a.scene.hotspots.find(x=>x.id===marker.id);
       if(!h)return;
       if(h.type==='navigation'){if(h.target)a.navigate(h.target);}
-      else if(h.type==='image')a.image(h);
-      else if(h.type==='video' && h.videoOpenFullscreen!==false)a.video(h);
+      else if(h.type==='image')a.image(h,lastPointer.current);
+      else if(h.type==='video' && h.videoOpenFullscreen!==false)a.video(h,lastPointer.current);
       else if(h.url && checkedLink(h.url))a.linked(h.title,h.url);
       else if(h.type==='information')a.info(h);
     });
@@ -136,6 +144,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [sceneId,setSceneId]=useState(()=>project?.scenes[0]?.id??'');
   const [modal,setModal]=useState<{title:string;url?:string;text?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
+  const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
   const [video,setVideo]=useState<Hotspot|null>(null);
   const [showIntro,setShowIntro]=useState(()=>Boolean(project?.introEnabled && project.introUrl?.startsWith('https://')));
   const [fullscreen,setFullscreen]=useState(false);
@@ -196,7 +205,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
   return <main className="tour-app" ref={wrap}>
-    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} navigate={move} info={information} linked={openLink} image={h=>setPhoto(h)} video={h=>setVideo(h)}/>:<div className="tour-loading">Chargement du panorama…</div>}
+    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}}/>:<div className="tour-loading">Chargement du panorama…</div>}
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
@@ -209,7 +218,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       })}
     </nav>}
     <ContinuousMusic project={project} scene={current} paused={showIntro||!!video}/>
-    {video&&<VideoPopup hotspot={video} onClose={()=>setVideo(null)}/>}
+    {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label="Fermer" onClick={()=>setModal(null)}><X/></button></header>
@@ -218,10 +227,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
           <p className="tour-dialog-text">{modal.text||'Aucune information renseignée.'}</p>}
       </section>
     </div>}
-    {photo?.imageDataUrl&&<div className={'tour-image-viewer '+(photo.fadeOnClick!==false?'fade-in':'')} onClick={()=>setPhoto(null)}>
-      <button className="tour-close-image" onClick={()=>setPhoto(null)} type="button" aria-label="Fermer"><X/></button>
-      <img src={photo.imageDataUrl} alt={photo.title} onClick={e=>e.stopPropagation()}/>
-    </div>}
+    {photo?.imageDataUrl&&<ZoomImage variant="tour" src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
     {showIntro&&project.introUrl&&<div className="tour-intro">
       <iframe title={'Introduction de '+project.name} src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
 

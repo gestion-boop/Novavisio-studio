@@ -29,7 +29,6 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 .tour-embed-note{padding:9px;margin:0;color:#576572;background:#e9ecef;text-align:center;font-size:11px}
 .tour-dialog-text{padding:25px;white-space:pre-wrap;overflow:auto;line-height:1.7}
 .tour-image-viewer{z-index:100}
-.tour-image-viewer.fade-in{animation:tourFade .45s ease both}
 .tour-image-viewer img{display:block;max-width:min(95vw,1200px);max-height:88vh;object-fit:contain;box-shadow:0 15px 60px #0007}
 .tour-close-image{position:absolute;top:20px;right:20px;width:44px;height:44px;border:1px solid #d3c1b6;border-radius:50%;background:#311820;color:#fff;display:grid;place-items:center}
 .tour-intro{position:absolute;inset:0;z-index:120;background:#0b1c27;animation:tourFade .5s ease both}
