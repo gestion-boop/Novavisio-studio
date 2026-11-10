@@ -12,6 +12,7 @@ export type Hotspot = {
   videoDataUrl?:string;videoUrl?:string;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
   frameWidth?:number;frameHeight?:number;
   frameReferenceHeight?:number;
+  frameReferenceZoom?:number;
   frameCorners?:FrameCorners;
   fadeOnClick?:boolean;
 };
@@ -204,6 +205,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.frameWidth !== undefined && (!Number.isFinite(h.frameWidth) || h.frameWidth < 80 || h.frameWidth > 900)) ||
         (h.frameHeight !== undefined && (!Number.isFinite(h.frameHeight) || h.frameHeight < 60 || h.frameHeight > 700)) ||
         (h.frameReferenceHeight !== undefined && (!Number.isFinite(h.frameReferenceHeight) || h.frameReferenceHeight < 100 || h.frameReferenceHeight > 3000)) ||
+        (h.frameReferenceZoom !== undefined && (!Number.isFinite(h.frameReferenceZoom) || h.frameReferenceZoom < 0 || h.frameReferenceZoom > 100)) ||
         (h.frameCorners !== undefined && !validateFrameCorners(h.frameCorners)) ||
         (h.fadeOnClick !== undefined && typeof h.fadeOnClick !== 'boolean')
       ) throw new Error('Point interactif non valide');
