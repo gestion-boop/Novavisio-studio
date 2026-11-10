@@ -63,10 +63,10 @@ type PanoramaProps = {
   onAssetDrop:(iconId:string,yaw:number,pitch:number)=>void;
   onCameraChange:(yaw:number,pitch:number,zoom:number)=>void;
 };
-function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean) {
+function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60) {
   const isMedia=h.type==='image'||h.type==='video';
-  const sz=Math.max(24,Math.min(120,h.iconSize??46));
-  const scaled=isMedia?responsiveFrameSize(h,viewerHeight):null;
+  const sz=Math.max(16,Math.min(80,h.iconSize??28));
+  const scaled=isMedia?responsiveFrameSize(h,viewerHeight,zoom):null;
   const width=scaled?.width??sz;
   const height=scaled?.height??sz;
   const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
@@ -108,7 +108,18 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     };
     viewer.addEventListener('ready',reportCamera);
     viewer.addEventListener('position-updated',reportCamera);
-    viewer.addEventListener('zoom-updated',reportCamera);
+    let zoomFrame=0;
+    const onZoom=()=>{
+      reportCamera();
+      if(zoomFrame)cancelAnimationFrame(zoomFrame);
+      zoomFrame=requestAnimationFrame(()=>{
+        const a=actions.current;
+        if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>h.type==='image'||h.type==='video'))return;
+        const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
+        plugin.setMarkers(a.scene.hotspots.map(h=>markerFor(h,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel())));
+      });
+    };
+    viewer.addEventListener('zoom-updated',onZoom);
     const markers = viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
     markers.addEventListener('select-marker',({marker})=>{
       const a=actions.current;
@@ -134,8 +145,8 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       }
     });
     const height=box.current?.clientHeight||550;
-    markers.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,height,selectedId,preview)));
-    return ()=>{viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
+    markers.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,height,selectedId,preview,viewer.getZoomLevel())));
+    return ()=>{if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
     const viewer=viewerRef.current;
@@ -151,7 +162,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       loadedSceneRef.current=next.id;
       const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
       const height=box.current?.clientHeight||550;
-      plugin.setMarkers(next.hotspots.map(h=>markerFor(h,actions.current.icons,height,actions.current.selectedId,actions.current.preview)));
+      plugin.setMarkers(next.hotspots.map(h=>markerFor(h,actions.current.icons,height,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel())));
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
     return ()=>{disposed=true;};
   },[scene.id,scene.dataUrl]);
@@ -163,7 +174,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       const a=actions.current;
       if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
-      p.setMarkers(a.scene.hotspots.map(h=>markerFor(h,a.icons,height,a.selectedId,a.preview)));
+      p.setMarkers(a.scene.hotspots.map(h=>markerFor(h,a.icons,height,a.selectedId,a.preview,viewerRef.current?.getZoomLevel()??60)));
     };
     refresh();
     if(!box.current)return;
@@ -176,7 +187,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     const element=box.current;
     const plugin=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
     if(!element||!plugin||loadedSceneRef.current!==scene.id)return;
-    plugin.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,element.clientHeight||550,selectedId,preview)));
+    plugin.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,element.clientHeight||550,selectedId,preview,viewerRef.current?.getZoomLevel()??60)));
   },[scene.id,scene.hotspots,icons,selectedId,preview]);
   useEffect(()=>{
     const root=box.current;
@@ -579,7 +590,7 @@ function App(){
     const h:Hotspot={
       id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Cadre photo':mode==='video'?'Écran vidéo':'Informations',
       text:'',target:'',yaw,pitch,
-      ...(['image','video'].includes(mode)?{frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
+      ...(['image','video'].includes(mode)?{frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameReferenceZoom:cameraRef.current.zoom,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
       ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{})
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
@@ -802,7 +813,7 @@ function App(){
                   {iconSelector(selected.pressedIconId,id=>patchPoint({pressedIconId:id}))}
                   <small className="hint-inline">Tu peux fournir trois fichiers PNG distincts. Sans variante, l'original est conservé avec un effet de survol léger.</small>
                 </>}
-                {!['image','video'].includes(selected.type) && <label>Taille de l'icône : {selected.iconSize??46} px<input type="range" min="24" max="120" step="2" value={selected.iconSize??46} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>}
+                {!['image','video'].includes(selected.type) && <label>Taille de l'icône : {selected.iconSize??28} px<input type="range" min="16" max="80" step="2" value={selected.iconSize??28} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>}
                 <small className="coords">Position : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</small>
                 <button className="delete" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>Supprimer ce point</button>
               </>}
