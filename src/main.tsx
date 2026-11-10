@@ -414,8 +414,8 @@ function App(){
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <button type="button" key={item.id} className={'visitor-bar-button '+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
-                <span className="visitor-bar-icon">{icon?<img alt="" src={icon.dataUrl} style={{width:Math.min(item.iconSize??44,56),height:Math.min(item.iconSize??44,56)}}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
+              return <button type="button" key={item.id} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+                <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={Math.min(item.iconSize??44,56)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button>;
             })}
@@ -477,6 +477,22 @@ function App(){
           <div className="section-title">PANORAMA</div>
           {!active?<div className="hint">Importe un panorama pour configurer des points interactifs.</div>:<>
             <label>Nom de la scène<input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/></label>
+            <div className="scene-audio-settings">
+              <div className="section-title">AMBIANCE SONORE DE CETTE SCÈNE</div>
+              <button type="button" className="import" onClick={()=>audioInput.current?.click()}>{active.audioDataUrl?'Remplacer le son':'＋ Importer un fichier audio'}</button>
+              <label>Ou adresse HTTPS du son<input type="url" placeholder="https://…/musique.mp3" value={active.audioUrl??''}
+                onChange={e=>patchScene(sc=>({...sc,audioUrl:e.target.value,audioDataUrl:undefined}))}/></label>
+              {active.audioUrl && !isSafeMediaUrl(active.audioUrl)&&<small className="warning-inline">Indique une URL HTTPS valide.</small>}
+              <label className="toggle-row"><input type="checkbox" checked={active.audioEnabled??Boolean(active.audioDataUrl||active.audioUrl)}
+                onChange={e=>patchScene(sc=>({...sc,audioEnabled:e.target.checked}))}/> Lecture de la bande sonore à l’entrée dans la scène</label>
+              <label className="toggle-row"><input type="checkbox" checked={active.audioLoop!==false}
+                onChange={e=>patchScene(sc=>({...sc,audioLoop:e.target.checked}))}/> Lire en boucle</label>
+              <label>Volume du son : {active.audioVolume??65} %
+                <input type="range" min="0" max="100" value={active.audioVolume??65}
+                  onChange={e=>patchScene(sc=>({...sc,audioVolume:Number(e.target.value)}))}/></label>
+              {(active.audioDataUrl||active.audioUrl)&&<button type="button" className="style-reset" onClick={()=>patchScene(sc=>({...sc,audioUrl:'',audioDataUrl:undefined,audioEnabled:false}))}>Supprimer la bande sonore</button>}
+              <small className="hint-inline">Le son est associé à ce panorama. Certains navigateurs imposent un clic pour activer l’audio.</small>
+            </div>
             <hr/><div className="section-title">POINTS INTERACTIFS <span className="counter">{active.hotspots.length}</span></div>
             {!selected?<><p className="hint">Choisis Navigation, Information, Lien, Cadre photo ou Écran vidéo sous le panorama, puis clique sur l’image 360°.</p>
                 {active.hotspots.map(h=><button className="point-row" key={h.id} onClick={()=>setSelectedId(h.id)}><span>{project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':h.type==='video'?'▶':'ⓘ'}</span>{h.title}</button>)}
@@ -498,14 +514,41 @@ function App(){
                   <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
                   <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
                 </>
+                :selected.type==='video'?<>
+                  <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
+                  <small className="hint-inline">22 Mo maximum dans ce prototype ; pour une vidéo longue, utilise une URL HTTPS.</small>
+                  <label>Ou URL HTTPS de la vidéo<input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''}
+                    onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/></label>
+                  {selected.videoUrl && !isSafeMediaUrl(selected.videoUrl)&&<small className="warning-inline">Adresse HTTPS invalide.</small>}
+                  {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
+                  <div className="section-title">ADAPTER L'ÉCRAN À LA PERSPECTIVE</div>
+                  <CornerEditor width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()}
+                    onChange={v=>patchPoint({frameCorners:v})}/>
+                  <label>Largeur : {selected.frameWidth??320} px
+                    <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/></label>
+                  <label>Hauteur : {selected.frameHeight??200} px
+                    <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/></label>
+                  <label className="toggle-row"><input type="checkbox" checked={selected.videoAutoplay!==false} onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Démarrer automatiquement, sans son, à l’arrivée</label>
+                  <label className="toggle-row"><input type="checkbox" checked={selected.videoLoop!==false} onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Répéter la vidéo</label>
+                  <label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Clic sur l’écran → vidéo agrandie avec son</label>
+                  <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
+                </>
                 :selected.type==='navigation'?<label>Destination<select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}><option value="">Sélectionner une scène…</option>{project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
                   : selected.type==='lien'?<label>Adresse (https://, tel:, mailto:)<input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
                   :<><label>Texte affiché<textarea rows={5} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/></label>
                     <label>Page web intégrée (optionnel)<input type="text" placeholder="https://… menu, catalogue, galerie" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/></label>
                     <small className="hint-inline">Si une adresse est renseignée, elle s'ouvre dans la visite à la place du texte.</small></>}
-                {selected.type!=='image' && <><div className="section-title">ICÔNE PERSONNALISÉE</div>
-                {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}</>}
-                {selected.type!=='image' && <label>Taille de l'icône : {selected.iconSize??46} px<input type="range" min="24" max="120" step="2" value={selected.iconSize??46} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>}
+                {!['image','video'].includes(selected.type) && <>
+                  <div className="section-title">ICÔNE PNG — ÉTATS INTERACTIFS</div>
+                  <label>PNG normal (sans déformation ni changement de fond)</label>
+                  {iconSelector(selected.iconId,id=>patchPoint({iconId:id}))}
+                  <label>PNG au survol (optionnel)</label>
+                  {iconSelector(selected.hoverIconId,id=>patchPoint({hoverIconId:id}))}
+                  <label>PNG lors du clic (optionnel)</label>
+                  {iconSelector(selected.pressedIconId,id=>patchPoint({pressedIconId:id}))}
+                  <small className="hint-inline">Tu peux fournir trois fichiers PNG distincts. Sans variante, l'original est conservé avec un effet de survol léger.</small>
+                </>}
+                {!['image','video'].includes(selected.type) && <label>Taille de l'icône : {selected.iconSize??46} px<input type="range" min="24" max="120" step="2" value={selected.iconSize??46} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>}
                 <small className="coords">Position : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</small>
                 <button className="delete" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>Supprimer ce point</button>
               </>}
@@ -548,8 +591,13 @@ function App(){
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
-            <div className="section-title">CHOISIR L’ICÔNE</div>
+            <div className="section-title">MES PNG — NORMAL, SURVOL, CLIC</div>
+            <label>PNG normal</label>
             {iconSelector(selectedBar.iconId,id=>patchBar({iconId:id}))}
+            <label>PNG au survol</label>
+            {iconSelector(selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}))}
+            <label>PNG au clic</label>
+            {iconSelector(selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}))}
             {!selectedBar.iconId && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
               {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
             </select></label>}
@@ -579,11 +627,13 @@ function App(){
         </div>}
       </aside>
     </div>
-    <footer><span>NovaVisio Studio · Prototype v0.5</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
+    <footer><span>NovaVisio Studio · Prototype v0.6</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
     <input ref={frameImageInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void addFrameImage(e.target.files?.[0])}/>
+    <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
+    <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
