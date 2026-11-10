@@ -6,7 +6,7 @@ import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
 import {defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
-import {imageMarkerHtml} from './imageFrame';
+import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import './visitor.css';
 
 const symbols={home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid};
@@ -51,17 +51,26 @@ function Pano({scene,icons,navigate,info,linked,image}:ViewerProps){
       else if(h.url && checkedLink(h.url))a.linked(h.title,h.url);
       else if(h.type==='information')a.info(h);
     });
-    plugin.setMarkers(scene.hotspots.map(h=>{
-      const w=h.type==='image'?(h.frameWidth??320):Math.min(120,Math.max(24,h.iconSize??46));
-      const hh=h.type==='image'?(h.frameHeight??200):w;
-      const custom=icons.find(icon=>icon.id===h.iconId);
-      const iconHtml=h.type==='image'?
-        imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
-        custom?'<span class="tour-marker tour-marker-custom"><img alt="" src="'+custom.dataUrl+'"/></span>':
-        '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
-      return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},anchor:'center center' as const,html:iconHtml,tooltip:h.title};
-    }));
-    return ()=>{viewer.current=null;instance.destroy();};
+    const refreshMarkers=()=>{
+      const viewHeight=container.current?.clientHeight||550;
+      plugin.setMarkers(scene.hotspots.map(h=>{
+        const isMedia=h.type==='image'||h.type==='video';
+        const size=isMedia?responsiveFrameSize(h,viewHeight):null;
+        const w=size?.width??Math.min(120,Math.max(24,h.iconSize??46));
+        const hh=size?.height??w;
+        const custom=icons.find(icon=>icon.id===h.iconId);
+        const iconHtml=h.type==='image'?
+          imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
+          custom?'<span class="tour-marker tour-marker-custom"><img alt="" src="'+custom.dataUrl+'"/></span>':
+          '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
+        return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},anchor:'center center' as const,html:iconHtml,tooltip:h.title};
+      }));
+    };
+    refreshMarkers();
+    // Fullscreen and mobile orientation changes both resize the panorama viewport.
+    const observer=new ResizeObserver(refreshMarkers);
+    if(container.current)observer.observe(container.current);
+    return ()=>{observer.disconnect();viewer.current=null;instance.destroy();};
   },[scene.id,scene.dataUrl,scene.hotspots,icons]);
   return <div className="tour-panorama" ref={container}/>;
 }
