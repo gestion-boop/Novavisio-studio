@@ -88,7 +88,8 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
     iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html:editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+'</span>':content,
+    html:editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+
+      '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button></span>':content,
     size:{width,height},anchor:'center center',tooltip:h.title};
 }
 function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60):MarkerConfig[]{
@@ -116,7 +117,8 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       container:box.current, panorama:scene.dataUrl,
       // Le bouton plein écran natif n'agrandit que le lecteur 360° et cache les éléments personnalisés.
       // La vue complète (lecteur + barre) est désormais gérée par App.
-      navbar:[],defaultZoomLvl:scene.arrivalZoom??60,
+      navbar:[],mousemove:true,mousewheel:true,touchmoveTwoFingers:false,
+      moveSpeed:1,defaultZoomLvl:scene.arrivalZoom??60,
       defaultYaw:scene.arrivalYaw??0,defaultPitch:scene.arrivalPitch??0,
       minFov:35,maxFov:75,fisheye:false,loadingTxt:'',
       defaultTransition:{speed:260,rotation:false,effect:'fade'},
@@ -295,7 +297,11 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     const onDown=(e:PointerEvent)=>{
       const t=e.target;
       if(!(t instanceof HTMLElement)||t.closest('.nv-direct-corner'))return;
-      const item=t.closest<HTMLElement>('.nv-drag-target');
+      // Only the small grab handle can move a marker. Normal dragging over
+      // the icon or panorama always goes to Photo Sphere Viewer for rotation.
+      const grip=t.closest<HTMLElement>('.nv-marker-move-grip');
+      if(!grip)return;
+      const item=grip.closest<HTMLElement>('.nv-drag-target');
       const a=actions.current;
       if(!item||a.preview||a.mode||item.dataset.nvMarkerId!==a.selectedId)return;
       const viewer=viewerRef.current,id=item.dataset.nvMarkerId;
