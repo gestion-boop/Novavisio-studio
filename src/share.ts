@@ -105,8 +105,8 @@ export function wrapperHtml(url:string,title:string,introUrl='',duration=6):stri
   const introMarkup=validIntro?`
 <div id="nv-intro-layer" aria-label="Introduction de la visite">
   <iframe id="nv-intro" src="${esc(validIntro)}" title="Introduction" allow="autoplay; fullscreen" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-</div>
-<script>
+</div>`:'';
+  const introScript=validIntro?`<script>
 (function(){
   var tour=document.getElementById('nv-visit');
   var layer=document.getElementById('nv-intro-layer');
@@ -145,6 +145,7 @@ ${validIntro?'<link rel="preconnect" href="'+esc(new URL(validIntro).origin)+'">
 <body>
 ${introMarkup}
 <iframe id="nv-visit" src="${esc(source)}" title="${esc(title)}" allow="fullscreen; autoplay; accelerometer; gyroscope; magnetometer; xr-spatial-tracking" allowfullscreen referrerpolicy="no-referrer"></iframe>
+${introScript}
 </body>
 </html>
 `;
