@@ -1220,3 +1220,11 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .icon-set-hide:hover{background:#a8323d;opacity:1}
 .icon-set-restore{align-self:flex-start;background:none;border:0;padding:2px 0;color:#7fd6e0;font-size:11px;text-decoration:underline;cursor:pointer;min-height:0}
 .icon-set-restore:hover{color:#bffaf3}
+
+/* Vue d'arrivée par flèche */
+.arrival-view-card.is-arrow{border-color:#4bebde;background:#17404a}
+.arrival-view-card.is-inspector{margin-top:2px}
+.arrival-actions{display:flex;flex-direction:column;gap:6px}
+.arrival-default{border-top:1px solid #2c5560;padding-top:6px}
+.arrival-default summary{cursor:pointer;color:#8fd0d8;font-size:11px;font-weight:700}
+.arrival-default p{margin:6px 0}

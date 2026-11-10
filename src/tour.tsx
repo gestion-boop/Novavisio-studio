@@ -49,13 +49,14 @@ function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):Ma
 type ViewerProps={
   scene:Scene;
   icons:CustomIcon[];
-  navigate:(id:string)=>void;
+  navigate:(id:string,via?:Hotspot)=>void;
+  arrival?:{sceneId:string;yaw:number;pitch:number;zoom:number}|null;
   info:(h:Hotspot)=>void;
   linked:(title:string,url:string)=>void;
   image:(h:Hotspot,from?:ZoomOrigin|null)=>void;
   video:(h:Hotspot,from?:ZoomOrigin|null)=>void;
 };
-function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
+function Pano({scene,icons,arrival,navigate,info,linked,image,video}:ViewerProps){
   const container=useRef<HTMLDivElement>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic : point de départ du zoom photo/vidéo
   useEffect(()=>{
@@ -67,8 +68,8 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
   },[]);
   const viewer=useRef<Viewer|null>(null);
   const loadedScene=useRef<string|null>(null);
-  const handlers=useRef({scene,icons,navigate,info,linked,image,video});
-  handlers.current={scene,icons,navigate,info,linked,image,video};
+  const handlers=useRef({scene,icons,arrival,navigate,info,linked,image,video});
+  handlers.current={scene,icons,arrival,navigate,info,linked,image,video};
   useEffect(()=>{
     if(!container.current)return;
     const instance=new Viewer({
@@ -87,7 +88,7 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
       const a=handlers.current;
       const h=a.scene.hotspots.find(x=>x.id===marker.id);
       if(!h)return;
-      if(h.type==='navigation'){if(h.target)a.navigate(h.target);}
+      if(h.type==='navigation'){if(h.target)a.navigate(h.target,h);}
       else if(h.type==='image')a.image(h,lastPointer.current);
       else if(h.type==='video' && h.videoOpenFullscreen!==false)a.video(h,lastPointer.current);
       else if(h.url && checkedLink(h.url))a.linked(h.title,h.url);
@@ -117,11 +118,14 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
     const instance=viewer.current;
     if(!instance||loadedScene.current===scene.id)return;
     const next=scene;
+    const pendingArrival=handlers.current.arrival;
+    const arrivalFor=pendingArrival&&pendingArrival.sceneId===next.id?pendingArrival:null;
     let disposed=false;
     void instance.setPanorama(next.dataUrl,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
-      position:{yaw:next.arrivalYaw??0,pitch:next.arrivalPitch??0},
-      zoom:next.arrivalZoom??60
+      // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
+      position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
+      zoom:arrivalFor?.zoom??next.arrivalZoom??60
     }).then(success=>{
       if(disposed||!success)return;
       loadedScene.current=next.id;
@@ -148,6 +152,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [modal,setModal]=useState<{title:string;url?:string;text?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
+  const [arrival,setArrival]=useState<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [video,setVideo]=useState<Hotspot|null>(null);
   const [showIntro,setShowIntro]=useState(()=>Boolean(project?.introEnabled && project.introUrl?.startsWith('https://')));
   const [fullscreen,setFullscreen]=useState(false);
@@ -184,7 +189,9 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   } as CSSProperties;
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const current=project.scenes.find(s=>s.id===sceneId)??project.scenes[0];
-  const move=(id:string)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
+  const move=(id:string,via?:Hotspot)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);
+    setArrival(via&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:via.arrivalZoom??60}:null);
+    setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
   const openLink=(title:string,url:string)=>{
     const checked=checkedLink(url);
     if(!checked)return;
@@ -208,7 +215,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
   return <main className="tour-app" ref={wrap}>
-    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}}/>:<div className="tour-loading">Chargement du panorama…</div>}
+    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}}/>:<div className="tour-loading">Chargement du panorama…</div>}
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>

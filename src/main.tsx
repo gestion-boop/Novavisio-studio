@@ -62,7 +62,8 @@ type PanoramaProps = {
   scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean;
   onCreate: (yaw:number,pitch:number)=>void;
   onPick: (id:string)=>void;
-  onNavigate: (id:string)=>void;
+  onNavigate: (id:string,via?:Hotspot)=>void;
+  arrival?:{sceneId:string;yaw:number;pitch:number;zoom:number}|null; // vue d'arrivée propre à la flèche utilisée
   onInfo: (hotspot:Hotspot)=>void;
   onLink: (title:string,url:string)=>void;
   onImage: (h:Hotspot,from?:ZoomOrigin|null)=>void;
@@ -112,13 +113,13 @@ function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId
   }
   return all;
 }
-function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic dans le panorama : point de départ du zoom photo/vidéo
-  const actions = useRef({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
+  const actions = useRef({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     const root=box.current;
@@ -167,7 +168,7 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       const h=a.scene.hotspots.find(item=>item.id===marker.id);
       if (!h) return;
       if (a.preview) {
-        if(h.type==='navigation' && h.target) a.onNavigate(h.target);
+        if(h.type==='navigation' && h.target) a.onNavigate(h.target,h);
         else if(h.type==='information') {
           if (h.url && safeLink(h.url)) a.onLink(h.title,h.url);
           else a.onInfo(h);
@@ -196,10 +197,13 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
     if(!viewer||loadedSceneRef.current===scene.id)return;
     let disposed=false;
     const next=scene;
+    const pending=actions.current.arrival;
+    const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
     void viewer.setPanorama(next.dataUrl,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
-      position:{yaw:next.arrivalYaw??0,pitch:next.arrivalPitch??0},
-      zoom:next.arrivalZoom??60
+      // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
+      position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
+      zoom:arrivalFor?.zoom??next.arrivalZoom??60
     }).then(success=>{
       if(disposed||!success)return;
       loadedSceneRef.current=next.id;
@@ -388,6 +392,9 @@ function App(){
   const [libraryFor,setLibraryFor]=useState<string|null>(null);
   const sceneThumbs=useSceneThumbs(project.scenes);
   const sortBusy=useRef(false);
+  // Vue d'arrivée PAR FLÈCHE : on retient par quelle flèche on est arrivé dans le panorama affiché.
+  const [arrivedVia,setArrivedVia]=useState<{sceneId:string;hotspotId:string;fromSceneId:string}|null>(null);
+  const nextArrivalRef=useRef<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const scenesRef=useRef<HTMLDivElement>(null);
   const suppressClick=useRef(false);
   const viewAreaRef=useRef<HTMLDivElement>(null);
@@ -508,6 +515,9 @@ function App(){
 
   const active=project.scenes.find(s=>s.id===activeId) ?? null;
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
+  const viaFrom=arrivedVia?project.scenes.find(sc=>sc.id===arrivedVia.fromSceneId):undefined;
+  const viaHotspot=active&&arrivedVia&&arrivedVia.sceneId===active.id?
+    viaFrom?.hotspots.find(h=>h.id===arrivedVia.hotspotId&&h.type==='navigation'&&h.target===active.id)??null:null;
   useEffect(()=>{
     if(!introVisible||!project.introEnabled||!project.introUrl)return;
     const close=()=>{setIntroVisible(false);setActiveId(project.scenes[0]?.id??'');};
@@ -642,6 +652,27 @@ function App(){
       setPhotoFeedback(message);
       setStatus('Import photo : '+message);
     }
+  }
+  function selectScene(id:string){
+    // Choix direct d'une scène (liste, barre) : aucune flèche n'est en jeu.
+    setArrivedVia(null);nextArrivalRef.current=null;setActiveId(id);
+  }
+  function goThroughArrow(h:Hotspot,fromSceneId:string){
+    if(!h.target||!project.scenes.some(s=>s.id===h.target))return;
+    nextArrivalRef.current=h.arrivalYaw!==undefined?{sceneId:h.target,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:h.arrivalZoom??60}:null;
+    setArrivedVia({sceneId:h.target,hotspotId:h.id,fromSceneId});
+    setActiveId(h.target);setSelectedId('');setMode(null);
+  }
+  function setArrowArrival(fromSceneId:string,hotspotId:string,view:{yaw:number;pitch:number;zoom:number}|null){
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==fromSceneId?sc:{...sc,hotspots:sc.hotspots.map(h=>h.id!==hotspotId?h:
+      view?{...h,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom}:{...h,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined})})}));
+  }
+  function saveArrivalForArrow(){
+    if(!active||!viaHotspot)return;
+    const view=cameraRef.current;
+    if(view.sceneId!==active.id){setStatus('Oriente d’abord le panorama puis réessaie');return;}
+    setArrowArrival(arrivedVia!.fromSceneId,viaHotspot.id,{yaw:view.yaw,pitch:view.pitch,zoom:view.zoom});
+    setStatus('Vue d’arrivée enregistrée pour cette flèche');
   }
   function saveArrivalView(){
     if(!active)return;
@@ -810,7 +841,7 @@ function App(){
     if(!preview){setSelectedBarId(item.id);setPanel('bar');setSelectedId('');return;}
     if(item.type==='navigation'){
       const dest=item.target || project.scenes[0]?.id;
-      if(dest && project.scenes.some(s=>s.id===dest))setActiveId(dest);
+      if(dest && project.scenes.some(s=>s.id===dest))selectScene(dest);
     }else if(item.type==='information') {
       if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url);
       else {setFrame(null);setInfo({id:item.id,type:'information',title:item.title,text:item.text,target:'',yaw:0,pitch:0});}
@@ -1157,7 +1188,7 @@ function App(){
               e.preventDefault();
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
-            onClick={()=>{setActiveId(s.id);setSelectedId('');setMode(null);}}>
+            onClick={()=>{selectScene(s.id);setSelectedId('');setMode(null);}}>
             {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
             <span>
               <strong>{s.name}</strong>
@@ -1180,7 +1211,7 @@ function App(){
           </b>
         </div>
         <div className="view-area" ref={viewAreaRef}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!project.scenes.some(s=>s.id===id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
@@ -1359,12 +1390,21 @@ function App(){
                 <label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic avec le son</label>
                 <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
               </> : selected.type==='navigation' ? (
+                <>
                 <label>Scène de destination
-                  <select value={selected.target} onChange={e=>patchPoint({target:e.target.value})}>
+                  <select value={selected.target} onChange={e=>patchPoint({target:e.target.value,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined})}>
                     <option value="">Sélectionner une scène…</option>
                     {project.scenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
                   </select>
                 </label>
+                {selected.target&&<div className="arrival-view-card is-inspector">
+                  <div className="section-title">VUE D’ARRIVÉE DE CETTE FLÈCHE</div>
+                  {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>
+                    :<small>Pas de vue propre : celle par défaut du panorama de destination est utilisée.</small>}
+                  <button type="button" onClick={()=>goThroughArrow(selected,activeId)}>➜ Aller au panorama et régler la vue d’arrivée</button>
+                  {selected.arrivalYaw!==undefined&&<button type="button" onClick={()=>{patchPoint({arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined});setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser</button>}
+                </div>}
+                </>
               ) : selected.type==='lien' ? (
                 <label>Adresse (https://, tel:, mailto:)
                   <input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
@@ -1412,12 +1452,28 @@ function App(){
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
 
-              <div className="arrival-view-card">
-                <div className="section-title">VUE D’ARRIVÉE DU PANORAMA</div>
-                <p>Oriente la visite dans la direction souhaitée et choisis le zoom, puis enregistre ce cadrage.</p>
+              {viaHotspot&&viaFrom?<div className="arrival-view-card is-arrow">
+                <div className="section-title">VUE D’ARRIVÉE · PAR CETTE FLÈCHE</div>
+                <p>Tu es arrivé ici par la flèche <b>« {viaHotspot.title||'Navigation'} »</b> de <b>{viaFrom.name}</b>. Oriente la vue comme tu veux qu’elle apparaisse quand on clique sur <b>cette flèche</b>, puis enregistre. Chaque flèche qui mène à ce panorama a sa propre vue.</p>
+                <button type="button" onClick={saveArrivalForArrow}>◎ Définir la vue actuelle comme arrivée pour cette flèche</button>
+                {viaHotspot.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée pour cette flèche · angle {Math.round(viaHotspot.arrivalYaw*180/Math.PI)}° · zoom {Math.round(viaHotspot.arrivalZoom??60)}%</small>
+                  :<small>Pas encore de vue propre à cette flèche : la vue par défaut du panorama est utilisée.</small>}
+                <div className="arrival-actions">
+                  <button type="button" onClick={()=>selectScene(viaFrom.id)}>↩ Retour à « {viaFrom.name} » (autres flèches)</button>
+                  {viaHotspot.arrivalYaw!==undefined&&<button type="button" onClick={()=>{setArrowArrival(viaFrom.id,viaHotspot.id,null);nextArrivalRef.current=null;setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser cette flèche</button>}
+                </div>
+                <details className="arrival-default">
+                  <summary>Vue par défaut du panorama</summary>
+                  <p>Utilisée quand on arrive ici sans flèche (liste des scènes, barre du bas) ou par une flèche qui n’a pas sa propre vue.</p>
+                  <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme vue par défaut</button>
+                  {active.arrivalYaw!==undefined&&<small className="arrival-saved">✓ Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
+                </details>
+              </div>:<div className="arrival-view-card">
+                <div className="section-title">VUE D’ARRIVÉE PAR DÉFAUT DU PANORAMA</div>
+                <p>Oriente la visite dans la direction souhaitée et choisis le zoom, puis enregistre ce cadrage. <b>Astuce :</b> pour une vue différente selon la flèche utilisée, clique sur une flèche (en Aperçu) : tu arrives ici et l’enregistrement se fera pour cette flèche.</p>
                 <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme arrivée</button>
                 {active.arrivalYaw!==undefined&&<small className="arrival-saved">✓ Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
-              </div>
+              </div>}
 
               <div className="section-title">
                 <span>POINTS INTERACTIFS</span>

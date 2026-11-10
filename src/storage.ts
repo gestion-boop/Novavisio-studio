@@ -20,6 +20,8 @@ export type Hotspot = {
   frameCorners?:FrameCorners;
   frameSphericalCorners?:FrameSphericalCorners;
   fadeOnClick?:boolean;
+  // Flèche de navigation : vue d'arrivée dans le panorama de destination, propre à CETTE flèche.
+  arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;
 };
 export type CustomIcon = { id: string; name: string; dataUrl: string };
 export type MusicTrack = {
@@ -225,6 +227,9 @@ export function validateProject(value:unknown):StudioProject {
         (h.iconId !== undefined && (typeof h.iconId !== 'string' || !icons.some(icon=>icon.id===h.iconId))) ||
         (h.hoverIconId !== undefined && (typeof h.hoverIconId !== 'string' || !icons.some(icon=>icon.id===h.hoverIconId))) ||
         (h.pressedIconId !== undefined && (typeof h.pressedIconId !== 'string' || !icons.some(icon=>icon.id===h.pressedIconId))) ||
+        (h.arrivalYaw !== undefined && (!Number.isFinite(h.arrivalYaw) || Math.abs(h.arrivalYaw) > 100)) ||
+        (h.arrivalPitch !== undefined && (!Number.isFinite(h.arrivalPitch) || Math.abs(h.arrivalPitch) > Math.PI/2 + 0.001)) ||
+        (h.arrivalZoom !== undefined && (!Number.isFinite(h.arrivalZoom) || h.arrivalZoom < 0 || h.arrivalZoom > 100)) ||
         (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 16 || h.iconSize > 120)) ||
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
