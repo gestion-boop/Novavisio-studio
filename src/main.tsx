@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState, type CSSProperties} from 'react';
 import {createRoot} from 'react-dom/client';
-import {CornerEditor,imageMarkerHtml} from './imageFrame';
+import {imageMarkerHtml,responsiveFrameSize,perspectiveMatrix} from './imageFrame';
 import {exportStaticTour} from './exportTour';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize} from 'lucide-react';
@@ -14,6 +14,13 @@ import './style.css';
 type EditMode = Hotspot['type'] | null;
 type PanelTab = 'points' | 'bar' | 'icons' | 'intro';
 type EmbedFrame = { title:string; url:string };
+function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
+  const baseline=Math.max(100,Math.min(3000,height||550));
+  return {...project,scenes:project.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>
+    (h.type==='image'||h.type==='video')&&!h.frameReferenceHeight?{...h,frameReferenceHeight:baseline}:h
+  )}))};
+}
+
 const barColorFields:Array<{key:'background'|'outline'|'button'|'buttonOutline'|'icon';label:string}> = [
   {key:'background',label:'Fond de la barre'},
   {key:'outline',label:'Contour de la barre'},
@@ -49,27 +56,30 @@ type PanoramaProps = {
   onLink: (title:string,url:string)=>void;
   onImage: (h:Hotspot)=>void;
   onVideo: (h:Hotspot)=>void;
+  selectedId:string;
+  onCornerChange:(id:string,corner:keyof FrameCorners,x:number,y:number)=>void;
 };
-function markerFor(h:Hotspot,icons:CustomIcon[]) {
+function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean) {
   const isMedia=h.type==='image'||h.type==='video';
   const sz=Math.max(24,Math.min(120,h.iconSize??46));
-  const width=isMedia?(h.frameWidth??320):sz;
-  const height=isMedia?(h.frameHeight??200):sz;
+  const scaled=isMedia?responsiveFrameSize(h,viewerHeight):null;
+  const width=scaled?.width??sz;
+  const height=scaled?.height??sz;
   const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
   return {
     id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html:h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),width,height,h.title):
+    html:h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),width,height,h.title,!preview&&selectedId===h.id):
       h.type==='video'?videoMarkerHtml(h,width,height):
       iconHtml || '<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>',
     size:{width,height},anchor:'center center' as const,tooltip:h.title
   };
 }
-function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
-  const actions = useRef({scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo});
-  actions.current = {scene,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo};
+  const actions = useRef({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange});
+  actions.current = {scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onCornerChange};
 
   useEffect(()=>{
     if (!box.current) return;
@@ -105,12 +115,32 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
         a.onCreate(event.data.yaw,event.data.pitch);
       }
     });
-    markers.setMarkers(scene.hotspots.map(h=>markerFor(h,icons)));
+    const height=box.current?.clientHeight||550;
+    markers.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,height,selectedId,preview)));
     return ()=>{viewerRef.current=null; viewer.destroy();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
-    (viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin | undefined)?.setMarkers(scene.hotspots.map(h=>markerFor(h,icons)));
-  },[scene.hotspots,icons]);
+    const refresh=()=>{
+      const element=box.current;
+      const p=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
+      if(!element||!p)return;
+      const a=actions.current;
+      const height=element.clientHeight||550;
+      p.setMarkers(a.scene.hotspots.map(h=>markerFor(h,a.icons,height,a.selectedId,a.preview)));
+    };
+    refresh();
+    if(!box.current)return;
+    // ResizeObserver fires when the panorama enters or exits fullscreen.
+    const observer=new ResizeObserver(refresh);
+    observer.observe(box.current);
+    return ()=>observer.disconnect();
+  },[scene.id,scene.dataUrl]);
+  useEffect(()=>{
+    const element=box.current;
+    const plugin=viewerRef.current?.getPlugin(MarkersPlugin) as MarkersPlugin|undefined;
+    if(!element||!plugin)return;
+    plugin.setMarkers(scene.hotspots.map(h=>markerFor(h,icons,element.clientHeight||550,selectedId,preview)));
+  },[scene.hotspots,icons,selectedId,preview]);
   return <div ref={box} className="panorama" />;
 }
 
@@ -164,7 +194,10 @@ function App(){
 
   useEffect(()=>{
     loadProject().then(p=>{
-      if (p) { setProject(validateProject(p)); setActiveId(p.scenes[0]?.id ?? ''); }
+      if (p) {
+        const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
+        setProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');
+      }
       setReady(true);setStatus('Prêt');
     }).catch(()=>{setReady(true);setStatus('Stockage indisponible');});
   },[]);
@@ -381,7 +414,7 @@ function App(){
     const h:Hotspot={
       id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Cadre photo':mode==='video'?'Écran vidéo':'Informations',
       text:'',target:'',yaw,pitch,
-      ...(['image','video'].includes(mode)?{frameWidth:320,frameHeight:200,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
+      ...(['image','video'].includes(mode)?{frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
       ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{})
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
@@ -403,7 +436,7 @@ function App(){
     if(!file)return;
     try {
       if(file.size>250*1024*1024)throw new Error('Fichier trop volumineux');
-      const imported=validateProject(JSON.parse(await file.text()));
+      const imported=ensureFrameReferences(validateProject(JSON.parse(await file.text())),viewAreaRef.current?.clientHeight||550);
       if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
       setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
       setStatus('Projet importé');
