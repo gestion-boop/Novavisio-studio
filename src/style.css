@@ -709,7 +709,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 
 
 /* NovaVisio Studio v0.2 — barre de visite et bibliothèque d'icônes */
-.visitor-bottom-bar{position:absolute;z-index:12;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:stretch;gap:3px;max-width:calc(100% - 30px);overflow-x:auto;padding:7px;background:rgba(11,24,38,.87);border:1px solid rgba(154,204,217,.36);border-radius:16px;box-shadow:0 12px 45px #0008;backdrop-filter:blur(14px)}
+.visitor-bottom-bar{position:absolute;z-index:12;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:stretch;gap:3px;max-width:calc(100% - 30px);overflow-x:auto;padding:7px;background:rgba(11,24,38,.87);border:1px solid rgba(154,204,217,.36);border-radius:16px;box-shadow:0 12px 45px #0008}
 .visitor-bar-button{position:relative;min-width:72px;max-width:128px;padding:8px 9px;min-height:66px;border:1px solid transparent;border-radius:11px;background:transparent;color:#ebfbff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .visitor-bar-button:hover,.visitor-bar-button.is-selected{background:rgba(36,116,131,.4);border-color:rgba(86,225,217,.65)}
 .visitor-bar-button:disabled{cursor:not-allowed;opacity:.4}
@@ -808,11 +808,10 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   width:46px;height:46px;
   display:grid;place-items:center;
   color:#f9e9c1;
-  background:rgba(28,25,28,.78);
+  background:rgba(28,25,28,.88);
   border:1px solid rgba(240,205,156,.67);
   border-radius:13px;
   box-shadow:0 6px 20px #0006;
-  backdrop-filter:blur(8px);
   cursor:pointer;
   transition:transform .12s cubic-bezier(0.2, 0.8, 0.4, 1), background .15s, border-color .15s, box-shadow .15s;
 }
@@ -838,7 +837,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   border-radius:999px;
   background:linear-gradient(165deg,rgba(226,228,226,.96) 0%,rgba(190,195,196,.92) 100%);
   box-shadow:inset 0 2px 3px #ffffffbd,inset 0 -2px 4px #7f858e48,0 8px 25px #0008;
-  backdrop-filter:blur(10px);
   overflow-x:auto;
   scrollbar-width:none;
 }
@@ -1042,7 +1040,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   padding:10px 13px;border-radius:11px;
   color:#e7fff9;background:#103740e5;
   border:1px solid #57aea7;box-shadow:0 4px 20px #0007;
-  backdrop-filter:blur(8px);font-size:12px;font-weight:700;
+  font-size:12px;font-weight:700;
   cursor:pointer;
   transition:transform .12s cubic-bezier(0.2, 0.8, 0.4, 1), background .15s, box-shadow .15s;
 }
