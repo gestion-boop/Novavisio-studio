@@ -4,7 +4,7 @@ import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {Maximize,Minimize,X,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
+import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
 import {defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
