@@ -4,7 +4,7 @@ import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
+import {Maximize,Minimize,X,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
 import {defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,SceneAudio,VideoPopup} from './media';
@@ -34,16 +34,22 @@ type ViewerProps={
 function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
   const container=useRef<HTMLDivElement>(null);
   const viewer=useRef<Viewer|null>(null);
-  const handlers=useRef({scene,navigate,info,linked,image,video});
-  handlers.current={scene,navigate,info,linked,image,video};
+  const loadedScene=useRef<string|null>(null);
+  const handlers=useRef({scene,icons,navigate,info,linked,image,video});
+  handlers.current={scene,icons,navigate,info,linked,image,video};
   useEffect(()=>{
     if(!container.current)return;
     const instance=new Viewer({
       container:container.current,
       panorama:scene.dataUrl,
-      navbar:[],defaultZoomLvl:25,plugins:[MarkersPlugin]
+      navbar:[],defaultZoomLvl:scene.arrivalZoom??60,
+      defaultYaw:scene.arrivalYaw??0,defaultPitch:scene.arrivalPitch??0,
+      minFov:35,maxFov:75,fisheye:false,loadingTxt:'',
+      defaultTransition:{effect:'fade',rotation:false,speed:260},
+      plugins:[MarkersPlugin]
     });
     viewer.current=instance;
+    loadedScene.current=scene.id;
     const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
     plugin.addEventListener('select-marker',({marker})=>{
       const a=handlers.current;
@@ -57,16 +63,18 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
     });
     const refreshMarkers=()=>{
       const viewHeight=container.current?.clientHeight||550;
-      plugin.setMarkers(scene.hotspots.map(h=>{
+      const current=handlers.current;
+      if(loadedScene.current!==current.scene.id)return;
+      plugin.setMarkers(current.scene.hotspots.map(h=>{
         const isMedia=h.type==='image'||h.type==='video';
         const size=isMedia?responsiveFrameSize(h,viewHeight):null;
         const w=size?.width??Math.min(120,Math.max(24,h.iconSize??46));
         const hh=size?.height??w;
-        const custom=icons.find(icon=>icon.id===h.iconId);
+        const custom=current.icons.find(icon=>icon.id===h.iconId);
         const iconHtml=h.type==='image'?
           imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
           h.type==='video'?videoMarkerHtml(h,w,hh):
-          custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
+          custom?iconStateHtml(current.icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
           '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
         return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},anchor:'center center' as const,html:iconHtml,tooltip:h.title};
       }));
@@ -75,8 +83,37 @@ function Pano({scene,icons,navigate,info,linked,image,video}:ViewerProps){
     // Fullscreen and mobile orientation changes both resize the panorama viewport.
     const observer=new ResizeObserver(refreshMarkers);
     if(container.current)observer.observe(container.current);
-    return ()=>{observer.disconnect();viewer.current=null;instance.destroy();};
-  },[scene.id,scene.dataUrl,scene.hotspots,icons]);
+    return ()=>{observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
+  },[]);
+  useEffect(()=>{
+    const instance=viewer.current;
+    if(!instance||loadedScene.current===scene.id)return;
+    const next=scene;
+    let disposed=false;
+    void instance.setPanorama(next.dataUrl,{
+      showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
+      position:{yaw:next.arrivalYaw??0,pitch:next.arrivalPitch??0},
+      zoom:next.arrivalZoom??60
+    }).then(success=>{
+      if(disposed||!success)return;
+      loadedScene.current=next.id;
+      const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
+      const height=container.current?.clientHeight||550;
+      plugin.setMarkers(next.hotspots.map(h=>{
+        const media=h.type==='image'||h.type==='video';
+        const size=media?responsiveFrameSize(h,height):null;
+        const w=size?.width??Math.min(120,Math.max(24,h.iconSize??46));
+        const hh=size?.height??w;
+        const custom=handlers.current.icons.find(i=>i.id===h.iconId);
+        const html=h.type==='image'?imageMarkerHtml(h.imageDataUrl,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
+          h.type==='video'?videoMarkerHtml(h,w,hh):
+          custom?iconStateHtml(handlers.current.icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
+          '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
+        return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},anchor:'center center' as const,html,tooltip:h.title};
+      }));
+    }).catch(()=>{/* Keep previous panorama if the new photo cannot load. */});
+    return ()=>{disposed=true;};
+  },[scene.id,scene.dataUrl]);
   return <div className="tour-panorama" ref={container}/>;
 }
 function Tour(){
@@ -89,6 +126,20 @@ function Tour(){
   const [video,setVideo]=useState<Hotspot|null>(null);
   const [showIntro,setShowIntro]=useState(()=>Boolean(project?.introEnabled && project.introUrl?.startsWith('https://')));
   const [fullscreen,setFullscreen]=useState(false);
+  useEffect(()=>{
+    if(!showIntro||!project?.introEnabled||!project.introUrl)return;
+    const finish=()=>{setShowIntro(false);setSceneId(project.scenes[0]?.id??'');};
+    const timer=window.setTimeout(finish,(project.introDuration??6)*1000);
+    const onMessage=(e:MessageEvent)=>{
+      try{
+        if(e.origin!==new URL(project.introUrl).origin)return;
+        const kind=typeof e.data==='string'?e.data:e.data?.type;
+        if(['intro:done','intro-finished','novavisio:intro-finished'].includes(kind))finish();
+      }catch{}
+    };
+    window.addEventListener('message',onMessage);
+    return ()=>{window.clearTimeout(timer);window.removeEventListener('message',onMessage);};
+  },[showIntro,project]);
   const wrap=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     const sync=()=>setFullscreen(document.fullscreenElement===wrap.current);
@@ -132,7 +183,7 @@ function Tour(){
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
   return <main className="tour-app" ref={wrap}>
-    <Pano key={current.id} scene={current} icons={project.icons??[]} navigate={move} info={information} linked={openLink} image={h=>setPhoto(h)} video={h=>setVideo(h)}/>
+    <Pano scene={current} icons={project.icons??[]} navigate={move} info={information} linked={openLink} image={h=>setPhoto(h)} video={h=>setVideo(h)}/>
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
@@ -160,7 +211,7 @@ function Tour(){
     </div>}
     {showIntro&&project.introUrl&&<div className="tour-intro">
       <iframe title={'Introduction de '+project.name} src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
-      <button className="tour-start" type="button" onClick={()=>setShowIntro(false)}>Entrer dans la visite <ArrowRight size={19}/></button>
+
     </div>}
   </main>;
 }
