@@ -308,3 +308,13 @@ footer{min-height:31px;padding:5px 20px;border-top:1px solid #283a48;display:fle
 .intro-bottom-actions{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:1}
 .intro-enter{background:linear-gradient(135deg,#58232e,#260c15);border:1px solid #edd3a8;border-radius:999px;padding:14px 22px;min-width:192px;display:flex;justify-content:center;gap:13px;align-items:center;font-size:13px;font-weight:700;color:#f6e8c6;box-shadow:0 7px 29px #0009;white-space:nowrap}
 @media(max-width:780px){.corner-editor-coordinates{grid-template-columns:1fr 1fr}.intro-enter{padding:11px 16px}.image-lightbox{padding:6px}}
+
+
+/* Photo framing directly in the panorama */
+.nv-frame-editing{outline:1px dashed rgba(61,227,213,.6);outline-offset:2px;}
+.nv-direct-guides{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:4}
+.nv-direct-corner{position:absolute;z-index:11;transform:translate(-50%,-50%);width:29px;height:29px;display:grid;place-items:center;border:2px solid #edffff;background:#118d92;border-radius:50%;box-shadow:0 2px 9px #000c;color:white;touch-action:none;cursor:grab;user-select:none;padding:0;}
+.nv-direct-corner span{font-size:8px;font-weight:900;pointer-events:none}
+.nv-direct-corner:hover{background:#10bbb5;box-shadow:0 0 0 5px #16cbba55,0 3px 11px #000c;}
+.nv-direct-corner:active{cursor:grabbing;background:#cb7f37;}
+.nv-frame-editing .nv-frame-photo{pointer-events:none;}
