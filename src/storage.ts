@@ -16,6 +16,10 @@ export type Hotspot = {
   fadeOnClick?:boolean;
 };
 export type CustomIcon = { id: string; name: string; dataUrl: string };
+export type MusicTrack = {
+  id:string; name:string; dataUrl?:string; url?:string;
+  volume:number; loop:boolean;
+};
 export type BarStyle = {
   background: string;
   outline: string;
@@ -67,6 +71,7 @@ export type Scene = {
   id:string;name:string;dataUrl:string;hotspots:Hotspot[];
   arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;
   audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
+  musicTrackId?:string;
 };
 export const isSafeVideoData = (s:unknown):s is string =>
   typeof s==='string' && /^data:video\/(?:mp4|webm);base64,[A-Za-z0-9+/=]+$/.test(s);
@@ -74,7 +79,7 @@ export const isSafeAudioData = (s:unknown):s is string =>
   typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -104,7 +109,7 @@ export async function saveProject(project:StudioProject):Promise<void> {
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
-export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],bottomBar:defaultBar(),barStyle:defaultBarStyle(),introUrl:'',introEnabled:false,introDuration:6,updatedAt:new Date().toISOString()});
+export const newProject = ():StudioProject => ({version:1,name:'Ma première visite',scenes:[],icons:[],audioTracks:[],bottomBar:defaultBar(),barStyle:defaultBarStyle(),introUrl:'',introEnabled:false,introDuration:6,updatedAt:new Date().toISOString()});
 export const uid = () => crypto.randomUUID();
 export function readImage(file:File):Promise<string> {
   return new Promise((resolve,reject) => {
@@ -125,6 +130,18 @@ export function validateProject(value:unknown):StudioProject {
     if (!icon || typeof icon.id !== 'string' || typeof icon.name !== 'string' || icon.name.length > 150 || !isSafeIconDataUrl(icon.dataUrl) || icon.dataUrl.length > 3_000_000) {
       throw new Error('Icône importée non valide');
     }
+  }
+  const audioTracks = p.audioTracks ?? [];
+  if(!Array.isArray(audioTracks) || audioTracks.length > 60) throw new Error('Bibliothèque de musique non valide');
+  const ids=new Set<string>();
+  for(const track of audioTracks){
+    if(!track || typeof track.id!=='string'||!track.id||ids.has(track.id)||
+      typeof track.name!=='string'||track.name.length>150||
+      (track.dataUrl!==undefined && (track.dataUrl.length>34_000_000||!isSafeAudioData(track.dataUrl))) ||
+      (track.url!==undefined && track.url!=='' && !isSafeMediaUrl(track.url)) ||
+      !Number.isFinite(track.volume)||track.volume<0||track.volume>100||
+      typeof track.loop!=='boolean') throw new Error('Piste musicale non valide');
+    ids.add(track.id);
   }
   // Les projets antérieurs à V0.4 reprennent automatiquement le thème Bordeaux.
   const barStyle = {...defaultBarStyle(),...(p.barStyle ?? {})};
@@ -159,6 +176,8 @@ export function validateProject(value:unknown):StudioProject {
   for (const scene of p.scenes) {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
+    if(scene.musicTrackId!==undefined && (typeof scene.musicTrackId!=='string'||!ids.has(scene.musicTrackId)))
+      throw new Error('Musique du panorama introuvable');
     if((scene.arrivalYaw!==undefined && (!Number.isFinite(scene.arrivalYaw)||Math.abs(scene.arrivalYaw)>100)) ||
        (scene.arrivalPitch!==undefined && (!Number.isFinite(scene.arrivalPitch)||Math.abs(scene.arrivalPitch)>Math.PI/2+0.001)) ||
        (scene.arrivalZoom!==undefined && (!Number.isFinite(scene.arrivalZoom)||scene.arrivalZoom<0||scene.arrivalZoom>100))
@@ -190,5 +209,5 @@ export function validateProject(value:unknown):StudioProject {
       ) throw new Error('Point interactif non valide');
     }
   }
-  return {...p,version:1,name:p.name,scenes:p.scenes,icons,bottomBar,barStyle,introUrl,introEnabled,introDuration,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  return {...p,version:1,name:p.name,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,introUrl,introEnabled,introDuration,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
