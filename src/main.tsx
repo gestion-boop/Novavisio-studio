@@ -300,6 +300,7 @@ function App(){
   const projectInput=useRef<HTMLInputElement>(null);
   const iconInput=useRef<HTMLInputElement>(null);
   const viewAreaRef=useRef<HTMLDivElement>(null);
+  const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const [isFullscreen,setIsFullscreen]=useState(false);
   useEffect(()=>{
     const update=()=>setIsFullscreen(document.fullscreenElement===viewAreaRef.current);
@@ -346,6 +347,20 @@ function App(){
 
   const active=project.scenes.find(s=>s.id===activeId) ?? null;
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
+  useEffect(()=>{
+    if(!introVisible||!project.introEnabled||!project.introUrl)return;
+    const close=()=>{setIntroVisible(false);setActiveId(project.scenes[0]?.id??'');};
+    const timeout=window.setTimeout(close,(project.introDuration??6)*1000);
+    const finished=(event:MessageEvent)=>{
+      try{
+        if(event.origin!==new URL(project.introUrl).origin)return;
+        const type=typeof event.data==='string'?event.data:event.data?.type;
+        if(['intro:done','intro-finished','novavisio:intro-finished'].includes(type))close();
+      }catch{}
+    };
+    window.addEventListener('message',finished);
+    return ()=>{window.clearTimeout(timeout);window.removeEventListener('message',finished);};
+  },[introVisible,project.introEnabled,project.introUrl,project.introDuration,project.scenes]);
   const totalPoints=project.scenes.reduce((n,s)=>n+s.hotspots.length,0);
   const selectedBar=project.bottomBar.find(b=>b.id===selectedBarId) ?? null;
   const barCss = {
@@ -450,6 +465,24 @@ function App(){
       setPhotoFeedback(message);
       setStatus('Import photo : '+message);
     }
+  }
+  function saveArrivalView(){
+    if(!active)return;
+    const view=cameraRef.current;
+    if(view.sceneId!==active.id){setStatus('Oriente d’abord le panorama puis réessaie');return;}
+    patchScene(sc=>({...sc,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom}));
+    setStatus('Vue d’arrivée sauvegardée pour '+active.name);
+  }
+  function moveHotspot(id:string,yaw:number,pitch:number){
+    patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch}:h)}));
+  }
+  function dropIcon(iconId:string,yaw:number,pitch:number){
+    const icon=project.icons.find(i=>i.id===iconId);
+    if(!active||!icon)return;
+    const h:Hotspot={id:uid(),type:'information',title:icon.name,text:'',target:'',yaw,pitch,iconId};
+    patchScene(sc=>({...sc,hotspots:[...sc.hotspots,h]}));
+    setPanel('points');setSelectedId(h.id);setMode(null);
+    setStatus('Icône positionnée : déplace-la dans le panorama pour l’ajuster');
   }
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
@@ -602,13 +635,18 @@ function App(){
       </aside>
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
-        <div className="view-area" ref={viewAreaRef}>{active?<Panorama key={active.id} scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+        <div className="view-area" ref={viewAreaRef}>{active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
           onCornerChange={(id,key,x,y)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
-            {...h,frameCorners:{...(h.frameCorners??defaultFrameCorners()),[key]:{x,y}}}:h)}))}/>:<div className="empty">
+            {...h,frameCorners:{...(h.frameCorners??defaultFrameCorners()),[key]:{x,y}}}:h)}))}
+          onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
+          onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
           <p>Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.</p>
           <button className="primary" onClick={()=>upload.current?.click()}>＋ Importer mes photos 360°</button><small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>
         </div>}
+          {active && !preview && <button type="button" className="scene-elements-open" onClick={()=>{setPanel('elements');setMode(null);setSelectedId('');}}>
+            <Info size={18}/> Éléments
+          </button>}
           {active && <button type="button" className="view-fullscreen-button" onClick={()=>void toggleFullscreen()} title={isFullscreen?'Quitter le plein écran':'Passer en plein écran'} aria-label={isFullscreen?'Quitter le plein écran':'Passer en plein écran'}>
             {isFullscreen?<Minimize size={20} strokeWidth={2.1}/>:<Maximize size={20} strokeWidth={2.1}/>}
           </button>}
@@ -624,9 +662,7 @@ function App(){
           </nav>}
           {introVisible && project.introEnabled && project.introUrl && <div className="intro-overlay">
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
-            <div className="intro-bottom-actions">
-              <button type="button" className="intro-enter" onClick={()=>setIntroVisible(false)}>Entrer dans la visite <span aria-hidden="true">→</span></button>
-            </div>
+
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} onClose={()=>setVideoZoom(null)}/>}
           {active && preview && <SceneAudio key={active.id} scene={active} paused={!!videoZoom||introVisible||!!frame||!!info||!!imageZoom}/>}
@@ -674,11 +710,18 @@ function App(){
           <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>setPanel('bar')}>Barre du bas</button>
           <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons')}>Mes icônes</button>
           <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro')}>Intro</button>
+          <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements')}>Éléments</button>
         </div>
         {panel==='points' && <div className="properties">
           <div className="section-title">PANORAMA</div>
           {!active?<div className="hint">Importe un panorama pour configurer des points interactifs.</div>:<>
             <label>Nom de la scène<input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/></label>
+            <div className="arrival-view-card">
+              <div className="section-title">VUE D’ARRIVÉE DU PANORAMA</div>
+              <p>Oriente la visite dans la direction souhaitée et choisis le zoom, puis enregistre ce cadrage.</p>
+              <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme arrivée</button>
+              {active.arrivalYaw!==undefined&&<small>Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
+            </div>
             <div className="scene-audio-settings">
               <div className="section-title">AMBIANCE SONORE DE CETTE SCÈNE</div>
               <button type="button" className="import" onClick={()=>audioInput.current?.click()}>{active.audioDataUrl?'Remplacer le son':'＋ Importer un fichier audio'}</button>
@@ -817,14 +860,46 @@ function App(){
             <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
           </>}
         </div>}
+        {panel==='elements' && <div className="properties">
+          <div className="section-title">ÉLÉMENTS DE CE PANORAMA</div>
+          <p className="hint">Sélectionne un point pour afficher ses réglages, puis déplace-le directement dans le panorama. Pour ajouter une icône PNG, fais-la glisser depuis la bibliothèque ci-dessous.</p>
+          {!active?<p className="hint">Aucun panorama ouvert.</p>:<>
+            <div className="elements-list">{active.hotspots.map(h=><button type="button" key={h.id}
+              className="elements-entry" onClick={()=>{setSelectedId(h.id);setPanel('points');setMode(null);}}>
+              <span>{project.icons.find(i=>i.id===h.iconId)?<img src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='video'?'▶':h.type==='image'?'▣':h.type==='navigation'?'➜':'ⓘ'}</span>
+              <strong>{h.title}</strong><small>Modifier et déplacer</small>
+            </button>)}</div>
+            {!active.hotspots.length&&<p className="hint">Pas encore d’élément dans cette scène.</p>}
+          </>}
+          <div className="section-title">ICÔNES DISPONIBLES</div>
+          <div className="elements-icon-grid">
+            {project.icons.map(icon=><button type="button" key={icon.id} draggable
+              onDragStart={e=>{e.dataTransfer.setData('application/x-nv-icon',icon.id);e.dataTransfer.effectAllowed='copy';}}
+              onClick={()=>setStatus('Glisse « '+icon.name+' » dans le panorama pour créer un point')}
+              title={'Faire glisser '+icon.name+' sur le panorama'}>
+              <img src={icon.dataUrl} alt=""/><span>{icon.name}</span>
+            </button>)}
+          </div>
+          <button className="import" type="button" onClick={()=>iconInput.current?.click()}>＋ Importer une icône PNG</button>
+          <div className="section-title">ICÔNES DE LA BARRE DU BAS</div>
+          {project.bottomBar.map(item=><button type="button" className="elements-entry" key={item.id}
+            onClick={()=>{setSelectedBarId(item.id);setPanel('bar');}}>
+            <span><BarGlyph name={item.builtinIcon??'info'}/></span><strong>{item.title}</strong><small>Personnaliser</small>
+          </button>)}
+        </div>}
         {panel==='intro' && <div className="properties">
           <div className="section-title">INTRODUCTION DE LA VISITE</div>
-          <p className="hint">Chaque visite possède son URL d’introduction. Le splash screen s’affiche au lancement et le bouton « Entrer dans la visite » donne accès au panorama.</p>
+          <p className="hint">Chaque visite possède son URL d’introduction. L’introduction apparaît au lancement puis passe automatiquement au premier panorama, sans bouton supplémentaire.</p>
           <label className="toggle-row"><input type="checkbox" checked={project.introEnabled} onChange={e=>setProject(p=>({...p,introEnabled:e.target.checked}))}/> Activer l’introduction</label>
           <label>Adresse HTTPS de l'introduction
             <input type="url" value={project.introUrl} placeholder="https://intro-au-bureau-narbonne.vercel.app/" onChange={e=>setProject(p=>({...p,introUrl:e.target.value}))}/>
           </label>
-          <small className="hint-inline">Exemple : intro-au-bureau-narbonne.vercel.app. Renseigne une URL différente pour chaque projet.</small>
+          <small className="hint-inline">Exemple : intro-au-bureau-narbonne.vercel.app. Une URL différente par projet.</small>
+          <label>Durée avant le premier panorama : {project.introDuration??6} secondes
+            <input type="range" min="2" max="60" step="1" value={project.introDuration??6}
+              onChange={e=>setProject(p=>({...p,introDuration:Number(e.target.value)}))}/>
+          </label>
+          <small className="hint-inline">La transition est automatique à la fin de cette durée, ou dès que l’intro envoie l’événement intro:done.</small>
           <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setPreview(true);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
