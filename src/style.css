@@ -1226,3 +1226,13 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-banner{flex:none;margin:8px 12px 0;padding:11px 14px;border:1px solid #d9a441;border-radius:12px;background:#3a2a0d;color:#ffe9bd;font-size:12.5px;line-height:1.5;display:flex;flex-direction:column;gap:8px;z-index:60}
 .nv-banner p{margin:0}
 .nv-banner-actions{display:flex;flex-wrap:wrap;gap:8px}
+
+/* Pastille de sauvegarde cloud instantanée */
+.cloud-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;border:1px solid #3c6a78;background:#0f2a36;color:#9fd9e2;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.cloud-chip.is-saved{border-color:#2c8c78;color:#8ff5d6}
+.cloud-chip.is-saving,.cloud-chip.is-pending{border-color:#4bebde;color:#bffaf3}
+.cloud-chip.is-error,.cloud-chip.is-conflict,.cloud-chip.is-setup{border-color:#d9a441;color:#ffe3a6;background:#3a2a0d}
+.cloud-chip.is-login,.cloud-chip.is-paused{opacity:.8}
+.cloud-auto{display:flex;gap:9px;align-items:flex-start;padding:10px;border:1px solid #2c6c78;border-radius:11px;background:#10303a}
+.cloud-auto span{display:flex;flex-direction:column;gap:2px}
+.cloud-auto small{opacity:.8;font-size:10.5px}

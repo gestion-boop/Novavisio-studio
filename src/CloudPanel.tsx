@@ -1,15 +1,18 @@
 import {useEffect,useState} from 'react';
-import {cloudConfigured,supabase,signInWithEmail,signOut,listCloudProjects,saveToCloud,loadFromCloud,readLink,writeLink,type CloudProject,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,signInWithEmail,signOut,listCloudProjects,saveToCloud,openCloudProject,readLink,writeLink,type CloudProject,type CloudLink} from './cloud';
 import type {StudioProject} from './storage';
 
 type Props={
   project:StudioProject;
   onClose:()=>void;
   onBackup:()=>void;
-  onOpen:(project:StudioProject)=>void;
+  onOpen:(project:StudioProject,link:CloudLink)=>void;
   onStatus:(message:string)=>void;
+  autoEnabled:boolean;
+  onAutoChange:(on:boolean)=>void;
+  autoLabel:string;
 };
-export function CloudPanel({project,onClose,onBackup,onOpen,onStatus}:Props){
+export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel}:Props){
   const [email,setEmail]=useState('');
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [sent,setSent]=useState(false);
@@ -49,10 +52,10 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus}:Props){
   });
   const open=(item:CloudProject)=>run('Ouverture…',async()=>{
     if(!window.confirm('Ouvrir « '+item.name+' » (révision '+item.revision+') à la place du projet affiché ? Une sauvegarde .nvstudio.json du projet actuel va d’abord être téléchargée.'))return;
-    const loaded=await loadFromCloud(item.id,setBusy);
+    const loaded=await openCloudProject(item.id,setBusy);
     if(project.scenes.length)onBackup();
     writeLink(loaded.link);setLink(loaded.link);
-    onOpen(loaded.project);
+    onOpen(loaded.project,loaded.link);
     onStatus('Visite cloud ouverte (révision '+loaded.link.revision+')');
     onClose();
   });
@@ -70,7 +73,8 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus}:Props){
       </>}
     </>:<>
       <p>Connecté : <b>{userEmail}</b> · <button className="quiet" onClick={()=>void signOut()}>Se déconnecter</button></p>
-      <p className="hint-inline">Chaque enregistrement ajoute une <b>nouvelle révision</b> : rien n’est jamais remplacé ni supprimé dans le cloud.</p>
+      <label className="toggle-row cloud-auto"><input type="checkbox" checked={autoEnabled} onChange={e=>onAutoChange(e.target.checked)}/> <span><b>Sauvegarde instantanée dans Supabase</b><small>{autoLabel}</small></span></label>
+      <p className="hint-inline">Chaque enregistrement manuel ci-dessous ajoute une <b>nouvelle révision</b> : rien n’est jamais remplacé ni supprimé dans le cloud.</p>
       <div className="cloud-actions">
         <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void send(true)}>Envoyer comme nouvelle visite</button>
         {link&&<button className="quiet" disabled={!!busy||!project.scenes.length} onClick={()=>void send(false)}>Nouvelle révision (visite liée, rév. {link.revision})</button>}
@@ -78,8 +82,8 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus}:Props){
       <h3>Visites dans le cloud</h3>
       {!items.length&&<p className="hint-inline">Aucune visite cloud pour l’instant.</p>}
       <ul className="cloud-list">{items.map(item=><li key={item.id}>
-        <span><b>{item.name}</b><small>rév. {item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small></span>
-        <button className="quiet" disabled={!!busy||!item.revision} onClick={()=>void open(item)}>Ouvrir</button>
+        <span><b>{item.name}</b><small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small></span>
+        <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
       </li>)}</ul>
     </>}
     {busy&&<p className="status-adding">{busy}</p>}

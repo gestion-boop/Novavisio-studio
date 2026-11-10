@@ -6,6 +6,8 @@ import {exportStaticTour} from './exportTour';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {CloudPanel} from './CloudPanel';
+import {useCloudSync,type SyncState} from './cloudSync';
+import {type CloudLink} from './cloud';
 import {SharePanel} from './SharePanel';
 import {useSceneThumbs} from './thumbs';
 import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Maximize,Minimize,Eye,Edit3,Trash2,Plus,ChevronRight,Sparkles,Download,Cloud,Link2} from 'lucide-react';
@@ -508,6 +510,22 @@ function App(){
     return ()=>{channel.close();channelRef.current=null;};
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
+  // Sauvegarde instantanée dans Supabase (en plus de la copie locale).
+  const cloud=useCloudSync(project,ready&&!lock);
+  const cloudLabel=(st:SyncState):string=>
+    st.kind==='off'?'':st.kind==='login'?'Non connecté':st.kind==='idle'?'Connecté':st.kind==='paused'?'En pause':
+    st.kind==='pending'?'Envoi…':st.kind==='saving'?st.progress:st.kind==='saved'?'Enregistré':
+    st.kind==='error'?'Échec — nouvel essai':st.kind==='conflict'?'Conflit':'À installer';
+  async function openCloudVersionInPlace(){
+    try{
+      if(project.scenes.length)download(); // sauvegarde de sécurité de la version actuelle avant de la remplacer
+      const {project:cloudProject,link}=await cloud.loadCloudVersion();
+      const up=ensureFrameReferences(cloudProject,viewAreaRef.current?.clientHeight||550);
+      setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);
+      cloud.markSynced(up,link);
+      setStatus('Version du cloud ouverte');
+    }catch(e){window.alert('Impossible d’ouvrir la version du cloud : '+(e instanceof Error?e.message:String(e)));}
+  }
 
   const active=project.scenes.find(s=>s.id===activeId) ?? null;
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
@@ -1004,6 +1022,7 @@ function App(){
       const imported=ensureFrameReferences(validateProject(JSON.parse(await file.text())),viewAreaRef.current?.clientHeight||550);
       if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
       setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
+      cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
       setStatus('Projet importé');
     }catch(e){window.alert('Impossible d’ouvrir ce projet : '+String(e));}
     finally {if(projectInput.current)projectInput.current.value='';}
@@ -1025,6 +1044,7 @@ function App(){
   function startFresh(){
     if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
     setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
+    cloud.unlink();
   }
   return <div className="app">
     <header className="topbar">
@@ -1041,6 +1061,7 @@ function App(){
           <input aria-label="Nom du projet" value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/>
         </div>
         <span className="save-chip">{status}</span>
+        {cloud.state.kind!=='off'&&<button type="button" className={'cloud-chip is-'+cloud.state.kind} onClick={()=>cloud.state.kind==='error'?cloud.retryNow():setCloudOpen(true)} title="Sauvegarde instantanée dans Supabase">☁ {cloudLabel(cloud.state)}</button>}
       </div>
       <div className="top-actions">
         <div className="mode-switch-group">
@@ -1074,6 +1095,22 @@ function App(){
         </button>
       </div>
     </header>
+    {cloud.state.kind==='conflict'&&<div className="nv-banner" role="alert">
+      <p><b>Cette visite a été modifiée ailleurs dans le cloud</b> (autre appareil ou autre navigateur). La sauvegarde instantanée est suspendue pour ne rien écraser.</p>
+      <div className="nv-banner-actions">
+        <button className="primary" onClick={()=>void openCloudVersionInPlace()}>Ouvrir la version du cloud</button>
+        <button className="quiet" onClick={()=>{if(window.confirm('Garder CETTE version remplace la copie de travail du cloud. Continuer ?'))cloud.overwriteCloud(cloud.state.kind==='conflict'?cloud.state.cloudVersion:0);}}>Garder ma version (remplace le cloud)</button>
+        <button className="quiet" onClick={()=>cloud.setEnabled(false)}>Mettre en pause</button>
+      </div>
+    </div>}
+    {cloud.state.kind==='setup'&&<div className="nv-banner" role="alert">
+      <p><b>La sauvegarde instantanée n’est pas encore installée dans Supabase.</b> Ton travail reste enregistré sur cet appareil. Pour l’activer : ouvre le SQL Editor de Supabase et exécute le fichier <code>20261110020000_nvstudio_autosave.sql</code> (et <code>20261110000000_nvstudio_init.sql</code> si ce n’est pas déjà fait).</p>
+      <div className="nv-banner-actions">
+        <a className="quiet share-open" href="https://github.com/gestion-boop/Novavisio-studio/blob/main/supabase/migrations/20261110020000_nvstudio_autosave.sql" target="_blank" rel="noopener">Voir le fichier SQL</a>
+        <button className="primary" onClick={cloud.retryNow}>J’ai exécuté le SQL : réessayer</button>
+        <button className="quiet" onClick={()=>cloud.setEnabled(false)}>Mettre en pause</button>
+      </div>
+    </div>}
     {lock&&<div className="nv-banner" role="alert">
       {lock.kind==='conflict'&&<>
         <p><b>Ce projet a été modifié dans une autre fenêtre.</b> Rien n’a été écrasé : l’enregistrement automatique est suspendu dans celle-ci pour protéger ton travail.</p>
@@ -1575,7 +1612,8 @@ function App(){
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {shareOpen&&<SharePanel project={project} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
-      onOpen={p=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);}}/>}
+      autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
+      onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>

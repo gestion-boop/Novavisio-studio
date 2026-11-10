@@ -55,3 +55,11 @@
 - Migration à exécuter **après** `20261110000000_nvstudio_init.sql` : `supabase/migrations/20261110010000_nvstudio_share_links.sql` (crée `nvstudio_shares`, 4 fonctions `nvstudio_*` et une politique de lecture des médias liée à l'existence d'un lien actif).
 - Le lien est `…/share.html?t=<jeton de 64 caractères>`. L'expiration est calculée par la base (`now() + n jours`) ; passé ce délai, la fonction renvoie « expiré » et les médias ne sont plus téléchargeables. Un lien peut aussi être désactivé avant l'échéance (il n'est jamais supprimé).
 - Un lien pointe sur une **révision précise** : les modifications faites après sa création ne changent pas ce qu'il montre.
+
+## Sauvegarde instantanée dans Supabase
+
+- Migration à exécuter : `supabase/migrations/20261110020000_nvstudio_autosave.sql` (ajoute 3 colonnes à `nvstudio_projects` et la fonction `nvstudio_save_working`).
+- Chaque modification est envoyée ~0,7 s plus tard dans une **copie de travail** de la visite, mise à jour sur place (une ligne par visite, pas une ligne par frappe). Les médias sont envoyés une seule fois (objets adressés par hash) ; l'instantané ne contient que des références.
+- La copie locale (IndexedDB) reste active : sans réseau tout est conservé et repart au retour de la connexion (nouvel essai automatique).
+- Protection multi-appareils : la copie de travail a un numéro de version. Une écriture basée sur une version périmée est refusée (`conflict`) ; l'application s'arrête et demande : ouvrir la version du cloud ou garder la sienne.
+- Un projet vide ou illisible n'est jamais envoyé ; « Nouveau » ou l'ouverture d'un fichier coupent le lien avec la visite cloud actuelle (elle reste intacte).
