@@ -1322,6 +1322,66 @@ function App(){
         </button>
       </div>
     </header>
+    <section className="nv-space-strip" aria-label="Espaces de travail du projet">
+      <div className="nv-space-strip-label"><LayoutGrid size={15}/><span>ESPACES</span></div>
+      <div className="nv-space-tab-scroll" role="tablist" aria-label="Espaces du projet">
+        <button type="button" role="tab" aria-selected={!currentSpace}
+          className={'nv-space-tab'+(!currentSpace?' is-active':'')}
+          onClick={()=>selectSpace(null)} title="Tous les panoramas originaux">
+          <Home size={13}/> Projet complet <small>{project.scenes.length}</small>
+        </button>
+        {(project.spaces??[]).map(space=><button type="button" role="tab" key={space.id}
+          aria-selected={activeSpaceId===space.id}
+          className={'nv-space-tab'+(activeSpaceId===space.id?' is-active':'')}
+          onClick={()=>selectSpace(space.id)} title={space.name}>
+          <LayoutGrid size={13}/><span>{space.name}</span><small>{space.sceneIds.length}</small>
+        </button>)}
+      </div>
+      <button type="button" className="nv-space-create" onClick={createSpace}
+        title="Créer une sous-visite à partir des panoramas existants">
+        <Plus size={15}/> Ajouter un espace
+      </button>
+      {currentSpace&&<button type="button" className="nv-space-manage" onClick={()=>setSpaceManagerOpen(true)}>
+        Gérer les panoramas
+      </button>}
+    </section>
+    {spaceManagerOpen&&currentSpace&&<div className="overlay nv-space-overlay" onMouseDown={event=>{
+      if(event.target===event.currentTarget)setSpaceManagerOpen(false);
+    }}>
+      <section className="nv-space-modal" role="dialog" aria-modal="true" aria-label="Gestion de l’espace">
+        <div className="nv-space-modal-head">
+          <div><small>PROJET : {project.name}</small><h2>Organiser cet espace</h2></div>
+          <button type="button" className="nv-space-close" onClick={()=>setSpaceManagerOpen(false)} aria-label="Fermer">✕</button>
+        </div>
+        <label className="nv-space-name-label">Nom de l’espace
+          <input aria-label="Renommer cet espace" value={currentSpace.name}
+            onChange={e=>renameSpace(currentSpace.id,e.target.value)} maxLength={100}/>
+        </label>
+        <p>Décoche les panoramas à exclure. Ils restent dans le projet complet et les autres espaces.</p>
+        <div className="nv-space-select-actions">
+          <span>{currentSpace.sceneIds.length} / {project.scenes.length} panoramas inclus</span>
+          <button type="button" onClick={()=>setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{
+            ...sp,sceneIds:p.scenes.map(sc=>sc.id)
+          }:sp)}))}>Tout inclure</button>
+          <button type="button" onClick={()=>{
+            setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{...sp,sceneIds:[]}:sp)}));
+            setActiveId('');setSelectedId('');
+          }}>Tout retirer</button>
+        </div>
+        <div className="nv-space-scene-picker">
+          {project.scenes.map(scene=><label key={scene.id} className="nv-space-scene-option">
+            <input type="checkbox" checked={currentSpace.sceneIds.includes(scene.id)}
+              onChange={e=>setSceneInSpace(currentSpace.id,scene.id,e.target.checked)}/>
+            {sceneThumbs[scene.id]?<img src={sceneThumbs[scene.id]} alt="" draggable={false}/>:<span className="nv-space-no-thumb">◎</span>}
+            <span>{scene.name}</span>
+          </label>)}
+        </div>
+        <div className="nv-space-modal-footer">
+          <button type="button" className="nv-space-delete" onClick={()=>deleteSpace(currentSpace.id)}>Supprimer cet espace seulement</button>
+          <button type="button" className="primary" onClick={()=>setSpaceManagerOpen(false)}>Terminer</button>
+        </div>
+      </section>
+    </div>}
     {emailLink&&<div className="overlay"><div className="modal cloud-panel">
       <h2>{emailLink.done?'Adresse confirmée ✓':'Confirmer mon accès'}</h2>
       {emailLink.done?<>
