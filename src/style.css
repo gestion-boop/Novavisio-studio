@@ -1112,3 +1112,44 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-sphere-handle:focus-visible,.nv-sphere-center:focus-visible{
   outline:2px solid #4bebde;outline-offset:0;
 }
+
+
+/* V0.8.1 — La rotation 360° doit toujours rester libre.
+   Seule la poignée de déplacement intercepte le glissement. */
+.panorama,.panorama .psv-container,.panorama .psv-canvas-container{
+  touch-action:none;
+}
+.panorama .psv-tooltip{pointer-events:none;}
+.nv-drag-target{
+  position:relative;
+  width:100%;
+  height:100%;
+  display:block;
+  cursor:inherit;
+  touch-action:auto;
+}
+.nv-drag-target:active{cursor:inherit;}
+.nv-marker-move-grip{
+  position:absolute;
+  top:-9px;
+  right:-11px;
+  z-index:20;
+  width:19px;
+  height:19px;
+  min-height:19px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid #b8fff9;
+  border-radius:50%;
+  background:#147582;
+  color:#fff;
+  font-size:13px;
+  line-height:1;
+  cursor:grab;
+  touch-action:none;
+  box-shadow:0 2px 5px #0009;
+  transform:none!important;
+}
+.nv-marker-move-grip:hover{background:#05a8a9;}
+.nv-marker-move-grip:active{cursor:grabbing;transform:none!important;}
