@@ -214,58 +214,79 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
   useEffect(()=>{
     const root=box.current;
     if(!root)return;
-    const onDown=(event:PointerEvent)=>{
+    const down=(event:PointerEvent)=>{
       const target=event.target;
       if(!(target instanceof HTMLElement))return;
-      const button=target.closest<HTMLButtonElement>('.nv-direct-corner');
-      if(!button || actions.current.preview || !actions.current.selectedId)return;
-      const key=button.dataset.corner as keyof FrameCorners | undefined;
-      if(!key || !['tl','tr','br','bl'].includes(key))return;
-      const hotspot=actions.current.scene.hotspots.find(h=>h.id===actions.current.selectedId);
-      const host=button.closest<HTMLElement>('.nv-frame-host');
-      if(!hotspot || !host || hotspot.type!=='image')return;
+      const button=target.closest<HTMLButtonElement>('.nv-sphere-handle,.nv-sphere-center');
+      const a=actions.current;
+      if(!button||a.preview||!a.selectedId||a.mode)return;
+      const id=button.dataset.frameId;
+      if(id!==a.selectedId)return;
+      const h=a.scene.hotspots.find(h=>h.id===id);
+      const viewer=viewerRef.current;
+      if(!viewer||!h||!id||!(h.imageDataUrl||h.videoDataUrl||h.videoUrl))return;
+      const key=button.dataset.corner as typeof FRAME_KEYS[number]|undefined;
+      const movingCenter=button.classList.contains('nv-sphere-center');
+      if(!movingCenter&&!FRAME_KEYS.includes(key!))return;
+      const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
       event.preventDefault();
       event.stopImmediatePropagation();
-      let changed=false;
-      const corners=structuredClone(hotspot.frameCorners??defaultFrameCorners());
-      const photo=host.querySelector<HTMLImageElement>('.nv-frame-photo');
-      const polygon=host.querySelector<SVGPolygonElement>('.nv-direct-guides polygon');
-      const redraw=(pointer:PointerEvent)=>{
+      let coords=frameWorldCorners(h);
+      let center={yaw:h.yaw,pitch:h.pitch};
+      let touched=false;
+      const update=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
         pointer.preventDefault();
         pointer.stopImmediatePropagation();
-        const rect=host.getBoundingClientRect();
-        if(rect.width<1 ||rect.height<1)return;
-        const x=Math.max(0,Math.min(100,Math.round(100*(pointer.clientX-rect.left)/rect.width)));
-        const y=Math.max(0,Math.min(100,Math.round(100*(pointer.clientY-rect.top)/rect.height)));
-        corners[key]={x,y};
-        button.style.left=x+'%';
-        button.style.top=y+'%';
-        if(polygon)polygon.setAttribute('points',(['tl','tr','br','bl'] as const).map(k=>corners[k].x+','+corners[k].y).join(' '));
-        if(photo)photo.style.transform=perspectiveMatrix(corners,rect.width,rect.height);
-        changed=true;
+        const rect=root.getBoundingClientRect();
+        if(!rect.width||!rect.height)return;
+        const point=viewer.dataHelper.viewerCoordsToSphericalCoords({
+          x:pointer.clientX-rect.left,y:pointer.clientY-rect.top
+        });
+        if(!point)return;
+        if(movingCenter){
+          // Translate the entire frame without recomputing corner geometry.
+          const deltaYaw=point.yaw-center.yaw,deltaPitch=point.pitch-center.pitch;
+          coords=coords.map(p=>({
+            yaw:p.yaw+deltaYaw,
+            pitch:Math.max(-Math.PI/2+0.005,Math.min(Math.PI/2-0.005,p.pitch+deltaPitch))
+          })) as FrameSphericalCorners;
+          center={yaw:point.yaw,pitch:point.pitch};
+        }else if(key){
+          coords=coords.map((p,i)=>i===FRAME_KEYS.indexOf(key)?{yaw:point.yaw,pitch:point.pitch}:p) as FrameSphericalCorners;
+        }
+        touched=true;
+        try {
+          plugin.updateMarker({id:h.id,position:coords},false);
+          FRAME_KEYS.forEach((corner,i)=>{
+            plugin.updateMarker({id:cornerMarkerId(h.id,corner),position:coords[i]},false);
+          });
+          plugin.updateMarker({id:centerMarkerId(h.id),position:center},false);
+          plugin.renderMarkers();
+        }catch{
+          // If the frame was deleted during a drag, the edit will simply stop.
+        }
       };
       const cleanup=()=>{
-        document.removeEventListener('pointermove',redraw,true);
+        document.removeEventListener('pointermove',update,true);
         document.removeEventListener('pointerup',finish,true);
         document.removeEventListener('pointercancel',cancel,true);
       };
-      const finish=(up:PointerEvent)=>{
-        if(up.pointerId!==event.pointerId)return;
-        redraw(up);cleanup();
-        if(changed)actions.current.onCornerChange(hotspot.id,key,corners[key].x,corners[key].y);
+      const finish=(pointer:PointerEvent)=>{
+        if(pointer.pointerId!==event.pointerId)return;
+        update(pointer);cleanup();
+        if(touched)actions.current.onWorldFrameChange(h.id,coords,movingCenter?center:undefined);
       };
-      const cancel=(up:PointerEvent)=>{
-        if(up.pointerId!==event.pointerId)return;
-        cleanup();
+      const cancel=(pointer:PointerEvent)=>{
+        if(pointer.pointerId===event.pointerId)cleanup();
       };
-      document.addEventListener('pointermove',redraw,true);
+      document.addEventListener('pointermove',update,true);
       document.addEventListener('pointerup',finish,true);
       document.addEventListener('pointercancel',cancel,true);
     };
-    root.addEventListener('pointerdown',onDown,true);
-    return ()=>root.removeEventListener('pointerdown',onDown,true);
-  },[scene.id,scene.dataUrl]);
+    root.addEventListener('pointerdown',down,true);
+    return ()=>root.removeEventListener('pointerdown',down,true);
+  },[]);
   useEffect(()=>{
     const root=box.current;
     if(!root)return;
@@ -706,8 +727,8 @@ function App(){
       <main className="editor">
         <div className="editor-top"><span>PROJET / {active?.name??'Nouvelle visite'}</span><b>{preview?'APERÇU INTERACTIF':mode?'CLIQUE DANS LE PANORAMA':'MODE ÉDITION'}</b></div>
         <div className="view-area" ref={viewAreaRef}>{active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} onNavigate={id=>{if(project.scenes.some(s=>s.id===id))setActiveId(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={h=>{setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={h=>{setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
-          onCornerChange={(id,key,x,y)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
-            {...h,frameCorners:{...(h.frameCorners??defaultFrameCorners()),[key]:{x,y}}}:h)}))}
+          onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
+            {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
           onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
           onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
           <div className="empty-icon">◎</div><h1>Ta première visite commence ici</h1>
