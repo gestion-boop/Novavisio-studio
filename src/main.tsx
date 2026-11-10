@@ -69,11 +69,11 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
   // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
   if(h.type==='image'&&h.imageDataUrl){
-    return {id:h.id,imageLayer:h.imageDataUrl,position:frameWorldCorners(h),tooltip:h.title,hoverScale:false};
+    return {id:h.id,imageLayer:h.imageDataUrl,position:frameWorldCorners(h),hoverScale:false};
   }
   const videoSource=h.videoDataUrl||h.videoUrl;
   if(h.type==='video'&&videoSource){
-    return {id:h.id,videoLayer:videoSource,position:frameWorldCorners(h),tooltip:h.title,
+    return {id:h.id,videoLayer:videoSource,position:frameWorldCorners(h),
       autoplay:h.videoAutoplay!==false,hoverScale:false};
   }
   const isMedia=h.type==='image'||h.type==='video';
@@ -136,7 +136,9 @@ function Panorama({scene,icons,mode,preview,onCreate,onPick,onNavigate,onInfo,on
       if(zoomFrame)cancelAnimationFrame(zoomFrame);
       zoomFrame=requestAnimationFrame(()=>{
         const a=actions.current;
-        if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>h.type==='image'||h.type==='video'))return;
+        if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>
+          (h.type==='image'&&!h.imageDataUrl)||
+          (h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)))return;
         const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
         plugin.setMarkers(markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel()));
       });
@@ -849,15 +851,15 @@ function App(){
                   <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo maximum, optimisé automatiquement</small>
                   {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
                   {selected.imageDataUrl&&<img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo intégrée au cadre"/>}
-                  {selected.imageDataUrl && <p className="hint">Le cadrage se règle maintenant directement dans le panorama : déplace les quatre poignées turquoise sur le cadre photo. Le rendu conserve les mêmes proportions en plein écran.</p>}
+                  {selected.imageDataUrl && <p className="hint">La photo est fixée au panorama 360°. Déplace les quatre petits points turquoise pour la perspective, ou le carré central pour déplacer tout le cadre. Le résultat reste immobile sur son support quand tu tournes ou zoomes.</p>}
                   <label>Largeur du cadre : {selected.frameWidth??320} px
-                    <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
+                    <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value),frameSphericalCorners:undefined})}/>
                   </label>
                   <label>Hauteur du cadre : {selected.frameHeight??200} px
-                    <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
+                    <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value),frameSphericalCorners:undefined})}/>
                   </label>
                   <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
-                  <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
+                  <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>
                 </>
                 :selected.type==='video'?<>
                   <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
