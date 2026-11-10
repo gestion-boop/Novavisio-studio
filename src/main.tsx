@@ -10,6 +10,7 @@ import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {loadProject,newProject,readImage,saveProject,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameCorners} from './storage';
 import './style.css';
+import './media.css';
 
 type EditMode = Hotspot['type'] | null;
 type PanelTab = 'points' | 'bar' | 'icons' | 'intro';
