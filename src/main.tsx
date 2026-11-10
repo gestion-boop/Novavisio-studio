@@ -368,6 +368,8 @@ function App(){
   const stateIconInput=useRef<HTMLInputElement>(null);
   const stateTarget=useRef<((id:string|undefined)=>void)|null>(null);
   const [libraryFor,setLibraryFor]=useState<string|null>(null);
+  const [dragScene,setDragScene]=useState<string|null>(null);
+  const [dropAt,setDropAt]=useState<number|null>(null);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const savedRef=useRef<StudioProject|null>(null);
@@ -575,6 +577,21 @@ function App(){
   }
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
+  }
+  // Réordonne les scènes. `insertAt` = position d'insertion (0..n) dans l'ordre actuel.
+  // Les liens de navigation utilisent les identifiants : aucun lien n'est cassé par le changement d'ordre.
+  function moveScene(id:string,insertAt:number){
+    setProject(p=>{
+      const from=p.scenes.findIndex(sc=>sc.id===id);
+      if(from<0)return p;
+      const target=Math.max(0,Math.min(p.scenes.length,insertAt));
+      const to=target>from?target-1:target;
+      if(to===from)return p;
+      const scenes=[...p.scenes];
+      const [moved]=scenes.splice(from,1);
+      scenes.splice(to,0,moved);
+      return {...p,scenes};
+    });
   }
   function patchBar(update:Partial<BottomBarItem>){
     setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===selectedBarId?{...b,...update}:b)}));
@@ -811,13 +828,37 @@ function App(){
         <button className="import" onClick={()=>upload.current?.click()}>
           <Plus size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Importer des panoramas 360°
         </button>
-        <div className="scenes">{project.scenes.map((s,i)=><button key={s.id} className={'scene '+(s.id===activeId?'active':'')} onClick={()=>{setActiveId(s.id);setSelectedId('');setMode(null);}}>
-          <img src={s.dataUrl} alt="Miniature du panorama"/>
-          <span>
-            <strong>{s.name}</strong>
-            <small>Scène {i+1} · {s.hotspots.length} point(s)</small>
-          </span>
-        </button>)}</div>
+        <div className="scenes" onDragLeave={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node|null))setDropAt(null);}}>{project.scenes.map((s,i)=><div key={s.id}
+          className={'scene-slot'+(dragScene===s.id?' is-dragging':'')+(dropAt===i?' drop-before':'')+(dropAt===i+1&&i===project.scenes.length-1?' drop-after':'')}
+          draggable
+          onDragStart={e=>{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('application/x-nv-scene',s.id);e.dataTransfer.setData('text/plain',s.name);setDragScene(s.id);}}
+          onDragEnd={()=>{setDragScene(null);setDropAt(null);}}
+          onDragOver={e=>{
+            if(!dragScene)return;
+            e.preventDefault();e.dataTransfer.dropEffect='move';
+            const r=e.currentTarget.getBoundingClientRect();
+            setDropAt(e.clientY<r.top+r.height/2?i:i+1);
+          }}
+          onDrop={e=>{
+            e.preventDefault();
+            const id=dragScene,at=dropAt;
+            setDragScene(null);setDropAt(null);
+            if(id!==null&&at!==null)moveScene(id,at);
+          }}>
+          <button className={'scene '+(s.id===activeId?'active':'')} title="Glisse pour changer l’ordre (ou Alt + ↑ / ↓)"
+            onKeyDown={e=>{
+              if(!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
+              e.preventDefault();
+              moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
+            }}
+            onClick={()=>{setActiveId(s.id);setSelectedId('');setMode(null);}}>
+            <img src={s.dataUrl} alt="Miniature du panorama" draggable={false}/>
+            <span>
+              <strong>{s.name}</strong>
+              <small>Scène {i+1}{i===0?' · accueil':''} · {s.hotspots.length} point(s)</small>
+            </span>
+          </button>
+        </div>)}</div>
         <div className="helper">
           <strong>✦ Guide rapide</strong>
           <p>Clique sur un point dans le 360° pour modifier directement ses propriétés à droite.</p>
