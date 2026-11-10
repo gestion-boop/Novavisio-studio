@@ -1,5 +1,6 @@
 import {useEffect,useState} from 'react';
-import {addMember,cloudConfigured,createCollaboratorAccount,listMembers,readLink,removeMember,saveWorking,supabase,writeLink,type Member} from './cloud';
+import {addMember,cloudConfigured,createCollaboratorAccount,listMembers,readLink,removeMember,supabase,type Member} from './cloud';
+import type {SyncState} from './cloudSync';
 import {studioUrl} from './share';
 import {LoginBox} from './LoginBox';
 import type {StudioProject} from './storage';
@@ -16,7 +17,7 @@ const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{day:'2-digit',mont
  * Lien privé : donner accès à la visite à une autre personne (e-mail + mot de passe) pour qu'elle travaille dessus.
  * Règle de sauvegarde : la dernière personne qui agit a la main (sa sauvegarde remplace la précédente, qui est archivée).
  */
-export function PrivatePanel({project,onClose,onStatus}:{project:StudioProject;onClose:()=>void;onStatus:(m:string)=>void}){
+export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEnabled}:{project:StudioProject;onClose:()=>void;onStatus:(m:string)=>void;syncNow:()=>Promise<boolean>;syncState:SyncState;autoEnabled:boolean}){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState(()=>generatePassword());
@@ -68,12 +69,13 @@ export function PrivatePanel({project,onClose,onStatus}:{project:StudioProject;o
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean))throw new Error('Adresse e-mail non valide.');
       if(password.length<8)throw new Error('Le mot de passe doit faire au moins 8 caractères.');
       if(!project.scenes.length)throw new Error('Importe au moins un panorama avant d’inviter quelqu’un.');
-      // 1) la visite doit exister dans le cloud
-      let link=readLink();
-      if(!link){
-        link=await saveWorking(project,null,setBusy);
-        writeLink({projectId:link.projectId,revision:link.revision,...(link.version!==undefined?{version:link.version}:{})});
-      }
+      // 1) la visite doit être ENTIÈREMENT dans le cloud, à jour : sinon la personne invitée ouvrirait une ancienne version.
+      if(syncState.kind==='setup')throw new Error(syncState.message);
+      if(!autoEnabled)throw new Error('La sauvegarde instantanée est en pause : active-la (bouton « Cloud ») pour que la personne reçoive ta version actuelle.');
+      setBusy('Envoi de ta visite dans le cloud (la personne doit recevoir la version actuelle)…');
+      const done=await syncNow();
+      const link=readLink();
+      if(!done||!link)throw new Error('Ta visite n’est pas encore entièrement enregistrée dans le cloud'+(syncState.kind==='error'?' ('+syncState.message+')':'')+'. Attends que la pastille « ☁ Enregistré » apparaisse en haut, puis recommence.');
       setProjectId(link.projectId);
       // 2) autoriser l'adresse, puis créer le compte (e-mail + mot de passe)
       setBusy('Création de l’accès…');
@@ -101,6 +103,11 @@ export function PrivatePanel({project,onClose,onStatus}:{project:StudioProject;o
     :!userEmail?<LoginBox intro="Connecte-toi d’abord : c’est ton compte qui est propriétaire de la visite et qui donne les accès."/>
     :<>
       <p className="hint-inline">Donne accès à une autre personne pour qu’elle <b>travaille sur la visite avec toi</b>. Elle se connecte au Studio avec l’e-mail et le mot de passe ci-dessous.</p>
+      <div className={'private-sync is-'+syncState.kind}>{syncState.kind==='saved'?'☁ Ta visite est à jour dans le cloud ('+new Date(syncState.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'). La personne recevra cette version.'
+        :syncState.kind==='setup'?'☁ '+syncState.message
+        :syncState.kind==='saving'||syncState.kind==='pending'?'☁ Envoi de ta visite dans le cloud en cours…'
+        :syncState.kind==='error'?'☁ Envoi impossible pour le moment : '+syncState.message
+        :'☁ Ta visite sera envoyée dans le cloud au moment de créer l’accès.'}</div>
       <div className="private-rule"><b>Qui sauvegarde ?</b> La dernière personne qui fait une action a la main : sa sauvegarde remplace la précédente (l’ancienne version est archivée). Si l’autre personne modifie pendant que tu ne fais rien, ta fenêtre se met à jour toute seule. Évitez de modifier le même panorama en même temps.</div>
       <form className="login-form" onSubmit={e=>{e.preventDefault();void invite();}}>
         <label>Adresse e-mail de la personne<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="prenom@exemple.fr" autoComplete="off" required/></label>

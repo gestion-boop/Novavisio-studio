@@ -68,7 +68,11 @@ function Share(){
     let job=pending.current.get(id);
     if(!job){
       job=(async()=>{
-        for(const ref of sceneRefs(scene))await fetchRef(ref);
+        // Réseau lent ou coupure brève : 3 tentatives avant d'abandonner ce panorama.
+        for(let attempt=0;;attempt++){
+          try{for(const ref of sceneRefs(scene))await fetchRef(ref);break;}
+          catch(e){if(attempt>=2||!alive.current)throw e;await new Promise(r=>setTimeout(r,1500*(attempt+1)));}
+        }
         if(alive.current)setVersion(v=>v+1);
       })().catch(()=>{pending.current.delete(id);});
       pending.current.set(id,job);

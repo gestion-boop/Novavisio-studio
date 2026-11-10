@@ -50,7 +50,10 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
     await refresh();
   });
   const open=(item:CloudProject)=>run('Ouverture…',async()=>{
-    if(!window.confirm('Ouvrir « '+item.name+' » (révision '+item.revision+') à la place du projet affiché ? Une sauvegarde .nvstudio.json du projet actuel va d’abord être téléchargée.'))return;
+    const which=item.autosave?'la dernière version sauvegardée automatiquement ('+new Date(item.updated_at).toLocaleString('fr-FR')+')'
+      :'la dernière version enregistrée À LA MAIN (révision '+item.revision+', '+new Date(item.updated_at).toLocaleString('fr-FR')+')';
+    const warn=item.autosave?'':'\n\nATTENTION : cette visite n’a pas de sauvegarde instantanée. Cette version peut être plus ancienne que celle de la personne qui l’a partagée (panoramas, boutons ou modifications récentes manquants). Demande-lui de vérifier que « ☁ Enregistré » s’affiche chez elle, ou que le fichier SQL de sauvegarde instantanée est installé.';
+    if(!window.confirm('Ouvrir « '+item.name+' » ('+which+') à la place du projet affiché ? Une sauvegarde .nvstudio.json du projet actuel va d’abord être téléchargée.'+warn))return;
     const loaded=await openCloudProject(item.id,setBusy);
     if(project.scenes.length)onBackup();
     writeLink(loaded.link);setLink(loaded.link);

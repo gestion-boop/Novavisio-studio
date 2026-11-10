@@ -96,7 +96,7 @@ export function SharePanel({project,onClose,onStatus}:Props){
         <ul className="cloud-list">{shares.map(row=>{
           const st=shareStatus(row);
           return <li key={row.id}>
-            <span><b>{st==='active'?'Actif':st==='expired'?'Expiré':'Désactivé'}</b> · rév. {row.revision} · {row.days} j
+            <span><b>{st==='active'?'Actif':st==='expired'?'Expiré':'Désactivé'}</b> · {row.days} j · contenu figé du {fmt(row.created_at)}
               <small>{st==='active'?'expire le ':st==='expired'?'a expiré le ':'désactivé · devait expirer le '}{fmt(row.expires_at)}</small></span>
             {st==='active'&&<span className="share-row-actions">
               <button className="quiet" onClick={()=>void copy(shareUrl(row.token)).then(ok=>{setCopiedId(ok?row.id:'');})}>{copiedId===row.id?'Copié ✓':'Copier'}</button>

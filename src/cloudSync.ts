@@ -200,5 +200,18 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     setState(!cloudConfigured?{kind:'off'}:signedIn?{kind:'idle'}:{kind:'login'});
   },[signedIn]);
 
-  return {state,enabled,setEnabled,retryNow,markSynced,unlink,signedIn};
+  /** Envoie tout de suite et attend la fin. Renvoie vrai si la visite affichée est entièrement enregistrée dans le cloud. */
+  const syncNow=useCallback(async():Promise<boolean>=>{
+    if(!canRunRef.current)return false;
+    window.clearTimeout(timerRef.current);
+    const wait=async()=>{for(let i=0;i<1500&&(runningRef.current||adoptingRef.current);i++)await new Promise(r=>setTimeout(r,200));};
+    await wait();
+    for(let round=0;round<6&&projectRef.current!==syncedRef.current&&!blockedRef.current;round++){
+      await runRef.current();
+      await wait();
+    }
+    return projectRef.current===syncedRef.current&&!!readLink();
+  },[]);
+
+  return {state,enabled,setEnabled,retryNow,markSynced,unlink,signedIn,syncNow};
 }
