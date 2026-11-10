@@ -1,4 +1,4 @@
-import type {Hotspot,FrameSphericalCorners,FrameCorners} from './storage';
+import type {Hotspot,FrameSphericalCorners} from './storage';
 import {defaultFrameCorners} from './storage';
 
 /**
