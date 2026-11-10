@@ -1588,3 +1588,37 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   .nv-fullscreen-gallery-arrival{padding:8px;margin-top:7px}
   .nv-fullscreen-gallery-arrival-text span{display:none}
 }
+
+/* ===== Boutons plus gros : barre « Ajouter » et onglets du panneau de droite ===== */
+.toolbar{
+  height:auto;min-height:84px;
+  flex-wrap:wrap;row-gap:8px;column-gap:8px;
+  padding:10px 14px;
+}
+.toolbar-label{font-size:12px;letter-spacing:1.4px;margin-right:8px;align-self:center}
+.toolbar-sep{height:40px;margin:0 6px}
+.toolbar .tool{
+  min-height:52px;
+  padding:0 16px;
+  border-radius:13px;
+  font-size:15px;
+  font-weight:700;
+  display:inline-flex;align-items:center;gap:8px;
+  border-width:1.5px;
+}
+.toolbar .tool.danger{min-height:52px}
+.side-tabs{gap:8px;padding:8px;border-radius:15px;margin-bottom:22px}
+.side-tabs button{
+  min-height:58px;
+  padding:14px 8px;
+  border-radius:11px;
+  font-size:15px;
+  font-weight:700;
+  line-height:1.15;
+}
+.side-tabs button.active{box-shadow:0 3px 10px rgba(0,0,0,.4),inset 0 0 0 1.5px #4bdfd3}
+@media (max-width:780px){
+  .toolbar{min-height:70px;padding:8px 10px}
+  .toolbar .tool{min-height:46px;padding:0 14px;font-size:14px}
+  .side-tabs button{min-height:50px;font-size:13px}
+}
