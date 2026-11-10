@@ -39,5 +39,5 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
 }
 
 export function safeSpaceName(name:string):string{
-  return name.trim().slice(0,100);
+  return name.slice(0,100);
 }
