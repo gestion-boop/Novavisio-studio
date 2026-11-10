@@ -1,4 +1,4 @@
-# NovaVisio Studio — prototype V0.6
+# NovaVisio Studio — prototype V0.7
 
 Éditeur indépendant de visites virtuelles 360° interactives, conçu pour NovaVisio. Interface en français, thème bleu nuit et turquoise.
 
@@ -102,7 +102,7 @@ La page d'introduction externe et les liens iframe nécessitent Internet. Certai
 
 Ce prototype ne garantit pas encore les performances sur des dizaines d'images 8K ou plus, et la sauvegarde locale dépend du quota du navigateur.
 
-## Photos, vidéo et son (V0.6)
+## Photos, vidéo et son (V0.7)
 
 - Cadres photo : import de JPG/PNG/WebP (et HEIC lorsqu'il est décodable dans le navigateur), puis cadrage directement sur l'image 360° avec quatre poignées turquoise indépendantes.
 - **Taille cohérente en plein écran** : les dimensions du cadre sont enregistrées relativement à la hauteur de la zone d'édition, et recalculées à l'affichage. Cette adaptation est aussi appliquée dans le lecteur HTML exporté.
@@ -112,3 +112,14 @@ Ce prototype ne garantit pas encore les performances sur des dizaines d'images 8
 - Les fichiers audio et vidéo importés sont ajoutés à l'archive HTML sous `media/audio` et `media/videos`.
 
 **Compatibilité :** le dossier de publication conserve `index.html`, `assets/`, `media/` et `data/`, afin de rester compatible avec la plateforme NovaTour renommée NovaVisio. Tester la visite exportée après tout changement des médias.
+
+## Ajustements V0.7 : icônes, cadrage et musique continue
+
+- **Cadrage après zoom** : les dimensions apparentes d'un cadre photo ou vidéo suivent le niveau de zoom du panorama. Sélectionner le cadre en mode édition, zoomer et tirer les poignées sur l'image. Le zoom utilisé à la création est sauvegardé pour conserver l'échelle.
+- **Points plus discrets** : diamètre par défaut de 28 px (contre 46 px) et plage de réglage par point de 16 à 80 px. La taille définie manuellement sur un ancien point est conservée.
+- **Remplacement global des PNG** : dans *Mes icônes* ou dans les propriétés d'un point/bouton, « Remplacer partout » modifie le fichier associé au même identifiant. Tous les panoramas et boutons qui utilisent cette icône se mettent à jour immédiatement.
+- **Musique en continu** : dans *Musique*, importer plusieurs pistes, choisir les panoramas associés, le volume et la boucle. Le lecteur sonore reste monté lors des changements de panorama : une piste identique ne redémarre pas. Un changement de piste démarre la nouvelle musique, et l'absence d'affectation coupe le son. Un clic peut être requis pour autoriser l'audio selon le navigateur.
+- L'archive HTML continue de contenir `index.html`, `assets/`, `media/`, `data/` et des ressources audio locales dans `media/audio/`.
+- Lors du cadrage, veiller à être **en mode édition** : en aperçu, le clic sur une image ouvre son agrandissement et non les poignées.
+
+**Limites** : certains écrans peuvent présenter un léger changement d'échelle selon le champ de vision ; valider les cadres sur écran et mobile avant publication définitive.
