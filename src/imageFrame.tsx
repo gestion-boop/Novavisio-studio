@@ -1,5 +1,19 @@
 import {useState, type PointerEvent} from 'react';
-import type {FrameCorners} from './storage';
+import type {FrameCorners,Hotspot} from './storage';
+/**
+ * The editor stores frame dimensions at its own viewport height.
+ * Scale those dimensions to the current panoramic viewport, including fullscreen.
+ * Both corners and aspect ratio remain unchanged.
+ */
+export function responsiveFrameSize(h:Hotspot,viewerHeight:number,defaultReference=550){
+  const reference=Math.max(100,h.frameReferenceHeight??defaultReference);
+  const factor=Math.max(.3,Math.min(4,viewerHeight/reference));
+  return {
+    width:Math.round((h.frameWidth??320)*factor),
+    height:Math.round((h.frameHeight??200)*factor)
+  };
+}
+
 
 export type CornerKey = keyof FrameCorners;
 const keys:CornerKey[]=['tl','tr','br','bl'];
