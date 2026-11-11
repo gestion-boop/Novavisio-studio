@@ -547,7 +547,6 @@ function App(){
   const stateIconInput=useRef<HTMLInputElement>(null);
   const stateTarget=useRef<((id:string|undefined)=>void)|null>(null);
   const [libraryFor,setLibraryFor]=useState<string|null>(null);
-  const [showCloseIconLibrary,setShowCloseIconLibrary]=useState(false);
   const [galleryOpen,setGalleryOpen]=useState<string|null>(null);
   const sceneThumbs=useSceneThumbs(project.scenes);
   const sortBusy=useRef(false);
@@ -573,6 +572,7 @@ function App(){
   useEffect(()=>()=>{if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);},[]);
   useEffect(()=>{if(!fullscreenGalleryOpen)setHoveredGallerySceneId(null);},[fullscreenGalleryOpen]);
   const [fullscreenToolsOpen,setFullscreenToolsOpen]=useState(false);
+  const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
   const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
   const creationFallbackRef=useRef(false);
@@ -761,7 +761,7 @@ function App(){
 
   // Subspaces are non-destructive views over the master panorama library.
   useEffect(()=>{
-    if(!creationFullscreen){setFullscreenGalleryOpen(false);setFullscreenToolsOpen(false);}
+    if(!creationFullscreen){setFullscreenGalleryOpen(false);setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(false);}
   },[creationFullscreen]);
   const currentSpace:StudioSpace|null=(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null;
   const visibleScenes=scenesInSpace(project,currentSpace);
@@ -1983,11 +1983,19 @@ function App(){
             onClick={()=>void toggleCreationFullscreen()} title="Agrandir uniquement la création 360°" aria-label="Plein écran de la création">
             <Maximize2 size={18}/> Plein écran création
           </button>}
-          {active && creationFullscreen && <div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
+          {active && creationFullscreen && <button type="button" className={'nv-command-drawer-handle'+(fullscreenCommandDrawerOpen?' is-open':'')}
+            onClick={()=>{setFullscreenCommandDrawerOpen(open=>!open);setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);}}
+            aria-expanded={fullscreenCommandDrawerOpen} aria-controls="nv-fullscreen-command-drawer"
+            aria-label={fullscreenCommandDrawerOpen?'Masquer les commandes':'Afficher les commandes'}>
+            <PanelRightClose size={19}/> <span>{fullscreenCommandDrawerOpen?'Masquer':'Commandes'}</span>
+          </button>}
+          {active && creationFullscreen && fullscreenCommandDrawerOpen && <div id="nv-fullscreen-command-drawer" className="nv-command-drawer" aria-label="Commandes de création">
+            <div className="nv-command-drawer-heading"><strong>Commandes</strong><button type="button" onClick={()=>setFullscreenCommandDrawerOpen(false)} aria-label="Fermer le tiroir">✕</button></div>
+            <div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
             <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
             <button type="button" className={'nv-fullscreen-gallery-toggle'+(fullscreenGalleryOpen?' is-active':'')}
               aria-expanded={fullscreenGalleryOpen} aria-controls="nv-fullscreen-gallery"
-              onClick={()=>{setFullscreenGalleryOpen(open=>!open);setMode(null);}}
+              onClick={()=>{setFullscreenGalleryOpen(open=>!open);setFullscreenCommandDrawerOpen(false);setMode(null);}}
               title="Choisir un panorama dans la galerie">
               <Images size={16}/> Galerie <span className="nv-fullscreen-gallery-count">{visibleScenes.length}</span>
             </button>
@@ -2007,13 +2015,25 @@ function App(){
             {!preview&&<button type="button" className={'nv-fullscreen-tools-toggle'+(fullscreenToolsOpen?' is-active':'')}
               title="Ouvrir les réglages, la bibliothèque d’icônes et la barre du bas"
               aria-expanded={fullscreenToolsOpen} aria-controls="nv-fullscreen-tools"
-              onClick={()=>{setFullscreenToolsOpen(v=>!v);setFullscreenGalleryOpen(false);}}>
+              onClick={()=>{setFullscreenToolsOpen(v=>!v);setFullscreenCommandDrawerOpen(false);setFullscreenGalleryOpen(false);}}>
               <PanelRightClose size={16}/> Outils
             </button>}
             <button type="button" className="nv-creation-fullscreen-exit"
               onClick={()=>void toggleCreationFullscreen()} title="Revenir à NovaVisio Studio" aria-label="Quitter le plein écran de création">
               <Minimize2 size={17}/> Quitter
             </button>
+          </div>
+            {!preview&&<div className="nv-creation-fullscreen-palette" role="toolbar" aria-label="Ajouter des éléments dans la création">
+              {([
+                ['navigation','➜ Navigation'],['information','ⓘ Information'],['lien','↗ Lien'],
+                ['image','▣ Photo'],['video','▶ Vidéo']
+              ] as const).map(([type,label])=>(
+                <button key={type} type="button" className={'nv-fullscreen-tool'+(mode===type?' is-active':'')}
+                  onClick={()=>{setMode(mode===type?null:type);setSelectedId('');setFullscreenCommandDrawerOpen(false);}}
+                  title={'Ajouter : '+label}>{label}</button>
+              ))}
+              {mode&&<button type="button" className="nv-fullscreen-tool nv-fullscreen-cancel" onClick={()=>setMode(null)}>Annuler</button>}
+            </div>}
           </div>}
           {active&&creationFullscreen&&!preview&&fullscreenToolsOpen&&
             <aside id="nv-fullscreen-tools" className="nv-fullscreen-tools-panel" aria-label="Réglages en plein écran">
@@ -2300,20 +2320,6 @@ function App(){
                   </div>
                 </div>)}
             </aside>}
-          {active && creationFullscreen && !preview && <div className="nv-creation-fullscreen-palette" role="toolbar" aria-label="Ajouter des éléments dans la création">
-            {([
-              ['navigation','➜ Navigation'],
-              ['information','ⓘ Information'],
-              ['lien','↗ Lien'],
-              ['image','▣ Photo'],
-              ['video','▶ Vidéo']
-            ] as const).map(([type,label])=>(
-              <button key={type} type="button" className={'nv-fullscreen-tool'+(mode===type?' is-active':'')}
-                onClick={()=>{setMode(mode===type?null:type);setSelectedId('');}}
-                title={'Ajouter : '+label}>{label}</button>
-            ))}
-            {mode&&<button type="button" className="nv-fullscreen-tool nv-fullscreen-cancel" onClick={()=>setMode(null)}>Annuler</button>}
-          </div>}
           {active && !preview && mode && (
             <div className="mode-active-pill">
               <span className="mode-active-dot" />
@@ -2649,7 +2655,7 @@ function App(){
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
           <div className="style-settings">
             <div className="section-title">COULEURS ET CONTOURS</div>
-            <button type="button" className="tool" onClick={()=>{setPanel('icons');setShowCloseIconLibrary(false);}}>✕ Configurer la croix de fermeture de tous les popups</button>
+            <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
             <div className="style-colors">
               {barColorFields.map(field=><label className="style-color-field" key={field.key}>
                 <span>{field.label}</span>
@@ -2785,15 +2791,9 @@ function App(){
             <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
             <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>Actuellement appliquée partout</small></div>
           </div>
-          <button type="button" className="import" onClick={()=>{stateTarget.current=id=>setProject(p=>({...p,closeIconId:id}));stateIconInput.current?.click();}}>＋ Importer une nouvelle croix et l’appliquer partout</button>
-          {closeIcon&&<button type="button" className="tool" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
-          <button type="button" className="tool" onClick={()=>setShowCloseIconLibrary(v=>!v)}>{showCloseIconLibrary?'Masquer les croix disponibles':'Choisir une croix dans ma bibliothèque'}</button>
-          <button type="button" className="tool" onClick={()=>setProject(p=>({...p,closeIconId:undefined}))}>Utiliser la croix classique</button>
-          {showCloseIconLibrary&&<div className="nv-close-icon-picker">
-            {project.icons.map(icon=><button type="button" key={icon.id} className={project.closeIconId===icon.id?'is-active':''} onClick={()=>{setProject(p=>({...p,closeIconId:icon.id}));setShowCloseIconLibrary(false);}} title={icon.name}>
-              <img src={icon.dataUrl} alt=""/><small>{icon.name}</small>
-            </button>)}
-          </div>}
+          {iconStateEditor('global-close-icon','Icône de fermeture (toutes les fenêtres)',project.closeIconId,
+            id=>setProject(p=>({...p,closeIconId:id})),'✕')}
+          {closeIcon&&<button type="button" className="tool" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG dans toute la bibliothèque</button>}
           <p className="hint">Après avoir choisi la croix, clique sur « Enregistrer » en haut de NovaStudio. Les autres icônes de navigation ne sont pas modifiées.</p>
           <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
           <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
