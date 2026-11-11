@@ -3551,3 +3551,24 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 .nv-auto-symbol{font-size:19px;line-height:1}
 .nv-direction-preview~.nv-auto-navigation{visibility:hidden}
 @media(max-width:740px){.nv-auto-navigation{bottom:92px;min-height:41px;min-width:106px;padding:8px 14px;font-size:12px}}
+
+/* Auto intégré au milieu de la barre inférieure d'édition (plus de bouton flottant). */
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar{
+ position:static!important;left:auto!important;bottom:auto!important;top:auto!important;
+ transform:none!important;z-index:auto!important;
+ flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+ min-width:95px!important;min-height:0!important;height:auto!important;
+ padding:9px 13px!important;margin:0!important;
+ border-radius:10px!important;border:1px solid #69cce6!important;
+ background:linear-gradient(155deg,#247fa7,#135777)!important;
+ box-shadow:0 2px 6px #061c2d6b,inset 0 1px 0 #ffffff47!important;
+ color:#f0fdff!important;font-size:inherit!important;font-weight:800!important;
+ letter-spacing:0!important;white-space:nowrap;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar.is-active{
+ background:linear-gradient(155deg,#15566f,#0b3b5d)!important;
+ box-shadow:inset 0 3px 8px #001b31a8,0 0 0 1px #6ce2f0!important;
+ transform:translateY(2px)!important;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar:active{transform:translateY(2px)!important}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar .nv-auto-symbol{font-size:16px}
