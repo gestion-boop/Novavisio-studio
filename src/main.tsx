@@ -765,7 +765,7 @@ function App(){
         for(const target of targets){
           if(!target.link)continue;
           try{
-            const scoped=projectForSpaceExport(snapshot,target.space);
+            const scoped=projectForSpaceExport(snapshot,target.space,true);
             const result=await refreshActivePublication(scoped,target.link,
               progress=>setStatus('Publication '+target.name+' · '+progress));
             if(!result)continue;
@@ -875,7 +875,7 @@ function App(){
     setExporting(true);
     setStatus('Préparation du dossier HTML…');
     try {
-      await exportStaticTour(projectForSpaceExport(project,currentSpace));
+      await exportStaticTour(projectForSpaceExport(project,currentSpace,true));
       setStatus(currentSpace?'Espace « '+currentSpace.name+' » exporté en ZIP':'Dossier HTML prêt — archive ZIP téléchargée');
     }catch(err){setStatus('Échec de l’export : '+(err instanceof Error?err.message:String(err)));}
     finally{setExporting(false);}
@@ -3083,7 +3083,7 @@ function App(){
     <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {privateOpen&&<PrivatePanel project={projectForSpaceExport(project,currentSpace)} space={currentSpace} onClose={()=>setPrivateOpen(false)} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
-    {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace)} space={currentSpace} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
+    {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
       onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);cloud.markSynced(up,link);}}/>}
