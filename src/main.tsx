@@ -620,6 +620,7 @@ function App(){
   const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [quickLinkMode,setQuickLinkMode]=useState(true);
+  const [sideTabsExpanded,setSideTabsExpanded]=useState(false);
   const [pendingNavigation,setPendingNavigation]=useState<{fromId:string;targetId:string}|null>(null);
   const galleryOrientationRef=useRef<Record<string,{yaw:number;pitch:number;zoom:number}>>({});
   const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
@@ -1091,6 +1092,8 @@ function App(){
       const old=counts.get(key);
       counts.set(key,old?{...old,count:old.count+1}:{iconId:point.iconId,hoverIconId,pressedIconId,iconSize,count:1});
     }
+    const favorite=project.favoriteNavigationIconSet;
+    if(favorite&&counts.has(favorite))return counts.get(favorite)!;
     return [...counts.values()].sort((a,b)=>b.count-a.count)[0]??null;
   }
   const navigationIconDefault=defaultNavigationIconSet();
@@ -1543,6 +1546,7 @@ function App(){
     return [...map.values()];
   }
   // Jeux visibles : ceux que l'utilisateur n'a pas retirés de la liste.
+  function setNavigationIconFavorite(key:string){setProject(p=>({...p,favoriteNavigationIconSet:p.favoriteNavigationIconSet===key?undefined:key}));}
   function collectIconSets():IconSet[]{
     const hidden=new Set(project.hiddenIconSets??[]);
     return allIconSets().filter(set=>!hidden.has(set.key));
@@ -1579,6 +1583,7 @@ function App(){
           {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
           <span className="icon-set-size">{set.size} px</span>
         </button>
+        <button type="button" className={'nv-icon-set-favorite'+(project.favoriteNavigationIconSet===set.key?' is-active':'')} title="Flèche favorite du projet" aria-pressed={project.favoriteNavigationIconSet===set.key} onClick={()=>setNavigationIconFavorite(set.key)}>{project.favoriteNavigationIconSet===set.key?'★':'☆'}</button>
         <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}>✕</button>
       </div>)}</div>
       {restoreHiddenLink()}
@@ -2338,7 +2343,7 @@ function App(){
               </button>
             </div>
 
-            <div className="nv-quick-link-mode">
+            <div className="nv-quick-link-mode" hidden>
               <button type="button" className={quickLinkMode?'is-active':''} aria-pressed={quickLinkMode} onClick={()=>setQuickLinkMode(v=>!v)}>
                 ➜ {quickLinkMode?'Création de flèches activée':'Activer création de flèches'}
               </button>
@@ -2776,18 +2781,19 @@ function App(){
         </div>}
       </main>
       <aside className="right panel">
-        <div className="side-tabs" role="tablist" aria-label="Options d'édition">
-          <button role="tab" aria-selected={panel==='panoramas'} className={panel==='panoramas'?'active':''} onClick={()=>{setPanel('panoramas');setSelectedId('');setMode(null);}}>▣ Panoramas</button>
-          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points')}>
+        <button type="button" className="nv-side-tabs-toggle" aria-expanded={sideTabsExpanded} aria-controls="nv-sidebar-tools" onClick={()=>setSideTabsExpanded(v=>!v)}><span>Outils d'édition <small>· {({panoramas:'Panoramas',points:'Scène & Points',bar:'Barre du bas',icons:'Mes icônes',intro:'Intro',elements:'Éléments',music:'Musique',client:'NovaGen'} as Record<string,string>)[panel]??panel}</small></span><span aria-hidden="true">{sideTabsExpanded?'⌃':'⌄'}</span></button>
+        {sideTabsExpanded&&<div id="nv-sidebar-tools" className="side-tabs" role="tablist" aria-label="Options d'édition">
+          <button role="tab" aria-selected={panel==='panoramas'} className={panel==='panoramas'?'active':''} onClick={()=>{setPanel('panoramas');setSideTabsExpanded(false);setSelectedId('');setMode(null);}}>▣ Panoramas</button>
+          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points');setSideTabsExpanded(false)}>
             {selectedId ? '◉ Inspecteur' : 'Scène & Points'}
           </button>
-          <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>setPanel('bar')}>Barre du bas</button>
-          <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons')}>Mes icônes</button>
-          <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro')}>Intro</button>
-          <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements')}>Éléments</button>
-          <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music')}>Musique</button>
-          <button role="tab" aria-selected={panel==='client'} className={panel==='client'?'active':''} onClick={()=>setPanel('client')}>NovaGen</button>
-        </div>
+          <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>setPanel('bar');setSideTabsExpanded(false)}>Barre du bas</button>
+          <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons');setSideTabsExpanded(false)}>Mes icônes</button>
+          <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro');setSideTabsExpanded(false)}>Intro</button>
+          <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements');setSideTabsExpanded(false)}>Éléments</button>
+          <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music');setSideTabsExpanded(false)}>Musique</button>
+          <button role="tab" aria-selected={panel==='client'} className={panel==='client'?'active':''} onClick={()=>setPanel('client');setSideTabsExpanded(false)}>NovaGen</button>
+        </div>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
         <div className="nv-gallery-heading">
@@ -2802,7 +2808,7 @@ function App(){
           <small>Les originaux restent dans « Projet complet ».</small>
           <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
         </div>}
-        {!preview&&<div className="nv-quick-link-mode nv-sidebar-quick-link">
+        {!preview&&false&&<div className="nv-quick-link-mode nv-sidebar-quick-link">
           <button type="button" className={quickLinkMode?'is-active':''} aria-pressed={quickLinkMode}
             onClick={()=>setQuickLinkMode(v=>!v)}>
             ➜ {quickLinkMode?'Flèche automatique : activée':'Flèche automatique : désactivée'}
@@ -2869,11 +2875,8 @@ function App(){
             <button type="button" onClick={()=>{setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}} aria-label="Fermer l'aperçu">✕</button></div>
           {visibleScenes.filter(sc=>sc.id===galleryPreviewSceneId).map(sc=><div key={sc.id} className="nv-side-preview-content">
             <strong>{sc.name}</strong>
-            <div className="nv-side-preview-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/></div>
-            <button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);setPanel('points');}}>
-              Ouvrir ce panorama pour l'éditer
-            </button>
-            {!preview&&sc.id!==activeId&&<button type="button" className="nv-quick-create-arrow" onClick={()=>createNavigationFromGallery(sc.id)}>⊕ Sélectionner cette destination</button>}
+            <div className="nv-side-preview-viewer nv-targeted-preview"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/><div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div></div>
+            {!preview&&sc.id!==activeId?<button type="button" className="nv-quick-create-arrow" onClick={()=>createNavigationFromGallery(sc.id)}>⊕ Intégrer ce panorama</button>:<button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);setPanel('points');}}>Ouvrir pour éditer</button>}
           </div>)}
         </div>}
         <div className="helper nv-gallery-help" hidden>
@@ -3223,7 +3226,8 @@ function App(){
                 {iconSetCells(set).map(([label,url])=><span className="icon-set-cell" key={label}><img src={url} alt=""/><small>{label}</small></span>)}
                 <span className="icon-set-size">{set.size} px</span>
               </button>
-              <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}>✕</button>
+              <button type="button" className={'nv-icon-set-favorite'+(project.favoriteNavigationIconSet===set.key?' is-active':'')} title="Flèche favorite du projet" aria-pressed={project.favoriteNavigationIconSet===set.key} onClick={()=>setNavigationIconFavorite(set.key)}>{project.favoriteNavigationIconSet===set.key?'★':'☆'}</button>
+        <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}>✕</button>
             </div>)}</div>
             {restoreHiddenLink()}
           </>}
