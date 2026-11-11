@@ -3834,3 +3834,48 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 .nv-svg-recolor small{font-size:10px;line-height:1.45;color:#91b4c4}
 .nv-svg-workshop .hint-inline{font-size:10px;line-height:1.45}
 @media(max-width:650px){.nv-svg-presets{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+
+/* 2026-11-11 — Barre supérieure : commandes rectangulaires et effet pression. */
+.nv-studio-pro .topbar .nv-menu-trigger,
+.nv-studio-pro .topbar .nv-client-top-btn,
+.nv-studio-pro .topbar .nv-header-icon-btn,
+.nv-studio-pro .topbar .nv-header-update,
+.nv-studio-pro .topbar .nv-header-save,
+.nv-studio-pro .topbar .nv-header-export,
+.nv-studio-pro .topbar .mode-btn,
+.nv-studio-pro .topbar .project-name,
+.nv-studio-pro .topbar .top-actions > button {
+  border:1px solid #355b6c;
+  border-radius:11px;
+  background-color:#102b3a;
+  box-shadow:inset 0 1px 0 #ffffff10,0 2px 3px #00000026;
+  transition:background-color .14s ease,box-shadow .14s ease,transform .14s ease,border-color .14s ease;
+}
+.nv-studio-pro .topbar .nv-menu-trigger:hover,
+.nv-studio-pro .topbar .nv-header-icon-btn:hover,
+.nv-studio-pro .topbar .nv-client-top-btn:hover {
+  border-color:#59a8b2;background-color:#1a4351;
+}
+.nv-studio-pro .topbar .nv-menu-trigger.is-open,
+.nv-studio-pro .topbar .mode-btn.active,
+.nv-studio-pro .topbar .mode-btn.is-active,
+.nv-studio-pro .topbar .mode-btn[aria-pressed="true"],
+.nv-studio-pro .topbar button[aria-expanded="true"] {
+  background:#1c5962;
+  border-color:#4cc4bd;
+  color:#f0ffff;
+  box-shadow:inset 0 3px 8px #001b2580,inset 0 0 0 1px #68e5db20;
+  transform:translateY(1px);
+}
+.nv-studio-pro .topbar button:active:not(:disabled) {
+  transform:translateY(2px);
+  box-shadow:inset 0 3px 9px #00141bb0;
+}
+.nv-studio-pro .topbar .nv-header-save,
+.nv-studio-pro .topbar .nv-header-export {
+  background:#1b7777;border-color:#40c1b9;color:#fff;
+}
+@media(prefers-reduced-motion:reduce){
+  .nv-studio-pro .topbar button{transition:none}
+}
