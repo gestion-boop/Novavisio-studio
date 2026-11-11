@@ -574,6 +574,9 @@ function App(){
   useEffect(()=>()=>{if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);},[]);
   useEffect(()=>{if(!fullscreenGalleryOpen)setHoveredGallerySceneId(null);},[fullscreenGalleryOpen]);
   const [fullscreenToolsOpen,setFullscreenToolsOpen]=useState(false);
+  const [navigationPickerOpen,setNavigationPickerOpen]=useState(false);
+  const [navigationPickerHover,setNavigationPickerHover]=useState<string|null>(null);
+  const [navigationPickerSearch,setNavigationPickerSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
   const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
@@ -763,7 +766,7 @@ function App(){
 
   // Subspaces are non-destructive views over the master panorama library.
   useEffect(()=>{
-    if(!creationFullscreen){setFullscreenGalleryOpen(false);setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(false);}
+    if(!creationFullscreen){setFullscreenGalleryOpen(false);setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(false);setNavigationPickerOpen(false);}
   },[creationFullscreen]);
   const currentSpace:StudioSpace|null=(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null;
   const visibleScenes=scenesInSpace(project,currentSpace);
@@ -1479,6 +1482,8 @@ function App(){
       };
       return {...sc,hotspots:[...sc.hotspots,reverse]};
     })}));
+    setNavigationPickerOpen(false);
+    setNavigationPickerHover(null);
     setStatus(targetId?'Navigation définie · retour créé automatiquement dans le panorama de destination (derrière la vue d’arrivée)':'Destination retirée');
   }
   // Une connexion A → B peut créer sa flèche retour B → A en un seul clic.
@@ -2176,12 +2181,15 @@ function App(){
                       <input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/>
                     </label>
                     {selected.type==='navigation'&&<>
-                      <label>Aller vers
-                        <select value={selected.target} onChange={e=>setNavigationDestination(e.target.value)}>
-                          <option value="">Choisir un panorama</option>
-                          {visibleScenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                        </select>
-                      </label>
+                      <label>Aller vers</label>
+                      <button type="button" className="nv-quick-destination-picker" aria-expanded={navigationPickerOpen}
+                        aria-controls="nv-navigation-gallery-picker"
+                        onClick={()=>{setNavigationPickerOpen(v=>!v);setNavigationPickerHover(null);setFullscreenCommandDrawerOpen(false);setFullscreenGalleryOpen(false);}}>
+                        <Images size={16}/>
+                        <span>{project.scenes.find(sc=>sc.id===selected.target)?.name??'Choisir un panorama dans la galerie'}</span>
+                        <ChevronRight size={16}/>
+                      </button>
+                      <small className="nv-quick-hint">Sélectionne la destination dans la galerie visuelle à gauche. La scène en cours reste ouverte.</small>
                       <button type="button" className="tool" disabled={!selected.target||!visibleIds.has(selected.target)}
                         onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}}>
                         ➜ Tester la navigation
@@ -2378,6 +2386,44 @@ function App(){
                   <Eye size={14}/> Retour au panorama
                 </button>
               </div>
+            </aside>}
+          {active&&creationFullscreen&&!preview&&fullscreenToolsOpen&&navigationPickerOpen&&selected?.type==='navigation'&&
+            <aside id="nv-navigation-gallery-picker" className="nv-navigation-gallery-picker" aria-label="Choisir le panorama de destination">
+              <header className="nv-navigation-gallery-header">
+                <div><small>SÉLECTION DE DESTINATION</small><strong>Galerie des panoramas</strong></div>
+                <button type="button" aria-label="Fermer la galerie de sélection" onClick={()=>{setNavigationPickerOpen(false);setNavigationPickerHover(null);}}>✕</button>
+              </header>
+              <p className="nv-navigation-gallery-tip">Clique sur une vignette pour définir « Aller vers » sans changer de panorama.</p>
+              <input className="nv-navigation-gallery-search" type="search" value={navigationPickerSearch}
+                onChange={e=>setNavigationPickerSearch(e.target.value)} placeholder="Rechercher un panorama…" aria-label="Rechercher un panorama"/>
+              <div className="nv-navigation-gallery-list">
+                {visibleScenes.filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(navigationPickerSearch.toLocaleLowerCase('fr'))).map((sc,index)=>
+                  <button type="button" key={sc.id} title={'Choisir '+sc.name}
+                    className={'nv-fullscreen-gallery-scene'+(sc.id===selected.target?' is-active':'')}
+                    onMouseEnter={()=>setNavigationPickerHover(sc.id)}
+                    onMouseLeave={()=>setNavigationPickerHover(null)}
+                    onFocus={()=>setNavigationPickerHover(sc.id)}
+                    onClick={()=>setNavigationDestination(sc.id)}>
+                    {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} draggable={false} alt=""/>:<span className="nv-fullscreen-gallery-placeholder">◎</span>}
+                    <span className="nv-fullscreen-gallery-scene-details">
+                      <strong>{sc.name}</strong><small>{sc.id===selected.target?'✓ Destination sélectionnée':'Choisir cette destination'}</small>
+                    </span><ChevronRight size={15}/>
+                  </button>)}
+              </div>
+              <footer><button type="button" onClick={()=>{setNavigationPickerOpen(false);setNavigationPickerHover(null);}}>
+                <ChevronLeft size={15}/> Retour aux réglages
+              </button></footer>
+            </aside>}
+          {active&&creationFullscreen&&!preview&&fullscreenToolsOpen&&navigationPickerOpen&&navigationPickerHover&&
+            visibleScenes.some(sc=>sc.id===navigationPickerHover)&&
+            <aside className="nv-navigation-gallery-preview" aria-label="Aperçu du panorama avant sélection"
+              onMouseEnter={()=>{}} onMouseLeave={()=>setNavigationPickerHover(null)}>
+              {visibleScenes.filter(sc=>sc.id===navigationPickerHover).map(sc=><div key={sc.id} className="nv-hover-preview-content">
+                <div className="nv-hover-preview-title"><div><small>APERÇU 360°</small><strong>{sc.name}</strong></div>
+                  <button type="button" onClick={()=>setNavigationDestination(sc.id)}>Choisir cette destination <ChevronRight size={15}/></button>
+                </div>
+                <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>
+              </div>)}
             </aside>}
           {active&&creationFullscreen&&fullscreenCommandDrawerOpen&&fullscreenGalleryOpen&&hoveredGallerySceneId&&
             visibleScenes.some(scene=>scene.id===hoveredGallerySceneId)&&
