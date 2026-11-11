@@ -1079,13 +1079,17 @@ function App(){
     const destination=visibleScenes.find(scene=>scene.id===targetId);
     if(!source||!destination||source.id===destination.id)return;
     const cam=cameraRef.current;
-    if(cam.sceneId!==source.id){setStatus('Oriente le panorama de départ, puis sélectionne une destination.');return;}
+    // The viewer may not have emitted its first camera event yet.
+    // Use the source's recorded default orientation rather than doing nothing.
+    const orientation=cam.sceneId===source.id?cam:{
+      sceneId:source.id,yaw:source.arrivalYaw??0,pitch:source.arrivalPitch??0,zoom:panoramaArrivalZoom(source)
+    };
     const arrival=galleryOrientationRef.current[targetId]??{
       yaw:destination.arrivalYaw??0,pitch:destination.arrivalPitch??0,zoom:panoramaArrivalZoom(destination)
     };
     const point:Hotspot={
       id:uid(),type:'navigation',title:'Aller vers '+destination.name,text:'',
-      target:destination.id,yaw:cam.yaw,pitch:cam.pitch,
+      target:destination.id,yaw:orientation.yaw,pitch:orientation.pitch,
       arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,arrivalZoomModel:'wide'
     };
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===source.id?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
@@ -2748,6 +2752,13 @@ function App(){
           <small>Les originaux restent dans « Projet complet ».</small>
           <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
         </div>}
+        {!preview&&<div className="nv-quick-link-mode nv-sidebar-quick-link">
+          <button type="button" className={quickLinkMode?'is-active':''} aria-pressed={quickLinkMode}
+            onClick={()=>setQuickLinkMode(v=>!v)}>
+            ➜ {quickLinkMode?'Flèche automatique : activée':'Flèche automatique : désactivée'}
+          </button>
+          <small>{quickLinkMode?'Clique sur un panorama ci-dessous pour placer immédiatement sa flèche dans la vue actuelle.':'Clique sur un panorama pour l’ouvrir sans créer de flèche.'}</small>
+        </div>}
         <button className="import" onClick={()=>upload.current?.click()}>
           <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer des panoramas
         </button>
@@ -2774,13 +2785,13 @@ function App(){
           onMouseEnter={()=>hoverSidePreview(s.id)} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
-          <button className={'scene '+(s.id===activeId?'active':'')} title="Ouvrir ce panorama dans la grande vue"
+          <button className={'scene '+(s.id===activeId?'active':'')} title={!preview&&quickLinkMode&&s.id!==activeId?'Créer directement une flèche vers '+s.name:'Ouvrir ce panorama dans la grande vue'}
             onKeyDown={e=>{
               if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
               e.preventDefault();
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
-            onClick={()=>{selectScene(s.id);setSelectedId('');setMode(null);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}}>
+            onClick={()=>{if(!preview&&quickLinkMode&&s.id!==activeId){createNavigationFromGallery(s.id);}else{selectScene(s.id);setSelectedId('');setMode(null);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}}}>
             {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
             <span className="nv-scene-description">
               <strong title={s.name}>{s.name}</strong>
