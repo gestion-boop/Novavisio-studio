@@ -209,7 +209,8 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
       if (a.preview) {
         if(h.type==='navigation' && h.target) a.onNavigate(h.target,h);
         else if(h.type==='information') {
-          if (h.url && safeLink(h.url)) a.onLink(h.title,h.url);
+          if (h.imageDataUrl) a.onImage(h,lastPointer.current);
+          else if (h.url && safeLink(h.url)) a.onLink(h.title,h.url);
           else a.onInfo(h);
         }
         else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
@@ -218,7 +219,7 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
       } else if (h.type==='navigation' && h.target && !a.mode) {
         // Une flèche configurée reste navigable en mode édition.
         a.onNavigate(h.target,h);
-      } else if (h.type==='image' && h.imageDataUrl && !a.mode) {
+      } else if ((h.type==='image'||h.type==='information') && h.imageDataUrl && !a.mode) {
         // Un clic sur le cadre ouvre la photo avec le fondu même en mode édition.
         // Pour modifier le cadre, on le sélectionne depuis la liste des points.
         a.onImage(h,lastPointer.current);
@@ -861,7 +862,7 @@ function App(){
   async function addFrameImage(file?:File){
     if(!file)return;
     const sceneId=activeId,hotspotId=selectedId;
-    if(!sceneId||!hotspotId){setPhotoFeedback('Sélectionne un cadre photo avant d’importer une image.');return;}
+    if(!sceneId||!hotspotId){setPhotoFeedback('Sélectionne un cadre photo ou un point Information avant d’importer une image.');return;}
     setPhotoFeedback('Import de la photo…');
     if(file.size>40*1024*1024){
       setPhotoFeedback('Photo trop volumineuse (40 Mo maximum).');
@@ -898,7 +899,7 @@ function App(){
       setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==sceneId?sc:{
         ...sc,hotspots:sc.hotspots.map(h=>h.id===hotspotId?{...h,imageDataUrl:data}:h)
       })}));
-      setPhotoFeedback('Photo intégrée dans le cadre.');
+      setPhotoFeedback('Photo importée avec succès.');
       setStatus('Photo ajoutée au panorama');
     }catch(e){
       const message=e instanceof Error?e.message:'Impossible de lire cette photo.';
@@ -1981,6 +1982,22 @@ function App(){
                         <textarea rows={3} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/>
                       </label>
                     </>}
+                    {selected.type==='information'&&<>
+                      <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo du popup':'Importer une photo pour popup'}
+                        <input type="file" accept="image/*,.heic,.heif"
+                          onChange={e=>{void addFrameImage(e.target.files?.[0]);e.currentTarget.value='';}}/>
+                      </label>
+                      {selected.imageDataUrl&&<>
+                        <img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo du popup"/>
+                        <label className="nv-quick-check"><input type="checkbox" checked={selected.fadeOnClick!==false}
+                          onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Animation de fondu au clic</label>
+                        <button type="button" className="nv-quick-primary" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
+                          <Eye size={15}/> Tester le popup photo
+                        </button>
+                        <button type="button" className="tool" onClick={()=>patchPoint({imageDataUrl:undefined})}>Retirer la photo</button>
+                      </>}
+                      <p className="nv-quick-hint">Dans la visite classique, un clic sur l’icône Information ouvre cette photo en grand.</p>
+                    </>}
                     {selected.type==='image'&&<>
                       <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo':'Ajouter une photo'}
                         <input type="file" accept="image/*,.heic,.heif"
@@ -2425,6 +2442,22 @@ function App(){
                     <input type="text" placeholder="https://… menu, réservations" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
                     <small className="hint-inline">Si renseignée, la page s'ouvre directement dans la visite à la place du texte.</small>
                   </label>
+                  <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
+                    onDragLeave={e=>e.currentTarget.classList.remove('drag-hover')}
+                    onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
+                    <span className="photo-upload-icon">＋</span>
+                    <strong>{selected.imageDataUrl?'Remplacer la photo du popup':'Importer une photo pour popup'}</strong>
+                    <span>Cliquer ici ou déposer une photo · JPG, PNG, WebP</span>
+                    <input type="file" accept="image/*,.heic,.heif" onChange={e=>{void addFrameImage(e.currentTarget.files?.[0]);e.currentTarget.value='';}}/>
+                  </label>
+                  {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
+                  {selected.imageDataUrl&&<>
+                    <img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo du popup"/>
+                    <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick!==false} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Popup avec fondu au clic</label>
+                    <button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}><Eye size={15}/> Tester le popup photo</button>
+                    <button type="button" className="style-reset" onClick={()=>patchPoint({imageDataUrl:undefined})}>Supprimer la photo du popup</button>
+                  </>}
+                  <small className="hint-inline">Si une photo est importée, elle s’ouvre au clic sur l’icône Information dans la visite classique, avant la page web ou le texte.</small>
                 </>
               )}
 
