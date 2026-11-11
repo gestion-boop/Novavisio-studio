@@ -108,3 +108,34 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
   background:#0b1c27;color:#c6e1e2;
   font-size:13px;font-weight:600;letter-spacing:.035em;
 }
+
+
+/* iPhone/iPad fallback when Safari does not allow fullscreen for ordinary
+   non-video elements. This fills the usable viewport; browser chrome is OS-owned. */
+html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
+  overflow:hidden!important;
+  overscroll-behavior:none;
+}
+.tour-app.nv-tour-viewport-expanded{
+  position:fixed!important;
+  inset:0!important;
+  top:0!important;left:0!important;
+  width:100vw!important;
+  width:100dvw!important;
+  height:100vh!important;
+  height:100dvh!important;
+  z-index:2147483000!important;
+  border:0!important;
+  margin:0!important;
+  padding:0!important;
+  background:#081722;
+}
+.tour-app.nv-tour-viewport-expanded .tour-fullscreen,
+.tour-app:fullscreen .tour-fullscreen{
+  top:max(10px,env(safe-area-inset-top));
+  right:max(10px,env(safe-area-inset-right));
+}
+.tour-app.nv-tour-viewport-expanded .tour-bottom-bar,
+.tour-app:fullscreen .tour-bottom-bar{
+  bottom:max(12px,env(safe-area-inset-bottom));
+}
