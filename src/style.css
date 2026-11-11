@@ -2632,3 +2632,22 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 @media(max-width:650px){
   .nv-fullscreen-gallery-hover-preview{display:none}
 }
+
+/* Fermetures des images, informations et pages intégrées : thème du projet. */
+.image-lightbox .lightbox-close,
+.info-in-view .modal > .close,
+.embed-shell .embed-actions button{
+  background:var(--nv-button-bg,#4f202c);
+  border:1px solid var(--nv-button-outline,#d2b5af);
+  color:var(--nv-icon-color,#fff);
+  transition:filter .15s ease,transform .15s ease;
+}
+.info-in-view .modal > .close{
+  display:grid;place-items:center;width:42px;height:42px;border-radius:50%;
+}
+.image-lightbox .lightbox-close:hover,
+.info-in-view .modal > .close:hover,
+.embed-shell .embed-actions button:hover{filter:brightness(1.18)}
+.image-lightbox .lightbox-close:active,
+.info-in-view .modal > .close:active,
+.embed-shell .embed-actions button:active{transform:scale(.95)}
