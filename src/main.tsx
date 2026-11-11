@@ -615,6 +615,13 @@ function App(){
   useEffect(()=>()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);},[]);
   const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
+  const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
+  const [panoramasLayout,setPanoramasLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-panorama-layout')==='grid'?'grid':'list';}catch{return 'list';}});
+  const [showArrivalCrosshair,setShowArrivalCrosshair]=useState(false);
+  useEffect(()=>{try{localStorage.setItem('nvstudio-gallery-layout',fullscreenGalleryLayout);}catch{}},[fullscreenGalleryLayout]);
+  useEffect(()=>{try{localStorage.setItem('nvstudio-panorama-layout',panoramasLayout);}catch{}},[panoramasLayout]);
+  useEffect(()=>{if(fullscreenToolsOpen&&fullscreenCommandDrawerOpen)setFullscreenCommandDrawerOpen(false);},[fullscreenToolsOpen,fullscreenCommandDrawerOpen]);
+  useEffect(()=>{if(!creationFullscreen)setShowArrivalCrosshair(false);},[creationFullscreen]);
   const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
   const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
   const creationFallbackRef=useRef(false);
@@ -2173,6 +2180,7 @@ function App(){
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
             </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
           </div>}
+          {creationFullscreen&&showArrivalCrosshair&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
             <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
@@ -2182,19 +2190,19 @@ function App(){
             onClick={()=>void toggleCreationFullscreen()} title="Agrandir uniquement la création 360°" aria-label="Plein écran de la création">
             <Maximize2 size={18}/> Plein écran création
           </button>}
-          {active && creationFullscreen && <button type="button" className={'nv-command-drawer-handle'+(fullscreenCommandDrawerOpen?' is-open':'')}
+          {active && creationFullscreen && !fullscreenToolsOpen && <button type="button" className={'nv-command-drawer-handle'+(fullscreenCommandDrawerOpen?' is-open':'')}
             onClick={()=>{setFullscreenCommandDrawerOpen(open=>!open);setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);setHoveredGallerySceneId(null);}}
             aria-expanded={fullscreenCommandDrawerOpen} aria-controls="nv-fullscreen-command-drawer"
             aria-label={fullscreenCommandDrawerOpen?'Masquer les commandes':'Afficher les commandes'}>
             <PanelRightClose size={19}/> <span>{fullscreenCommandDrawerOpen?'Masquer':'Commandes'}</span>
           </button>}
-          {active && creationFullscreen && fullscreenCommandDrawerOpen && <div id="nv-fullscreen-command-drawer" className="nv-command-drawer" aria-label="Commandes de création">
+          {active && creationFullscreen && fullscreenCommandDrawerOpen && !fullscreenToolsOpen && <div id="nv-fullscreen-command-drawer" className="nv-command-drawer" aria-label="Commandes de création">
             <div className="nv-command-drawer-heading"><strong>{fullscreenGalleryOpen?'Galerie':'Commandes'}</strong><button type="button" onClick={()=>setFullscreenCommandDrawerOpen(false)} aria-label="Fermer le tiroir">✕</button></div>
             {fullscreenGalleryOpen?null:<><div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
             <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
             <button type="button" className={'nv-fullscreen-gallery-toggle'+(fullscreenGalleryOpen?' is-active':'')}
               aria-expanded={fullscreenGalleryOpen} aria-controls="nv-fullscreen-gallery"
-              onClick={()=>{setFullscreenGalleryOpen(true);setHoveredGallerySceneId(null);setMode(null);}}
+              onClick={()=>{setFullscreenGalleryOpen(true);setHoveredGallerySceneId(null);setMode(null);setFullscreenToolsOpen(false);}}
               title="Choisir un panorama dans la galerie">
               <Images size={16}/> Galerie <span className="nv-fullscreen-gallery-count">{visibleScenes.length}</span>
             </button>
@@ -2248,7 +2256,8 @@ function App(){
               </button>
             </div>
 
-            <div className="nv-fullscreen-gallery-list">
+            <div className="nv-gallery-layout-choice" role="group" aria-label="Affichage des panoramas"><button type="button" className={fullscreenGalleryLayout==='grid'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('grid')}>▦ Grille</button><button type="button" className={fullscreenGalleryLayout==='list'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('list')}>☷ Liste</button></div>
+            <div className={'nv-fullscreen-gallery-list nv-gallery-layout-'+fullscreenGalleryLayout}>
               {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
                 className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')}
                 onMouseEnter={()=>scheduleGalleryHover(scene.id)}
@@ -2270,7 +2279,8 @@ function App(){
             </footer>
             </section>}
             {!fullscreenGalleryOpen&&<div className="nv-drawer-arrival-action">
-              <button type="button" className="nv-drawer-arrival-save" onClick={saveArrivalView}
+              <button type="button" className="nv-arrival-aim-toggle" onClick={()=>{setShowArrivalCrosshair(v=>!v);setFullscreenCommandDrawerOpen(false);}} aria-pressed={showArrivalCrosshair}>⊕ {showArrivalCrosshair?'Masquer le viseur':'Afficher le viseur'}</button>
+              <button type="button" className="nv-drawer-arrival-save" onClick={()=>{saveArrivalView();setShowArrivalCrosshair(false);}}
                 title="Définir l'orientation et le zoom d'arrivée de ce panorama">
                 <Eye size={17}/> Définir la vue actuelle
               </button>
@@ -2693,7 +2703,10 @@ function App(){
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
         <div className="nv-gallery-heading">
           <div className="section-title"><span>PANORAMAS</span><span className="counter">{visibleScenes.length}</span></div>
-          <button type="button" className="nv-gallery-reset" onClick={()=>setGalleryVerticalOffset(0)} title="Remonter les panoramas en haut">↑ Remonter</button>
+          <div className="nv-gallery-heading-actions"><div className="nv-gallery-layout-choice" role="group" aria-label="Affichage des panoramas">
+            <button type="button" className={panoramasLayout==='grid'?'is-active':''} onClick={()=>setPanoramasLayout('grid')}>▦</button>
+            <button type="button" className={panoramasLayout==='list'?'is-active':''} onClick={()=>setPanoramasLayout('list')}>☷</button>
+          </div><button type="button" className="nv-gallery-reset" onClick={()=>setGalleryVerticalOffset(0)} title="Remonter les panoramas en haut">↑ Remonter</button></div>
         </div>
         {currentSpace&&<div className="nv-space-sidebar-context">
           <strong>{currentSpace.name}</strong>
@@ -2722,7 +2735,7 @@ function App(){
             <span className="nv-gallery-drag-lines" aria-hidden="true">⠿</span> Déplacer la liste <span className="nv-gallery-drag-direction" aria-hidden="true">↕</span>
           </button>
         </div>
-        <div className="scenes" ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
+        <div className={'scenes nv-panorama-list-'+panoramasLayout} ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
           onMouseEnter={()=>hoverSidePreview(s.id)} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
