@@ -68,3 +68,35 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 
 /* Fondu final avant retrait de l'introduction ; la visite est chargée dessous. */
 .tour-intro.is-ending{animation:none;opacity:0;transition:opacity .35s ease;pointer-events:none}
+
+
+/* Démarrage public soigné : aucune barre, flèche ou panorama ne traverse
+   l'écran d'introduction, même pendant le chargement du lecteur WebGL. */
+.tour-intro{
+  position:absolute;inset:0;z-index:200;
+  background:#0b1c27;
+  animation:none!important;
+  opacity:1;
+  transform:none!important;
+  overflow:hidden;
+}
+.tour-intro iframe{display:block;width:100%;height:100%;border:0;background:#0b1c27}
+.tour-intro.is-ending{opacity:0;transition:opacity .35s ease;pointer-events:none}
+.nv-intro-loading-mask,.nv-tour-startup-mask{
+  position:absolute;inset:0;z-index:210;
+  display:flex;flex-direction:column;gap:18px;
+  align-items:center;justify-content:center;
+  color:#c6e1e2;background:#0b1c27;
+  font-size:13px;font-weight:600;letter-spacing:.035em;
+}
+.nv-intro-loading-mask{pointer-events:none;z-index:2}
+.nv-tour-startup-mask{z-index:190}
+.nv-tour-startup-spinner{
+  width:32px;height:32px;border:2px solid #2d5461;
+  border-top-color:#7cd9cf;border-radius:50%;
+  animation:nv-tour-start-spin 1.1s linear infinite;
+}
+@keyframes nv-tour-start-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+  .nv-tour-startup-spinner{animation-duration:2s}
+}
