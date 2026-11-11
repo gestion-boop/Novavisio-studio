@@ -57,11 +57,27 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
     const ps=await listCloudProjects();
     if(!cancelled)setStudio(ps);
    }catch(e){if(!cancelled){setStudio([]);setErrorStudio(e instanceof Error?e.message:String(e));}}
+   // Progressively fetch every NovaGen page, not just the first 18 clients.
+   // Keep each completed batch visible, without modifying either database.
+   let offset:number|null=0;
+   const visited=new Set<number>();
+   let firstPage=true;
    try{
-    const list=await listNovaGen(0);
-    if(!cancelled){setRemote(list.clients);setTotalNovaGen(list.total);setNextOffset(list.nextOffset);setTruncated(list.truncated);}
+    while(offset!==null&&!cancelled){
+     if(visited.has(offset))throw new Error('Pagination NovaGen incohérente.');
+     visited.add(offset);
+     if(!firstPage)setMoreLoading(true);
+     const page=await listNovaGen(offset);
+     if(cancelled)break;
+     setRemote(old=>[...old,...page.clients.filter(x=>!old.some(y=>y.id===x.id))]);
+     setTotalNovaGen(page.total);
+     setTruncated(page.truncated);
+     offset=page.nextOffset;
+     setNextOffset(offset);
+     if(firstPage){setLoading(false);firstPage=false;}
+    }
    }catch(e){if(!cancelled)setErrorNovaGen(e instanceof Error?e.message:String(e));}
-   if(!cancelled)setLoading(false);
+   if(!cancelled){setLoading(false);setMoreLoading(false);}
   };
   void run();
   return ()=>{cancelled=true;};
@@ -172,8 +188,10 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
                <Cloud size={14}/> Se connecter au Cloud
              </button>}
           </div>}
-          {nextOffset!==null&&<button type="button" className="nv-directory-more"
-            disabled={moreLoading} onClick={()=>void next()}>{moreLoading?'Chargement…':'Afficher les autres fiches NovaGen'}</button>}
+          {nextOffset!==null&&<div className="nv-directory-pagination-status">
+            {moreLoading?<><LoaderCircle size={14}/> Récupération automatique des autres fiches NovaGen…</>:
+              <button type="button" className="nv-directory-more" onClick={()=>void next()}>Reprendre le chargement des fiches NovaGen</button>}
+          </div>}
         </div>
       </aside>
       <main className="nv-directory-detail">
@@ -254,7 +272,9 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
     </div>}
     {truncated&&<div className="nv-directory-status">NovaGen a atteint la limite de son index (1 000 fiches). Une récupération par lots sera nécessaire pour le reste.</div>}
     <footer className="nv-directory-foot"><span>Lecture seule · Aucune fiche d'origine modifiée</span>
-      <span>{loading?<><LoaderCircle size={13}/> Chargement des deux sources…</>:'Sources : NovaStudio Cloud et NovaGen'}</span></footer>
+      <span>{loading?<><LoaderCircle size={13}/> Connexion aux deux sources…</>:
+           moreLoading?<><LoaderCircle size={13}/> Import de toutes les fiches NovaGen en cours…</>:
+           'Sources : NovaStudio Cloud et NovaGen'}</span></footer>
   </section>
  </div>;
 }
