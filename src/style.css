@@ -1537,6 +1537,29 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 }
 .nv-fullscreen-gallery-arrival button:hover{background:#238b88}
 .nv-fullscreen-gallery-arrival-saved{font-size:10px;line-height:1.45;color:#7de4cc}
+/* Vue d'arrivée déplacée de la galerie vers l'onglet Points des réglages rapides. */
+.nv-fullscreen-tools-body .nv-quick-arrival{
+  margin:18px 0 8px;
+  padding:14px;
+  gap:11px;
+  border-radius:11px;
+}
+.nv-fullscreen-tools-body .nv-quick-arrival .nv-fullscreen-gallery-arrival-text strong{
+  font-size:13px;
+}
+.nv-fullscreen-tools-body .nv-quick-arrival .nv-fullscreen-gallery-arrival-text span{
+  font-size:11px;
+  line-height:1.55;
+}
+.nv-fullscreen-tools-body .nv-quick-arrival button{
+  width:100%;
+  min-height:40px;
+  font-size:12px;
+}
+.nv-fullscreen-tools-body .nv-quick-arrival .nv-fullscreen-gallery-arrival-saved{
+  font-size:11px;
+}
+
 .nv-fullscreen-gallery-list{
   display:flex;flex-direction:column;gap:7px;
   min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;
