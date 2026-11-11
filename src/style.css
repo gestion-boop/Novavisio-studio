@@ -2462,3 +2462,22 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
  .nv-fullscreen-tools-toggle{padding:7px;font-size:11px}
 }
 @media(max-height:640px){.nv-fullscreen-tools-panel{top:110px;bottom:48px}.nv-quick-point-list{max-height:90px}}
+
+
+/* Complete icon packs in the immersive inspector: preview all 3 states at once. */
+.nv-quick-icon-pack{display:flex;flex-direction:column;gap:8px;margin:10px 0 16px;padding-bottom:13px;border-bottom:1px solid #325161}
+.nv-quick-icon-pack .nv-quick-section-title{margin:2px 0 0}
+.nv-quick-icon-pack>.nv-quick-hint{margin:0 0 2px}
+.nv-quick-icon-packs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:275px;overflow-y:auto;padding:2px;scrollbar-width:thin}
+.nv-quick-icon-pack-choice{display:flex;flex-direction:column;justify-content:center;gap:7px;min-width:0;padding:8px 5px;border:1px solid #3b6272;border-radius:10px;background:#163a49;color:#dceef1;cursor:pointer}
+.nv-quick-icon-pack-choice:hover{border-color:#69cfc6;background:#235362}
+.nv-quick-icon-pack-choice.is-active{border-color:#58e4d7;background:#205d60;box-shadow:inset 0 0 0 1px #58e4d740}
+.nv-quick-icon-pack-icons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:start;gap:4px}
+.nv-quick-icon-pack-state{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.nv-quick-icon-pack-state img{width:37px;height:37px;object-fit:contain;display:block;pointer-events:none}
+.nv-quick-icon-pack-state small{font-size:8px;line-height:1.25;color:#add2d9;white-space:nowrap}
+.nv-quick-icon-pack-empty{display:grid;place-items:center;width:37px;height:37px;border:1px solid #4d7582;border-radius:9px;color:#86b5bf}
+.nv-quick-icon-pack-caption{font-size:10px;color:#b3d2d8;text-align:center;font-weight:700}
+.nv-quick-icon-pack-restore{background:#1b4c54;border:1px solid #43888b;border-radius:8px;padding:7px;color:#d2faf3;font-size:10px}
+.nv-quick-icon-advanced{display:none}
+@media(max-width:480px){.nv-quick-icon-pack-state img{width:33px;height:33px}.nv-quick-icon-packs{gap:5px}}
