@@ -1365,56 +1365,149 @@ function App(){
     setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
     cloud.unlink();
   }
-  return <div className="app">
+  return <div ref={studioRef} className={
+    'app nv-studio-pro'+
+    (studioFallback?' nv-studio-fullscreen-fallback':'')+
+    (leftHidden?' nv-studio-hide-left':'')+
+    (rightHidden?' nv-studio-hide-right':'')+
+    (sceneDensity==='compact'?' nv-scenes-compact':'')
+  }>
     <header className="topbar">
-      <div className="brand">
-        <div className="brand-logo">◉</div>
-        <div>
-          <strong>NovaVisio <span>Studio</span></strong>
-          <small>ÉDITEUR DE VISITES 360°</small>
+      <div className="nv-top-left">
+        <div className="brand">
+          <div className="brand-logo">
+            <img src="/brand/novavisio-logo.png" alt="Logo NovaVisio" draggable={false}/>
+          </div>
+          <div className="nv-brand-text">
+            <strong>NovaVisio <span>Studio</span></strong>
+            <small>ÉDITEUR DE VISITES 360°</small>
+          </div>
         </div>
-      </div>
-      <div className="project-name">
-        <div className="project-name-wrapper">
-          <Edit3 size={13} className="project-edit-icon" />
-          <input aria-label="Nom du projet" value={project.name} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/>
+        <div className="project-name">
+          <div className="project-name-wrapper">
+            <Edit3 size={14} className="project-edit-icon" />
+            <input aria-label="Nom du projet" value={project.name}
+              onChange={e=>setProject(p=>({...p,name:e.target.value}))}/>
+          </div>
+          <span className="save-chip" title={'Sauvegarde : '+status}>{status}</span>
+          {cloud.state.kind!=='off'&&<button type="button"
+            className={'cloud-chip is-'+cloud.state.kind}
+            onClick={()=>cloud.state.kind==='error'?cloud.retryNow():setCloudOpen(true)}
+            title={cloud.state.kind==='saved'&&cloud.state.note?cloud.state.note:'Statut de synchronisation Supabase'}>
+            <Cloud size={12}/> {cloudLabel(cloud.state)}
+          </button>}
         </div>
-        <span className="save-chip">{status}</span>
-        {cloud.state.kind!=='off'&&<button type="button" className={'cloud-chip is-'+cloud.state.kind} onClick={()=>cloud.state.kind==='error'?cloud.retryNow():setCloudOpen(true)} title={cloud.state.kind==='saved'&&cloud.state.note?cloud.state.note:'Sauvegarde instantanée dans Supabase'}>☁ {cloudLabel(cloud.state)}</button>}
       </div>
       <div className="top-actions">
-        <div className="mode-switch-group">
-          <button type="button" className={'mode-btn ' + (!preview ? 'is-active' : '')} onClick={() => { if(preview) { setPreview(false); setIntroVisible(false); } }}>
-            <Edit3 size={13}/> Mode Édition
+        <div className="mode-switch-group" role="group" aria-label="Mode de l'éditeur">
+          <button type="button" className={'mode-btn '+(!preview?'is-active':'')}
+            aria-pressed={!preview}
+            onClick={()=>{if(preview){setPreview(false);setIntroVisible(false);}}}>
+            <Edit3 size={15}/> Éditer
           </button>
-          <button type="button" className={'mode-btn ' + (preview ? 'is-active' : '')} title="Jouer la visite à partir de la scène affichée" onClick={() => {
-            if(!preview) {
-              // L'aperçu démarre sur la scène actuellement affichée : pas d'introduction, pas de retour à la 1re scène.
-              // (L'introduction se teste depuis l'onglet « Intro ».)
-              setIntroVisible(false);
-              setPreview(true); setMode(null); setSelectedId('');
-            }
-          }}>
-            <Eye size={13}/> Aperçu
+          <button type="button" className={'mode-btn '+(preview?'is-active':'')}
+            aria-pressed={preview}
+            title="Visualiser la visite depuis la scène affichée"
+            onClick={()=>{
+              if(!preview){setIntroVisible(false);setPreview(true);setMode(null);setSelectedId('');}
+            }}>
+            <Eye size={15}/> Aperçu
           </button>
         </div>
-        <button className="share-btn" onClick={()=>setShareOpen(true)} title="Créer un lien public à durée limitée (3, 5, 7 ou 10 jours)">
-          <Link2 size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Lien public
+        <div className="nv-header-menu-list" ref={topMenusRef}>
+          <div className="nv-menu-root">
+            <button type="button" className={'nv-menu-trigger '+(openTopMenu==='file'?'is-open':'')}
+              aria-haspopup="menu" aria-expanded={openTopMenu==='file'}
+              onClick={()=>setOpenTopMenu(m=>m==='file'?null:'file')}>
+              Fichier <ChevronDown size={13}/>
+            </button>
+            {openTopMenu==='file'&&<div className="nv-menu-popover" role="menu" aria-label="Fichier">
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
+                <Plus size={16}/><span>Nouveau projet</span>
+              </button>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);projectInput.current?.click();}}>
+                <Download size={16}/><span>Ouvrir un projet</span>
+              </button>
+              <div className="nv-menu-divider" role="separator"/>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);download();}}>
+                <Download size={16}/><span>Sauvegarder sur cet appareil</span>
+              </button>
+              <button type="button" role="menuitem" disabled={exporting||!visibleScenes.length}
+                onClick={()=>{setOpenTopMenu(null);void exportTour();}}>
+                <Sparkles size={16}/><span>{currentSpace?'Exporter cet espace':'Exporter HTML / ZIP'}</span>
+              </button>
+            </div>}
+          </div>
+          <div className="nv-menu-root">
+            <button type="button" className={'nv-menu-trigger '+(openTopMenu==='share'?'is-open':'')}
+              aria-haspopup="menu" aria-expanded={openTopMenu==='share'}
+              onClick={()=>setOpenTopMenu(m=>m==='share'?null:'share')}>
+              Partager <ChevronDown size={13}/>
+            </button>
+            {openTopMenu==='share'&&<div className="nv-menu-popover" role="menu" aria-label="Partager">
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setShareOpen(true);}}>
+                <Link2 size={16}/><span>Lien public et publication</span>
+              </button>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setPrivateOpen(true);}}>
+                <Lock size={16}/><span>Invitations et lien privé</span>
+              </button>
+            </div>}
+          </div>
+          <div className="nv-menu-root">
+            <button type="button" className={'nv-menu-trigger '+(openTopMenu==='display'?'is-open':'')}
+              aria-haspopup="menu" aria-expanded={openTopMenu==='display'}
+              onClick={()=>setOpenTopMenu(m=>m==='display'?null:'display')}>
+              Affichage <ChevronDown size={13}/>
+            </button>
+            {openTopMenu==='display'&&<div className="nv-menu-popover nv-display-popover"
+              role="menu" aria-label="Affichage">
+              <button type="button" role="menuitem" onClick={()=>void toggleStudioFullscreen()}>
+                {studioFullscreen?<Minimize2 size={16}/>:<Maximize2 size={16}/>}
+                <span>{studioFullscreen?'Quitter le plein écran':'Plein écran du logiciel'}</span>
+              </button>
+              <div className="nv-menu-divider" role="separator"/>
+              <button type="button" role="menuitemcheckbox" aria-checked={!leftHidden}
+                onClick={()=>setLeftHidden(value=>!value)}>
+                <PanelLeftClose size={16}/><span>Colonne panoramas</span><b>{leftHidden?'Masquée':'Visible'}</b>
+              </button>
+              <button type="button" role="menuitemcheckbox" aria-checked={!rightHidden}
+                onClick={()=>setRightHidden(value=>!value)}>
+                <PanelRightClose size={16}/><span>Inspecteur</span><b>{rightHidden?'Masqué':'Visible'}</b>
+              </button>
+              <div className="nv-menu-divider" role="separator"/>
+              <button type="button" role="menuitemradio" aria-checked={sceneDensity==='comfortable'}
+                onClick={()=>setSceneDensity('comfortable')}>
+                <Images size={16}/><span>Grandes miniatures</span><b>{sceneDensity==='comfortable'?'✓':''}</b>
+              </button>
+              <button type="button" role="menuitemradio" aria-checked={sceneDensity==='compact'}
+                onClick={()=>setSceneDensity('compact')}>
+                <LayoutGrid size={16}/><span>Liste compacte</span><b>{sceneDensity==='compact'?'✓':''}</b>
+              </button>
+              <div className="nv-menu-divider" role="separator"/>
+              <button type="button" role="menuitem" onClick={()=>{
+                setLeftHidden(false);setRightHidden(false);setSceneDensity('comfortable');setOpenTopMenu(null);
+              }}>
+                <Home size={16}/><span>Réinitialiser l’affichage</span>
+              </button>
+            </div>}
+          </div>
+          <div className="nv-menu-root">
+            <button type="button" className="nv-menu-trigger" title="Sauvegardes et versions Supabase"
+              onClick={()=>{setOpenTopMenu(null);setCloudOpen(true);}}>
+              <Cloud size={16}/> Cloud
+            </button>
+          </div>
+        </div>
+        <button type="button" className="nv-header-icon-btn"
+          title={studioFullscreen?'Quitter le plein écran':'Plein écran de tout NovaVisio Studio'}
+          aria-label={studioFullscreen?'Quitter le plein écran du logiciel':'Plein écran du logiciel'}
+          aria-pressed={studioFullscreen} onClick={()=>void toggleStudioFullscreen()}>
+          {studioFullscreen?<Minimize2 size={18}/>:<Maximize2 size={18}/>}
         </button>
-        <button className="share-btn private-btn" onClick={()=>setPrivateOpen(true)} title="Inviter une personne (e-mail + mot de passe) à travailler sur cette visite">
-          <Lock size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Lien privé
-        </button>
-        <button className="quiet" onClick={startFresh} title="Nouveau projet">Nouveau</button>
-        <button className="quiet" onClick={()=>projectInput.current?.click()} title="Ouvrir un projet .nvstudio.json">Ouvrir</button>
-        <button className="quiet" onClick={download} title="Sauvegarder le projet localement">
-          <Download size={13} style={{marginRight:4,verticalAlign:'-1px'}}/> Sauvegarder
-        </button>
-        <button className="quiet" onClick={()=>setCloudOpen(true)} title="Synchroniser avec Supabase">
-          <Cloud size={13} style={{marginRight:4,verticalAlign:'-1px'}}/> Cloud
-        </button>
-        <button className="primary" disabled={exporting} onClick={()=>void exportTour()}>
-          <Sparkles size={14} style={{marginRight:5,verticalAlign:'-2px'}}/>
-          {exporting?'Export…':currentSpace?'Exporter cet espace':'Exporter HTML / ZIP'}
+        <button type="button" className="primary nv-header-export" disabled={exporting||!visibleScenes.length}
+          title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
+          onClick={()=>void exportTour()}>
+          <Download size={15}/>{exporting?'Export…':'Exporter'}
         </button>
       </div>
     </header>
