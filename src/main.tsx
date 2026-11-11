@@ -1416,8 +1416,12 @@ function App(){
                 <Download size={16}/><span>Ouvrir un projet</span>
               </button>
               <div className="nv-menu-divider" role="separator"/>
+              <button type="button" role="menuitem" disabled={!ready||savingManually||!!lock}
+                onClick={()=>{setOpenTopMenu(null);void manualSave();}}>
+                <Save size={16}/><span>Enregistrer maintenant</span><b>⌘ S</b>
+              </button>
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);download();}}>
-                <Download size={16}/><span>Sauvegarder sur cet appareil</span>
+                <Download size={16}/><span>Télécharger une copie .nvstudio.json</span>
               </button>
               <button type="button" role="menuitem" disabled={exporting||!visibleScenes.length}
                 onClick={()=>{setOpenTopMenu(null);void exportTour();}}>
