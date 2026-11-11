@@ -855,6 +855,7 @@ function App(){
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-bar-bg':project.barStyle.background,
+    '--nv-daynight-color':project.barStyle.dayNightColor??'#2f72b4',
     '--nv-bar-outline':project.barStyle.outline,
     '--nv-button-bg':project.barStyle.button,
     '--nv-button-outline':project.barStyle.buttonOutline,
@@ -1051,6 +1052,9 @@ function App(){
         <span>Vue Nuit : {source.name}</span>
       </div>}
       {configured&&<>
+        <label className="nv-night-color-picker">Couleur du bouton Nuit
+          <input type="color" aria-label="Couleur du bouton Nuit" value={project.barStyle.dayNightColor??'#2f72b4'} onChange={e=>changeBarStyle({dayNightColor:e.target.value})}/>
+        </label>
         <div className="nv-daynight-preview">
           <button type="button" className={nightSceneId===scene.id?'':'is-active'} onClick={()=>setNightSceneId(null)}>☀ Jour</button>
           <button type="button" className={nightSceneId===scene.id?'is-active':''} onClick={()=>setNightSceneId(scene.id)}>☾ Nuit</button>
