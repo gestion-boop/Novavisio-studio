@@ -28,7 +28,7 @@ import {startPosterBounce} from './posterBounce';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type BarStyle,type GalleryItem,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,type GalleryItem,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
 import './style.css';
 import './media.css';
 
@@ -503,7 +503,7 @@ function App(){
   const [savingManually,setSavingManually]=useState(false);
   const [activeId,setActiveId]=useState('');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
-  const [infoLanguage,setInfoLanguage]=useState<'fr'|'en'|'es'|'nl'>('fr');
+  const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
   const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
   const [editingSpaceId,setEditingSpaceId]=useState<string|null>(null);
@@ -1273,6 +1273,33 @@ function App(){
       </div>
     </div>;
   }
+  const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
+  function setProjectLanguage(code:StudioLanguage,enabled:boolean){
+    setProject(p=>{
+      const current=p.languages??(p.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr' as StudioLanguage]);
+      const next=enabled?STUDIO_LANGUAGES.map(lang=>lang.code).filter(lang=>lang===code||current.includes(lang)) :current.filter(lang=>lang!==code);
+      return next.length?{...p,languages:next}:p;
+    });
+  }
+  function projectLanguageEditor(){
+    return <div className="nv-project-language-settings">
+      <div className="section-title">LANGUES DU PROJET</div>
+      <p className="hint">Choisis les langues proposées dans les points Information. Ce réglage est enregistré avec le projet Cloud.</p>
+      <div className="nv-project-language-options">{STUDIO_LANGUAGES.map(lang=><label key={lang.code} className="nv-project-language-option">
+        <input type="checkbox" checked={activeLanguages.includes(lang.code)} onChange={e=>setProjectLanguage(lang.code,e.target.checked)}/>
+        <span aria-hidden="true">{lang.flag}</span><strong>{lang.name}</strong>
+      </label>)}</div>
+      <small>Les langues des pages externes intégrées restent configurées sur leur site d'origine.</small>
+    </div>;
+  }
+  function languageTexts(texts:Partial<Record<'en'|'es'|'de'|'nl',string>>|undefined,onChange:(code:'en'|'es'|'de'|'nl',value:string)=>void){
+    return STUDIO_LANGUAGES.filter(lang=>lang.code!=='fr'&&activeLanguages.includes(lang.code)).map(lang=>{
+      const code=lang.code as 'en'|'es'|'de'|'nl';
+      return <label key={code}>{lang.flag} {lang.name} — texte traduit
+        <textarea rows={3} value={texts?.[code]??''} placeholder={'Texte '+lang.name} onChange={e=>onChange(code,e.target.value)}/>
+      </label>;
+    });
+  }
   function triggerBar(item:BottomBarItem){
     if(!preview){
       setSelectedBarId(item.id);setPanel('bar');setSelectedId('');
@@ -1285,7 +1312,7 @@ function App(){
       if(dest)selectScene(dest);
     }else if(item.type==='information') {
       if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url);
-      else {setFrame(null);setInfoLanguage('fr');setInfo({id:item.id,type:'information',title:item.title,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
+      else {setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo({id:item.id,type:'information',title:item.title,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
     }
     else if(item.url)openLinkInTour(item.title,item.url);
   }
@@ -2063,7 +2090,7 @@ function App(){
           </b>
         </div>
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage('fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
@@ -2545,7 +2572,7 @@ function App(){
               <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer">✕</button>
               <h2>{info.title}</h2>
               <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
-                {([{code:'fr',flag:'🇫🇷',name:'Français'},{code:'en',flag:'🇬🇧',name:'English'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}] as const).map(lang=><button type="button" key={lang.code} title={lang.name} aria-label={lang.name} aria-pressed={infoLanguage===lang.code} className={infoLanguage===lang.code?'is-active':''} onClick={()=>setInfoLanguage(lang.code)}>{lang.flag}</button>)}
+                {STUDIO_LANGUAGES.filter(lang=>activeLanguages.includes(lang.code)).map(lang=><button type="button" key={lang.code} title={lang.name} aria-label={lang.name} aria-pressed={infoLanguage===lang.code} className={infoLanguage===lang.code?'is-active':''} onClick={()=>setInfoLanguage(lang.code)}>{lang.flag}</button>)}
               </div><p className="preserve">{(infoLanguage==='fr'?info.text:info.translations?.[infoLanguage]||info.text)||'Aucune information renseignée.'}</p>
               <button className="primary" onClick={()=>setInfo(null)}>Fermer</button>
             </div>
@@ -2797,7 +2824,7 @@ function App(){
                   <label>Texte affiché
                     <textarea rows={4} placeholder="Description ou informations..." value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/>
                   </label>
-                  {selected.type==='information'&&<label>🇳🇱 Nederlands — texte du point<textarea rows={4} value={selected.translations?.nl??''} placeholder="Texte en néerlandais…" onChange={e=>patchPoint({translations:{...selected.translations,nl:e.target.value}})}/></label>}
+                  {selected.type==='information'&&languageTexts(selected.translations,(code,value)=>patchPoint({translations:{...selected.translations,[code]:value}}))}
                   <label>Page web intégrée (optionnel)
                     <input type="text" placeholder="https://… menu, réservations" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
                     <small className="hint-inline">Si renseignée, la page s'ouvre directement dans la visite à la place du texte.</small>
@@ -2922,6 +2949,7 @@ function App(){
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
+          {projectLanguageEditor()}
           <div className="style-settings">
             <div className="section-title">COULEURS ET CONTOURS</div>
             <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
@@ -2958,7 +2986,7 @@ function App(){
               <option value="navigation">Aller vers un panorama</option><option value="gallery">Galerie de panoramas (raccourcis)</option><option value="information">Afficher des informations</option><option value="lien">Ouvrir un lien / réserver / appeler</option>
             </select></label>
             {selectedBar.type==='gallery'?galleryPanel(selectedBar):selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
-            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label><label>🇳🇱 Nederlands — texte du panneau<textarea rows={4} value={selectedBar.translations?.nl??''} placeholder="Texte en néerlandais…" onChange={e=>patchBar({translations:{...selectedBar.translations,nl:e.target.value}})}/></label>
+            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>{languageTexts(selectedBar.translations,(code,value)=>patchBar({translations:{...selectedBar.translations,[code]:value}}))}
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
