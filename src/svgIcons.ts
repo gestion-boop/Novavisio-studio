@@ -9,6 +9,7 @@ export type SvgIconDesign={primary:string;secondary:string;accent:string;gradien
 export const SVG_ICON_PRESETS=[
   {id:'info',name:'Informations',paths:'<circle cx="12" cy="12" r="8.2"/><path d="M12 11v5"/><path d="M12 8h.01"/>'},
   {id:'arrow',name:'Navigation',paths:'<path d="M4 12h15m-6-6 6 6-6 6"/>'},
+  {id:'pin3d',name:'Repère 3D',paths:''},
   {id:'location',name:'Localisation',paths:'<path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/><circle cx="12" cy="10" r="2.3"/>'},
   {id:'phone',name:'Téléphone',paths:'<path d="M7 3h3l1.2 4.5-2.4 1.6a15 15 0 0 0 6.1 6.1l1.6-2.4L21 14v3c0 2-2 4-4 4C10 21 3 14 3 7c0-2 2-4 4-4Z"/>'},
   {id:'wifi',name:'Wi-Fi',paths:'<path d="M2.5 9a15 15 0 0 1 19 0M5.8 12.5a10 10 0 0 1 12.4 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="19.2" r="1" fill="currentColor" stroke="none"/>'},
@@ -33,6 +34,15 @@ export const SVG_ICON_PRESETS=[
 
 const hex=(value:string,fallback:string)=>/^#[0-9a-f]{6}$/i.test(value)?value:fallback;
 export function svgIconMarkup(iconId:string,design:SvgIconDesign):string {
+  if(iconId==='pin3d'){
+    const primary=hex(design.primary,'#f13c35'),accent=hex(design.accent,'#ad1419');
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">'+
+      '<defs><linearGradient id="pinBody" x1="0" y1="0" x2=".82" y2="1"><stop stop-color="'+primary+'"/><stop offset=".65" stop-color="'+primary+'"/><stop offset="1" stop-color="'+accent+'"/></linearGradient></defs>'+
+      '<path d="M128 11C66 11 28 59 28 115c0 68 76 121 100 133 24-12 100-65 100-133C228 59 190 11 128 11Z" fill="'+accent+'" opacity=".55" transform="translate(5 2)"/>'+
+      '<path d="M128 9C70 9 32 52 32 109c0 64 73 121 96 135 23-14 96-71 96-135C224 52 186 9 128 9Z" fill="url(#pinBody)" stroke="'+accent+'" stroke-width="3"/>'+
+      '<path d="M43 104C48 49 81 20 128 20c48 0 82 31 87 84" fill="none" stroke="#ffffff" stroke-opacity=".22" stroke-width="8" stroke-linecap="round"/>'+
+      '<circle cx="128" cy="109" r="43" fill="'+accent+'" opacity=".78"/><circle cx="128" cy="104" r="35" fill="none" stroke="'+primary+'" stroke-width="7"/></svg>';
+  }
   const preset=SVG_ICON_PRESETS.find(p=>p.id===iconId)??SVG_ICON_PRESETS[0];
   const p=hex(design.primary,'#187e9c'),s=hex(design.secondary,'#ffffff'),a=hex(design.accent,'#43d8ce');
   const gradientId='novavisio-gradient';
