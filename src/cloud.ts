@@ -273,23 +273,33 @@ export async function saveWorking(project:StudioProject,link:CloudLink|null,onPr
 
 /** Remplace les références `nvmedia:` d'un instantané par les vrais médias téléchargés. */
 async function hydrateSnapshot(snapshot:StudioProject,onProgress:(msg:string)=>void):Promise<StudioProject>{
-  const db=supabase();
+  // Deduplicate the references first; download large 360 panoramas in a small
+  // bounded pool instead of blocking the whole recovery on serial requests.
   const slots=mediaSlots(snapshot).filter(s=>s.get()?.startsWith(MEDIA_PREFIX));
-  const cache=new Map<string,string>();
-  let n=0;
+  const refs=[...new Set(slots.map(s=>s.get()!))];
+  const downloaded=new Map<string,string>();
+  let next=0,completed=0;
+  onProgress('Préparation de '+refs.length+' médias du cloud…');
+  const worker=async()=>{
+    while(next<refs.length){
+      const ref=refs[next++];
+      const cached=mediaByRef.get(ref);
+      if(cached){downloaded.set(ref,cached);completed++;onProgress('Chargement des médias '+completed+'/'+refs.length+'…');continue;}
+      const {data:blob,error}=await supabase().storage.from(BUCKET).download(ref.slice(MEDIA_PREFIX.length));
+      if(error||!blob)throw new Error('Impossible de récupérer un média du cloud : '+(error?.message??ref));
+      const dataUrl=await blobToDataUrl(blob);
+      downloaded.set(ref,dataUrl);
+      mediaByRef.set(ref,dataUrl);
+      completed++;
+      onProgress('Chargement des médias '+completed+'/'+refs.length+'…');
+    }
+  };
+  await Promise.all(Array.from({length:Math.min(3,refs.length)},()=>worker()));
   for(const slot of slots){
-    n++;
-    const ref=slot.get()!;
-    const cached=cache.get(ref)??mediaByRef.get(ref);
-    if(cached){slot.set(cached);continue;}
-    onProgress('Téléchargement des médias '+n+'/'+slots.length+'…');
-    const {data:blob,error:dlError}=await db.storage.from(BUCKET).download(ref.slice(MEDIA_PREFIX.length));
-    if(dlError||!blob)throw new Error('Média introuvable : '+(dlError?.message??ref));
-    const dataUrl=await blobToDataUrl(blob);
-    cache.set(ref,dataUrl);
-    mediaByRef.set(ref,dataUrl);
-    slot.set(dataUrl);
+    const value=downloaded.get(slot.get()!);
+    if(value)slot.set(value);
   }
+  onProgress('Vérification de la visite…');
   return validateProject(snapshot);
 }
 /** Ouvre la version la plus récente d'une visite : la copie de travail si elle existe, sinon la dernière révision. */
@@ -304,6 +314,24 @@ export async function openCloudProject(projectId:string,onProgress:(msg:string)=
   }
   const loaded=await loadFromCloud(projectId,onProgress);
   return {project:loaded.project,link:{...loaded.link,version:0}};
+}
+
+export type CloudRevision={revision:number;created_at:string;name:string};
+export async function listCloudRevisions(projectId:string):Promise<CloudRevision[]>{
+  const {data,error}=await supabase().from('nvstudio_revisions')
+    .select('revision,created_at,name').eq('project_id',projectId)
+    .order('revision',{ascending:false}).limit(100);
+  if(error)throw new Error('Historique des sauvegardes indisponible : '+error.message);
+  return (data??[]) as CloudRevision[];
+}
+/** Restaure en lecture seule une révision immuable, sans modifier le cloud. */
+export async function openCloudRevision(projectId:string,revision:number,onProgress:(msg:string)=>void):Promise<{project:StudioProject;link:CloudLink}>{
+  const {data,error}=await supabase().from('nvstudio_revisions')
+    .select('snapshot').eq('project_id',projectId).eq('revision',revision).maybeSingle();
+  if(error)throw new Error('Lecture de la sauvegarde impossible : '+error.message);
+  if(!data)throw new Error('Cette sauvegarde n’existe pas.');
+  const project=await hydrateSnapshot(data.snapshot as StudioProject,onProgress);
+  return {project,link:{projectId,revision,version:0}};
 }
 
 export async function loadFromCloud(projectId:string,onProgress:(msg:string)=>void):Promise<{project:StudioProject;link:CloudLink}>{
