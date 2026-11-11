@@ -1792,6 +1792,10 @@ function App(){
               title="Voir la création sans poignées d'édition">
               <Eye size={16}/> Voir
             </button>
+            <button type="button" className="nv-fullscreen-save" onClick={()=>void manualSave()}
+              disabled={!ready||savingManually||!!lock} title="Enregistrer la visite sans quitter le plein écran">
+              <Save size={16}/> {savingManually?'Sauvegarde…':'Enregistrer'}
+            </button>
             {!preview&&<button type="button" className={'nv-fullscreen-tools-toggle'+(fullscreenToolsOpen?' is-active':'')}
               title="Ouvrir les réglages, la bibliothèque d’icônes et la barre du bas"
               aria-expanded={fullscreenToolsOpen} aria-controls="nv-fullscreen-tools"
