@@ -11,7 +11,7 @@ export type Hotspot = {
   id:string;
   type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
-  translations?: Partial<Record<'en'|'es'|'nl',string>>;
+  translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;url?:string;
   imageDataUrl?:string;
   imageBounce?:boolean;
@@ -57,7 +57,7 @@ export type BottomBarItem = {
   target: string;
   text: string;
   url: string;
-  translations?: Partial<Record<'en'|'es'|'nl',string>>;
+  translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   iconId?: string;
   hoverIconId?: string;
   pressedIconId?: string;
@@ -100,7 +100,9 @@ export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
 export type ClientProfile = {novagenId:string;name:string;category:string;address:string;city:string;phone:string;email:string;website:string;facebook:string;instagram:string;otherLinks:string;description:string; bookingUrl?:string; openingHours?:string; services?:string; logoUrl?:string; photoUrls?:string[]; sourceNotes?:string[]};
 export const emptyClientProfile=():ClientProfile=>({novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''});
-export type StudioProject = { version: 1; clientProfile?:ClientProfile; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
+export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
+export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
+export type StudioProject = { version: 1; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -236,7 +238,7 @@ export function validateProject(value:unknown):StudioProject {
       (item.galleryTitle !== undefined && (typeof item.galleryTitle !== 'string' || item.galleryTitle.length > 100)) ||
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||
-      (item.translations!==undefined && (typeof item.translations!=='object' || item.translations===null || Object.entries(item.translations).some(([lang,txt])=>!['en','es','nl'].includes(lang)||typeof txt!=='string'||txt.length>8000))) ||
+      (item.translations!==undefined && (typeof item.translations!=='object' || item.translations===null || Object.entries(item.translations).some(([lang,txt])=>!['en','es','de','nl'].includes(lang)||typeof txt!=='string'||txt.length>8000))) ||
       (item.iconId !== undefined && (typeof item.iconId !== 'string' || !icons.some(icon => icon.id === item.iconId))) ||
       (item.hoverIconId !== undefined && (typeof item.hoverIconId !== 'string' || !icons.some(icon => icon.id === item.hoverIconId))) ||
       (item.pressedIconId !== undefined && (typeof item.pressedIconId !== 'string' || !icons.some(icon => icon.id === item.pressedIconId))) ||
@@ -309,8 +311,10 @@ export function validateProject(value:unknown):StudioProject {
        throw new Error('Un espace contient des références de panoramas invalides');
     spaceIds.add(space.id);
   }
+  const languages=p.languages===undefined?(p.name?.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(l=>l.code):['fr' as StudioLanguage]):p.languages;
+  if(!Array.isArray(languages)||!languages.length||languages.length>5||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
   const hiddenIconSets = Array.isArray(p.hiddenIconSets) ? p.hiddenIconSets.filter(k => typeof k === 'string' && k.length < 600).slice(0, 300) : undefined;
-  return {...p,version:1,name:p.name,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,closeIconId:p.closeIconId,introUrl,introEnabled,introDuration,spaces,hiddenIconSets,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  return {...p,version:1,name:p.name,languages,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,closeIconId:p.closeIconId,introUrl,introEnabled,introDuration,spaces,hiddenIconSets,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
 
 /**
