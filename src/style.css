@@ -2380,3 +2380,85 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
     padding:7px 10px;
   }
 }
+
+
+/* Immersive editing: contextual tools are kept inside the native fullscreen element. */
+.nv-fullscreen-tools-toggle{
+ display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:9px 11px;
+ border:1px solid #356d79;background:#163846;color:#dcf8f7;font-weight:700;font-size:12px;
+}
+.nv-fullscreen-tools-toggle.is-active,.nv-fullscreen-tools-toggle:hover{
+ border-color:#5be5d9;background:#20646b;color:#fff;
+}
+.nv-fullscreen-tools-panel{
+ position:absolute;z-index:58;right:max(14px,env(safe-area-inset-right));
+ top:max(147px,calc(env(safe-area-inset-top) + 138px));
+ bottom:max(100px,calc(env(safe-area-inset-bottom) + 85px));
+ width:min(335px,calc(100% - 28px));display:flex;flex-direction:column;
+ border:1px solid #376e7c;border-radius:14px;background:rgba(9,29,40,.96);
+ color:#e8f6f7;box-shadow:0 18px 48px rgba(0,0,0,.6);
+ overflow:hidden;backdrop-filter:blur(14px);
+}
+.nv-fullscreen-tools-head{
+ display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px;
+ background:#173442;border-bottom:1px solid #345566;
+}
+.nv-fullscreen-tools-head>div{display:flex;flex-direction:column;gap:4px}
+.nv-fullscreen-tools-head small{color:#77bcc3;font-size:9px;letter-spacing:.13em;font-weight:750}
+.nv-fullscreen-tools-head strong{font-size:14px}
+.nv-fullscreen-tools-head>button{
+ display:grid;place-items:center;width:28px;height:28px;border:1px solid #52717b;
+ background:#1f4655;color:#e2f8fa;border-radius:8px
+}
+.nv-fullscreen-tools-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:8px;background:#112b38;border-bottom:1px solid #305362}
+.nv-fullscreen-tools-tabs button{padding:9px 6px;border:1px solid transparent;border-radius:7px;background:transparent;color:#a2c3cb;font-size:11px;font-weight:700}
+.nv-fullscreen-tools-tabs button.is-active{background:#23606a;border-color:#40b8b8;color:#e7fffa}
+.nv-fullscreen-tools-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:13px;scrollbar-width:thin;scrollbar-color:#456c77 transparent}
+.nv-quick-section-title{font-size:10px;letter-spacing:.09em;color:#93b5c3;font-weight:800;margin:7px 0 10px}
+.nv-quick-point-list{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;max-height:184px;overflow:auto}
+.nv-quick-point-list>button{display:flex;align-items:center;gap:9px;border:1px solid #345365;border-radius:8px;background:#163341;color:#e2f3f4;padding:6px 10px;text-align:left;min-height:39px}
+.nv-quick-point-list>button:hover{background:#23505d}
+.nv-quick-point-list>button.is-active{border-color:#49cabe;background:#21525e}
+.nv-quick-point-list>button span{flex:none;display:grid;place-items:center;width:24px;height:24px;color:#74ded4}
+.nv-quick-point-list>button span img{width:24px;height:24px;object-fit:contain}
+.nv-quick-point-list>button strong{font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-quick-fields{display:flex;flex-direction:column;gap:12px}
+.nv-quick-fields label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:#b8d1d9;font-weight:650}
+.nv-quick-fields input:not([type=checkbox]):not([type=file]),.nv-quick-fields select,.nv-quick-fields textarea{
+ width:100%;min-width:0;min-height:33px;padding:8px;border-radius:7px;
+ border:1px solid #446478;background:#1c3747;color:#f0fcfd;font-size:12px;
+}
+.nv-quick-fields input[type=range]{padding:0!important;accent-color:#37cec2}
+.nv-quick-fields .nv-quick-check{display:flex;align-items:center;flex-direction:row;gap:9px}
+.nv-quick-check input{accent-color:#3ed0c6}
+.nv-quick-icon-field{display:flex;flex-direction:column;gap:8px;border-bottom:1px solid #294656;padding-bottom:12px}
+.nv-quick-icon-field>strong{font-size:11px;color:#c9e2e8}
+.nv-quick-icon-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;max-height:155px;overflow-y:auto}
+.nv-quick-icon-grid button{
+ display:grid;place-items:center;aspect-ratio:1;width:100%;min-width:0;
+ padding:4px;border:1px solid #456679;border-radius:8px;background:#173c4b;color:#b8d6de;
+ font-size:16px;cursor:pointer;
+}
+.nv-quick-icon-grid button:hover{background:#295766;border-color:#71d3c5}
+.nv-quick-icon-grid button.is-active{border:2px solid #56eee0;background:#1c6065}
+.nv-quick-icon-grid img{width:100%;height:100%;max-width:38px;max-height:38px;object-fit:contain;pointer-events:none}
+.nv-quick-upload,.nv-quick-upload-small{
+ position:relative;display:flex!important;align-items:center!important;justify-content:center;
+ cursor:pointer;border:1px dashed #4ac7b8;border-radius:8px;background:#1b515c;
+ padding:10px;color:#c8fdf6!important;font-size:11px!important;font-weight:750;
+}
+.nv-quick-upload-small{padding:7px}
+.nv-quick-upload input,.nv-quick-upload-small input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.nv-quick-hint{font-size:11px;line-height:1.55;color:#9fc0c8;margin:9px 0}
+.nv-quick-delete{display:flex;align-items:center;justify-content:center;gap:7px;padding:9px;background:#45252d;border:1px solid #94656c;color:#ffd1d4;border-radius:8px;font-size:11px}
+.nv-quick-primary{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid #45b9af;border-radius:8px;background:#1e6268;color:#e0faf7;font-size:11px;font-weight:700}
+.nv-quick-colors{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nv-quick-colors label{display:flex;align-items:center;justify-content:space-between;border:1px solid #37586b;border-radius:8px;padding:8px;color:#bbd6df;font-size:10px}
+.nv-quick-colors input[type=color]{width:35px;height:27px;padding:0;cursor:pointer;border:0;background:transparent}
+.nv-fullscreen-tools-foot{padding:9px 13px;border-top:1px solid #315567;background:#143443}
+.nv-fullscreen-tools-foot button{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;border:1px solid #3b717e;border-radius:8px;padding:8px;color:#ccf3ee;background:#1e525d;font-size:11px}
+@media(max-width:760px){
+ .nv-fullscreen-tools-panel{top:112px;bottom:95px;right:8px;width:min(315px,calc(100% - 16px))}
+ .nv-fullscreen-tools-toggle{padding:7px;font-size:11px}
+}
+@media(max-height:640px){.nv-fullscreen-tools-panel{top:110px;bottom:48px}.nv-quick-point-list{max-height:90px}}
