@@ -1,4 +1,5 @@
 import type {StudioProject,Scene,BottomBarItem} from './storage';
+import type {CloudLink} from './cloud';
 
 export type StudioSpace={id:string;name:string;sceneIds:string[]};
 
@@ -43,4 +44,17 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
 
 export function safeSpaceName(name:string):string{
   return name.slice(0,100);
+}
+
+/** Liens cloud distincts par espace et par usage. Ne jamais remplacer readLink()/writeLink()
+ * du projet maître : une publication isolée ne doit pas changer son association cloud. */
+const spaceLinkKey=(spaceId:string,kind:'public'|'private')=>'nvstudio-space-cloud-v1:'+kind+':'+spaceId;
+export function readSpaceCloudLink(spaceId:string,kind:'public'|'private'):CloudLink|null{
+  try{
+    const raw=JSON.parse(localStorage.getItem(spaceLinkKey(spaceId,kind))||'null') as CloudLink|null;
+    return raw&&typeof raw.projectId==='string'&&Number.isInteger(raw.revision)?raw:null;
+  }catch{return null;}
+}
+export function writeSpaceCloudLink(spaceId:string,kind:'public'|'private',link:CloudLink){
+  try{localStorage.setItem(spaceLinkKey(spaceId,kind),JSON.stringify(link));}catch{/* unavailable */ }
 }
