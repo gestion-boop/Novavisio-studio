@@ -4,7 +4,7 @@ import {frameWorldCorners} from './sphericalFrame';
 import type {FrameSphericalCorners,Hotspot,Scene} from './storage';
 
 /**
- * Très léger rebond des « affiches » (cadres photo et écrans vidéo posés dans le panorama) pour montrer qu'on peut cliquer dessus.
+ * Très léger rebond optionnel des cadres photo uniquement. Les écrans vidéo restent toujours immobiles.
  * Les affiches sont dessinées dans la vue 3D : on anime donc leurs 4 coins autour de leur centre (un simple zoom de l'objet
  * depuis le centre de la sphère ne changerait rien à l'écran). Le rebond est amorti : +3 % puis -1 % puis retour à 100 %.
  */
@@ -14,7 +14,7 @@ const PAUSE_MS=4200;         // puis un rebond toutes les ~5 secondes
 const STAGGER_MS=110;        // plusieurs affiches : léger décalage entre elles
 const AMPLITUDE=0.05;
 
-const isPoster=(h:Hotspot)=>(h.type==='image'&&!!h.imageDataUrl)||(h.type==='video'&&!!(h.videoDataUrl||h.videoUrl));
+const isPoster=(h:Hotspot)=>h.type==='image'&&!!h.imageDataUrl&&h.imageBounce!==false;
 const wrap=(a:number)=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;};
 const curve=(t:number)=>1+AMPLITUDE*Math.sin(t*Math.PI*2*1.5)*Math.exp(-3.5*t);
 
