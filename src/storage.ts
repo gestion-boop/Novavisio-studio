@@ -21,7 +21,7 @@ export type Hotspot = {
   frameSphericalCorners?:FrameSphericalCorners;
   fadeOnClick?:boolean;
   // Flèche de navigation : vue d'arrivée dans le panorama de destination, propre à CETTE flèche.
-  arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;
+  arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
 };
 export type CustomIcon = { id: string; name: string; dataUrl: string };
 export type MusicTrack = {
@@ -84,7 +84,7 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
 };
 export type Scene = {
   id:string;name:string;dataUrl:string;hotspots:Hotspot[];
-  arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;
+  arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
   audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
   musicTrackId?:string;
 };
@@ -221,7 +221,8 @@ export function validateProject(value:unknown):StudioProject {
       throw new Error('Musique du panorama introuvable');
     if((scene.arrivalYaw!==undefined && (!Number.isFinite(scene.arrivalYaw)||Math.abs(scene.arrivalYaw)>100)) ||
        (scene.arrivalPitch!==undefined && (!Number.isFinite(scene.arrivalPitch)||Math.abs(scene.arrivalPitch)>Math.PI/2+0.001)) ||
-       (scene.arrivalZoom!==undefined && (!Number.isFinite(scene.arrivalZoom)||scene.arrivalZoom<0||scene.arrivalZoom>100))
+       (scene.arrivalZoom!==undefined && (!Number.isFinite(scene.arrivalZoom)||scene.arrivalZoom<0||scene.arrivalZoom>100)) ||
+       (scene.arrivalZoomModel!==undefined && scene.arrivalZoomModel!=='wide')
     ) throw new Error('Vue d’arrivée invalide');
     if ((scene.audioDataUrl !== undefined && (scene.audioDataUrl.length > 34_000_000 || !isSafeAudioData(scene.audioDataUrl))) ||
         (scene.audioUrl !== undefined && scene.audioUrl !== '' && !isSafeMediaUrl(scene.audioUrl)) ||
@@ -237,6 +238,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.arrivalYaw !== undefined && (!Number.isFinite(h.arrivalYaw) || Math.abs(h.arrivalYaw) > 100)) ||
         (h.arrivalPitch !== undefined && (!Number.isFinite(h.arrivalPitch) || Math.abs(h.arrivalPitch) > Math.PI/2 + 0.001)) ||
         (h.arrivalZoom !== undefined && (!Number.isFinite(h.arrivalZoom) || h.arrivalZoom < 0 || h.arrivalZoom > 100)) ||
+        (h.arrivalZoomModel !== undefined && h.arrivalZoomModel !== 'wide') ||
         (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 16 || h.iconSize > 120)) ||
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
