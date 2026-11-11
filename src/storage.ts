@@ -102,7 +102,7 @@ export type ClientProfile = {novagenId:string;name:string;category:string;addres
 export const emptyClientProfile=():ClientProfile=>({novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''});
 export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
 export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
-export type StudioProject = { version: 1; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
+export type StudioProject = { version: 1; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[]}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -314,7 +314,9 @@ export function validateProject(value:unknown):StudioProject {
   const languages=p.languages===undefined?(p.name?.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(l=>l.code):['fr' as StudioLanguage]):p.languages;
   if(!Array.isArray(languages)||!languages.length||languages.length>5||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
   const hiddenIconSets = Array.isArray(p.hiddenIconSets) ? p.hiddenIconSets.filter(k => typeof k === 'string' && k.length < 600).slice(0, 300) : undefined;
-  return {...p,version:1,name:p.name,languages,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,closeIconId:p.closeIconId,introUrl,introEnabled,introDuration,spaces,hiddenIconSets,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
+  const hiddenAvailableIcons=Array.isArray(p.hiddenAvailableIcons)?p.hiddenAvailableIcons.filter(id=>typeof id==='string'&&icons.some(icon=>icon.id===id)).slice(0,300):undefined;
+  const favoriteNavigationIconSet=typeof p.favoriteNavigationIconSet==='string'&&p.favoriteNavigationIconSet.length<600?p.favoriteNavigationIconSet:undefined;
+  return {...p,version:1,name:p.name,languages,scenes:p.scenes,icons,audioTracks,bottomBar,barStyle,closeIconId:p.closeIconId,introUrl,introEnabled,introDuration,spaces,hiddenIconSets,hiddenAvailableIcons,favoriteNavigationIconSet,updatedAt:typeof p.updatedAt==='string'?p.updatedAt:new Date().toISOString()};
 }
 
 /**
