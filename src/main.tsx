@@ -1643,22 +1643,36 @@ function App(){
           <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
         </div>}
         <button className="import" onClick={()=>upload.current?.click()}>
-          <Plus size={14} style={{marginRight:5,verticalAlign:'-2px'}}/> Importer des panoramas 360°
+          <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer des panoramas
         </button>
-        <div className="scenes" ref={scenesRef}>{visibleScenes.map((s,i)=><div key={s.id} className="scene-slot"
-          onPointerDown={e=>{if(!currentSpace)startSceneDrag(e,i);}}
+        <div className="nv-scene-discovery">
+          <label className="nv-scene-search">
+            <Search size={16} aria-hidden="true"/>
+            <input type="search" value={sceneSearch} aria-label="Rechercher un panorama"
+              placeholder="Rechercher une scène…" onChange={event=>setSceneSearch(event.target.value)}/>
+          </label>
+          <select className="nv-scene-filter" aria-label="Filtrer les panoramas"
+            value={sceneFilter} onChange={event=>setSceneFilter(event.target.value as SceneFilter)}>
+            <option value="all">Toutes</option>
+            <option value="with">Avec points</option>
+            <option value="without">Sans points</option>
+          </select>
+        </div>
+        <div className="scenes" ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
+          onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
           <button className={'scene '+(s.id===activeId?'active':'')} title="Glisse pour changer l’ordre (ou Alt + ↑ / ↓)"
             onKeyDown={e=>{
-              if(currentSpace||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
+              if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
               e.preventDefault();
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
             onClick={()=>{selectScene(s.id);setSelectedId('');setMode(null);}}>
             {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
-            <span>
-              <strong>{s.name}</strong>
-              <small>Scène {i+1}{i===0?' · accueil':''} · {s.hotspots.length} point(s)</small>
+            <span className="nv-scene-description">
+              <strong title={s.name}>{s.name}</strong>
+              <small>Scène {visibleScenes.findIndex(scene=>scene.id===s.id)+1}
+                {s.id===visibleScenes[0]?.id?' · Accueil':''} · {s.hotspots.length} point{s.hotspots.length>1?'s':''}</small>
             </span>
           </button>
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
@@ -1669,6 +1683,10 @@ function App(){
         {currentSpace&&!visibleScenes.length&&<div className="nv-space-empty-list">
           <p>Aucun panorama dans cet espace.</p>
           <button type="button" onClick={()=>setSpaceManagerOpen(true)}>Choisir des panoramas</button>
+        </div>}
+        {visibleScenes.length>0&&!filteredScenes.length&&<div className="nv-space-empty-list">
+          <p>Aucun panorama ne correspond à la recherche.</p>
+          <button type="button" onClick={()=>{setSceneSearch('');setSceneFilter('all');}}>Effacer les filtres</button>
         </div>}</div>
         <div className="helper">
           <strong>✦ Guide rapide</strong>
@@ -2234,7 +2252,7 @@ function App(){
         </div>}
       </aside>
     </div>
-    <footer><span>NovaVisio Studio · Prototype v0.6</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
+    <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span>Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
