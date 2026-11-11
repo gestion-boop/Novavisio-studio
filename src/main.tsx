@@ -578,6 +578,9 @@ function App(){
   const [navigationPickerHover,setNavigationPickerHover]=useState<string|null>(null);
   const [navigationPickerPreviewId,setNavigationPickerPreviewId]=useState<string|null>(null);
   const [navigationPickerSearch,setNavigationPickerSearch]=useState('');
+  const [classicDestinationOpen,setClassicDestinationOpen]=useState(false);
+  const [classicDestinationPreviewId,setClassicDestinationPreviewId]=useState<string|null>(null);
+  const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
   const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
@@ -1484,6 +1487,7 @@ function App(){
       return {...sc,hotspots:[...sc.hotspots,reverse]};
     })}));
     setNavigationPickerOpen(false);
+    setClassicDestinationOpen(false);
     setNavigationPickerHover(null);
     setNavigationPickerPreviewId(null);
     setStatus(targetId?'Navigation définie · retour créé automatiquement dans le panorama de destination (derrière la vue d’arrivée)':'Destination retirée');
@@ -1963,6 +1967,46 @@ function App(){
       </>}
     </div>}
     <div className="workspace">
+      {classicDestinationOpen&&!creationFullscreen&&!preview&&active&&selected?.type==='navigation'&&
+        <section id="nv-classic-destination-picker" className="nv-classic-destination-overlay"
+          aria-label="Choix visuel du panorama de destination">
+          <div className="nv-classic-destination-heading">
+            <div><small>CHOISIR UNE DESTINATION</small><strong>Galerie 360°</strong></div>
+            <button type="button" onClick={()=>setClassicDestinationOpen(false)} aria-label="Fermer la galerie">✕</button>
+          </div>
+          <div className="nv-classic-destination-layout">
+            <div className="nv-classic-destination-list-panel">
+              <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
+                aria-label="Rechercher un panorama" onChange={e=>setClassicDestinationSearch(e.target.value)}/>
+              <div className="nv-classic-destination-list">
+                {visibleScenes.filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(classicDestinationSearch.toLocaleLowerCase('fr'))).map(sc=>
+                  <button type="button" key={sc.id} className={'nv-classic-destination-row'+(classicDestinationPreviewId===sc.id?' is-active':'')}
+                    onClick={()=>setClassicDestinationPreviewId(sc.id)}
+                    aria-pressed={classicDestinationPreviewId===sc.id}>
+                    {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}
+                    <span><strong>{sc.name}</strong><small>{sc.id===selected.target?'✓ Destination actuelle':'Voir en 360°'}</small></span>
+                    <ChevronRight size={15}/>
+                  </button>)}
+              </div>
+            </div>
+            <div className="nv-classic-destination-view-panel">
+              {visibleScenes.filter(sc=>sc.id===classicDestinationPreviewId&&sc.id!==activeId).map(sc=>
+                <div key={sc.id} className="nv-classic-destination-detail">
+                  <div className="nv-classic-destination-title"><strong>{sc.name}</strong><span>Glisse pour explorer à 360°</span></div>
+                  <div className="nv-classic-destination-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/></div>
+                  <button type="button" className="nv-classic-destination-confirm" onClick={()=>setNavigationDestination(sc.id)}>
+                    <Check size={16}/> Utiliser {sc.name} comme destination
+                  </button>
+                </div>)}
+              {!visibleScenes.some(sc=>sc.id===classicDestinationPreviewId&&sc.id!==activeId)&&
+                <div className="nv-classic-destination-empty">Sélectionne un panorama dans la liste à gauche.</div>}
+            </div>
+          </div>
+          <div className="nv-classic-destination-foot">
+            <span>Le panorama en cours reste inchangé tant que tu n’as pas confirmé.</span>
+            <button type="button" onClick={()=>setClassicDestinationOpen(false)}>← Retour aux réglages</button>
+          </div>
+        </section>}
       <aside className="left panel">
         <div className="section-title">
           <span>PANORAMAS</span>
@@ -2642,12 +2686,19 @@ function App(){
                 <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
               </> : selected.type==='navigation' ? (
                 <>
-                <label>Scène de destination
-                  <select value={selected.target} onChange={e=>setNavigationDestination(e.target.value)}>
-                    <option value="">Sélectionner une scène…</option>
-                    {visibleScenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                  </select>
-                </label>
+                <label>Scène de destination</label>
+                <button type="button" className="nv-classic-destination-trigger"
+                  aria-expanded={classicDestinationOpen} aria-controls="nv-classic-destination-picker"
+                  onClick={()=>{
+                    setClassicDestinationOpen(open=>!open);
+                    setClassicDestinationSearch('');
+                    setClassicDestinationPreviewId(selected.target||visibleScenes.find(sc=>sc.id!==activeId)?.id||null);
+                  }}>
+                  <Images size={17}/>
+                  <span>{visibleScenes.find(sc=>sc.id===selected.target)?.name??'Choisir et visualiser un panorama…'}</span>
+                  <ChevronRight size={16}/>
+                </button>
+                <small className="hint-inline">Ouvre la galerie à gauche pour examiner la destination en 360° avant de confirmer.</small>
                 <button type="button" className="tool" disabled={!selected.target||!visibleIds.has(selected.target)}
                   onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}}>
                   ➜ Tester la navigation vers ce panorama
