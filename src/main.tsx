@@ -13,7 +13,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
@@ -368,7 +368,73 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
   return <div ref={box} className="panorama" />;
 }
 
+type HeaderMenu='file'|'share'|'display'|null;
+type SceneFilter='all'|'with'|'without';
+function readStudioLayout(){
+  try{
+    const raw=window.localStorage.getItem('nvstudio-ui-layout-v1');
+    if(raw){const value=JSON.parse(raw) as Record<string,unknown>;return {
+      leftHidden:value.leftHidden===true,rightHidden:value.rightHidden===true,
+      density:value.density==='compact'?'compact' as const:'comfortable' as const
+    };}
+  }catch{/* Private browsing or storage disabled. */}
+  return {leftHidden:false,rightHidden:false,density:'comfortable' as const};
+}
 function App(){
+  const studioRef=useRef<HTMLDivElement>(null);
+  const topMenusRef=useRef<HTMLDivElement>(null);
+  const [openTopMenu,setOpenTopMenu]=useState<HeaderMenu>(null);
+  const [studioFullscreen,setStudioFullscreen]=useState(false);
+  const [studioFallback,setStudioFallback]=useState(false);
+  const [leftHidden,setLeftHidden]=useState(()=>readStudioLayout().leftHidden);
+  const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
+  const [sceneDensity,setSceneDensity]=useState<'compact'|'comfortable'>(()=>readStudioLayout().density);
+  const [sceneSearch,setSceneSearch]=useState('');
+  const [sceneFilter,setSceneFilter]=useState<SceneFilter>('all');
+  useEffect(()=>{
+    try{window.localStorage.setItem('nvstudio-ui-layout-v1',JSON.stringify({leftHidden,rightHidden,density:sceneDensity}));}
+    catch{/* Viewing and editing still work if local preferences cannot be saved. */}
+  },[leftHidden,rightHidden,sceneDensity]);
+  useEffect(()=>{
+    const outside=(event:PointerEvent)=>{
+      if(!topMenusRef.current?.contains(event.target as Node))setOpenTopMenu(null);
+    };
+    const key=(event:KeyboardEvent)=>{
+      if(event.key==='Escape'){
+        setOpenTopMenu(null);
+        if(studioFallback){setStudioFallback(false);setStudioFullscreen(false);}
+      }
+    };
+    const changed=()=>{if(document.fullscreenElement!==studioRef.current && !studioFallback)setStudioFullscreen(false);};
+    document.addEventListener('pointerdown',outside);
+    document.addEventListener('keydown',key);
+    document.addEventListener('fullscreenchange',changed);
+    return ()=>{
+      document.removeEventListener('pointerdown',outside);
+      document.removeEventListener('keydown',key);
+      document.removeEventListener('fullscreenchange',changed);
+    };
+  },[studioFallback]);
+  async function toggleStudioFullscreen(){
+    const root=studioRef.current;
+    if(!root)return;
+    setOpenTopMenu(null);
+    if(studioFullscreen){
+      if(document.fullscreenElement===root){
+        try{await document.exitFullscreen();}catch{setStatus('Impossible de quitter le plein écran du Studio');}
+      }else{setStudioFallback(false);setStudioFullscreen(false);}
+      return;
+    }
+    try{
+      if(document.fullscreenElement)await document.exitFullscreen();
+      if(!root.requestFullscreen)throw Error('Fullscreen API unavailable');
+      await root.requestFullscreen();
+      setStudioFallback(false);setStudioFullscreen(true);
+    }catch{
+      // iOS and other browsers that do not allow the Fullscreen API.
+      setStudioFallback(true);setStudioFullscreen(true);
+    }
+  }
   const [project,setProject]=useState<StudioProject>(newProject());
   const [ready,setReady]=useState(false);
   const [activeId,setActiveId]=useState('');
@@ -602,6 +668,14 @@ function App(){
   useEffect(()=>{if(!creationFullscreen)setFullscreenGalleryOpen(false);},[creationFullscreen]);
   const currentSpace:StudioSpace|null=(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null;
   const visibleScenes=scenesInSpace(project,currentSpace);
+  const filteredScenes=visibleScenes.filter(scene=>{
+    if(sceneSearch.trim()&&!scene.name.toLocaleLowerCase('fr').includes(sceneSearch.trim().toLocaleLowerCase('fr')))return false;
+    if(sceneFilter==='with'&&!scene.hotspots.length)return false;
+    if(sceneFilter==='without'&&scene.hotspots.length)return false;
+    return true;
+  });
+  // Existing drag order works on the complete master list only.
+  const sceneSortEnabled=!currentSpace&&!sceneSearch.trim()&&sceneFilter==='all';
   const visibleIds=new Set(visibleScenes.map(scene=>scene.id));
   const active=visibleScenes.find(s=>s.id===activeId) ?? null;
   useEffect(()=>{
