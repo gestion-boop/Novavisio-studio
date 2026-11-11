@@ -3235,13 +3235,22 @@ function App(){
           onMouseEnter={()=>hoverSidePreview(s.id)} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
-          <button className={'scene '+(s.id===activeId?'active':'')} title={!preview&&quickLinkMode&&s.id!==activeId?'Créer directement une flèche vers '+s.name:'Ouvrir ce panorama dans la grande vue'}
+          <button className={'scene '+(s.id===activeId?'active':'')} title={'Ouvrir '+s.name+' directement dans la grande vue'}
             onKeyDown={e=>{
               if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
               e.preventDefault();
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
-            onClick={()=>{if(!preview&&quickLinkMode&&s.id!==activeId){createNavigationFromGallery(s.id);}else{selectScene(s.id);setSelectedId('');setMode(null);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}}}>
+            onClick={()=>{
+              selectScene(s.id);
+              setMode(autoNavigation&&!preview?'navigation':null);
+              setGalleryPreviewSceneId(null);
+              setGalleryPreviewPinned(false);
+              setClassicDestinationOpen(false);
+              setNavigationDraft(null);
+              setDestinationEditId(null);
+              setStatus('Panorama '+s.name+' ouvert dans la grande vue.');
+            }}>
             {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
             <span className="nv-scene-description">
               <strong title={s.name}>{s.name}</strong>
