@@ -94,8 +94,10 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel share-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}>✕</button>
-    <h2>Lien public{space?' · '+space.name:''}</h2>
-    {space&&<p className="hint-inline"><b>Espace publié : {space.name}</b> — {project.scenes.length} panoramas uniquement. Aucun autre espace ne figure dans ce lien. Les publications précédentes du projet complet restent distinctes.</p>}
+    <h2>Lien public · {space?space.name:'Projet complet'}</h2>
+    {space?
+      <p className="hint-inline"><b>Espace publié : {space.name}</b> — {project.scenes.length} panoramas uniquement. Aucun autre espace ne figure dans ce lien. Les médias et icônes inutilisés sont exclus. Les publications précédentes du projet complet restent distinctes.</p>:
+      <p className="warning-inline"><b>Attention : tu publies le projet complet ({project.scenes.length} panoramas).</b> Pour envoyer une visite de 3 ou 4 panoramas seulement, ferme cette fenêtre, sélectionne l’espace correspondant dans la barre « Espaces », puis ouvre à nouveau « Lien public ».</p>}
     {!cloudConfigured?<p className="warning">Supabase n’est pas configuré sur ce déploiement : les liens publics sont indisponibles.</p>
     :!userEmail?<LoginBox intro="Pour envoyer un lien, connecte-toi d’abord (lien magique par e-mail, ou e-mail et mot de passe)."/>
     :<>
