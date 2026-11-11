@@ -3209,13 +3209,14 @@ function App(){
           </>}
           <div className="section-title">ICÔNES DISPONIBLES</div>
           <div className="elements-icon-grid">
-            {project.icons.map(icon=><button type="button" key={icon.id} draggable
+            {project.icons.filter(icon=>!(project.hiddenAvailableIcons??[]).includes(icon.id)).map(icon=><div className="nv-element-icon-wrap" key={icon.id}><button type="button" draggable
               onDragStart={e=>{e.dataTransfer.setData('application/x-nv-icon',icon.id);e.dataTransfer.effectAllowed='copy';}}
               onClick={()=>setStatus('Glisse « '+icon.name+' » dans le panorama pour créer un point')}
               title={'Faire glisser '+icon.name+' sur le panorama'}>
               <img src={icon.dataUrl} alt=""/><span>{icon.name}</span>
-            </button>)}
+            </button><button type="button" className="nv-element-icon-hide" aria-label={'Masquer '+icon.name} title="Masquer sans supprimer l'icône du projet" onClick={()=>setProject(p=>({...p,hiddenAvailableIcons:[...new Set([...(p.hiddenAvailableIcons??[]),icon.id])]}))}>−</button></div>)}
           </div>
+          {!!project.hiddenAvailableIcons?.length&&<button type="button" className="quiet" onClick={()=>setProject(p=>({...p,hiddenAvailableIcons:[]}))}>Réafficher les icônes masquées ({project.hiddenAvailableIcons.length})</button>
           {(collectIconSets().length>0||hiddenIconSetCount()>0)&&<>
             <div className="section-title">JEUX D’ICÔNES (NORMAL + SURVOL + CLIC)</div>
             <div className="icon-set-grid">{collectIconSets().map(set=><div className="icon-set-wrap" key={set.key}>
