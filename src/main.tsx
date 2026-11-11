@@ -2048,7 +2048,7 @@ function App(){
       </div>
     </header>
     <section className="nv-space-strip" aria-label="Espaces de travail du projet">
-      <div className="nv-space-strip-label"><LayoutGrid size={15}/><span>ESPACES</span></div>
+      
       <div className="nv-space-tab-scroll" role="tablist" aria-label="Espaces du projet">
         <button type="button" role="tab" aria-selected={!currentSpace}
           className={'nv-space-tab'+(!currentSpace?' is-active':'')}
