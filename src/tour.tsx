@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
+import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {frameWorldCorners} from './sphericalFrame';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
@@ -78,9 +79,9 @@ function Pano({scene,icons,arrival,navigate,info,linked,image,video,onReady}:Vie
     const instance=new Viewer({
       container:container.current,
       panorama:scene.dataUrl,
-      navbar:[],defaultZoomLvl:scene.arrivalZoom??60,
+      navbar:[],defaultZoomLvl:panoramaArrivalZoom(scene),
       defaultYaw:scene.arrivalYaw??0,defaultPitch:scene.arrivalPitch??0,
-      minFov:35,maxFov:75,fisheye:false,loadingTxt:'',
+      minFov:PANORAMA_MIN_FOV,maxFov:PANORAMA_MAX_FOV,fisheye:false,loadingTxt:'',
       defaultTransition:{effect:'fade',rotation:false,speed:260},
       plugins:[MarkersPlugin]
     });
@@ -135,7 +136,7 @@ function Pano({scene,icons,arrival,navigate,info,linked,image,video,onReady}:Vie
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
       position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
-      zoom:arrivalFor?.zoom??next.arrivalZoom??60
+      zoom:arrivalFor?.zoom??panoramaArrivalZoom(next)
     }).then(async success=>{
       if(disposed||!success)return;
       if(fade)await fade;else resetMarkers(instance,markersNow());
@@ -235,7 +236,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const current=project.scenes.find(s=>s.id===sceneId)??project.scenes[0];
   const move=(id:string,via?:Hotspot)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);
-    setArrival(via&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:via.arrivalZoom??60}:null);
+    setArrival(via&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:panoramaArrivalZoom(via)}:null);
     setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
   const openLink=(title:string,url:string)=>{
     const checked=checkedLink(url);
