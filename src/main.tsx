@@ -788,7 +788,10 @@ function App(){
   },[introVisible,project.introEnabled,project.introUrl,project.introDuration,project.scenes]);
   const totalPoints=project.scenes.reduce((n,s)=>n+s.hotspots.length,0);
   const selectedBar=project.bottomBar.find(b=>b.id===selectedBarId) ?? null;
+  const closeIcon=project.icons.find(icon=>icon.id===project.closeIconId);
+  const popupThemeClass=closeIcon?' nv-custom-close':'';
   const barCss = {
+    '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-bar-bg':project.barStyle.background,
     '--nv-bar-outline':project.barStyle.outline,
     '--nv-button-bg':project.barStyle.button,
@@ -1198,6 +1201,7 @@ function App(){
     if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
     setProject(p=>({...p,
       icons:p.icons.filter(i=>i.id!==id),
+      closeIconId:p.closeIconId===id?undefined:p.closeIconId,
       // Nettoie aussi les PNG de survol et de clic : une référence orpheline empêcherait de rouvrir le projet.
       scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>({...h,
         iconId:h.iconId===id?undefined:h.iconId,
@@ -1224,6 +1228,7 @@ function App(){
       map.set(key,entry);
     };
     project.bottomBar.forEach(b=>add('Barre : '+b.title,barIconSize(b),b.iconId,b.hoverIconId,b.pressedIconId));
+    add('Fermeture des popups',42,project.closeIconId);
     project.scenes.forEach(sc=>sc.hotspots.forEach(h=>{
       if(h.type!=='image'&&h.type!=='video')add(sc.name+' : '+h.title,h.iconSize??28,h.iconId,h.hoverIconId,h.pressedIconId);
     }));
@@ -1884,7 +1889,7 @@ function App(){
             {preview ? '👁️ APERÇU INTERACTIF' : mode ? '📍 CLIQUEZ DANS LE PANORAMA POUR PLACER LE POINT' : '✏️ MODE ÉDITION'}
           </b>
         </div>
-        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')} ref={viewAreaRef} style={barCss}>
+        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
           {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
@@ -2693,6 +2698,15 @@ function App(){
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties">
+          <div className="section-title">ICÔNE DE FERMETURE DES POPUPS</div>
+          <p className="hint">Choisis dans ta bibliothèque un PNG de croix pour fermer les photos, vidéos et fenêtres de la visite. L’icône apparaît en haut à droite et suit chaque export.</p>
+          <div className="nv-close-icon-picker">
+            <button type="button" className={!project.closeIconId?'is-active':''} onClick={()=>setProject(p=>({...p,closeIconId:undefined}))} title="Croix classique">✕ <small>Croix classique</small></button>
+            {project.icons.map(icon=><button type="button" key={icon.id} className={project.closeIconId===icon.id?'is-active':''} onClick={()=>setProject(p=>({...p,closeIconId:icon.id}))} title={icon.name}>
+              <img src={icon.dataUrl} alt=""/><small>{icon.name}</small>
+            </button>)}
+          </div>
+          <p className="hint">Pour utiliser une nouvelle croix PNG, importe-la ci-dessous puis sélectionne-la ici. Sans choix, la fermeture utilise les couleurs de la barre.</p>
           <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
           <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
           <button className="import" onClick={()=>iconInput.current?.click()}>＋ Importer mes icônes</button>
