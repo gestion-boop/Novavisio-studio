@@ -69,9 +69,10 @@ function launchLink(link:string) {
   return true;
 }
 type PanoramaProps = {
-  scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean; night:boolean; nightTexture?:string;
+  scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean; autoNavigation:boolean; night:boolean; nightTexture?:string;
   onCreate: (yaw:number,pitch:number)=>void;
   onPick: (id:string)=>void;
+  onRemoveNavigation:(id:string)=>void;
   onNavigate: (id:string,via?:Hotspot)=>void;
   arrival?:{sceneId:string;yaw:number;pitch:number;zoom:number}|null; // vue d'arrivée propre à la flèche utilisée
   onInfo: (hotspot:Hotspot)=>void;
@@ -84,7 +85,7 @@ type PanoramaProps = {
   onAssetDrop:(iconId:string,yaw:number,pitch:number)=>void;
   onCameraChange:(yaw:number,pitch:number,zoom:number)=>void;
 };
-function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60):MarkerConfig {
+function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig {
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
   // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
   if(h.type==='image'&&h.imageDataUrl){
@@ -106,15 +107,19 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
     h.type==='video'?videoMarkerHtml(h,width,height):
     iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
+  const autoArrow=!preview&&autoNavigation&&h.type==='navigation';
+  const html=autoArrow?'<span class="nv-drag-target nv-nav-auto-marker" data-nv-marker-id="'+h.id+'">'+content+
+    '<button type="button" class="nv-marker-remove-auto" aria-label="Retirer cette flèche" title="Retirer cette flèche incorrecte">×</button></span>':
+    editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+
+      '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button></span>':content;
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html:editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+
-      '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button></span>':content,
+    html,
     size:{width,height},anchor:'center center',tooltip:h.title};
 }
-function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60):MarkerConfig[]{
+function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
   for(const h of scene.hotspots){
-    all.push(markerFor(h,icons,height,selectedId,preview,zoom));
+    all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
       h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;
     if(!preview&&selectedId===h.id&&hasMedia){
@@ -162,14 +167,15 @@ function FullscreenGalleryHoverPreview({scene,thumb,onOrientation}:{scene:Scene;
   </div>;
 }
 
-function Panorama({scene,icons,mode,preview,night,nightTexture,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
   const currentTextureRef=useRef(scene.dataUrl);
-  const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic dans le panorama : point de départ du zoom photo/vidéo
-  const actions = useRef({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
+  const lastPointer=useRef<ZoomOrigin|null>(null);
+  const suppressMarkerClick=useRef(false); // dernier clic dans le panorama : point de départ du zoom photo/vidéo
+  const actions = useRef({scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     const root=box.current;
@@ -208,7 +214,7 @@ function Panorama({scene,icons,mode,preview,night,nightTexture,arrival,onCreate,
         if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>
           (h.type==='image'&&!h.imageDataUrl)||
           (h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)))return;
-        syncMarkers(viewer,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel()));
+        syncMarkers(viewer,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel(),a.autoNavigation));
       });
     };
     viewer.addEventListener('zoom-updated',onZoom);
@@ -217,6 +223,7 @@ function Panorama({scene,icons,mode,preview,night,nightTexture,arrival,onCreate,
       const a=actions.current;
       const h=a.scene.hotspots.find(item=>item.id===marker.id);
       if (!h) return;
+      if(suppressMarkerClick.current){suppressMarkerClick.current=false;return;}
       if (a.preview) {
         if(h.type==='navigation' && h.target) a.onNavigate(h.target,h);
         else if(h.type==='information') {
@@ -241,7 +248,7 @@ function Panorama({scene,icons,mode,preview,night,nightTexture,arrival,onCreate,
       }
     });
     const height=box.current?.clientHeight||550;
-    resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel()));
+    resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation));
     // Aperçu seulement : léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
     const stopBounce=startPosterBounce(viewer,()=>actions.current.scene,()=>actions.current.preview&&loadedSceneRef.current===actions.current.scene.id);
     return ()=>{stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
@@ -255,7 +262,7 @@ function Panorama({scene,icons,mode,preview,night,nightTexture,arrival,onCreate,
     const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel());
+    const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation);
     const onLoaded=()=>{viewer.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(viewer,markersNow(),260);};
     viewer.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
@@ -296,7 +303,7 @@ function Panorama({scene,icons,mode,preview,night,nightTexture,arrival,onCreate,
       const a=actions.current;
       if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
-      syncMarkers(v,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,v.getZoomLevel()));
+      syncMarkers(v,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,v.getZoomLevel(),a.autoNavigation));
     };
     refresh();
     if(!box.current)return;
@@ -309,8 +316,8 @@ function Panorama({scene,icons,mode,preview,night,nightTexture,arrival,onCreate,
     const element=box.current;
     const v=viewerRef.current;
     if(!element||!v||loadedSceneRef.current!==scene.id)return;
-    syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel()));
-  },[scene.id,scene.hotspots,icons,selectedId,preview]);
+    syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel(),autoNavigation));
+  },[scene.id,scene.hotspots,icons,selectedId,preview,autoNavigation]);
   useEffect(()=>{
     const root=box.current;
     if(!root)return;
@@ -1264,6 +1271,12 @@ function App(){
     if(view.sceneId!==active.id){setStatus('Oriente d’abord le panorama puis réessaie');return;}
     patchScene(sc=>({...sc,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom,arrivalZoomModel:'wide'}));
     setStatus('Vue d’arrivée sauvegardée pour '+active.name);
+  }
+  function removeAutoNavigationArrow(id:string){
+    if(!active)return;
+    patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==id)}));
+    setSelectedId('');setDestinationEditId(null);
+    setStatus('Flèche incorrecte retirée · Enregistre avec la disquette.');
   }
   function moveHotspot(id:string,yaw:number,pitch:number){
     patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch}:h)}));
@@ -2293,7 +2306,7 @@ function App(){
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{
               setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
               const marker=active?.hotspots.find(h=>h.id===id);
               if(marker?.type==='navigation'){
@@ -2321,7 +2334,7 @@ function App(){
             }} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
-            onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
+            onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
             onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
             <div className="empty-icon">◎</div><h1>{currentSpace?'Cet espace est vide':'Ta première visite commence ici'}</h1>
             <p>{currentSpace?'Sélectionne les panoramas de la visite principale à inclure dans cet espace.':'Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.'}</p>
