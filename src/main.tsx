@@ -3216,7 +3216,7 @@ function App(){
               <img src={icon.dataUrl} alt=""/><span>{icon.name}</span>
             </button><button type="button" className="nv-element-icon-hide" aria-label={'Masquer '+icon.name} title="Masquer sans supprimer l'icône du projet" onClick={()=>setProject(p=>({...p,hiddenAvailableIcons:[...new Set([...(p.hiddenAvailableIcons??[]),icon.id])]}))}>−</button></div>)}
           </div>
-          {!!project.hiddenAvailableIcons?.length&&<button type="button" className="quiet" onClick={()=>setProject(p=>({...p,hiddenAvailableIcons:[]}))}>Réafficher les icônes masquées ({project.hiddenAvailableIcons.length})</button>
+          {!!project.hiddenAvailableIcons?.length&&<button type="button" className="quiet" onClick={()=>setProject(p=>({...p,hiddenAvailableIcons:[]}))}>Réafficher les icônes masquées ({project.hiddenAvailableIcons.length})</button>}
           {(collectIconSets().length>0||hiddenIconSetCount()>0)&&<>
             <div className="section-title">JEUX D’ICÔNES (NORMAL + SURVOL + CLIC)</div>
             <div className="icon-set-grid">{collectIconSets().map(set=><div className="icon-set-wrap" key={set.key}>
