@@ -52,3 +52,16 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 .tour-vr{position:absolute;top:14px;right:70px;z-index:30;border:0;border-radius:999px;padding:11px 18px;font:600 15px/1 system-ui,sans-serif;background:#5d131a;color:#f4d69a;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer}
 .tour-vr:disabled{opacity:.6;cursor:default}
 .tour-vr-error{position:absolute;top:64px;right:14px;z-index:30;max-width:320px;padding:10px 14px;border-radius:12px;background:#fff;color:#7a1a22;font:14px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+
+/* Toutes les croix de fermeture héritent des couleurs personnalisées de la barre. */
+.tour-close-image,
+.tour-dialog header button{
+  background:var(--nv-button-bg,#311820);
+  border:1px solid var(--nv-button-outline,#d3c1b6);
+  color:var(--nv-icon-color,#fff);
+  transition:filter .15s ease,transform .15s ease;
+}
+.tour-close-image:hover,
+.tour-dialog header button:hover{filter:brightness(1.18)}
+.tour-close-image:active,
+.tour-dialog header button:active{transform:scale(.95)}
