@@ -1558,7 +1558,7 @@ function App(){
       removeSceneFromSpace(currentSpace.id,active.id);return;
     }
     if(!window.confirm('Supprimer définitivement le panorama « '+active.name+' » du projet COMPLET et de tous les espaces ?'))return;
-    const remaining=project.scenes.filter(s=>s.id!==active.id).map(s=>({...s,hotspots:s.hotspots.filter(h=>h.target!==active.id)}));
+    const remaining=project.scenes.filter(s=>s.id!==active.id).map(s=>({...s,nightSourceSceneId:s.nightSourceSceneId===active.id?undefined:s.nightSourceSceneId,hotspots:s.hotspots.filter(h=>h.target!==active.id)}));
     setProject(p=>({...p,scenes:remaining,spaces:(p.spaces??[]).map(space=>({...space,sceneIds:space.sceneIds.filter(id=>id!==active.id)})),bottomBar:p.bottomBar.map(b=>({...b,target:b.target===active.id?'':b.target,...(b.gallery?{gallery:b.gallery.filter(g=>g.sceneId!==active.id)}:{})}))}));setActiveId(remaining[0]?.id??'');setSelectedId('');
   }
   function download(){
