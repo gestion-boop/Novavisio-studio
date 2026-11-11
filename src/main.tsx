@@ -498,6 +498,8 @@ function App(){
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const [creationFullscreen,setCreationFullscreen]=useState(false);
   const [fullscreenGalleryOpen,setFullscreenGalleryOpen]=useState(false);
+  const [fullscreenToolsOpen,setFullscreenToolsOpen]=useState(false);
+  const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
   const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
   const creationFallbackRef=useRef(false);
   useEffect(()=>{
@@ -684,7 +686,9 @@ function App(){
     st.kind==='error'?'Échec — nouvel essai':'À installer';
 
   // Subspaces are non-destructive views over the master panorama library.
-  useEffect(()=>{if(!creationFullscreen)setFullscreenGalleryOpen(false);},[creationFullscreen]);
+  useEffect(()=>{
+    if(!creationFullscreen){setFullscreenGalleryOpen(false);setFullscreenToolsOpen(false);}
+  },[creationFullscreen]);
   const currentSpace:StudioSpace|null=(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null;
   const visibleScenes=scenesInSpace(project,currentSpace);
   const filteredScenes=visibleScenes.filter(scene=>{
@@ -1078,7 +1082,11 @@ function App(){
     </div>;
   }
   function triggerBar(item:BottomBarItem){
-    if(!preview){setSelectedBarId(item.id);setPanel('bar');setSelectedId('');return;}
+    if(!preview){
+      setSelectedBarId(item.id);setPanel('bar');setSelectedId('');
+      if(creationFullscreen){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
+      return;
+    }
     if(item.type==='gallery'){setGalleryOpen(item.id);return;}
     if(item.type==='navigation'){
       const dest=item.target && visibleIds.has(item.target)?item.target:visibleScenes[0]?.id;
@@ -1246,6 +1254,28 @@ function App(){
       setStatus('PNG appliqué à cet état du bouton uniquement');
     }catch{setStatus('Impossible de lire cette icône');}
   }
+  // Upload directly within the native fullscreen element, so the user never
+  // needs to leave the panorama or click a hidden input outside fullscreen.
+  async function uploadFullscreenIcon(file:File|undefined,field:'iconId'|'hoverIconId'|'pressedIconId'){
+    if(!file)return;
+    if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type)||file.size>1_500_000){
+      setStatus('Icône invalide : PNG/JPG/WebP/GIF, 1,5 Mo max');return;
+    }
+    try{
+      const url=await readImage(file);
+      if(!isSafeIconDataUrl(url))throw Error('Format non pris en charge');
+      const id=uid();
+      const icon:CustomIcon={id,name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:url};
+      const pointId=selectedId,barId=selectedBarId,sceneId=activeId,tab=fullscreenToolsTab;
+      setProject(p=>({
+        ...p,icons:[...p.icons,icon].slice(0,150),
+        scenes:tab==='point'?p.scenes.map(sc=>sc.id!==sceneId?sc:{...sc,
+          hotspots:sc.hotspots.map(h=>h.id===pointId?{...h,[field]:id}:h)}):p.scenes,
+        bottomBar:tab==='bar'?p.bottomBar.map(b=>b.id===barId?{...b,[field]:id}:b):p.bottomBar
+      }));
+      setStatus('Icône importée et appliquée');
+    }catch{setStatus('Erreur pendant l’import de l’icône');}
+  }
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
   }
@@ -1280,6 +1310,7 @@ function App(){
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
+    if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
   }
   function selectSpace(spaceId:string|null){
     const space=spaceId?(project.spaces??[]).find(item=>item.id===spaceId):null;
@@ -1729,7 +1760,7 @@ function App(){
           </b>
         </div>
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')} ref={viewAreaRef}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
