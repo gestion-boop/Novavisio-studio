@@ -94,7 +94,7 @@ export const isSafeAudioData = (s:unknown):s is string =>
   typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOffIconId?:string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
+export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -182,7 +182,7 @@ export function validateProject(value:unknown):StudioProject {
     ids.add(track.id);
   }
   if(p.closeIconId!==undefined && (typeof p.closeIconId!=='string' || !icons.some(icon=>icon.id===p.closeIconId))) throw new Error('Icône de fermeture introuvable');
-  for(const field of ['soundOnIconId','soundOffIconId'] as const){
+  for(const field of ['soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId'] as const){
     if(p[field]!==undefined && (typeof p[field]!=='string'||!icons.some(icon=>icon.id===p[field]))) throw new Error('Icône de son introuvable');
   }
   // Les projets antérieurs à V0.4 reprennent automatiquement le thème Bordeaux.
