@@ -1682,8 +1682,10 @@ function App(){
     const fromId=active.id,pointId=selected.id;
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===fromId?
       {...sc,hotspots:sc.hotspots.map(h=>h.id===pointId?
-        {...h,target:targetId,arrivalYaw:undefined,arrivalPitch:undefined,
-          arrivalZoom:undefined,arrivalZoomModel:undefined}:h)}:sc)}));
+        {...h,target:targetId,arrivalYaw:galleryOrientationRef.current[targetId]?.yaw??h.arrivalYaw,
+          arrivalPitch:galleryOrientationRef.current[targetId]?.pitch??h.arrivalPitch,
+          arrivalZoom:galleryOrientationRef.current[targetId]?.zoom??h.arrivalZoom,
+          arrivalZoomModel:'wide' as const}:h)}:sc)}));
     setNavigationPickerOpen(false);
     setClassicDestinationOpen(false);
     setNavigationPickerHover(null);
@@ -2202,7 +2204,10 @@ function App(){
               {visibleScenes.filter(sc=>sc.id===classicDestinationPreviewId&&sc.id!==activeId).map(sc=>
                 <div key={sc.id} className="nv-classic-destination-detail">
                   <div className="nv-classic-destination-title"><strong>{sc.name}</strong><span>Glisse pour explorer à 360°</span></div>
-                  <div className="nv-classic-destination-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/></div>
+                  <div className="nv-classic-destination-viewer nv-targeted-preview">
+                     <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/>
+                     <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
+                   </div>
                   <button type="button" className="nv-classic-destination-confirm" onClick={()=>setNavigationDestination(sc.id)}>
                     <Images size={16}/> Utiliser {sc.name} comme destination
                   </button>
@@ -2212,13 +2217,28 @@ function App(){
             </div>
           </div>
           <div className="nv-classic-destination-foot">
-            <span>Le panorama en cours reste inchangé tant que tu n’as pas confirmé.</span>
+            <span>Oriente la vue d’arrivée avec le viseur, puis sélectionne la destination. La flèche existante est conservée.</span>
             <button type="button" onClick={()=>setClassicDestinationOpen(false)}>← Retour aux réglages</button>
           </div>
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{
+              setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
+              const marker=active?.hotspots.find(h=>h.id===id);
+              if(marker?.type==='navigation'){
+                setClassicDestinationPreviewId(marker.target&&visibleIds.has(marker.target)?marker.target:null);
+                setClassicDestinationSearch('');
+                if(creationFullscreen){
+                  setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);
+                  setHoveredGallerySceneId(null);
+                }else{
+                  setClassicDestinationOpen(true);
+                }
+              }else if(creationFullscreen){
+                setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);
+              }
+            }} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
@@ -2714,7 +2734,7 @@ function App(){
           </div>}
         </div>
         {active && !preview && <div className="toolbar nv-compact-actions" role="toolbar" aria-label="Outils de création">
-          
+          <div className="nv-toolbar-center">
           <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')} title="Lien de navigation vers un autre panorama">
             ➜ Navigation
           </button>
@@ -2734,7 +2754,8 @@ function App(){
           <button className={'tool '+(panel==='bar'?'selected':'')} onClick={()=>{setPanel('bar');setMode(null);setSelectedId('');}}>
             ☷ Barre du bas
           </button>
-          <div className="grow"/><button className="tool danger" onClick={removeScene} title={currentSpace?'Retirer de cet espace (original conservé)':'Supprimer définitivement le panorama'}>
+          </div>
+          <button className="tool danger" onClick={removeScene} title={currentSpace?'Retirer de cet espace (original conservé)':'Supprimer définitivement le panorama'}>
             <Trash2 size={13} style={{marginRight:4,verticalAlign:'-2px'}}/> {currentSpace?'Retirer de l’espace':'Supprimer scène'}
           </button>
         </div>}
