@@ -618,14 +618,6 @@ function App(){
     window.addEventListener('beforeunload',onBeforeUnload);
     return ()=>window.removeEventListener('beforeunload',onBeforeUnload);
   },[ready]);
-  // Édition multi-onglets : recharger une version enregistrée uniquement si le travail est intact.
-  async function reloadFromStore(){
-    try{
-      const p=await loadProject();
-      if(p){adopt(p,p.updatedAt??null);rawStoredRef.current=null;}
-      setLock(null);setStatus('Projet rechargé depuis la version enregistrée');
-    }catch(e){setLock({kind:'unreadable',reason:e instanceof Error?e.message:String(e)});}
-  }
   // Plusieurs onglets : on est prévenu dès qu'un autre onglet enregistre.
   async function reloadFromStore(){
     try{
@@ -1521,7 +1513,8 @@ function App(){
       <div className="top-actions">
         <button type="button" className="nv-header-save" disabled={!ready||savingManually||!!lock}
           title={!ready?'Chargement…':savingManually?'Enregistrement en cours…':
-            project!==savedRef.current?'Enregistrer maintenant (⌘S / Ctrl+S)':'Enregistrer (⌘S / Ctrl+S)'}
+            project!==savedRef.current?'Modifications non enregistrées · Enregistrer (⌘S / Ctrl+S)':
+            status.startsWith('Enregistré')?status:'Enregistrer (⌘S / Ctrl+S)'}
           onClick={()=>void manualSave()} aria-label="Enregistrer le projet maintenant">
           <Save size={18}/>
           <span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
