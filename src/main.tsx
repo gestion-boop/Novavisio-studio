@@ -11,6 +11,7 @@ import {ContinuousMusic} from './continuousMusic';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
 import {ClientPanel,type ClientLink} from './ClientPanel';
+import {ClientsDirectory} from './ClientsDirectory';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
 import {refreshActivePublication} from './share';
@@ -3072,15 +3073,17 @@ function App(){
         </div>}
       </aside>
     </div>
-    {clientOpen&&<div className="nv-client-overlay" role="presentation" onClick={()=>setClientOpen(false)}>
-      <section className="nv-client-dialog" role="dialog" aria-modal="true" aria-label="Informations client NovaGen" onClick={event=>event.stopPropagation()}>
-        <div className="nv-client-dialog-head">
-          <div><strong>Clients · NovaGen</strong><small>Établissement associé au projet « {project.name} »</small></div>
-          <button type="button" onClick={()=>setClientOpen(false)} aria-label="Fermer les informations client">✕</button>
-        </div>
-        {clientView}
-      </section>
-    </div>}
+    {clientOpen&&<ClientsDirectory
+      currentProjectName={project.name}
+      currentProfile={project.clientProfile}
+      onClose={()=>setClientOpen(false)}
+      onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
+      onAssociate={clientProfile=>{
+        setProject(p=>({...p,clientProfile}));
+        setPanel('client');
+        setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
+      }}
+    />}
     <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
