@@ -650,6 +650,20 @@ function App(){
   const [navigationPickerSearch,setNavigationPickerSearch]=useState('');
   const [classicDestinationOpen,setClassicDestinationOpen]=useState(false);
   const [classicDestinationPreviewId,setClassicDestinationPreviewId]=useState<string|null>(null);
+  const destinationListRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if(!classicDestinationOpen||!classicDestinationPreviewId)return;
+    const list=destinationListRef.current;
+    if(!list)return;
+    const selected=Array.from(list.querySelectorAll<HTMLButtonElement>('[data-destination-scene]'))
+      .find(button=>button.dataset.destinationScene===classicDestinationPreviewId);
+    if(!selected)return;
+    const viewport=list.getBoundingClientRect(),item=selected.getBoundingClientRect();
+    if(item.top<viewport.top||item.bottom>viewport.bottom){
+      list.scrollBy({top:item.top-viewport.top-(viewport.height-item.height)/2,behavior:'smooth'});
+    }
+  },[classicDestinationOpen,classicDestinationPreviewId,classicDestinationSearch]);
+
   const [galleryPreviewSceneId,setGalleryPreviewSceneId]=useState<string|null>(null);
   const [navigationDraft,setNavigationDraft]=useState<{
     sourceId:string;targetId:string;sourceYaw:number;sourcePitch:number;existingPointId?:string;
@@ -2287,13 +2301,13 @@ function App(){
             <div className="nv-classic-destination-list-panel">
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
                 aria-label="Rechercher un panorama" onChange={e=>setClassicDestinationSearch(e.target.value)}/>
-              <div className="nv-classic-destination-list">
+              <div className="nv-classic-destination-list" ref={destinationListRef}>
                 {visibleScenes.filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(classicDestinationSearch.toLocaleLowerCase('fr'))).map(sc=>
-                  <button type="button" key={sc.id} className={'nv-classic-destination-row'+(classicDestinationPreviewId===sc.id?' is-active':'')}
+                  <button type="button" key={sc.id} data-destination-scene={sc.id} className={'nv-classic-destination-row'+(classicDestinationPreviewId===sc.id?' is-active':'')}
                     onClick={()=>setClassicDestinationPreviewId(sc.id)}
                     aria-pressed={classicDestinationPreviewId===sc.id}>
                     {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}
-                    <span><strong>{sc.name}</strong><small>{sc.id===selected.target?'✓ Destination actuelle':sc.id===classicDestinationPreviewId?'◉ Aperçu actif':'Voir en 360°'}</small></span>
+                    <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné · vue affichée':sc.id===selected.target?'✓ Destination actuelle':'Voir en 360°'}</small></span>
                     <ChevronRight size={15}/>
                   </button>)}
               </div>
