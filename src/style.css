@@ -2978,3 +2978,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
  .nv-classic-destination-foot>span{display:none}
  .nv-classic-destination-title span{display:none}
 }
+
+/* L'introduction disparait à la seconde configurée, avec un fondu final de 350 ms. */
+.intro-overlay.is-ending{animation:none;opacity:0;transition:opacity .35s ease;pointer-events:none}
