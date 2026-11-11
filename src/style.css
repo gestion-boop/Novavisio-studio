@@ -4077,3 +4077,26 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   .nv-studio-pro .nv-header-tool-picker{flex:1 1 155px}
   .nv-studio-pro .nv-header-tools-trigger{width:100%;min-width:0}
 }
+
+/* Identité NovaVisio Studio intégrée au sommet du tiroir burger. */
+.nv-studio-pro .nv-navigation-brand{
+  display:flex;align-items:center;width:100%;
+  padding:5px 3px 13px;margin-bottom:2px;
+  border-bottom:1px solid #345568;
+}
+.nv-studio-pro .nv-navigation-brand .brand{
+  display:flex;align-items:center;gap:11px;min-width:0;
+}
+.nv-studio-pro .nv-navigation-brand .brand-logo{
+  width:64px;height:64px;flex:0 0 64px;
+}
+.nv-studio-pro .nv-navigation-brand .nv-brand-text{
+  display:flex;flex-direction:column;gap:5px;min-width:0;
+}
+.nv-studio-pro .nv-navigation-brand .brand strong{
+  font-size:20px;line-height:1.1;white-space:nowrap;
+}
+.nv-studio-pro .nv-navigation-brand .brand small{
+  font-size:9px;letter-spacing:.12em;white-space:nowrap;
+}
+.nv-studio-pro .nv-top-left{min-width:0;flex:0 0 auto}
