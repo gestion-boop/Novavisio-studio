@@ -70,9 +70,9 @@ export async function getPublication(projectId:string):Promise<Publication|null>
   return (data as Publication|null)??null;
 }
 /** Enregistre la visite telle qu'elle est maintenant (nouvelle révision) puis fait pointer l'adresse permanente dessus. */
-export async function publishPermanent(project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void):Promise<{link:CloudLink;publication:Publication}>{
+export async function publishPermanent(project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void,storeMasterLink=true):Promise<{link:CloudLink;publication:Publication}>{
   const saved=await saveToCloud(project,link,onProgress);
-  writeLink(saved);
+  if(storeMasterLink)writeLink(saved);
   onProgress('Publication…');
   const {data,error}=await supabase().rpc('nvstudio_publish',{p_project:saved.projectId,p_revision:saved.revision});
   if(error)throw new Error(friendly(error.message));
