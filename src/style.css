@@ -2925,3 +2925,56 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   .nv-studio-pro .toolbar.nv-compact-actions{height:54px;min-height:54px;max-height:54px}
   .nv-studio-pro .toolbar.nv-compact-actions .tool{height:38px;min-height:38px}
 }
+
+
+/* Éditeur classique : galerie 360° en grand ouverte depuis « Scène de destination ». */
+.nv-studio-pro .workspace{position:relative}
+.nv-classic-destination-trigger{display:flex;align-items:center;gap:9px;width:100%;min-height:45px;padding:10px 11px;background:#173e4e;border:1px solid #46a8a6;border-radius:9px;color:#e3fbf8;text-align:left;font-weight:700;cursor:pointer}
+.nv-classic-destination-trigger span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.nv-classic-destination-trigger:hover,.nv-classic-destination-trigger[aria-expanded=true]{border-color:#5de6d5;background:#215a65}
+.nv-classic-destination-overlay{
+  position:absolute;inset:12px 343px 12px 12px;z-index:85;
+  display:flex;flex-direction:column;min-height:0;
+  border:1px solid #468a92;border-radius:14px;background:#0b2432;
+  box-shadow:0 18px 45px #000b;overflow:hidden;
+}
+.nv-classic-destination-heading{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:13px 15px;background:#173746;border-bottom:1px solid #345c6a;
+}
+.nv-classic-destination-heading>div{display:flex;flex-direction:column;gap:4px}
+.nv-classic-destination-heading small{font-size:9px;letter-spacing:.12em;color:#8eddd6;font-weight:800}
+.nv-classic-destination-heading strong{font-size:17px;color:#e9fffc}
+.nv-classic-destination-heading button{width:34px;height:34px;border:1px solid #547e88;border-radius:9px;background:#1c4552;color:#e6fafa;cursor:pointer}
+.nv-classic-destination-layout{display:grid;grid-template-columns:minmax(195px,28%) minmax(0,1fr);gap:0;flex:1;min-height:0}
+.nv-classic-destination-list-panel{display:flex;flex-direction:column;min-height:0;padding:11px;border-right:1px solid #315565;background:#102e3c}
+.nv-classic-destination-list-panel input{width:100%;min-height:39px;flex:none;padding:8px 10px;margin:0 0 11px;background:#183849;border:1px solid #3e7080;border-radius:8px;color:#e6f7f7}
+.nv-classic-destination-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.nv-classic-destination-row{display:flex;align-items:center;gap:9px;flex:none;width:100%;min-height:66px;padding:7px;background:#173849;color:#e9f9fb;border:1px solid #355b6d;border-radius:10px;text-align:left;cursor:pointer}
+.nv-classic-destination-row.is-active,.nv-classic-destination-row:hover{background:#225562;border-color:#4adfcd}
+.nv-classic-destination-row img{width:82px;height:53px;flex:none;object-fit:cover;border-radius:7px}
+.nv-classic-destination-row>span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.nv-classic-destination-row strong{font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.nv-classic-destination-row small{font-size:10px;color:#a7c8cf}
+.nv-classic-destination-view-panel{display:flex;min-height:0;padding:12px;background:#0b202b}
+.nv-classic-destination-detail{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1;gap:11px}
+.nv-classic-destination-title{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#e5fffa}
+.nv-classic-destination-title strong{font-size:14px}
+.nv-classic-destination-title span{font-size:11px;color:#9bbec8}
+.nv-classic-destination-viewer{position:relative;flex:1;min-height:180px;border:1px solid #426e7b;border-radius:10px;overflow:hidden}
+.nv-classic-destination-confirm{display:flex;justify-content:center;align-items:center;gap:8px;min-height:44px;padding:9px 12px;background:#205c65;border:1px solid #48e0ce;border-radius:9px;color:#e7fff9;font-weight:750;cursor:pointer}
+.nv-classic-destination-confirm:hover{background:#2a7781}
+.nv-classic-destination-empty{display:grid;place-items:center;flex:1;color:#b9d4db;text-align:center}
+.nv-classic-destination-foot{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:10px 14px;border-top:1px solid #325665;background:#102e3c;color:#9ebfc7;font-size:10px}
+.nv-classic-destination-foot button{padding:8px 10px;border:1px solid #417783;border-radius:8px;background:#1b4451;color:#ddf8f7;font-weight:700;cursor:pointer}
+@media(max-width:1150px){
+ .nv-classic-destination-overlay{right:12px}
+ .nv-classic-destination-layout{grid-template-columns:minmax(175px,32%) minmax(0,1fr)}
+}
+@media(max-width:700px){
+ .nv-classic-destination-overlay{inset:8px;min-height:470px}
+ .nv-classic-destination-layout{grid-template-columns:1fr;grid-template-rows:minmax(105px,30%) minmax(190px,1fr)}
+ .nv-classic-destination-list-panel{border-right:0;border-bottom:1px solid #315565}
+ .nv-classic-destination-foot>span{display:none}
+ .nv-classic-destination-title span{display:none}
+}
