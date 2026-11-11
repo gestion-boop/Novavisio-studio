@@ -35,7 +35,9 @@ function publicProject(zip:JSZip,source:StudioProject):StudioProject {
     scenes:source.scenes.map((scene,i)=>({
       ...scene,
       dataUrl:addImage(zip,scene.dataUrl,'media/panoramas/pano-'+String(i+1).padStart(3,'0')+'-'+scene.id),
-      nightDataUrl:scene.nightDataUrl?addImage(zip,scene.nightDataUrl,'media/panoramas/nuit-'+String(i+1).padStart(3,'0')+'-'+scene.id):undefined,
+      nightDataUrl:(scene.nightDataUrl??source.scenes.find(other=>other.id===scene.nightSourceSceneId)?.dataUrl)
+        ?addImage(zip,(scene.nightDataUrl??source.scenes.find(other=>other.id===scene.nightSourceSceneId)?.dataUrl)!, 'media/panoramas/nuit-'+String(i+1).padStart(3,'0')+'-'+scene.id):undefined,
+      nightSourceSceneId:undefined,
       audioDataUrl:undefined,
       audioUrl:scene.audioDataUrl?addSoundOrVideo(zip,scene.audioDataUrl,
         'media/audio/scene-'+String(i+1).padStart(3,'0')+'-'+scene.id):scene.audioUrl,
