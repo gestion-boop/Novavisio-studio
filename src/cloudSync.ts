@@ -52,7 +52,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   const blockedRef=useRef<'setup'|null>(null);
   const attemptRef=useRef(0);
   const canRunRef=useRef(false);
-  const runRef=useRef<()=>Promise<void>>(async()=>{});
+  const runRef=useRef<(snapshot?:StudioProject)=>Promise<void>>(async()=>{});
   const startedRef=useRef(false);
 
   useEffect(()=>{
@@ -71,9 +71,9 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     timerRef.current=window.setTimeout(()=>{void runRef.current();},ms);
   },[]);
 
-  runRef.current=async()=>{
+  runRef.current=async(snapshot?:StudioProject)=>{
     if(runningRef.current||adoptingRef.current||blockedRef.current||!canRunRef.current)return;
-    const target=projectRef.current;
+    const target=snapshot??projectRef.current;
     if(target===syncedRef.current||!target.scenes.length)return;
     runningRef.current=true;
     setState({kind:'saving',progress:'Envoi…'});
@@ -210,18 +210,28 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   },[signedIn]);
 
   /** Envoie tout de suite et attend la fin. Renvoie vrai si la visite affichée est entièrement enregistrée dans le cloud. */
-  const syncNow=useCallback(async():Promise<boolean>=>{
+  const syncNow=useCallback(async(snapshot?:StudioProject):Promise<boolean>=>{
     if(!canRunRef.current)return false;
-    attemptRef.current=0;
     window.clearTimeout(timerRef.current);
-    const wait=async()=>{for(let i=0;i<1500&&(runningRef.current||adoptingRef.current);i++)await new Promise(r=>setTimeout(r,200));};
+    const wait=async()=>{
+      for(let i=0;i<1500&&(runningRef.current||adoptingRef.current);i++)
+        await new Promise(resolve=>setTimeout(resolve,200));
+    };
     await wait();
+    if(manualOnly){
+      // Save precisely the snapshot chosen by the user, even when they keep editing.
+      // No follow-up autosave of newer, still-unsaved edits.
+      const target=snapshot??projectRef.current;
+      if(target!==syncedRef.current&& !blockedRef.current)await runRef.current(target);
+      await wait();
+      return target===syncedRef.current&&!!readLink();
+    }
     for(let round=0;round<6&&projectRef.current!==syncedRef.current&&!blockedRef.current;round++){
       await runRef.current();
       await wait();
     }
     return projectRef.current===syncedRef.current&&!!readLink();
-  },[]);
+  },[manualOnly]);
 
   return {state,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,syncNow};
 }
