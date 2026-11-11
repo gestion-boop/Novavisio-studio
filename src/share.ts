@@ -79,6 +79,19 @@ export async function publishPermanent(project:StudioProject,link:CloudLink|null
   const out=data as {token:string;published_at:string;revision:number};
   return {link:saved,publication:{token:out.token,published_revision:out.revision,published_at:out.published_at,revoked_at:null}};
 }
+/**
+ * Publie automatiquement après un enregistrement manuel, uniquement si le lien
+ * permanent est actuellement actif. N'active jamais une publication arrêtée,
+ * ne crée aucun nouveau lien et ne touche pas aux liens temporaires.
+ */
+export async function refreshActivePublication(
+  project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void
+):Promise<{link:CloudLink;publication:Publication}|null>{
+  if(!link)return null;
+  const existing=await getPublication(link.projectId);
+  if(!publicationActive(existing))return null;
+  return publishPermanent(project,link,onProgress,false);
+}
 export async function unpublish(projectId:string){
   const {error}=await supabase().rpc('nvstudio_unpublish',{p_project:projectId});
   if(error)throw new Error(friendly(error.message));
