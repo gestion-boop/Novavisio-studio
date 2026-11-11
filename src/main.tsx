@@ -442,6 +442,9 @@ function App(){
   const [activeId,setActiveId]=useState('');
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
   const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
+  const [editingSpaceId,setEditingSpaceId]=useState<string|null>(null);
+  const [editingSpaceName,setEditingSpaceName]=useState('');
+  const cancelSpaceEditRef=useRef(false);
   const [selectedId,setSelectedId]=useState('');
   const [selectedBarId,setSelectedBarId]=useState('');
   const [panel,setPanel]=useState<PanelTab>('points');
@@ -1370,6 +1373,19 @@ function App(){
     setSpaceManagerOpen(true);
     setStatus('Espace créé sans dupliquer ni supprimer aucun panorama');
   }
+  function startSpaceRename(spaceId:string,name:string){
+    cancelSpaceEditRef.current=false;
+    setEditingSpaceId(spaceId);
+    setEditingSpaceName(name);
+  }
+  function finishSpaceRename(spaceId:string){
+    if(!cancelSpaceEditRef.current){
+      const name=safeSpaceName(editingSpaceName).trim();
+      if(name)renameSpace(spaceId,name);
+    }
+    cancelSpaceEditRef.current=false;
+    setEditingSpaceId(null);
+  }
   function renameSpace(spaceId:string,name:string){
     if(!safeSpaceName(name).trim())return;
     setProject(p=>({...p,spaces:(p.spaces??[]).map(space=>
@@ -1612,12 +1628,31 @@ function App(){
           onClick={()=>selectSpace(null)} title="Tous les panoramas originaux">
           <Home size={13}/> Projet complet <small>{project.scenes.length}</small>
         </button>
-        {(project.spaces??[]).map(space=><button type="button" role="tab" key={space.id}
-          aria-selected={activeSpaceId===space.id}
-          className={'nv-space-tab'+(activeSpaceId===space.id?' is-active':'')}
-          onClick={()=>selectSpace(space.id)} title={space.name}>
-          <LayoutGrid size={13}/><span>{space.name}</span><small>{space.sceneIds.length}</small>
-        </button>)}
+        {(project.spaces??[]).map(space=><div key={space.id}
+          className={'nv-space-tab nv-space-tab-editable'+(activeSpaceId===space.id?' is-active':'')}>
+          {editingSpaceId===space.id?
+            <input autoFocus className="nv-space-tab-rename" value={editingSpaceName}
+              maxLength={100} aria-label={'Nouveau nom de '+space.name}
+              onChange={e=>setEditingSpaceName(e.target.value)}
+              onBlur={()=>finishSpaceRename(space.id)}
+              onKeyDown={e=>{
+                if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}
+                if(e.key==='Escape'){e.preventDefault();cancelSpaceEditRef.current=true;e.currentTarget.blur();}
+              }}/>:
+            <>
+              <button type="button" role="tab" aria-selected={activeSpaceId===space.id}
+                className="nv-space-tab-select" title={space.name+' · double-clic pour renommer'}
+                onClick={()=>selectSpace(space.id)}
+                onDoubleClick={()=>startSpaceRename(space.id,space.name)}>
+                <LayoutGrid size={13}/><span>{space.name}</span><small>{space.sceneIds.length}</small>
+              </button>
+              <button type="button" className="nv-space-tab-rename-button"
+                aria-label={'Renommer '+space.name} title={'Renommer '+space.name}
+                onClick={()=>startSpaceRename(space.id,space.name)}>
+                <Edit3 size={13}/>
+              </button>
+            </>}
+        </div>)}
       </div>
       <button type="button" className="nv-space-create" onClick={createSpace}
         title="Créer une sous-visite à partir des panoramas existants">
