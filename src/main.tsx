@@ -2133,6 +2133,16 @@ function App(){
               {visibleScenes.length} panorama{visibleScenes.length>1?'s':''} dans cet espace
             </footer>
             </section>}
+            {!fullscreenGalleryOpen&&<div className="nv-drawer-arrival-action">
+              <button type="button" className="nv-drawer-arrival-save" onClick={saveArrivalView}
+                title="Définir l'orientation et le zoom d'arrivée de ce panorama">
+                <Eye size={17}/> Définir la vue actuelle
+              </button>
+              {active.arrivalYaw!==undefined?
+                <small className="nv-drawer-arrival-current">✓ Vue définie · {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)} %</small>:
+                <small className="nv-drawer-arrival-current">Oriente la vue et règle le zoom avant de cliquer.</small>}
+              <small className="nv-drawer-arrival-note">Vue d'arrivée par défaut depuis la galerie et les flèches sans vue spécifique. Enregistre ensuite le projet avec la disquette.</small>
+            </div>}
 
           </div>}
           {active&&creationFullscreen&&!preview&&fullscreenToolsOpen&&
