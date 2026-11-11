@@ -517,6 +517,7 @@ function App(){
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
   const [videoZoom,setVideoZoom]=useState<Hotspot|null>(null);
   const [introVisible,setIntroVisible]=useState(false);
+  const [introEnding,setIntroEnding]=useState(false);
   const [exporting,setExporting]=useState(false);
   const [cloudOpen,setCloudOpen]=useState(false);
   const [authNotice,setAuthNotice]=useState<string|null>(null);
@@ -799,18 +800,15 @@ function App(){
     viaFrom?.hotspots.find(h=>h.id===arrivedVia.hotspotId&&h.type==='navigation'&&h.target===active.id)??null:null;
   useEffect(()=>{
     if(!introVisible||!project.introEnabled||!project.introUrl)return;
-    const close=()=>{setIntroVisible(false);setActiveId(project.scenes[0]?.id??'');};
-    const timeout=window.setTimeout(close,(project.introDuration??6)*1000);
-    const finished=(event:MessageEvent)=>{
-      try{
-        if(event.origin!==new URL(project.introUrl).origin)return;
-        const type=typeof event.data==='string'?event.data:event.data?.type;
-        if(['intro:done','intro-finished','novavisio:intro-finished'].includes(type))close();
-      }catch{}
-    };
-    window.addEventListener('message',finished);
-    return ()=>{window.clearTimeout(timeout);window.removeEventListener('message',finished);};
-  },[introVisible,project.introEnabled,project.introUrl,project.introDuration,project.scenes]);
+    // Ne pas rediriger vers le premier panorama du projet complet :
+    // l'espace et sa première scène ont déjà été choisis au lancement.
+    setIntroEnding(false);
+    const duration=Math.max(2,Math.min(60,project.introDuration??6))*1000;
+    const fadeMs=Math.min(350,duration/4);
+    const fade=window.setTimeout(()=>setIntroEnding(true),duration-fadeMs);
+    const finish=window.setTimeout(()=>setIntroVisible(false),duration);
+    return ()=>{window.clearTimeout(fade);window.clearTimeout(finish);};
+  },[introVisible,project.introEnabled,project.introUrl,project.introDuration]);
   const totalPoints=project.scenes.reduce((n,s)=>n+s.hotspots.length,0);
   const nightSource=project.scenes.find(sc=>sc.id===active?.nightSourceSceneId);
   const nightTexture=active?.nightDataUrl??nightSource?.dataUrl;
@@ -2525,7 +2523,7 @@ function App(){
               </button>;
             })}
           </nav>}
-          {introVisible && project.introEnabled && project.introUrl && <div className="intro-overlay">
+          {introVisible && project.introEnabled && project.introUrl && <div className={"intro-overlay"+(introEnding?" is-ending":"")}>
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
@@ -2958,8 +2956,8 @@ function App(){
             <input type="range" min="2" max="60" step="1" value={project.introDuration??6}
               onChange={e=>setProject(p=>({...p,introDuration:Number(e.target.value)}))}/>
           </label>
-          <small className="hint-inline">La transition est automatique à la fin de cette durée, ou dès que l’intro envoie l’événement intro:done.</small>
-          <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setPreview(true);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
+          <small className="hint-inline">La transition s'effectue automatiquement à la durée réglée, indépendamment de la durée de la vidéo et sans attendre de clic.</small>
+          <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setActiveId(visibleScenes[0]?.id??'');setMode(null);setSelectedId('');setPreview(true);setIntroEnding(false);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='music' && <div className="properties">
