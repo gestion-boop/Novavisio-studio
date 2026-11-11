@@ -95,3 +95,38 @@
 }
 .nv-video-close:hover{filter:brightness(1.18)}
 .nv-video-close:active{transform:scale(.95)}
+
+/* Choix d'une icône PNG de fermeture, partagé entre l'éditeur et les visites exportées. */
+.nv-custom-close .lightbox-close,
+.nv-custom-close .nv-video-close,
+.nv-custom-close .tour-close-image,
+.nv-custom-close .tour-dialog header button,
+.nv-custom-close .embed-shell .embed-actions button,
+.nv-custom-close .info-in-view .modal > .close,
+.nv-custom-close .nv-gallery-close {
+  background-color:transparent;
+  background-image:var(--nv-close-icon-image,none);
+  background-repeat:no-repeat;
+  background-position:center;
+  background-size:contain;
+  border:0;
+  color:transparent;
+  font-size:0;
+  box-shadow:none;
+  overflow:hidden;
+}
+.nv-custom-close .lightbox-close svg,
+.nv-custom-close .nv-video-close svg,
+.nv-custom-close .tour-close-image svg,
+.nv-custom-close .tour-dialog header button svg,
+.nv-custom-close .embed-shell .embed-actions button svg,
+.nv-custom-close .info-in-view .modal > .close svg,
+.nv-custom-close .nv-gallery-close svg{opacity:0}
+.nv-custom-close .lightbox-close:hover,
+.nv-custom-close .nv-video-close:hover,
+.nv-custom-close .tour-close-image:hover,
+.nv-custom-close .tour-dialog header button:hover,
+.nv-custom-close .embed-shell .embed-actions button:hover,
+.nv-custom-close .info-in-view .modal > .close:hover,
+.nv-custom-close .nv-gallery-close:hover{filter:brightness(1.13);cursor:pointer}
+
