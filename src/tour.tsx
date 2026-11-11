@@ -196,8 +196,8 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     // A generated Scaleway wrapper already starts the intro at HTML first paint.
     !(window.parent!==window && new URLSearchParams(window.location.search).get('external_intro')==='1')
   ));
-  const [introCompleted,setIntroCompleted]=useState(false);
-  const [firstPanoramaReady,setFirstPanoramaReady]=useState(false);
+  const [introEnding,setIntroEnding]=useState(false);
+  const introInitialised=useRef(Boolean(project));
   const [fullscreen,setFullscreen]=useState(false);
   const [vrAvailable,setVrAvailable]=useState(false);
   const [vrActive,setVrActive]=useState(false);
@@ -209,29 +209,32 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const vrStop=useRef<null|(()=>void)>(null);
   useEffect(()=>{void vrSupported().then(setVrAvailable);return ()=>vrStop.current?.();},[]);
   const firstSceneId=project?.scenes[0]?.id??'';
+  // Le projet public peut arriver après le premier rendu (chargement cloud).
+  // L'introduction doit alors tout de même se lancer une seule fois.
+  useEffect(()=>{
+    if(introInitialised.current||!project)return;
+    introInitialised.current=true;
+    if(project.introEnabled&&project.introUrl?.startsWith('https://')&&
+       !(window.parent!==window&&new URLSearchParams(window.location.search).get('external_intro')==='1')){
+      setShowIntro(true);
+    }
+  },[project]);
   useEffect(()=>{
     if(!showIntro||!project?.introEnabled||!project.introUrl)return;
-    // The intro starts before the media download. Its duration isn't restarted
-    // when progressive media hydration triggers a new project object.
-    const timer=window.setTimeout(()=>setIntroCompleted(true),(project.introDuration??6)*1000);
-    const onMessage=(event:MessageEvent)=>{
-      try{
-        if(event.origin!==new URL(project.introUrl).origin)return;
-        const kind=typeof event.data==='string'?event.data:event.data?.type;
-        if(['intro:done','intro-finished','novavisio:intro-finished'].includes(kind))setIntroCompleted(true);
-      }catch{}
-    };
-    window.addEventListener('message',onMessage);
-    return ()=>{window.clearTimeout(timer);window.removeEventListener('message',onMessage);};
+    // Durée stricte : le panorama se prépare derrière l'intro, mais son
+    // chargement ne bloque jamais sa disparition. Une vidéo externe ne peut
+    // ni raccourcir ni prolonger la durée choisie.
+    setIntroEnding(false);
+    const duration=Math.max(2,Math.min(60,project.introDuration??6))*1000;
+    const fadeMs=Math.min(350,duration/4);
+    const fade=window.setTimeout(()=>setIntroEnding(true),duration-fadeMs);
+    const finish=window.setTimeout(()=>setShowIntro(false),duration);
+    return ()=>{window.clearTimeout(fade);window.clearTimeout(finish);};
   },[showIntro,project?.introEnabled,project?.introUrl,project?.introDuration]);
-  useEffect(()=>{
-    // Never reveal a loading screen between the intro and the first panorama.
-    if(showIntro&&introCompleted&&firstPanoramaReady)setShowIntro(false);
-  },[showIntro,introCompleted,firstPanoramaReady]);
   const reportPanoramaReady=(id:string)=>{
     if(id!==firstSceneId)return;
-    setFirstPanoramaReady(true);
-    // The static Scala/WebCloud wrapper can reveal the live visit when its viewer is ready.
+    // The external wrapper can use this to know the viewer is ready;
+    // the intro timer itself does not depend on this event.
     if(window.parent!==window)window.parent.postMessage({type:'novavisio:tour-ready'},'*');
   };
   const wrap=useRef<HTMLDivElement>(null);
@@ -335,7 +338,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         onPick={id=>{move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
     {photo?.imageDataUrl&&<ZoomImage variant="tour" src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
-    {showIntro&&project.introUrl&&<div className="tour-intro">
+    {showIntro&&project.introUrl&&<div className={"tour-intro"+(introEnding?" is-ending":"")}>
       <iframe title={'Introduction de '+project.name} src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
 
     </div>}
