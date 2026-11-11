@@ -3504,3 +3504,20 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   .nv-studio-pro .toolbar.nv-compact-actions{justify-content:flex-start;padding-right:10px!important}
   .nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center{justify-content:flex-start;flex:0 0 auto}
 }
+
+/* Direction de navigation : aperçu grand format dans la création et validation unique. */
+.nv-direction-preview{position:absolute;inset:10px 14px;z-index:95;display:flex;align-items:center;justify-content:center;pointer-events:auto;background:rgba(4,20,31,.55);backdrop-filter:blur(4px);border-radius:15px}
+.nv-direction-preview-inner{display:flex;flex-direction:column;width:min(920px,calc(100% - 20px));height:min(780px,calc(100% - 10px));max-height:100%;padding:15px;gap:10px;border:1px solid #59d6cc;border-radius:16px;background:#102a38;box-shadow:0 18px 55px #000b;color:#e2f7f8}
+.nv-direction-preview-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.nv-direction-preview-head>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.nv-direction-preview-head small{color:#75cec9;font-size:11px;letter-spacing:1.5px}
+.nv-direction-preview-head strong{font-size:18px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.nv-direction-preview-head>button{padding:8px 12px;background:#183e4b;color:white;border:1px solid #527b88;border-radius:9px;cursor:pointer}
+.nv-direction-preview-viewer{position:relative;flex:1;min-height:120px;overflow:hidden;border:1px solid #427e86;border-radius:12px}
+.nv-direction-preview-viewer .nv-hover-preview-media{width:100%;height:100%}
+.nv-direction-preview-viewer .nv-hover-preview-viewer{width:100%;height:100%;min-height:100%}
+.nv-direction-preview p{margin:0;color:#a5cad0;text-align:center;font-size:12px;line-height:1.4}
+.nv-direction-preview-actions{display:flex;gap:10px}
+.nv-direction-preview-actions button{flex:1;min-height:43px;border-radius:10px;background:#1b3647;color:#d6edf1;border:1px solid #4f7582;font-weight:750;cursor:pointer}
+.nv-direction-preview-actions .nv-direction-confirm{background:linear-gradient(150deg,#258782,#1c5d70);border-color:#61e8dd;color:white;box-shadow:inset 0 1px 0 #ffffff35}
+@media(max-width:700px){.nv-direction-preview{inset:3px}.nv-direction-preview-inner{width:calc(100% - 8px);height:calc(100% - 8px);padding:9px;gap:6px}.nv-direction-preview-actions button{min-height:42px}.nv-direction-preview-head strong{font-size:14px}}
