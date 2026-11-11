@@ -63,7 +63,7 @@ function launchLink(link:string) {
   return true;
 }
 type PanoramaProps = {
-  scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean;
+  scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean; night:boolean;
   onCreate: (yaw:number,pitch:number)=>void;
   onPick: (id:string)=>void;
   onNavigate: (id:string,via?:Hotspot)=>void;
@@ -152,10 +152,11 @@ function FullscreenGalleryHoverPreview({scene,thumb}:{scene:Scene;thumb?:string}
   </div>;
 }
 
-function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,night,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
+  const currentTextureRef=useRef(scene.dataUrl);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic dans le panorama : point de départ du zoom photo/vidéo
   const actions = useRef({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
   actions.current = {scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
@@ -170,7 +171,7 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
   useEffect(()=>{
     if (!box.current) return;
     const viewer = new Viewer({
-      container:box.current, panorama:scene.dataUrl,
+      container:box.current, panorama:night&&scene.nightDataUrl?scene.nightDataUrl:scene.dataUrl,
       // Le bouton plein écran natif n'agrandit que le lecteur 360° et cache les éléments personnalisés.
       // La vue complète (lecteur + barre) est désormais gérée par App.
       navbar:[],mousemove:true,mousewheel:true,touchmoveTwoFingers:false,
@@ -251,7 +252,8 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
     const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel());
     const onLoaded=()=>{viewer.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(viewer,markersNow(),260);};
     viewer.addEventListener('panorama-loaded',onLoaded);
-    void viewer.setPanorama(next.dataUrl,{
+    const nextTexture=night&&next.nightDataUrl?next.nightDataUrl:next.dataUrl;
+    void viewer.setPanorama(nextTexture,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
       position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
@@ -261,10 +263,25 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
       if(fade)await fade;else resetMarkers(viewer,markersNow());
       if(disposed)return;
       loadedSceneRef.current=next.id;
+      currentTextureRef.current=nextTexture;
       syncMarkers(viewer,markersNow()); // met à jour d'éventuelles modifications survenues pendant la transition
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
     return ()=>{disposed=true;viewer.removeEventListener('panorama-loaded',onLoaded);};
   },[scene.id,scene.dataUrl]);
+  useEffect(()=>{
+    // Jour/Nuit : on change seulement la texture, sans toucher à la caméra ni aux points.
+    const viewer=viewerRef.current;
+    if(!viewer||loadedSceneRef.current!==scene.id)return;
+    const texture=night&&scene.nightDataUrl?scene.nightDataUrl:scene.dataUrl;
+    if(currentTextureRef.current===texture)return;
+    let disposed=false;
+    const position=viewer.getPosition(),zoom=viewer.getZoomLevel();
+    void viewer.setPanorama(texture,{
+      showLoader:false,transition:{effect:'fade',rotation:false,speed:750},position,zoom
+    }).then(success=>{if(success&&!disposed)currentTextureRef.current=texture;})
+      .catch(()=>{/* Garde la photo précédente si la variante ne charge pas. */});
+    return ()=>{disposed=true;};
+  },[scene.id,night,scene.nightDataUrl,scene.dataUrl]);
   useEffect(()=>{
     const refresh=()=>{
       const element=box.current;
@@ -483,6 +500,7 @@ function App(){
   const [ready,setReady]=useState(false);
   const [savingManually,setSavingManually]=useState(false);
   const [activeId,setActiveId]=useState('');
+  const [nightSceneId,setNightSceneId]=useState<string|null>(null);
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
   const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
   const [editingSpaceId,setEditingSpaceId]=useState<string|null>(null);
@@ -524,6 +542,7 @@ function App(){
   const [photoFeedback,setPhotoFeedback]=useState('');
   const videoInput=useRef<HTMLInputElement>(null);
   const audioInput=useRef<HTMLInputElement>(null);
+  const nightInput=useRef<HTMLInputElement>(null);
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
   const iconInput=useRef<HTMLInputElement>(null);
@@ -787,6 +806,7 @@ function App(){
     return ()=>{window.clearTimeout(timeout);window.removeEventListener('message',finished);};
   },[introVisible,project.introEnabled,project.introUrl,project.introDuration,project.scenes]);
   const totalPoints=project.scenes.reduce((n,s)=>n+s.hotspots.length,0);
+  const nightActive=nightSceneId===activeId && !!active?.nightDataUrl;
   const selectedBar=project.bottomBar.find(b=>b.id===selectedBarId) ?? null;
   const closeIcon=project.icons.find(icon=>icon.id===project.closeIconId);
   const popupThemeClass=closeIcon?' nv-custom-close':'';
@@ -944,6 +964,43 @@ function App(){
     if(view.sceneId!==active.id){setStatus('Oriente d’abord le panorama puis réessaie');return;}
     setArrowArrival(arrivedVia!.fromSceneId,viaHotspot.id,{yaw:view.yaw,pitch:view.pitch,zoom:view.zoom});
     setStatus('Vue d’arrivée enregistrée pour cette flèche');
+  }
+  async function importNightPanorama(file?:File){
+    if(!file||!activeId)return;
+    const sceneId=activeId;
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size>40*1024*1024){
+      setStatus('Panorama nuit : JPG, PNG ou WebP, 40 Mo maximum');return;
+    }
+    try{
+      const data=await readPanorama(file);
+      setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===sceneId?{...sc,nightDataUrl:data}:sc)}));
+      setStatus('Panorama de nuit associé à la scène. Clique sur Lune pour le visualiser.');
+    }catch{
+      setStatus('Impossible d’importer cette photo de nuit');
+    }
+    if(nightInput.current)nightInput.current.value='';
+  }
+  function nightSceneControls(scene:Scene){
+    return <div className="nv-night-settings">
+      <div className="section-title">MODE JOUR / NUIT</div>
+      <p className="hint">Ajoute une seconde photo 360° prise depuis le même emplacement et avec la même orientation. Le visiteur passe du jour à la nuit par un fondu.</p>
+      <div className="nv-night-dropzone" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importNightPanorama(e.dataTransfer.files[0]);}}>
+        <button type="button" className="import" onClick={()=>nightInput.current?.click()}>
+          {scene.nightDataUrl?'🌙 Remplacer le panorama de nuit':'🌙 Importer le panorama de nuit'}
+        </button>
+        <small>Ou glisse ici une photo équirectangulaire 360° (JPG, PNG, WebP).</small>
+      </div>
+      {scene.nightDataUrl&&<>
+        <div className="nv-daynight-preview">
+          <button type="button" className={nightSceneId===scene.id?'':'is-active'} onClick={()=>setNightSceneId(null)}>☀ Jour</button>
+          <button type="button" className={nightSceneId===scene.id?'is-active':''} onClick={()=>setNightSceneId(scene.id)}>☾ Nuit</button>
+        </div>
+        <button type="button" className="style-reset" onClick={()=>{
+          setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,nightDataUrl:undefined}:sc)}));
+          setNightSceneId(null);
+        }}>Retirer la version nuit</button>
+      </>}
+    </div>;
   }
   function saveArrivalView(){
     if(!active)return;
@@ -1890,7 +1947,7 @@ function App(){
           </b>
         </div>
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} night={nightActive} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onAssetDrop={dropIcon}
@@ -1900,6 +1957,10 @@ function App(){
             <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):upload.current?.click()}>
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
             </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
+          </div>}
+          {active?.nightDataUrl&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
+            <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
+            <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(active.id)}>☾ <span>Nuit</span></button>
           </div>}
           {active && !creationFullscreen && <button type="button" className="nv-creation-fullscreen-enter"
             onClick={()=>void toggleCreationFullscreen()} title="Agrandir uniquement la création 360°" aria-label="Plein écran de la création">
@@ -2149,6 +2210,7 @@ function App(){
                   <label>Nom du panorama
                     <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
                   </label>
+                  {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
                     <Eye size={15}/> Définir cette vue comme arrivée
                   </button>
@@ -2329,6 +2391,7 @@ function App(){
           <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music')}>Musique</button>
         </div>
         {panel==='points' && <div className="properties">
+          {active&&nightSceneControls(active)}
           {!active?<div className="hint">Importe un panorama pour commencer à créer.</div>:selected ? (
             /* ============================================================== */
             /* DIRECT ELEMENT INSPECTOR (QUAND UN ÉLÉMENT DU 360° EST CLIQUÉ) */
@@ -2728,6 +2791,7 @@ function App(){
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
     <input ref={replaceIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void replaceIconEverywhere(e.target.files?.[0])}/>
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
+    <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {privateOpen&&<PrivatePanel project={project} onClose={()=>setPrivateOpen(false)} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
     {shareOpen&&<SharePanel project={project} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
