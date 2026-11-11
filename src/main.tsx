@@ -1792,11 +1792,190 @@ function App(){
               title="Voir la création sans poignées d'édition">
               <Eye size={16}/> Voir
             </button>
+            {!preview&&<button type="button" className={'nv-fullscreen-tools-toggle'+(fullscreenToolsOpen?' is-active':'')}
+              title="Ouvrir les réglages, la bibliothèque d’icônes et la barre du bas"
+              aria-expanded={fullscreenToolsOpen} aria-controls="nv-fullscreen-tools"
+              onClick={()=>{setFullscreenToolsOpen(v=>!v);setFullscreenGalleryOpen(false);}}>
+              <PanelRightClose size={16}/> Outils
+            </button>}
             <button type="button" className="nv-creation-fullscreen-exit"
               onClick={()=>void toggleCreationFullscreen()} title="Revenir à NovaVisio Studio" aria-label="Quitter le plein écran de création">
               <Minimize2 size={17}/> Quitter
             </button>
           </div>}
+          {active&&creationFullscreen&&!preview&&fullscreenToolsOpen&&
+            <aside id="nv-fullscreen-tools" className="nv-fullscreen-tools-panel" aria-label="Réglages en plein écran">
+              <div className="nv-fullscreen-tools-head">
+                <div><small>NOVAVISIO STUDIO</small><strong>Réglages rapides</strong></div>
+                <button type="button" aria-label="Fermer les réglages" onClick={()=>setFullscreenToolsOpen(false)}>✕</button>
+              </div>
+              <div className="nv-fullscreen-tools-tabs" role="tablist">
+                <button type="button" className={fullscreenToolsTab==='point'?'is-active':''}
+                  onClick={()=>setFullscreenToolsTab('point')}>Points</button>
+                <button type="button" className={fullscreenToolsTab==='bar'?'is-active':''}
+                  onClick={()=>setFullscreenToolsTab('bar')}>Barre</button>
+                <button type="button" className={fullscreenToolsTab==='scene'?'is-active':''}
+                  onClick={()=>setFullscreenToolsTab('scene')}>Scène</button>
+              </div>
+              <div className="nv-fullscreen-tools-body">
+                {fullscreenToolsTab==='point'&&<>
+                  <div className="nv-quick-section-title">Points de ce panorama</div>
+                  <div className="nv-quick-point-list">
+                    {active.hotspots.map(h=><button type="button" key={h.id}
+                      className={selectedId===h.id?'is-active':''}
+                      onClick={()=>{setSelectedId(h.id);setSelectedBarId('');setMode(null);}}>
+                      <span>{h.type==='navigation'?'➜':h.type==='image'?'▣':h.type==='video'?'▶':h.type==='lien'?'↗':'ⓘ'}</span>
+                      <strong>{h.title||'Sans titre'}</strong>
+                    </button>)}
+                    {!active.hotspots.length&&<p className="nv-quick-hint">Ajoute un élément depuis la barre supérieure, puis clique dans le panorama.</p>}
+                  </div>
+                  {selected?<div className="nv-quick-fields">
+                    <label>Nom du point
+                      <input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/>
+                    </label>
+                    {selected.type==='navigation'&&<label>Aller vers
+                      <select value={selected.target} onChange={e=>patchPoint({target:e.target.value,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalZoomModel:undefined})}>
+                        <option value="">Choisir un panorama</option>
+                        {visibleScenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                      </select>
+                    </label>}
+                    {(selected.type==='lien'||selected.type==='information')&&<>
+                      <label>Adresse / lien
+                        <input type="url" placeholder="https://…" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
+                      </label>
+                      <label>Texte affiché
+                        <textarea rows={3} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/>
+                      </label>
+                    </>}
+                    {selected.type==='image'&&<>
+                      <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo':'Ajouter une photo'}
+                        <input type="file" accept="image/*,.heic,.heif"
+                          onChange={e=>{void addFrameImage(e.target.files?.[0]);e.currentTarget.value='';}}/>
+                      </label>
+                      <label className="nv-quick-check"><input type="checkbox" checked={selected.fadeOnClick!==false}
+                        onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
+                      <p className="nv-quick-hint">Déplace les quatre petites poignées sur le panorama pour adapter la photo au cadre.</p>
+                    </>}
+                    {selected.type==='video'&&<>
+                      <label>URL de la vidéo
+                        <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''}
+                          onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
+                      </label>
+                      <label className="nv-quick-upload">▶ Importer une vidéo
+                        <input type="file" accept="video/mp4,video/webm" onChange={e=>{
+                          void addVideo(e.target.files?.[0]);e.currentTarget.value='';
+                        }}/>
+                      </label>
+                      <label className="nv-quick-check"><input type="checkbox" checked={selected.videoAutoplay!==false}
+                        onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Lecture automatique</label>
+                      <label className="nv-quick-check"><input type="checkbox" checked={selected.videoLoop!==false}
+                        onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Boucle</label>
+                      <label className="nv-quick-check"><input type="checkbox" checked={selected.videoOpenFullscreen!==false}
+                        onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic</label>
+                    </>}
+                    <div className="nv-quick-section-title">Icône du point</div>
+                    {(['iconId','hoverIconId','pressedIconId'] as const).map((field,index)=>
+                      <div key={field} className="nv-quick-icon-field">
+                        <strong>{['Normale','Survol','Clic'][index]}</strong>
+                        <div className="nv-quick-icon-grid">
+                          <button type="button" className={!selected[field]?'is-active':''}
+                            title="Icône par défaut" onClick={()=>patchPoint({[field]:undefined})}>◎</button>
+                          {project.icons.map(icon=><button type="button" key={icon.id}
+                            className={selected[field]===icon.id?'is-active':''}
+                            title={icon.name} onClick={()=>patchPoint({[field]:icon.id})}>
+                            <img src={icon.dataUrl} alt={icon.name}/>
+                          </button>)}
+                        </div>
+                        <label className="nv-quick-upload-small">＋ Importer un PNG
+                          <input type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                            onChange={e=>{void uploadFullscreenIcon(e.target.files?.[0],field);e.currentTarget.value='';}}/>
+                        </label>
+                      </div>)}
+                    <label>Taille de l’icône : {selected.iconSize??28} px
+                      <input type="range" min="16" max="80" value={selected.iconSize??28}
+                        onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
+                    </label>
+                    <button type="button" className="nv-quick-delete" onClick={()=>{
+                      if(!window.confirm('Supprimer ce point ?'))return;
+                      patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));
+                      setSelectedId('');
+                    }}><Trash2 size={14}/> Supprimer ce point</button>
+                  </div>:<p className="nv-quick-hint">Sélectionne un point dans la liste ou clique sur son icône dans le panorama pour modifier ses paramètres et ses PNG.</p>}
+                </>}
+                {fullscreenToolsTab==='bar'&&<>
+                  <div className="nv-quick-section-title">Boutons de la barre</div>
+                  <div className="nv-quick-point-list">
+                    {project.bottomBar.map(item=><button type="button" key={item.id}
+                      className={selectedBarId===item.id?'is-active':''}
+                      onClick={()=>{setSelectedBarId(item.id);setSelectedId('');setMode(null);}}>
+                      <span>{project.icons.find(i=>i.id===item.iconId)?
+                        <img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:'◉'}</span>
+                      <strong>{item.title}</strong>
+                    </button>)}
+                  </div>
+                  {selectedBar&&<div className="nv-quick-fields">
+                    <label>Libellé
+                      <input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/>
+                    </label>
+                    {selectedBar.type==='navigation'&&<label>Panorama de destination
+                      <select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}>
+                        <option value="">Sélectionner…</option>
+                        {visibleScenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                      </select>
+                    </label>}
+                    {(selectedBar.type==='lien'||selectedBar.type==='information')&&<label>Lien
+                      <input value={selectedBar.url??''} placeholder="https://…" onChange={e=>patchBar({url:e.target.value})}/>
+                    </label>}
+                    {(['iconId','hoverIconId','pressedIconId'] as const).map((field,index)=><div key={field} className="nv-quick-icon-field">
+                      <strong>{['PNG normal','PNG survol','PNG clic'][index]}</strong>
+                      <div className="nv-quick-icon-grid">
+                        <button type="button" className={!selectedBar[field]?'is-active':''}
+                          onClick={()=>patchBar({[field]:undefined})}>◎</button>
+                        {project.icons.map(icon=><button type="button" key={icon.id} title={icon.name}
+                          className={selectedBar[field]===icon.id?'is-active':''}
+                          onClick={()=>patchBar({[field]:icon.id})}><img src={icon.dataUrl} alt={icon.name}/></button>)}
+                      </div>
+                      <label className="nv-quick-upload-small">＋ Importer un PNG
+                        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={e=>{void uploadFullscreenIcon(e.target.files?.[0],field);e.currentTarget.value='';}}/>
+                      </label>
+                    </div>)}
+                    <label>Taille du bouton : {barIconSize(selectedBar)} px
+                      <input type="range" min="20" max="72" value={barIconSize(selectedBar)}
+                        onChange={e=>patchBar({iconSize:Number(e.target.value)})}/>
+                    </label>
+                  </div>}
+                  <div className="nv-quick-section-title">Apparence de la barre</div>
+                  <div className="nv-quick-colors">
+                    {([
+                      ['background','Fond'],
+                      ['outline','Contour'],
+                      ['button','Boutons'],
+                      ['icon','Pictogrammes']
+                    ] as const).map(([key,label])=><label key={key}>{label}
+                      <input type="color" value={project.barStyle[key]} onChange={e=>changeBarStyle({[key]:e.target.value})}/>
+                    </label>)}
+                  </div>
+                </>}
+                {fullscreenToolsTab==='scene'&&<div className="nv-quick-fields">
+                  <label>Nom du panorama
+                    <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
+                  </label>
+                  <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
+                    <Eye size={15}/> Définir cette vue comme arrivée
+                  </button>
+                  <p className="nv-quick-hint">Oriente et zoome comme tu le souhaites, puis enregistre cette vue. Les orientations propres aux flèches restent prioritaires.</p>
+                  <button type="button" className="nv-quick-primary" onClick={()=>{setFullscreenToolsOpen(false);setFullscreenGalleryOpen(true);}}>
+                    <Images size={15}/> Choisir un autre panorama
+                  </button>
+                </div>}
+              </div>
+              <div className="nv-fullscreen-tools-foot">
+                <button type="button" onClick={()=>{setFullscreenToolsOpen(false);}}>
+                  <Eye size={14}/> Retour au panorama
+                </button>
+              </div>
+            </aside>}
           {active && creationFullscreen && fullscreenGalleryOpen && <aside id="nv-fullscreen-gallery"
             className="nv-fullscreen-gallery-panel" aria-label="Galerie des panoramas">
             <header className="nv-fullscreen-gallery-header">
