@@ -130,3 +130,11 @@
 .nv-custom-close .info-in-view .modal > .close:hover,
 .nv-custom-close .nv-gallery-close:hover{filter:brightness(1.13);cursor:pointer}
 
+
+
+/* Barre Jour/Nuit commune au Studio, aux visites classiques et aux exports HTML. */
+.nv-daynight-switch{position:absolute;top:15px;right:74px;z-index:44;display:flex;gap:5px;padding:5px;background:rgba(9,27,39,.88);border:1px solid var(--nv-button-outline,#467b83);border-radius:999px;box-shadow:0 5px 20px #0006;backdrop-filter:blur(8px)}
+.nv-daynight-switch button{display:flex;align-items:center;gap:5px;padding:8px 11px;min-height:36px;white-space:nowrap;background:transparent;color:#c5dee5;border:1px solid transparent;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
+.nv-daynight-switch button.is-active{background:var(--nv-button-bg,#175d62);border-color:var(--nv-button-outline,#4bd5c6);color:var(--nv-icon-color,#fff)}
+.nv-daynight-switch button:hover{filter:brightness(1.16)}
+@media(max-width:620px){.nv-daynight-switch{top:12px;right:67px}.nv-daynight-switch button{padding:7px 8px}.nv-daynight-switch button span{display:none}}
