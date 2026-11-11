@@ -1318,7 +1318,11 @@ function App(){
       icons:p.icons.filter(i=>i.id!==id),
       closeIconId:p.closeIconId===id?undefined:p.closeIconId,
       soundOnIconId:p.soundOnIconId===id?undefined:p.soundOnIconId,
+      soundOnHoverIconId:p.soundOnHoverIconId===id?undefined:p.soundOnHoverIconId,
+      soundOnPressedIconId:p.soundOnPressedIconId===id?undefined:p.soundOnPressedIconId,
       soundOffIconId:p.soundOffIconId===id?undefined:p.soundOffIconId,
+      soundOffHoverIconId:p.soundOffHoverIconId===id?undefined:p.soundOffHoverIconId,
+      soundOffPressedIconId:p.soundOffPressedIconId===id?undefined:p.soundOffPressedIconId,
       // Nettoie aussi les PNG de survol et de clic : une référence orpheline empêcherait de rouvrir le projet.
       scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>({...h,
         iconId:h.iconId===id?undefined:h.iconId,
@@ -3012,10 +3016,20 @@ function App(){
         {panel==='music' && <div className="properties">
           <div className="section-title">BOUTONS SON DE LA VISITE</div>
           <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
-          {iconStateEditor('audio-on-icon','Haut-parleur — son activé',project.soundOnIconId,
+          <div className="section-title">SON ACTIVÉ — 3 ICÔNES</div>
+          {iconStateEditor('audio-on-normal','Son activé · Normal',project.soundOnIconId,
             id=>setProject(p=>({...p,soundOnIconId:id})),'🔊')}
-          {iconStateEditor('audio-off-icon','Haut-parleur — son coupé',project.soundOffIconId,
+          {iconStateEditor('audio-on-hover','Son activé · Survol',project.soundOnHoverIconId,
+            id=>setProject(p=>({...p,soundOnHoverIconId:id})),'🔊')}
+          {iconStateEditor('audio-on-pressed','Son activé · Clic',project.soundOnPressedIconId,
+            id=>setProject(p=>({...p,soundOnPressedIconId:id})),'🔊')}
+          <div className="section-title">SON COUPÉ — 3 ICÔNES</div>
+          {iconStateEditor('audio-off-normal','Son coupé · Normal',project.soundOffIconId,
             id=>setProject(p=>({...p,soundOffIconId:id})),'🔇')}
+          {iconStateEditor('audio-off-hover','Son coupé · Survol',project.soundOffHoverIconId,
+            id=>setProject(p=>({...p,soundOffHoverIconId:id})),'🔇')}
+          {iconStateEditor('audio-off-pressed','Son coupé · Clic',project.soundOffPressedIconId,
+            id=>setProject(p=>({...p,soundOffPressedIconId:id})),'🔇')}
           <div className="section-title">BIBLIOTHÈQUE MUSICALE <span className="counter">{project.audioTracks?.length??0}</span></div>
           <p className="hint">Attribue une piste à plusieurs panoramas : elle joue en continu, en boucle, sans recommencer lors du passage d’une scène à l’autre. Choisis une autre piste là où tu souhaites changer d’ambiance.</p>
           <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une piste MP3, WAV, OGG</button>
