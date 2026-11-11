@@ -51,6 +51,7 @@ export function moveWorldFrame(h:Hotspot,center:SphericalPoint):FrameSphericalCo
 
 export const cornerMarkerId=(id:string,key:FrameKey)=>'__nv-corner-'+key+'-'+id;
 export const centerMarkerId=(id:string)=>'__nv-center-'+id;
+export const removeFrameMarkerId=(id:string)=>'__nv-remove-'+id;
 
 /** Screen-size handles are deliberately tiny; the invisible hit area is larger. */
 export function editingFrameControls(h:Hotspot){
@@ -65,6 +66,13 @@ export function editingFrameControls(h:Hotspot){
       hoverScale:false,
       zIndex:90
     })),
+    {
+      id:removeFrameMarkerId(h.id),
+      html:'<button type="button" class="nv-sphere-remove" data-frame-id="'+h.id+'" aria-label="Supprimer ce cadre" title="Supprimer ce cadre photo ou vidéo">×</button>',
+      position:corners[1],
+      size:{width:30,height:30},
+      anchor:'center center' as const,hoverScale:false,zIndex:99
+    },
     {
       id:centerMarkerId(h.id),
       html:'<button type="button" class="nv-sphere-center" data-frame-id="'+h.id+'" aria-label="Déplacer le cadre entier"></button>',
