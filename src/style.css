@@ -3301,3 +3301,20 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
  .nv-dir-info-row{display:flex;flex-direction:column;gap:1px}
  .nv-directory-foot{font-size:9px}
 }
+
+
+.nv-directory-status-action{
+  color:#ffe7d9;
+  border:1px solid #ab806a;
+  background:#604435;
+  border-radius:7px;
+  padding:5px 8px;
+  cursor:pointer;
+  font-size:10px;
+  font-weight:700;
+  margin-left:auto;
+  white-space:nowrap;
+}
+.nv-directory-status-action:hover{background:#805841}
+.nv-directory-status p{flex-wrap:wrap}
+.nv-directory-list .nv-directory-empty .nv-directory-secondary-action{margin-top:8px}
