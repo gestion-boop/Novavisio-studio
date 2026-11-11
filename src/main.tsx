@@ -1093,7 +1093,6 @@ function App(){
     if(favorite&&counts.has(favorite))return counts.get(favorite)!;
     return [...counts.values()].sort((a,b)=>b.count-a.count)[0]??null;
   }
-  const navigationIconDefault=defaultNavigationIconSet();
   // Sélectionner/Intégrer un panorama pose immédiatement la flèche favorite
   // au centre exact du point de vue de départ (yaw + pitch du lecteur).
   function createNavigationFromGallery(targetId:string){
