@@ -2397,7 +2397,7 @@ function App(){
               <input className="nv-navigation-gallery-search" type="search" value={navigationPickerSearch}
                 onChange={e=>setNavigationPickerSearch(e.target.value)} placeholder="Rechercher un panorama…" aria-label="Rechercher un panorama"/>
               <div className="nv-navigation-gallery-list">
-                {visibleScenes.filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(navigationPickerSearch.toLocaleLowerCase('fr'))).map((sc,index)=>
+                {visibleScenes.filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(navigationPickerSearch.toLocaleLowerCase('fr'))).map(sc=>
                   <button type="button" key={sc.id} title={'Choisir '+sc.name}
                     className={'nv-fullscreen-gallery-scene'+(sc.id===selected.target?' is-active':'')}
                     onMouseEnter={()=>setNavigationPickerHover(sc.id)}
