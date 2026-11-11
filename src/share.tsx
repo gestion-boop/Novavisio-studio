@@ -152,7 +152,10 @@ function Share(){
 
   const project=useMemo(()=>phase.kind==='ok'?hydrate(phase.snapshot,loaded.current):null,[phase,version]);
 
-  if(phase.kind==='loading')return <Message title="Chargement de la visite…" text="Merci de patienter quelques instants."/>;
+  if(phase.kind==='loading')return <main className="nv-share-firstpaint" role="status" aria-live="polite">
+    <div className="nv-tour-startup-spinner" aria-hidden="true"/>
+    <span>Votre expérience immersive se prépare…</span>
+  </main>;
   if(phase.kind==='expired')return <Message title="Ce lien a expiré" text="La durée d’accès à cette visite est terminée. Demande un nouveau lien à la personne qui te l’a envoyé."/>;
   if(phase.kind==='invalid')return <Message title="Lien invalide" text="Ce lien n’existe pas ou est incomplet. Vérifie l’adresse reçue."/>;
   if(phase.kind==='error')return <Message title="Visite indisponible" text={phase.message+'. Réessaie dans un instant.'}/>;
