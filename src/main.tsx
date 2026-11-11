@@ -751,7 +751,33 @@ function App(){
   },[classicDestinationOpen,classicDestinationPreviewId,classicDestinationSearch]);
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [quickLinkMode,setQuickLinkMode]=useState(true);
-  const [sideTabsExpanded,setSideTabsExpanded]=useState(false);
+  const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
+  const toolsMenuRef=useRef<HTMLDivElement>(null);
+  const toolOptions:Array<{key:PanelTab;label:string}>=[
+    {key:'panoramas',label:'Panoramas'},
+    {key:'points',label:selectedId?'Inspecteur · Scène & Points':'Scène & Points'},
+    {key:'bar',label:'Barre du bas'},
+    {key:'icons',label:'Mes icônes'},
+    {key:'intro',label:'Intro'},
+    {key:'elements',label:'Éléments'},
+    {key:'music',label:'Musique'},
+    {key:'client',label:'Clients'}
+  ];
+  function toggleToolPanel(next:PanelTab){
+    setToolsMenuOpen(false);
+    if(!rightHidden&&panel===next){setRightHidden(true);return;}
+    setPanel(next);
+    setRightHidden(false);
+    if(next==='panoramas'){setSelectedId('');setMode(null);}
+  }
+  useEffect(()=>{
+    if(!toolsMenuOpen)return;
+    const outside=(event:PointerEvent)=>{if(!toolsMenuRef.current?.contains(event.target as Node))setToolsMenuOpen(false);};
+    const close=(event:KeyboardEvent)=>{if(event.key==='Escape')setToolsMenuOpen(false);};
+    document.addEventListener('pointerdown',outside);
+    document.addEventListener('keydown',close);
+    return ()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',close);};
+  },[toolsMenuOpen]);
   const galleryOrientationRef=useRef<Record<string,{yaw:number;pitch:number;zoom:number}>>({});
   const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
   const [panoramasLayout,setPanoramasLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-panorama-layout')==='grid'?'grid':'list';}catch{return 'list';}});
@@ -2402,6 +2428,21 @@ function App(){
           </button>
         </div>
       </div>
+      <div className="nv-header-tool-picker" ref={toolsMenuRef}>
+        <button type="button" className={'nv-header-tools-trigger'+(toolsMenuOpen?' is-open':'')}
+          aria-haspopup="menu" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
+          onClick={()=>setToolsMenuOpen(open=>!open)}>
+          <LayoutGrid size={17}/><span>{rightHidden?'Outils d’édition':toolOptions.find(item=>item.key===panel)?.label??'Outils d’édition'}</span>
+          <ChevronDown size={15}/>
+        </button>
+        {toolsMenuOpen&&<div id="nv-header-tools-options" className="nv-header-tools-options" role="menu" aria-label="Outils d’édition">
+          {toolOptions.map(item=><button type="button" role="menuitemcheckbox" aria-checked={!rightHidden&&panel===item.key}
+            key={item.key} className={!rightHidden&&panel===item.key?'is-active':''}
+            onClick={()=>toggleToolPanel(item.key)}>
+            <span>{item.label}</span>{!rightHidden&&panel===item.key&&<span aria-hidden="true">✓</span>}
+          </button>)}
+        </div>}
+      </div>
       <div className="top-actions">
         <button type="button"
           className={'nv-header-update'+(updateAvailable?' is-available':'')}
@@ -3227,19 +3268,6 @@ function App(){
         </div>}
       </main>
       <aside className="right panel">
-        <button type="button" className="nv-side-tabs-toggle" aria-expanded={sideTabsExpanded} aria-controls="nv-sidebar-tools" onClick={()=>setSideTabsExpanded(v=>!v)}><span>Outils d'édition <small>· {({panoramas:'Panoramas',points:'Scène & Points',bar:'Barre du bas',icons:'Mes icônes',intro:'Intro',elements:'Éléments',music:'Musique',client:'NovaGen'} as Record<string,string>)[panel]??panel}</small></span><span aria-hidden="true">{sideTabsExpanded?'⌃':'⌄'}</span></button>
-        {sideTabsExpanded&&<div id="nv-sidebar-tools" className="side-tabs" role="tablist" aria-label="Options d'édition">
-          <button role="tab" aria-selected={panel==='panoramas'} className={panel==='panoramas'?'active':''} onClick={()=>{setPanel('panoramas');setSideTabsExpanded(false);setSelectedId('');setMode(null);}}>▣ Panoramas</button>
-          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>{setPanel('points');setSideTabsExpanded(false);}}>
-            {selectedId ? '◉ Inspecteur' : 'Scène & Points'}
-          </button>
-          <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>{setPanel('bar');setSideTabsExpanded(false);}}>Barre du bas</button>
-          <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>{setPanel('icons');setSideTabsExpanded(false);}}>Mes icônes</button>
-          <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>{setPanel('intro');setSideTabsExpanded(false);}}>Intro</button>
-          <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>{setPanel('elements');setSideTabsExpanded(false);}}>Éléments</button>
-          <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>{setPanel('music');setSideTabsExpanded(false);}}>Musique</button>
-          <button role="tab" aria-selected={panel==='client'} className={panel==='client'?'active':''} onClick={()=>{setPanel('client');setSideTabsExpanded(false);}}>NovaGen</button>
-        </div>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
         <div className="nv-gallery-heading">
