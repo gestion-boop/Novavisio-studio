@@ -80,9 +80,13 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
      if(!g.logoUrl&&safeRemoteUrl(r.logoUrl))g.logoUrl=r.logoUrl;
      if(!g.city)g.city=r.profile.city||'';
    }
-   const local=make(currentProfile?.name||currentProjectName,currentProfile?.city||'');
-   local.current=true;
-   if(!local.logoUrl&&safeRemoteUrl(currentProfile?.logoUrl||''))local.logoUrl=currentProfile!.logoUrl!;
+   // A blank or unsaved Studio project is not automatically an establishment.
+   // Show it as a client only after the user has linked a real client profile.
+   if(currentProfile?.name?.trim()){
+     const local=make(currentProfile.name,currentProfile.city||'');
+     local.current=true;
+     if(!local.logoUrl&&safeRemoteUrl(currentProfile.logoUrl||''))local.logoUrl=currentProfile.logoUrl!;
+   }
    return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
  },[studio,remote,currentProjectName,currentProfile]);
  const visible=groups.filter(g=>norm([g.name,g.city,g.records.map(r=>r.profile.address).join(' ')].join(' ')).includes(norm(search)));
