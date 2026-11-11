@@ -2516,8 +2516,8 @@ function App(){
             </div>
           </div>}
         </div>
-        {active && !preview && <div className="toolbar">
-          <span className="toolbar-label">AJOUTER :</span>
+        {active && !preview && <div className="toolbar nv-compact-actions" role="toolbar" aria-label="Outils de création">
+          
           <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')} title="Lien de navigation vers un autre panorama">
             ➜ Navigation
           </button>
