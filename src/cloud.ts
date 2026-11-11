@@ -50,7 +50,7 @@ export function mediaSlots(p:StudioProject):Slot[]{
   p.icons.forEach(i=>add(i,'dataUrl','icon'));
   p.audioTracks.forEach(t=>add(t,'dataUrl','audio'));
   p.scenes.forEach(s=>{
-    add(s,'dataUrl','panorama');add(s,'audioDataUrl','audio');
+    add(s,'dataUrl','panorama');add(s,'nightDataUrl','panorama');add(s,'audioDataUrl','audio');
     s.hotspots.forEach(h=>{add(h,'imageDataUrl','frame');add(h,'videoDataUrl','video');});
   });
   return slots;
