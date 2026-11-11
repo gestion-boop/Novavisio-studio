@@ -201,6 +201,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [firstPanoramaReady,setFirstPanoramaReady]=useState(false);
   const introInitialised=useRef(Boolean(project));
   const [fullscreen,setFullscreen]=useState(false);
+  const [mobileExpanded,setMobileExpanded]=useState(false);
   const [vrAvailable,setVrAvailable]=useState(false);
   const [vrActive,setVrActive]=useState(false);
   const [vrError,setVrError]=useState('');
@@ -246,6 +247,22 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     document.addEventListener('fullscreenchange',sync);
     return ()=>document.removeEventListener('fullscreenchange',sync);
   },[]);
+  useEffect(()=>{
+    // iOS Safari may not expose Element.requestFullscreen. In that case a
+    // fixed viewport mode expands to the usable screen (the browser chrome
+    // is still controlled by Safari). Keep scroll position intact on exit.
+    if(!mobileExpanded)return;
+    const before=document.body.style.overflow;
+    document.body.style.overflow='hidden';
+    document.documentElement.classList.add('nv-tour-mobile-expanded');
+    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape')setMobileExpanded(false);};
+    document.addEventListener('keydown',escape);
+    return ()=>{
+      document.body.style.overflow=before;
+      document.documentElement.classList.remove('nv-tour-mobile-expanded');
+      document.removeEventListener('keydown',escape);
+    };
+  },[mobileExpanded]);
   const theme=project?.barStyle??defaultBarStyle();
   const popupCloseIcon=project?.icons?.find(icon=>icon.id===project?.closeIconId);
   const cssVars={
@@ -299,19 +316,28 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }catch(error){setVrError(error instanceof Error?error.message:'Impossible de démarrer la VR.');}
   };
   const toggleFull=async()=>{
-    try{
-      if(document.fullscreenElement)await document.exitFullscreen();
-      else await wrap.current?.requestFullscreen();
-    }catch{/* Le navigateur peut interdire le plein écran. */}
+    if(mobileExpanded){setMobileExpanded(false);return;}
+    if(document.fullscreenElement){
+      try{await document.exitFullscreen();}catch{/* Browser-specific rejection */}
+      return;
+    }
+    const root=wrap.current;
+    if(!root)return;
+    // Prefer native fullscreen (Android Chrome / supporting iOS browsers).
+    // This call is made directly from a visitor click.
+    if(typeof root.requestFullscreen==='function'){
+      try{await root.requestFullscreen();return;}catch{/* Switch to mobile viewport fallback */}
+    }
+    setMobileExpanded(true);
   };
-  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
+  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
     {current.dataUrl?<Pano scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
       <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
       <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(current.id)}>☾ <span>Nuit</span></button>
     </div>}
-    <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
-      {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
+    <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={(fullscreen||mobileExpanded)?'Réduire la visite':'Agrandir la visite'}>
+      {(fullscreen||mobileExpanded)?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
     {vrAvailable&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Entrer en VR">{vrActive?'VR en cours…':'🥽 Entrer en VR'}</button>}
     {vrError&&<div className="tour-vr-error" role="alert" onClick={()=>setVrError('')}>{vrError}</div>}
