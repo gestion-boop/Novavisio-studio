@@ -2297,13 +2297,14 @@ function App(){
               setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
               const marker=active?.hotspots.find(h=>h.id===id);
               if(marker?.type==='navigation'){
-                if(marker.target&&visibleIds.has(marker.target)&&!autoNavigation){
+                if(marker.target&&visibleIds.has(marker.target)){
                   // Sans Auto, un clic suit normalement la flèche enregistrée.
                   setDestinationEditId(null);setClassicDestinationOpen(false);
                   setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);
                   setFullscreenCommandDrawerOpen(false);
                   goThroughArrow(marker,active!.id);
-                  setStatus('Arrivée dans '+(project.scenes.find(sc=>sc.id===marker.target)?.name??'le panorama')+'.');
+                  if(autoNavigation)setMode('navigation');
+                  setStatus('Arrivée dans '+(project.scenes.find(sc=>sc.id===marker.target)?.name??'le panorama')+(autoNavigation?' · Auto : place la flèche suivante.':'.'));
                 }else{
                   // Une flèche nouvelle ouvre directement la galerie.
                   setDestinationEditId(id);
@@ -2784,7 +2785,7 @@ function App(){
             </div>
           )}
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
-          {active && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
+          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
@@ -2845,7 +2846,7 @@ function App(){
           </button>
           <button type="button" className={'tool nv-auto-navigation nv-auto-toolbar'+(autoNavigation?' is-active selected':'')} aria-pressed={autoNavigation}
             title={autoNavigation?"Quitter l'assistant de navigation":"Lancer la création pas à pas"}
-            onClick={toggleAutoNavigation}><span className="nv-auto-symbol">↪</span> Auto{autoNavigation?' · ON':''}</button>
+            onClick={toggleAutoNavigation}><span className="nv-auto-symbol">↪</span> {autoNavigation?'Terminer Auto':'Auto'}</button>
           <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')} title="Cadre photo incrusté en perspective">
             ▣ Cadre photo
           </button>
@@ -2857,9 +2858,6 @@ function App(){
             ☷ Barre du bas
           </button>
           </div>
-          <button className="tool danger" onClick={removeScene} title={currentSpace?'Retirer de cet espace (original conservé)':'Supprimer définitivement le panorama'}>
-            <Trash2 size={13} style={{marginRight:4,verticalAlign:'-2px'}}/> {currentSpace?'Retirer de l’espace':'Supprimer scène'}
-          </button>
         </div>}
       </main>
       <aside className="right panel">
