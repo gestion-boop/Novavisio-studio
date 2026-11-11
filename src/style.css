@@ -2863,3 +2863,65 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-navigation-inspect-select{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#206269;color:#e9fff9;border:1px solid #4be0d1;border-radius:9px;font-weight:750;cursor:pointer}
 .nv-navigation-inspect-select:hover{background:#277980}
 @media(max-width:950px){.nv-navigation-gallery-picker.is-preview{width:min(530px,calc(100% - 25px))}}
+
+
+/* Barre de création compacte : une seule ligne, sans titre superflu.
+   Le défilement horizontal garde tous les outils accessibles même en fenêtre étroite. */
+.nv-studio-pro .toolbar.nv-compact-actions{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  gap:6px;
+  height:58px;
+  min-height:58px;
+  max-height:58px;
+  box-sizing:border-box;
+  padding:7px 10px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:#3e6877 transparent;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .tool{
+  display:inline-flex;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:center;
+  min-height:39px;
+  height:39px;
+  padding:0 11px;
+  gap:5px;
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+  border-width:1px;
+  border-radius:9px;
+  box-shadow:none;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .tool.danger{
+  min-height:39px;
+  height:39px;
+  margin-left:0;
+  padding:0 10px;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .tool.danger svg{flex:none}
+.nv-studio-pro .toolbar.nv-compact-actions .toolbar-sep{
+  flex:0 0 1px;
+  width:1px;
+  height:24px;
+  margin:0 3px;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .grow{
+  flex:1 0 8px;
+  min-width:8px;
+}
+@media(max-width:1100px){
+  .nv-studio-pro .toolbar.nv-compact-actions{gap:5px;padding:6px 8px}
+  .nv-studio-pro .toolbar.nv-compact-actions .tool{padding:0 9px;font-size:11.5px}
+}
+@media(max-width:780px){
+  .nv-studio-pro .toolbar.nv-compact-actions{height:54px;min-height:54px;max-height:54px}
+  .nv-studio-pro .toolbar.nv-compact-actions .tool{height:38px;min-height:38px}
+}
