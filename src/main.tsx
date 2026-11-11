@@ -612,6 +612,10 @@ function App(){
   const [classicDestinationOpen,setClassicDestinationOpen]=useState(false);
   const [classicDestinationPreviewId,setClassicDestinationPreviewId]=useState<string|null>(null);
   const [galleryPreviewSceneId,setGalleryPreviewSceneId]=useState<string|null>(null);
+  const [navigationDraft,setNavigationDraft]=useState<{
+    sourceId:string;targetId:string;sourceYaw:number;sourcePitch:number;existingPointId?:string;
+  }|null>(null);
+  const [destinationEditId,setDestinationEditId]=useState<string|null>(null);
   const [galleryPreviewPinned,setGalleryPreviewPinned]=useState(false);
   const sidePreviewTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const hoverSidePreview=(id:string)=>{if(galleryPreviewPinned)return;if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);sidePreviewTimer.current=setTimeout(()=>setGalleryPreviewSceneId(id),180);};
@@ -1093,33 +1097,61 @@ function App(){
     if(favorite&&counts.has(favorite))return counts.get(favorite)!;
     return [...counts.values()].sort((a,b)=>b.count-a.count)[0]??null;
   }
-  // Sélectionner/Intégrer un panorama pose immédiatement la flèche favorite
-  // au centre exact du point de vue de départ (yaw + pitch du lecteur).
+  // Une seule procédure pour l'éditeur et la création plein écran :
+  // mémoriser la direction de départ, orienter le panorama d'arrivée, puis valider.
   function createNavigationFromGallery(targetId:string){
     const source=project.scenes.find(scene=>scene.id===activeId);
     const destination=visibleScenes.find(scene=>scene.id===targetId);
-    if(preview||!source||!destination||source.id===destination.id)return;
-    const cam=cameraRef.current;
-    const center=cam.sceneId===source.id?cam:{
-      yaw:source.arrivalYaw??0,pitch:source.arrivalPitch??0,zoom:panoramaArrivalZoom(source)
-    };
+    if(!source||!destination||source.id===destination.id)return;
+    const camera=cameraRef.current;
+    setNavigationDraft({
+      sourceId:source.id,targetId:destination.id,
+      sourceYaw:camera.sceneId===source.id?camera.yaw:source.arrivalYaw??0,
+      sourcePitch:camera.sceneId===source.id?camera.pitch:source.arrivalPitch??0,
+      existingPointId:destinationEditId??undefined
+    });
+    setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
+    setFullscreenToolsOpen(false);setHoveredGallerySceneId(null);
+    setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
+    setClassicDestinationOpen(false);
+    setStatus('Oriente le panorama '+destination.name+' puis clique sur Valider la direction.');
+  }
+  function confirmNavigationDirection(){
+    const draft=navigationDraft;
+    if(!draft)return;
+    const source=project.scenes.find(scene=>scene.id===draft.sourceId);
+    const destination=project.scenes.find(scene=>scene.id===draft.targetId);
+    if(!source||!destination){setNavigationDraft(null);return;}
     const arrival=galleryOrientationRef.current[destination.id]??{
       yaw:destination.arrivalYaw??0,pitch:destination.arrivalPitch??0,zoom:panoramaArrivalZoom(destination)
     };
-    const icon=defaultNavigationIconSet();
+    const favorite=defaultNavigationIconSet();
+    const id=draft.existingPointId??uid();
     const point:Hotspot={
-      id:uid(),type:'navigation',title:'Aller vers '+destination.name,text:'',
-      target:destination.id,yaw:center.yaw,pitch:center.pitch,
-      arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,arrivalZoomModel:'wide',
-      ...(icon?{iconId:icon.iconId,hoverIconId:icon.hoverIconId,pressedIconId:icon.pressedIconId,iconSize:icon.iconSize}:{})
+      id,type:'navigation',title:'Aller vers '+destination.name,text:'',
+      target:destination.id,yaw:draft.sourceYaw,pitch:draft.sourcePitch,
+      arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,
+      arrivalZoomModel:'wide',
+      ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
+        pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
     };
-    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===source.id?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
-    setSelectedId(point.id);setSelectedBarId('');setPanel('points');setMode(null);
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==source.id?sc:{
+      ...sc,hotspots:draft.existingPointId?
+        sc.hotspots.map(h=>h.id===draft.existingPointId?{
+          ...h,target:destination.id,arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,
+          arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const
+        }:h):[...sc.hotspots,point]
+    })}));
+    // Arriver automatiquement au panorama de destination avec l'orientation choisie.
+    nextArrivalRef.current={sceneId:destination.id,yaw:arrival.yaw,pitch:arrival.pitch,zoom:arrival.zoom};
+    setArrivedVia({sceneId:destination.id,hotspotId:id,fromSceneId:source.id});
+    setActiveId(destination.id);setSelectedId('');setSelectedBarId('');
+    setMode(null);setPreview(false);setPanel('panoramas');
+    setNavigationDraft(null);setDestinationEditId(null);
+    setNavigationPickerOpen(false);setClassicDestinationOpen(false);
     setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
-    setFullscreenToolsOpen(false);setNavigationPickerOpen(false);
     setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
-    setHoveredGallerySceneId(null);
-    setStatus('Flèche placée au centre vers '+destination.name+' · Enregistre avec la disquette.');
+    setStatus('Flèche '+(draft.existingPointId?'mise à jour':'créée')+' vers '+destination.name+' · Vue d’arrivée définie. Enregistre avec la disquette.');
   }
   function chooseFullscreenScene(id:string){
     if(!visibleIds.has(id))return;
@@ -2227,6 +2259,7 @@ function App(){
               setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
               const marker=active?.hotspots.find(h=>h.id===id);
               if(marker?.type==='navigation'){
+                setDestinationEditId(id);
                 setClassicDestinationPreviewId(marker.target&&visibleIds.has(marker.target)?marker.target:null);
                 setClassicDestinationSearch('');
                 if(creationFullscreen){
@@ -2249,6 +2282,26 @@ function App(){
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
             </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
           </div>}
+          {navigationDraft&&visibleScenes.some(sc=>sc.id===navigationDraft.targetId)&&
+            <section className="nv-direction-preview" role="dialog" aria-modal="true" aria-label="Valider la direction de la destination">
+              {visibleScenes.filter(sc=>sc.id===navigationDraft.targetId).map(sc=>
+                <div className="nv-direction-preview-inner" key={sc.id}>
+                  <div className="nv-direction-preview-head">
+                    <div><small>DESTINATION 360°</small><strong>{sc.name}</strong></div>
+                    <button type="button" onClick={()=>{setNavigationDraft(null);setDestinationEditId(null);}} aria-label="Annuler la destination">✕</button>
+                  </div>
+                  <div className="nv-direction-preview-viewer nv-targeted-preview">
+                    <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}
+                      onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/>
+                    <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
+                  </div>
+                  <p>Oriente la vue d'arrivée avec le viseur. La flèche sera placée au centre de la vue de départ.</p>
+                  <div className="nv-direction-preview-actions">
+                    <button type="button" className="nv-direction-confirm" onClick={confirmNavigationDirection}>✓ Valider la direction</button>
+                    <button type="button" onClick={()=>{setNavigationDraft(null);setDestinationEditId(null);}}>Annuler</button>
+                  </div>
+                </div>)}
+            </section>}
           {creationFullscreen&&showArrivalCrosshair&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
@@ -2271,7 +2324,7 @@ function App(){
             <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
             <button type="button" className={'nv-fullscreen-gallery-toggle'+(fullscreenGalleryOpen?' is-active':'')}
               aria-expanded={fullscreenGalleryOpen} aria-controls="nv-fullscreen-gallery"
-              onClick={()=>{setFullscreenGalleryOpen(true);setHoveredGallerySceneId(null);setMode(null);setFullscreenToolsOpen(false);}}
+              onClick={()=>{setDestinationEditId(null);setFullscreenGalleryOpen(true);setHoveredGallerySceneId(null);setMode(null);setFullscreenToolsOpen(false);}}
               title="Choisir un panorama dans la galerie">
               <Images size={16}/> Galerie <span className="nv-fullscreen-gallery-count">{visibleScenes.length}</span>
             </button>
@@ -2339,13 +2392,13 @@ function App(){
                 onMouseLeave={()=>dismissGalleryHover()}
                 onFocus={()=>scheduleGalleryHover(scene.id)}
                 onBlur={()=>dismissGalleryHover()}
-                onClick={()=>quickLinkMode&&!preview?createNavigationFromGallery(scene.id):chooseFullscreenScene(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
+                onClick={()=>createNavigationFromGallery(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
                 {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
                   <span className="nv-fullscreen-gallery-placeholder">◎</span>}
                 <span className="nv-fullscreen-gallery-scene-details">
                   <strong>{scene.name}</strong>
                   <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
-                  {quickLinkMode&&!preview&&scene.id!==activeId&&<em>⊕ Sélectionner, viser, valider</em>}
+                  {scene.id!==activeId&&<em>⊕ Orienter la destination</em>}
                   {scene.arrivalYaw!==undefined&&<em>✓ Vue d'arrivée définie</em>}
                 </span>
               </button>)}
@@ -2669,7 +2722,7 @@ function App(){
                 <div className="nv-hover-preview-content" key={scene.id}>
                   <div className="nv-hover-preview-title">
                     <div><small>APERÇU DU PANORAMA</small><strong title={scene.name}>{scene.name}</strong></div>
-                    <button type="button" onClick={()=>quickLinkMode&&!preview?createNavigationFromGallery(scene.id):chooseFullscreenScene(scene.id)}>{quickLinkMode&&!preview?'➜ Créer la flèche':'Ouvrir cette scène'} <ChevronRight size={15}/></button>
+                    <button type="button" onClick={()=>createNavigationFromGallery(scene.id)}>{'➜ Choisir cette destination'} <ChevronRight size={15}/></button>
                   </div>
                   <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]} onOrientation={view=>{galleryOrientationRef.current[scene.id]=view;}}/>
                   <div className="nv-hover-preview-foot"><span>Vue d’arrivée · Fais glisser pour regarder autour</span>
@@ -2856,7 +2909,7 @@ function App(){
           {visibleScenes.filter(sc=>sc.id===galleryPreviewSceneId).map(sc=><div key={sc.id} className="nv-side-preview-content">
             <strong>{sc.name}</strong>
             <div className="nv-side-preview-viewer nv-targeted-preview"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/><div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div></div>
-            {!preview&&sc.id!==activeId?<button type="button" className="nv-quick-create-arrow" onClick={()=>createNavigationFromGallery(sc.id)}>⊕ Intégrer ce panorama</button>:<button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);setPanel('points');}}>Ouvrir pour éditer</button>}
+            {sc.id!==activeId?<button type="button" className="nv-quick-create-arrow" onClick={()=>createNavigationFromGallery(sc.id)}>✓ Valider la direction</button>:<button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);setPanel('points');}}>Ouvrir pour éditer</button>}
           </div>)}
         </div>}
         <div className="helper nv-gallery-help" hidden>
