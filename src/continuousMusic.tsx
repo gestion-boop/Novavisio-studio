@@ -81,7 +81,7 @@ export function ContinuousMusic({project,scene,paused=false}:{project:StudioProj
     {!!source&&!paused&&choice!=='undecided'&&
       <button type="button" className="nv-audio-toggle"
         aria-label={choice==='on'?'Couper la musique':'Activer la musique'}
-        title={choice==='on'?'Couper la musique':'Activer la musique'}
+        title={choice==='on'?(playing?'Couper la musique':'Démarrer la musique'):'Activer la musique'}
         onClick={()=>choose(choice==='on'?'off':'on')}>
         <SoundGlyph project={project} side={choice}/>
         {failed&&<span className="nv-audio-warning">Réessayer</span>}
