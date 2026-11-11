@@ -3,16 +3,17 @@ import {cloudConfigured,supabase,readLink,writeLink,type CloudLink} from './clou
 import {SHARE_DAYS,createShareLink,getPublication,listShares,publicationActive,publishPermanent,revokeShare,shareStatus,shareUrl,unpublish,wrapperHtml,type Publication,type ShareDays,type ShareRow} from './share';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
+import {readSpaceCloudLink,writeSpaceCloudLink,type StudioSpace} from './spaces';
 
 const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'});
 
-type Props={project:StudioProject;onClose:()=>void;onStatus:(message:string)=>void};
-export function SharePanel({project,onClose,onStatus}:Props){
+type Props={project:StudioProject;space?:StudioSpace|null;onClose:()=>void;onStatus:(message:string)=>void};
+export function SharePanel({project,space,onClose,onStatus}:Props){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [days,setDays]=useState<ShareDays>(7);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
-  const [link,setLink]=useState<CloudLink|null>(readLink());
+  const [link,setLink]=useState<CloudLink|null>(space?readSpaceCloudLink(space.id,'public'):readLink());
   const [shares,setShares]=useState<ShareRow[]>([]);
   const [pub,setPub]=useState<Publication|null>(null);
   const [pubNote,setPubNote]=useState('');
@@ -34,7 +35,7 @@ export function SharePanel({project,onClose,onStatus}:Props){
     });
     const {data:sub}=db.auth.onAuthStateChange((_e,session)=>{
       setUserEmail(session?.user.email??null);
-      if(session)void refresh(readLink()?.projectId);else setShares([]);
+      if(session)void refresh((space?readSpaceCloudLink(space.id,'public'):readLink())?.projectId);else setShares([]);
     });
     return ()=>sub.subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,9 +59,10 @@ export function SharePanel({project,onClose,onStatus}:Props){
   }
   const create=()=>run('Préparation…',async()=>{
     let res;
-    try{res=await createShareLink(project,link,days,setBusy);}
-    finally{setLink(readLink());} // le lien local est mémorisé dès l'enregistrement, même si la suite échoue
-    writeLink(res.link);
+    try{res=await createShareLink(project,link,days,setBusy,!space);}
+    finally{setLink(space?readSpaceCloudLink(space.id,'public'):readLink());}
+    if(space)writeSpaceCloudLink(space.id,'public',res.link);else writeLink(res.link);
+    setLink(res.link);
     const url=shareUrl(res.token);
     const copied=await copy(url);
     setCreated({url,expires:res.expires_at,copied});
@@ -69,7 +71,8 @@ export function SharePanel({project,onClose,onStatus}:Props){
   });
   const publish=()=>run('Préparation…',async()=>{
     const res=await publishPermanent(project,link,setBusy);
-    writeLink(res.link);setLink(res.link);setPub(res.publication);setPubNote('');
+    if(space)writeSpaceCloudLink(space.id,'public',res.link);else writeLink(res.link);
+    setLink(res.link);setPub(res.publication);setPubNote('');
     onStatus('Visite publiée : l’adresse permanente est à jour');
     await refresh(res.link.projectId);
   });
@@ -91,12 +94,13 @@ export function SharePanel({project,onClose,onStatus}:Props){
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel share-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}>✕</button>
-    <h2>Lien public</h2>
+    <h2>Lien public{space?' · '+space.name:''}</h2>
+    {space&&<p className="hint-inline"><b>Espace publié : {space.name}</b> — {project.scenes.length} panoramas uniquement. Aucun autre espace ne figure dans ce lien. Les publications précédentes du projet complet restent distinctes.</p>}
     {!cloudConfigured?<p className="warning">Supabase n’est pas configuré sur ce déploiement : les liens publics sont indisponibles.</p>
     :!userEmail?<LoginBox intro="Pour envoyer un lien, connecte-toi d’abord (lien magique par e-mail, ou e-mail et mot de passe)."/>
     :<>
       <div className="permanent-card">
-        <div className="icon-state-label">LIEN PERMANENT · POUR NOVATOUR</div>
+        <div className="icon-state-label">LIEN PERMANENT · POUR NOVATOUR{space?' · '+space.name.toUpperCase():''}</div>
         <small className="hint-inline">Envoie le fichier <b>index.html</b> ci-dessous dans NovaVisio. Ensuite, <b>« Publier »</b> met à jour la visite sans renvoyer de dossier. <b>Si tu avais déjà transmis un ancien index.html, remplace-le une fois pour activer l’intro immédiate avant le chargement.</b></small>
         {pubNote&&<small className="warning-inline">{pubNote}</small>}
         {publicationActive(pub)&&pub?<>
