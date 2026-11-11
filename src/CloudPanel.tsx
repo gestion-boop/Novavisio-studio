@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {cloudConfigured,supabase,signOut,listCloudProjects,saveToCloud,openCloudProject,readLink,writeLink,type CloudProject,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,signOut,listCloudProjects,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision} from './cloud';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 
@@ -19,6 +19,8 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
   const [items,setItems]=useState<CloudProject[]>([]);
+  const [historyFor,setHistoryFor]=useState<string|null>(null);
+  const [revisions,setRevisions]=useState<CloudRevision[]>([]);
   const [link,setLink]=useState<CloudLink|null>(readLink());
 
   async function refresh(){
@@ -63,6 +65,20 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
     onClose();
   });
 
+  const showHistory=(item:CloudProject)=>run('Chargement des sauvegardes…',async()=>{
+    if(historyFor===item.id){setHistoryFor(null);setRevisions([]);return;}
+    setRevisions(await listCloudRevisions(item.id));setHistoryFor(item.id);
+  });
+  const openRevision=(item:CloudProject,revision:number)=>run('Récupération de la sauvegarde…',async()=>{
+    if(!window.confirm('Restaurer « '+item.name+' » depuis la révision '+revision+' ? Le cloud ne sera pas modifié. Une copie du projet affiché sera téléchargée si nécessaire.'))return;
+    const loaded=await openCloudRevision(item.id,revision,setBusy);
+    if(project.scenes.length)onBackup();
+    writeLink(loaded.link);setLink(loaded.link);
+    onOpen(loaded.project,loaded.link);
+    onStatus('Sauvegarde historique ouverte : révision '+revision+'. Pour conserver des changements, crée une nouvelle visite cloud.');
+    onClose();
+  });
+
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}>✕</button>
     <h2>Cloud Supabase</h2>
@@ -83,7 +99,16 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
       {!items.length&&<p className="hint-inline">Aucune visite cloud pour l’instant.</p>}
       <ul className="cloud-list">{items.map(item=><li key={item.id}>
         <span><b>{item.name}{item.shared&&<em className="shared-tag"> · partagée avec toi</em>}</b><small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small></span>
-        <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
+        <div className="nv-cloud-recovery-actions">
+          <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
+          {item.revision>0&&<button className="quiet" disabled={!!busy} onClick={()=>void showHistory(item)}>{historyFor===item.id?'Masquer':'Sauvegardes'}</button>}
+        </div>
+        {historyFor===item.id&&<div className="nv-cloud-history">
+          {revisions.map(rev=><button type="button" key={rev.revision} disabled={!!busy} onClick={()=>void openRevision(item,rev.revision)}>
+            Révision {rev.revision} · {new Date(rev.created_at).toLocaleString('fr-FR')} · Restaurer
+          </button>)}
+          {!revisions.length&&<small>Aucune révision disponible.</small>}
+        </div>}
       </li>)}</ul>
     </>}
     {busy&&<p className="status-adding">{busy}</p>}
