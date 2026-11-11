@@ -2343,7 +2343,7 @@ function App(){
                   </div>
                   <p>Oriente l'arrivée avec le viseur, puis valide. {autoNavigation?'Tu passeras directement au panorama suivant pour créer la prochaine flèche.':'La flèche garde sa position dans le panorama de départ.'}</p>
                   <div className="nv-direction-preview-actions">
-                    <button type="button" className="nv-direction-confirm" onClick={confirmNavigationDirection}>✓ Valider la direction</button>
+                    <button type="button" className="nv-direction-confirm" onClick={()=>confirmNavigationDirection()}>✓ Valider la direction</button>
                     <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():(setNavigationDraft(null),setDestinationEditId(null))}>{autoNavigation?'Quitter Auto':'Annuler'}</button>
                   </div>
                 </div>)}
