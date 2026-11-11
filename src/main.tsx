@@ -1317,6 +1317,8 @@ function App(){
     setProject(p=>({...p,
       icons:p.icons.filter(i=>i.id!==id),
       closeIconId:p.closeIconId===id?undefined:p.closeIconId,
+      soundOnIconId:p.soundOnIconId===id?undefined:p.soundOnIconId,
+      soundOffIconId:p.soundOffIconId===id?undefined:p.soundOffIconId,
       // Nettoie aussi les PNG de survol et de clic : une référence orpheline empêcherait de rouvrir le projet.
       scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>({...h,
         iconId:h.iconId===id?undefined:h.iconId,
@@ -3008,6 +3010,12 @@ function App(){
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='music' && <div className="properties">
+          <div className="section-title">BOUTONS SON DE LA VISITE</div>
+          <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
+          {iconStateEditor('audio-on-icon','Haut-parleur — son activé',project.soundOnIconId,
+            id=>setProject(p=>({...p,soundOnIconId:id})),'🔊')}
+          {iconStateEditor('audio-off-icon','Haut-parleur — son coupé',project.soundOffIconId,
+            id=>setProject(p=>({...p,soundOffIconId:id})),'🔇')}
           <div className="section-title">BIBLIOTHÈQUE MUSICALE <span className="counter">{project.audioTracks?.length??0}</span></div>
           <p className="hint">Attribue une piste à plusieurs panoramas : elle joue en continu, en boucle, sans recommencer lors du passage d’une scène à l’autre. Choisis une autre piste là où tu souhaites changer d’ambiance.</p>
           <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une piste MP3, WAV, OGG</button>
