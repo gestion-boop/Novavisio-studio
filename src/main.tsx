@@ -1995,7 +1995,7 @@ function App(){
                   <div className="nv-classic-destination-title"><strong>{sc.name}</strong><span>Glisse pour explorer à 360°</span></div>
                   <div className="nv-classic-destination-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/></div>
                   <button type="button" className="nv-classic-destination-confirm" onClick={()=>setNavigationDestination(sc.id)}>
-                    <Check size={16}/> Utiliser {sc.name} comme destination
+                    <Images size={16}/> Utiliser {sc.name} comme destination
                   </button>
                 </div>)}
               {!visibleScenes.some(sc=>sc.id===classicDestinationPreviewId&&sc.id!==activeId)&&
