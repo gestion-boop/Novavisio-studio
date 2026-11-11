@@ -223,7 +223,9 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     return ()=>document.removeEventListener('fullscreenchange',sync);
   },[]);
   const theme=project?.barStyle??defaultBarStyle();
+  const popupCloseIcon=project?.icons?.find(icon=>icon.id===project?.closeIconId);
   const cssVars={
+    '--nv-close-icon-image':popupCloseIcon?`url("${popupCloseIcon.dataUrl}")`:'none',
     '--nv-bar-bg':theme.background,
     '--nv-bar-outline':theme.outline,
     '--nv-button-bg':theme.button,
@@ -275,7 +277,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       else await wrap.current?.requestFullscreen();
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
-  return <main className="tour-app" ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
+  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
     {current.dataUrl?<Pano scene={current} icons={project.icons??[]} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
