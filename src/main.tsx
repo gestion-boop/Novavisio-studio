@@ -11,7 +11,9 @@ import {ContinuousMusic} from './continuousMusic';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {confirmEmailLink,type CloudLink} from './cloud';
+import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
+import {refreshActivePublication} from './share';
+import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
@@ -747,10 +749,40 @@ function App(){
       if(cloud.signedIn){
         setStatus('Sauvegarde dans Supabase…');
         const synced=await cloud.syncNow(snapshot);
-        setStatus(synced?'Enregistré sur cet appareil et dans Supabase':
-          'Enregistré sur cet appareil · Cloud non synchronisé');
+        // Les liens publics permanents déjà actifs suivent la disquette :
+        // le projet complet et chacun des espaces possèdent leur propre
+        // publication stable. Les partages temporaires restent immuables.
+        let updated=0;
+        const errors:string[]=[];
+        const master=readLink();
+        const targets=[
+          {name:'Projet complet',space:null as StudioSpace|null,link:master},
+          ...(snapshot.spaces??[]).map(space=>({
+            name:space.name,space,link:readSpaceCloudLink(space.id,'public')
+          }))
+        ];
+        for(const target of targets){
+          if(!target.link)continue;
+          try{
+            const scoped=projectForSpaceExport(snapshot,target.space);
+            const result=await refreshActivePublication(scoped,target.link,
+              progress=>setStatus('Publication '+target.name+' · '+progress));
+            if(!result)continue;
+            if(target.space)writeSpaceCloudLink(target.space.id,'public',result.link);
+            else writeLink(result.link);
+            updated++;
+          }catch(error){
+            errors.push(target.name+' : '+(error instanceof Error?error.message:String(error)));
+          }
+        }
+        if(errors.length){
+          setStatus('Sauvegardé · Publication automatique partielle/échouée : '+errors.join(' | '));
+        }else{
+          setStatus((synced?'Enregistré dans Supabase':'Enregistré localement · Cloud non synchronisé')+
+            (updated?' · '+updated+' lien'+(updated>1?'s':'')+' public'+(updated>1?'s':'')+' actualisé'+(updated>1?'s':''):''));
+        }
       }else{
-        setStatus('Enregistré sur cet appareil · Cloud non connecté');
+        setStatus('Enregistré sur cet appareil · Connecte le Cloud pour mettre les liens publics à jour');
       }
     }finally{setSavingManually(false);}
   }
