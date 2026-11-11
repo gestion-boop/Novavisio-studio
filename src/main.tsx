@@ -497,6 +497,7 @@ function App(){
   const studioRef=useRef<HTMLDivElement>(null);
   const topMenusRef=useRef<HTMLDivElement>(null);
   const [openTopMenu,setOpenTopMenu]=useState<HeaderMenu>(null);
+  const [navigationDrawerOpen,setNavigationDrawerOpen]=useState(false);
   const [studioFullscreen,setStudioFullscreen]=useState(false);
   const [studioFallback,setStudioFallback]=useState(false);
   const [leftHidden,setLeftHidden]=useState(()=>readStudioLayout().leftHidden);
@@ -515,6 +516,7 @@ function App(){
     const key=(event:KeyboardEvent)=>{
       if(event.key==='Escape'){
         setOpenTopMenu(null);
+        setNavigationDrawerOpen(false);
         if(studioFallback){setStudioFallback(false);setStudioFullscreen(false);}
       }
     };
@@ -2271,10 +2273,22 @@ function App(){
             <small>ÉDITEUR DE VISITES 360°</small>
           </div>
         </div>
-        <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setOpenTopMenu(null);}}>
-          <Users size={15}/> Clients <span>NovaGen</span>
+        <button type="button" className={'nv-header-burger'+(navigationDrawerOpen?' is-open':'')}
+          aria-label="Ouvrir le menu de navigation" aria-expanded={navigationDrawerOpen}
+          aria-controls="nv-studio-navigation" onClick={()=>{setNavigationDrawerOpen(open=>!open);setOpenTopMenu(null);}}>
+          <Menu size={22}/><span>Menu</span>
         </button>
-        <div className="nv-header-menu-list" ref={topMenusRef}>
+        {navigationDrawerOpen&&<button type="button" className="nv-navigation-scrim"
+          aria-label="Fermer le menu" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}}/>}
+        <nav id="nv-studio-navigation" className={'nv-navigation-drawer'+(navigationDrawerOpen?' is-open':'')}
+          aria-label="Navigation NovaStudio" aria-hidden={!navigationDrawerOpen}>
+          <div className="nv-navigation-drawer-header"><strong>Navigation</strong>
+            <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu">×</button>
+          </div>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
+            <Users size={16}/> Clients <span>NovaGen</span>
+          </button>
+          <div className="nv-header-menu-list" ref={topMenusRef}>
           <div className="nv-menu-root">
             <button type="button" className={'nv-menu-trigger '+(openTopMenu==='file'?'is-open':'')}
               aria-haspopup="menu" aria-expanded={openTopMenu==='file'}
@@ -2357,11 +2371,12 @@ function App(){
           </div>
           <div className="nv-menu-root">
             <button type="button" className="nv-menu-trigger" title="Sauvegardes et versions Supabase"
-              onClick={()=>{setOpenTopMenu(null);setCloudOpen(true);}}>
+              onClick={()=>{setOpenTopMenu(null);setNavigationDrawerOpen(false);setCloudOpen(true);}}>
               <Cloud size={16}/> Cloud
             </button>
           </div>
-        </div>
+          </div>
+        </nav>
       </div>
       <div className="nv-top-center">
         <div className="project-name">
