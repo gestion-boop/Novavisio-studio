@@ -2039,6 +2039,19 @@ function App(){
                       setSelectedId('');
                     }}><Trash2 size={14}/> Supprimer ce point</button>
                   </div>:<p className="nv-quick-hint">Sélectionne un point dans la liste ou clique sur son icône dans le panorama pour modifier ses paramètres et ses PNG.</p>}
+                  <div className="nv-fullscreen-gallery-arrival nv-quick-arrival">
+                    <div className="nv-fullscreen-gallery-arrival-text">
+                      <strong>Vue d’arrivée du panorama</strong>
+                      <span>Oriente la caméra et règle le zoom, puis enregistre cette vue. Elle sera utilisée en arrivant ici depuis la galerie, une navigation normale ou l'export.</span>
+                    </div>
+                    <button type="button" onClick={saveArrivalView}>
+                      <Eye size={15}/> Enregistrer la vue actuelle
+                    </button>
+                    {active.arrivalYaw!==undefined &&
+                      <small className="nv-fullscreen-gallery-arrival-saved">
+                        ✓ Vue définie · orientation {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)} %
+                      </small>}
+                  </div>
                 </>}
                 {fullscreenToolsTab==='bar'&&<>
                   <div className="nv-quick-section-title">Boutons de la barre</div>
@@ -2137,19 +2150,7 @@ function App(){
                 Suivant <ChevronRight size={16}/>
               </button>
             </div>
-            {!preview && <div className="nv-fullscreen-gallery-arrival">
-              <div className="nv-fullscreen-gallery-arrival-text">
-                <strong>Vue d’arrivée du panorama</strong>
-                <span>Oriente la caméra et règle le zoom, puis enregistre cette vue. Elle sera utilisée en arrivant ici depuis la galerie, une navigation normale ou l'export.</span>
-              </div>
-              <button type="button" onClick={saveArrivalView}>
-                <Eye size={15}/> Enregistrer la vue actuelle
-              </button>
-              {active.arrivalYaw!==undefined &&
-                <small className="nv-fullscreen-gallery-arrival-saved">
-                  ✓ Vue définie · orientation {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)} %
-                </small>}
-            </div>}
+
             <div className="nv-fullscreen-gallery-list">
               {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
                 className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')}
