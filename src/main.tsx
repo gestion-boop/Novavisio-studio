@@ -1498,36 +1498,20 @@ function App(){
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
   }
-  // Affecter A → B crée directement le retour B → A, sans déplacer la caméra
-  // et sans afficher une seconde flèche devant l'utilisateur.
+  // Le choix d'une destination ne crée JAMAIS un point de retour implicitement.
+  // L'utilisateur peut créer ce retour volontairement via reverseNavigation.
   function setNavigationDestination(targetId:string){
     if(!active||!selected||selected.type!=='navigation')return;
-    const fromId=active.id,fromName=active.name,pointId=selected.id;
-    setProject(p=>({...p,scenes:p.scenes.map(sc=>{
-      if(sc.id===fromId)return {...sc,hotspots:sc.hotspots.map(h=>h.id===pointId?
-        {...h,target:targetId,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalZoomModel:undefined}:h)};
-      if(sc.id!==targetId||!targetId||targetId===fromId||
-         sc.hotspots.some(h=>h.type==='navigation'&&h.target===fromId))return sc;
-      // Par défaut, le retour est derrière la vue d'arrivée, plutôt que devant.
-      // Le placement peut ensuite être affiné en mode Éditer dans B.
-      const source=p.scenes.find(x=>x.id===fromId)?.hotspots.find(x=>x.id===pointId);
-      const arrivalYaw=source?.arrivalYaw??sc.arrivalYaw??0;
-      const yaw=((arrivalYaw+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
-      const reverse:Hotspot={
-        id:uid(),type:'navigation',title:'Retour vers '+fromName,text:'',target:fromId,
-        yaw,pitch:-0.12,
-        ...(source?.iconId?{iconId:source.iconId}:{}),
-        ...(source?.hoverIconId?{hoverIconId:source.hoverIconId}:{}),
-        ...(source?.pressedIconId?{pressedIconId:source.pressedIconId}:{}),
-        ...(source?.iconSize?{iconSize:source.iconSize}:{})
-      };
-      return {...sc,hotspots:[...sc.hotspots,reverse]};
-    })}));
+    const fromId=active.id,pointId=selected.id;
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===fromId?
+      {...sc,hotspots:sc.hotspots.map(h=>h.id===pointId?
+        {...h,target:targetId,arrivalYaw:undefined,arrivalPitch:undefined,
+          arrivalZoom:undefined,arrivalZoomModel:undefined}:h)}:sc)}));
     setNavigationPickerOpen(false);
     setClassicDestinationOpen(false);
     setNavigationPickerHover(null);
     setNavigationPickerPreviewId(null);
-    setStatus(targetId?'Navigation définie · retour créé automatiquement dans le panorama de destination (derrière la vue d’arrivée)':'Destination retirée');
+    setStatus(targetId?'Destination sélectionnée · aucun retour créé automatiquement':'Destination retirée');
   }
   // Une connexion A → B peut créer sa flèche retour B → A en un seul clic.
   // Le point est placé devant la caméra à l'arrivée sur B ; ajustable ensuite.
@@ -2218,9 +2202,9 @@ function App(){
                       <button type="button" className="nv-quick-primary" disabled={!selected.target||!visibleIds.has(selected.target)}
                         onClick={()=>reverseNavigation(selected)}>
                         ↩ {project.scenes.find(sc=>sc.id===selected.target)?.hotspots.some(h=>h.type==='navigation'&&h.target===activeId)
-                          ?'Ouvrir le retour existant':'Créer le retour automatiquement'}
+                          ?'Ouvrir le retour existant':'Créer le retour (facultatif)'}
                       </button>
-                      <small className="nv-quick-hint">Le retour est créé dès le choix de la destination, derrière la vue d’arrivée. Ce bouton permet de le retrouver pour l’ajuster.</small>
+                      <small className="nv-quick-hint">Aucun retour n’est créé automatiquement. Clique ici uniquement si tu souhaites ajouter un retour.</small>
                     </>}
                     {(selected.type==='lien'||selected.type==='information')&&<>
                       <label>Adresse / lien
@@ -2759,7 +2743,7 @@ function App(){
                   ↩ {project.scenes.find(sc=>sc.id===selected.target)?.hotspots.some(h=>h.type==='navigation'&&h.target===activeId)
                     ?'Ouvrir le retour existant':'Créer le retour vers ce panorama'}
                 </button>
-                <small className="hint-inline">Le retour est automatiquement créé lors du choix de la destination, derrière la vue d’arrivée. Utilise ce bouton pour le retrouver et ajuster sa position.</small>
+                <small className="hint-inline">Aucun retour n’est créé par défaut. Tu peux décider de le créer avec ce bouton.</small>
                 {selected.target&&<div className="arrival-view-card is-inspector">
                   <div className="section-title">VUE D’ARRIVÉE DE CETTE FLÈCHE</div>
                   {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>
