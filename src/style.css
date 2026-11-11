@@ -3960,3 +3960,17 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 .nv-cloud-compact .cloud-list li>span{min-width:180px;flex:1}
 .nv-cloud-compact .cloud-list li>.nv-cloud-history{flex-basis:100%;max-height:200px;overflow-y:auto}
 @media(max-width:600px){.cloud-panel.nv-cloud-compact{padding:15px;max-height:92dvh}.nv-cloud-compact .nv-cloud-scroll{max-height:55dvh}}
+
+/* Bandeau de pose : position basse sans masquer le centre du panorama. */
+.nv-studio-pro .view-area .mode-active-pill{
+  top:auto;
+  bottom:max(18px,env(safe-area-inset-bottom));
+  max-width:calc(100% - 24px);
+}
+.nv-studio-pro .view-area:is(:fullscreen,.nv-creation-fullscreen-fallback) .mode-active-pill{
+  top:auto;
+  bottom:max(18px,env(safe-area-inset-bottom));
+}
+@media(max-width:600px){
+  .nv-studio-pro .view-area .mode-active-pill{bottom:max(12px,env(safe-area-inset-bottom));flex-wrap:wrap;justify-content:center}
+}
