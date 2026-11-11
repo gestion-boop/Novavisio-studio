@@ -34,13 +34,14 @@ export type BarStyle = {
   button: string;
   buttonOutline: string;
   icon: string;
+  dayNightColor?: string;
   outlineWidth: number;
   buttonOutlineWidth: number;
   roundness: number;
 };
 export const defaultBarStyle = ():BarStyle => ({
   background:'#c2c5c6', outline:'#987974',button:'#5d131a',
-  buttonOutline:'#4a1518',icon:'#f4d69a',
+  buttonOutline:'#4a1518',icon:'#f4d69a',dayNightColor:'#2f72b4',
   outlineWidth:2,buttonOutlineWidth:1,roundness:60
 });
 /** Une vignette de la galerie : panorama + nom affiché (vide = nom du panorama). */
@@ -210,7 +211,7 @@ export function validateProject(value:unknown):StudioProject {
   const barStyle = {...defaultBarStyle(),...(p.barStyle ?? {})};
   const isColor = (v:unknown)=>typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v);
   if (!isColor(barStyle.background) || !isColor(barStyle.outline) ||
-      !isColor(barStyle.button) || !isColor(barStyle.buttonOutline) || !isColor(barStyle.icon) ||
+      !isColor(barStyle.button) || !isColor(barStyle.buttonOutline) || !isColor(barStyle.icon) || !isColor(barStyle.dayNightColor) ||
       !Number.isInteger(barStyle.outlineWidth) || barStyle.outlineWidth < 0 || barStyle.outlineWidth > 8 ||
       !Number.isInteger(barStyle.buttonOutlineWidth) || barStyle.buttonOutlineWidth < 0 || barStyle.buttonOutlineWidth > 8 ||
       !Number.isInteger(barStyle.roundness) || barStyle.roundness < 0 || barStyle.roundness > 60) {
