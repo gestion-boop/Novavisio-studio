@@ -1,9 +1,10 @@
 import {useEffect,useState} from 'react';
-import {addMember,cloudConfigured,createCollaboratorAccount,listMembers,readLink,removeMember,supabase,type Member} from './cloud';
+import {addMember,cloudConfigured,createCollaboratorAccount,listMembers,readLink,removeMember,saveToCloud,supabase,type Member} from './cloud';
 import type {SyncState} from './cloudSync';
 import {studioUrl} from './share';
 import {LoginBox} from './LoginBox';
 import type {StudioProject} from './storage';
+import {readSpaceCloudLink,writeSpaceCloudLink,type StudioSpace} from './spaces';
 
 const ALPHABET='abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function generatePassword(length=14):string{
@@ -17,7 +18,7 @@ const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{day:'2-digit',mont
  * Lien privé : donner accès à la visite à une autre personne (e-mail + mot de passe) pour qu'elle travaille dessus.
  * Règle de sauvegarde : la dernière personne qui agit a la main (sa sauvegarde remplace la précédente, qui est archivée).
  */
-export function PrivatePanel({project,onClose,onStatus,syncNow,syncState}:{project:StudioProject;onClose:()=>void;onStatus:(m:string)=>void;syncNow:()=>Promise<boolean>;syncState:SyncState}){
+export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:{project:StudioProject;space?:StudioSpace|null;onClose:()=>void;onStatus:(m:string)=>void;syncNow:()=>Promise<boolean>;syncState:SyncState}){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState(()=>generatePassword());
@@ -28,7 +29,7 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState}:{proje
   const [outcome,setOutcome]=useState<Outcome|null>(null);
   const [copied,setCopied]=useState(false);
   const [includePw,setIncludePw]=useState(false); // compte créé à la main dans Supabase : le mot de passe saisi ici est celui du compte
-  const [projectId,setProjectId]=useState<string|null>(readLink()?.projectId??null);
+  const [projectId,setProjectId]=useState<string|null>((space?readSpaceCloudLink(space.id,'private'):readLink())?.projectId??null);
 
   async function refresh(id:string|null){
     if(!id){setMembers([]);return;}
@@ -38,7 +39,7 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState}:{proje
     if(!cloudConfigured)return;
     const db=supabase();
     void db.auth.getSession().then(({data})=>{setUserEmail(data.session?.user.email??null);if(data.session)void refresh(projectId);});
-    const {data:sub}=db.auth.onAuthStateChange((_e,session)=>{setUserEmail(session?.user.email??null);if(session)void refresh(readLink()?.projectId??null);else setMembers([]);});
+    const {data:sub}=db.auth.onAuthStateChange((_e,session)=>{setUserEmail(session?.user.email??null);if(session)void refresh((space?readSpaceCloudLink(space.id,'private'):readLink())?.projectId??null);else setMembers([]);});
     return ()=>sub.subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
@@ -71,11 +72,19 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState}:{proje
       if(password.length<8)throw new Error('Le mot de passe doit faire au moins 8 caractères.');
       if(!project.scenes.length)throw new Error('Importe au moins un panorama avant d’inviter quelqu’un.');
       // 1) la visite doit être ENTIÈREMENT dans le cloud, à jour : sinon la personne invitée ouvrirait une ancienne version.
-      if(syncState.kind==='setup')throw new Error(syncState.message);
-      setBusy('Envoi de ta visite dans le cloud (la personne doit recevoir la version actuelle)…');
-      const done=await syncNow();
-      const link=readLink();
-      if(!done||!link)throw new Error('Ta visite n’est pas encore entièrement enregistrée dans le cloud'+(syncState.kind==='error'?' ('+syncState.message+')':'')+'. Vérifie les détails dans Cloud, puis réessaie l’envoi.');
+      let link;
+      if(space){
+        setBusy('Préparation de l’espace privé isolé…');
+        const saved=await saveToCloud(project,readSpaceCloudLink(space.id,'private'),setBusy);
+        writeSpaceCloudLink(space.id,'private',saved);
+        link=saved;
+      }else{
+        if(syncState.kind==='setup')throw new Error(syncState.message);
+        setBusy('Envoi de ta visite dans le cloud (la personne doit recevoir la version actuelle)…');
+        const done=await syncNow();
+        link=readLink();
+        if(!done||!link)throw new Error('Ta visite n’est pas encore entièrement enregistrée dans le cloud'+(syncState.kind==='error'?' ('+syncState.message+')':'')+'. Vérifie les détails dans Cloud, puis réessaie l’envoi.');
+      }
       setProjectId(link.projectId);
       // 2) autoriser l'adresse, puis créer le compte (e-mail + mot de passe)
       setBusy('Création de l’accès…');
@@ -98,7 +107,8 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState}:{proje
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel private-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}>✕</button>
-    <h2>Lien privé</h2>
+    <h2>Lien privé{space?' · '+space.name:''}</h2>
+    {space&&<p className="hint-inline"><b>Accès limité à l’espace : {space.name}</b> · {project.scenes.length} panoramas. Les autres espaces ne sont pas inclus. L’invité travaille sur une copie cloud indépendante.</p>}
     {!cloudConfigured?<p className="warning">Supabase n’est pas configuré sur ce déploiement : le travail à plusieurs est indisponible.</p>
     :!userEmail?<LoginBox intro="Connecte-toi d’abord : c’est ton compte qui est propriétaire de la visite et qui donne les accès."/>
     :<>
