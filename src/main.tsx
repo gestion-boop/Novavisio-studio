@@ -512,6 +512,26 @@ function App(){
   const [selectedId,setSelectedId]=useState('');
   const [selectedBarId,setSelectedBarId]=useState('');
   const [panel,setPanel]=useState<PanelTab>('points');
+  // Préférence d'affichage propre à ce navigateur, jamais enregistrée dans les visites.
+  const [galleryVerticalOffset,setGalleryVerticalOffset]=useState(()=>{
+    try{return Math.max(0,Math.min(260,Number(localStorage.getItem('nvstudio-gallery-offset')||0)||0));}
+    catch{return 0;}
+  });
+  const galleryDragStart=useRef<{y:number;offset:number}|null>(null);
+  useEffect(()=>{
+    try{localStorage.setItem('nvstudio-gallery-offset',String(galleryVerticalOffset));}catch{/* Préférence facultative */}
+  },[galleryVerticalOffset]);
+  function beginGalleryVerticalDrag(e:React.PointerEvent<HTMLButtonElement>){
+    if(e.button!==0)return;
+    galleryDragStart.current={y:e.clientY,offset:galleryVerticalOffset};
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function moveGalleryVerticalDrag(e:React.PointerEvent<HTMLButtonElement>){
+    const start=galleryDragStart.current;
+    if(!start)return;
+    setGalleryVerticalOffset(Math.max(0,Math.min(260,Math.round(start.offset+e.clientY-start.y))));
+  }
+  function endGalleryVerticalDrag(){galleryDragStart.current=null;}
   const [mode,setMode]=useState<EditMode>(null);
   const [preview,setPreview]=useState(false);
   const [status,setStatus]=useState('Initialisation…');
@@ -2659,9 +2679,9 @@ function App(){
         </div>
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
-        <div className="section-title">
-          <span>PANORAMAS</span>
-          <span className="counter">{visibleScenes.length}</span>
+        <div className="nv-gallery-heading">
+          <div className="section-title"><span>PANORAMAS</span><span className="counter">{visibleScenes.length}</span></div>
+          <button type="button" className="nv-gallery-reset" onClick={()=>setGalleryVerticalOffset(0)} title="Remonter les panoramas en haut">↑ Remonter</button>
         </div>
         {currentSpace&&<div className="nv-space-sidebar-context">
           <strong>{currentSpace.name}</strong>
@@ -2683,6 +2703,12 @@ function App(){
             <option value="with">Avec points</option>
             <option value="without">Sans points</option>
           </select>
+        </div>
+        <div className="nv-gallery-position" style={{marginTop:galleryVerticalOffset}}>
+          <button type="button" className="nv-gallery-drag-handle" aria-label="Abaisser ou remonter la liste des panoramas" title="Glisser vers le bas ou le haut pour déplacer la liste"
+            onPointerDown={beginGalleryVerticalDrag} onPointerMove={moveGalleryVerticalDrag} onPointerUp={endGalleryVerticalDrag} onPointerCancel={endGalleryVerticalDrag}>
+            <span className="nv-gallery-drag-lines" aria-hidden="true">⠿</span> Déplacer la liste <span className="nv-gallery-drag-direction" aria-hidden="true">↕</span>
+          </button>
         </div>
         <div className="scenes" ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
           onMouseEnter={()=>hoverSidePreview(s.id)} onMouseLeave={leaveSidePreview}
@@ -2728,7 +2754,7 @@ function App(){
             </button>
           </div>)}
         </div>}
-        <div className="helper">
+        <div className="helper nv-gallery-help" hidden>
           <strong>✦ Guide rapide</strong>
           <p>Clique sur un point dans le 360° pour modifier directement ses propriétés à droite.</p>
           <button className="help" onClick={()=>setHelp(true)}>Guide de démarrage →</button>
