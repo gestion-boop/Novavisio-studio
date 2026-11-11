@@ -10,6 +10,7 @@ import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
+import {ClientPanel,type ClientLink} from './ClientPanel';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
 import {refreshActivePublication} from './share';
@@ -31,7 +32,7 @@ import './style.css';
 import './media.css';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music';
+type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'client';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -539,6 +540,7 @@ function App(){
     window.history.replaceState(null,'',window.location.pathname+window.location.search);
   },[]);
   const [shareOpen,setShareOpen]=useState(false);
+  const [clientOpen,setClientOpen]=useState(false);
   const [privateOpen,setPrivateOpen]=useState(false);
   const [photoFeedback,setPhotoFeedback]=useState('');
   const videoInput=useRef<HTMLInputElement>(null);
@@ -1694,6 +1696,14 @@ function App(){
     setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
     cloud.unlink();
   }
+  function addClientLink(item:ClientLink){
+    const next:BottomBarItem={id:uid(),title:item.label,type:item.kind==='info'?'information':'lien',target:'',text:'',url:item.url,builtinIcon:item.label==='Appeler'?'phone':item.label==='Itinéraire'?'grid':'info'};
+    setProject(p=>({...p,bottomBar:[...p.bottomBar,next]}));
+    setSelectedBarId(next.id);setPanel('bar');setStatus('Bouton « '+item.label+' » ajouté à la barre du bas · Enregistre la visite');
+  }
+  const clientView=<ClientPanel value={project.clientProfile}
+    onChange={clientProfile=>setProject(p=>({...p,clientProfile}))}
+    onAddLink={addClientLink}/>;
   return <div ref={studioRef} className={
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
@@ -1712,6 +1722,9 @@ function App(){
             <small>ÉDITEUR DE VISITES 360°</small>
           </div>
         </div>
+        <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setOpenTopMenu(null);}}>
+          <Users size={15}/> Clients <span>NovaGen</span>
+        </button>
         <div className="nv-header-menu-list" ref={topMenusRef}>
           <div className="nv-menu-root">
             <button type="button" className={'nv-menu-trigger '+(openTopMenu==='file'?'is-open':'')}
@@ -2556,7 +2569,9 @@ function App(){
           <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro')}>Intro</button>
           <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements')}>Éléments</button>
           <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music')}>Musique</button>
+          <button role="tab" aria-selected={panel==='client'} className={panel==='client'?'active':''} onClick={()=>setPanel('client')}>NovaGen</button>
         </div>
+        {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
         <div className="section-title">
           <span>PANORAMAS</span>
@@ -3057,6 +3072,15 @@ function App(){
         </div>}
       </aside>
     </div>
+    {clientOpen&&<div className="nv-client-overlay" role="presentation" onClick={()=>setClientOpen(false)}>
+      <section className="nv-client-dialog" role="dialog" aria-modal="true" aria-label="Informations client NovaGen" onClick={event=>event.stopPropagation()}>
+        <div className="nv-client-dialog-head">
+          <div><strong>Clients · NovaGen</strong><small>Établissement associé au projet « {project.name} »</small></div>
+          <button type="button" onClick={()=>setClientOpen(false)} aria-label="Fermer les informations client">✕</button>
+        </div>
+        {clientView}
+      </section>
+    </div>}
     <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
