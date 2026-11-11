@@ -754,11 +754,14 @@ function App(){
     const snapshot=projectRef.current;
     setSavingManually(true);
     try{
-      const locallySaved=await persist(snapshot);
-      if(!locallySaved)return;
       if(cloud.signedIn){
         setStatus('Sauvegarde dans Supabase…');
         const synced=await cloud.syncNow(snapshot);
+        if(!synced){
+          setStatus('Échec de la sauvegarde Cloud : rien n’a été écrasé. Vérifie le panneau Cloud et réessaie.');
+          return;
+        }
+        savedRef.current=snapshot;
         // Les liens publics permanents déjà actifs suivent la disquette :
         // le projet complet et chacun des espaces possèdent leur propre
         // publication stable. Les partages temporaires restent immuables.
@@ -792,7 +795,7 @@ function App(){
             (updated?' · '+updated+' lien'+(updated>1?'s':'')+' public'+(updated>1?'s':'')+' actualisé'+(updated>1?'s':''):''));
         }
       }else{
-        setStatus('Enregistré sur cet appareil · Connecte le Cloud pour mettre les liens publics à jour');
+        setStatus('Cloud déconnecté : connexion nécessaire pour enregistrer ce projet sur tous tes appareils.');
       }
     }finally{setSavingManually(false);}
   }
@@ -3099,7 +3102,7 @@ function App(){
         setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
       }}
     />}
-    <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Stockage local sur cet appareil</span></footer>
+    <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
@@ -3110,9 +3113,9 @@ function App(){
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {privateOpen&&<PrivatePanel project={projectForSpaceExport({...project,clientProfile:undefined},currentSpace)} space={currentSpace} onClose={()=>setPrivateOpen(false)} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
-    {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
+    {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
