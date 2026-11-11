@@ -4100,3 +4100,55 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   font-size:9px;letter-spacing:.12em;white-space:nowrap;
 }
 .nv-studio-pro .nv-top-left{min-width:0;flex:0 0 auto}
+
+
+/* Tiroir des outils : panneau qui coulisse à droite, tandis que le panorama
+   récupère progressivement sa largeur. Le panneau reste monté afin de
+   préserver le travail en cours lors d'un repli. */
+@media(min-width:781px){
+  .nv-studio-pro .workspace{
+    --nv-inspector-width:350px;
+    position:relative;
+    display:grid;
+    grid-template-columns:minmax(0,1fr)!important;
+    padding-right:var(--nv-inspector-width);
+    transition:padding-right .28s cubic-bezier(.2,.75,.2,1);
+    overflow-x:clip;
+  }
+  .nv-studio-pro.nv-studio-hide-right .workspace{
+    padding-right:0;
+  }
+  .nv-studio-pro .workspace>.right.panel,
+  .nv-studio-pro.nv-studio-hide-right .workspace>.right.panel{
+    position:absolute;
+    z-index:12;
+    top:0;
+    right:0;
+    bottom:0;
+    width:var(--nv-inspector-width);
+    max-width:var(--nv-inspector-width);
+    height:100%;
+    min-height:0;
+    display:flex!important;
+    transform:translateX(0);
+    opacity:1;
+    visibility:visible;
+    transition:transform .28s cubic-bezier(.2,.75,.2,1),
+               opacity .2s ease,visibility .28s;
+    will-change:transform;
+  }
+  .nv-studio-pro.nv-studio-hide-right .workspace>.right.panel{
+    transform:translateX(100%);
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+  }
+  .nv-studio-pro .workspace>.editor{min-width:0}
+}
+@media(min-width:781px) and (max-width:1250px){
+  .nv-studio-pro .workspace{--nv-inspector-width:310px}
+}
+@media(prefers-reduced-motion:reduce){
+  .nv-studio-pro .workspace,
+  .nv-studio-pro .workspace>.right.panel{transition:none!important}
+}
