@@ -149,14 +149,17 @@ async function uploadMedia(snapshot:StudioProject,projectId:string,uid:string,on
   const cache=uploadedMedia.get(projectId)??new Map<string,string>();
   uploadedMedia.set(projectId,cache);
   const slots=mediaSlots(snapshot).filter(s=>s.get()?.startsWith('data:'));
-  const todo=slots.filter(s=>!cache.has(s.get()!)).length;
+  // Multiple points may reference the same PNG/audio. Count files, not slots,
+  // so 1 shared icon is shown as one transfer instead of N apparent uploads.
+  const distinct=new Set(slots.map(slot=>slot.get()!).filter(value=>!cache.has(value)));
+  const todo=distinct.size;
   let n=0;
   for(const slot of slots){
     const dataUrl=slot.get()!;
     const known=cache.get(dataUrl);
     if(known){slot.set(known);continue;}
     n++;
-    onProgress('Envoi des médias '+n+'/'+todo+'…');
+    onProgress('Envoi des fichiers utiles '+n+'/'+todo+'…');
     const blob=await (await fetch(dataUrl)).blob();
     const path=uid+'/'+projectId+'/'+await sha256(blob)+'.'+(EXT[blob.type]??'bin');
     const {error}=await db.storage.from(BUCKET).upload(path,blob,{upsert:false,contentType:blob.type});
