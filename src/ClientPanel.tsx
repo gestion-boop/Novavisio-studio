@@ -17,9 +17,9 @@ export type ClientLink={label:string;url:string;kind:'link'|'info'};
 export function profileLinks(p:ClientProfile):ClientLink[]{
   const result:ClientLink[]=[];
   const web=(value:string)=>{try{const url=new URL(value);return url.protocol==='https:'?url.href:'';}catch{return '';}};
-  if(p.phone.trim()&&/^\\+?[0-9 ()\\-.]{6,30}$/.test(p.phone.trim()))
-    result.push({label:'Appeler',url:'tel:'+p.phone.replace(/[^+\\d]/g,''),kind:'link'});
-  if(p.email&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(p.email))
+  if(p.phone.trim()&&/^\+?[0-9 ()\-.]{6,30}$/.test(p.phone.trim()))
+    result.push({label:'Appeler',url:'tel:'+p.phone.replace(/[^+\d]/g,''),kind:'link'});
+  if(p.email&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email))
     result.push({label:'E-mail',url:'mailto:'+p.email,kind:'link'});
   for(const [label,value] of [['Site internet',p.website],['Facebook',p.facebook],['Instagram',p.instagram]]){
     const url=web(value);if(url)result.push({label,url,kind:'link'});
