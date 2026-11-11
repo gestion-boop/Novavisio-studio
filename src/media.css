@@ -171,3 +171,46 @@
   .nv-daynight-switch{top:12px!important}
   .nv-daynight-switch button span{display:inline}
 }
+
+
+/* Jour/Nuit premium : mêmes matières et contour que la barre de navigation. */
+.nv-daynight-switch {
+  background:linear-gradient(165deg,color-mix(in srgb,var(--nv-bar-bg,#c2c5c6) 90%,white),var(--nv-bar-bg,#c2c5c6))!important;
+  border:var(--nv-bar-border-width,2px) solid var(--nv-bar-outline,#987974)!important;
+  border-radius:999px!important;
+  padding:5px!important;
+  gap:4px!important;
+  box-shadow:inset 0 2px 3px #fff8,inset 0 -2px 4px #52596933,0 7px 24px #0005!important;
+}
+.nv-daynight-switch button {
+  border-radius:999px!important;
+  border:1px solid transparent!important;
+  padding:8px 13px!important;
+  transition:background .22s ease,box-shadow .22s ease,filter .18s ease;
+  font-weight:700;
+}
+.nv-daynight-switch button:first-child,
+.nv-daynight-switch button:first-child.is-active {
+  background:#f2f0eb!important;
+  color:#51565b!important;
+}
+.nv-daynight-switch button:last-child,
+.nv-daynight-switch button:last-child.is-active {
+  background:#879fb8!important;
+  color:#1a3549!important;
+}
+.nv-daynight-switch button:not(.is-active){filter:saturate(.65) opacity(.64)}
+.nv-daynight-switch button.is-active{
+  border:1px solid color-mix(in srgb,var(--nv-bar-outline,#987974) 65%,white)!important;
+  box-shadow:inset 0 1px 2px #fff8,0 2px 5px #0002!important;
+  filter:none;
+}
+.nv-daynight-switch button:hover{filter:brightness(1.04)!important}
+@media(max-width:620px){.nv-daynight-switch button{padding:7px 9px!important}}
+/* Horodatage d'une build : discret, n'intercepte aucun clic sur le panorama. */
+.nv-build-stamp {
+  position:absolute;right:12px;bottom:10px;z-index:46;
+  font-size:10px;font-weight:550;letter-spacing:.02em;
+  padding:4px 7px;border-radius:5px;color:#ebf1f5;
+  background:rgba(10,24,35,.55);pointer-events:none;
+}
