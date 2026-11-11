@@ -1732,7 +1732,7 @@ function App(){
     setSvgGenerating(true);
     try{
       const colors=await paletteFromLogo(logo);
-      setSvgDesign(d=>({...d,...colors,secondary:'#ffffff'}));
+      applyLogoPalette(colors);
       setStatus('Couleurs détectées dans le logo associé au client.');
     }catch{
       setStatus('Logo distant inaccessible : utilise « Choisir un fichier logo » pour appliquer ses couleurs.');
@@ -1746,7 +1746,7 @@ function App(){
     setSvgGenerating(true);
     try{
       const colors=await paletteFromLogo(await readImage(file));
-      setSvgDesign(d=>({...d,...colors,secondary:'#ffffff'}));
+      applyLogoPalette(colors);
       setStatus('Palette extraite du logo : tu peux maintenant générer tes icônes ou ajuster le dégradé.');
     }catch{setStatus('Impossible d’extraire les couleurs du logo. Essaie un PNG ou JPG.');}
     finally{setSvgGenerating(false);}
