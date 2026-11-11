@@ -2348,9 +2348,6 @@ function App(){
                   </div>
                 </div>)}
             </section>}
-          {active&&!preview&&<button type="button" className={'nv-auto-navigation'+(autoNavigation?' is-active':'')} aria-pressed={autoNavigation}
-            title={autoNavigation?"Quitter l'assistant de navigation":"Lancer la création pas à pas"}
-            onClick={toggleAutoNavigation}><span className="nv-auto-symbol">↪</span> Auto{autoNavigation?' · ON':''}</button>}
           {creationFullscreen&&showArrivalCrosshair&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
@@ -2846,6 +2843,9 @@ function App(){
           <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')} title="Lien web, téléphone ou email">
             ↗ Lien web
           </button>
+          <button type="button" className={'tool nv-auto-navigation nv-auto-toolbar'+(autoNavigation?' is-active selected':'')} aria-pressed={autoNavigation}
+            title={autoNavigation?"Quitter l'assistant de navigation":"Lancer la création pas à pas"}
+            onClick={toggleAutoNavigation}><span className="nv-auto-symbol">↪</span> Auto{autoNavigation?' · ON':''}</button>
           <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')} title="Cadre photo incrusté en perspective">
             ▣ Cadre photo
           </button>
