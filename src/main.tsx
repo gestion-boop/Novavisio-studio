@@ -401,19 +401,37 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     const onDown=(e:PointerEvent)=>{
       const t=e.target;
       if(!(t instanceof HTMLElement)||t.closest('.nv-direct-corner'))return;
-      // Only the small grab handle can move a marker. Normal dragging over
-      // the icon or panorama always goes to Photo Sphere Viewer for rotation.
-      const grip=t.closest<HTMLElement>('.nv-marker-move-grip');
-      if(!grip)return;
-      const item=grip.closest<HTMLElement>('.nv-drag-target');
       const a=actions.current;
-      if(!item||a.preview||a.mode||item.dataset.nvMarkerId!==a.selectedId)return;
-      const viewer=viewerRef.current,id=item.dataset.nvMarkerId;
+      const remove=t.closest<HTMLElement>('.nv-marker-remove-auto');
+      if(remove){
+        const id=remove.closest<HTMLElement>('.nv-drag-target')?.dataset.nvMarkerId;
+        if(a.autoNavigation&&!a.preview&&id){
+          e.preventDefault();e.stopImmediatePropagation();
+          suppressMarkerClick.current=true;
+          a.onRemoveNavigation(id);
+          setTimeout(()=>{suppressMarkerClick.current=false;},350);
+        }
+        return;
+      }
+      const grip=t.closest<HTMLElement>('.nv-marker-move-grip');
+      const autoMarker=a.autoNavigation?t.closest<HTMLElement>('.nv-nav-auto-marker'):null;
+      const item=(grip||autoMarker)?.closest<HTMLElement>('.nv-drag-target');
+      if(!item||a.preview)return;
+      const id=item.dataset.nvMarkerId;
+      const autoDrag=!!autoMarker&&a.scene.hotspots.some(h=>h.id===id&&h.type==='navigation');
+      if(!autoDrag&&(a.mode||id!==a.selectedId))return;
+      const viewer=viewerRef.current;
       if(!viewer||!id)return;
-      e.preventDefault();e.stopImmediatePropagation();
+      // En mode classique la poignée déplace directement. En Auto, appui maintenu
+      // 320 ms sur la flèche : clic bref = navigation, maintien = déplacement.
+      let dragging=!autoDrag;
+      if(!autoDrag){e.preventDefault();e.stopImmediatePropagation();}
+      let timer:ReturnType<typeof setTimeout>|null=autoDrag?setTimeout(()=>{
+        dragging=true;suppressMarkerClick.current=true;
+      },320):null;
       let final:{yaw:number;pitch:number}|null=null;
       const move=(p:PointerEvent)=>{
-        if(p.pointerId!==e.pointerId)return;
+        if(p.pointerId!==e.pointerId||!dragging)return;
         p.preventDefault();p.stopImmediatePropagation();
         const rect=root.getBoundingClientRect();
         const at=viewer.dataHelper.viewerCoordsToSphericalCoords({x:p.clientX-rect.left,y:p.clientY-rect.top});
@@ -421,10 +439,22 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
         final=at;
         try{(viewer.getPlugin(MarkersPlugin) as MarkersPlugin).updateMarker({id,position:at});}catch{}
       };
-      const clear=()=>{document.removeEventListener('pointermove',move,true);document.removeEventListener('pointerup',up,true);document.removeEventListener('pointercancel',cancel,true);};
-      const up=(p:PointerEvent)=>{if(p.pointerId!==e.pointerId)return;move(p);clear();if(final)actions.current.onMarkerMove(id,final.yaw,final.pitch);};
-      const cancel=(p:PointerEvent)=>{if(p.pointerId===e.pointerId)clear();};
-      document.addEventListener('pointermove',move,true);document.addEventListener('pointerup',up,true);document.addEventListener('pointercancel',cancel,true);
+      const clear=()=>{
+        if(timer)clearTimeout(timer);
+        document.removeEventListener('pointermove',move,true);
+        document.removeEventListener('pointerup',up,true);
+        document.removeEventListener('pointercancel',cancel,true);
+      };
+      const up=(p:PointerEvent)=>{
+        if(p.pointerId!==e.pointerId)return;
+        move(p);clear();
+        if(final)actions.current.onMarkerMove(id,final.yaw,final.pitch);
+        if(autoDrag&&dragging)setTimeout(()=>{suppressMarkerClick.current=false;},350);
+      };
+      const cancel=(p:PointerEvent)=>{if(p.pointerId===e.pointerId){clear();suppressMarkerClick.current=false;}};
+      document.addEventListener('pointermove',move,true);
+      document.addEventListener('pointerup',up,true);
+      document.addEventListener('pointercancel',cancel,true);
     };
     const over=(e:DragEvent)=>{if(e.dataTransfer?.types.includes('application/x-nv-icon'))e.preventDefault();};
     const drop=(e:DragEvent)=>{
