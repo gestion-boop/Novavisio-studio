@@ -3604,3 +3604,84 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
  color:#83fff0!important;font-weight:750;
 }
 .nv-classic-destination-list .nv-classic-destination-row.is-active svg{color:#7ffdec}
+
+/* Navigation pas à pas : la cible centrale matérialise la position de la flèche. */
+.nv-auto-crosshair{z-index:47}
+.nv-auto-crosshair-place{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  pointer-events:auto;z-index:3;display:grid;place-items:center;
+  width:30px;height:30px;min-height:30px;padding:0;
+  border-radius:50%;border:2px solid #b5fff6;
+  background:rgba(12,75,91,.77);color:#fff;
+  box-shadow:0 0 0 4px rgba(24,196,191,.18),0 2px 8px #001d2ba0;
+  font-size:19px;line-height:1;cursor:crosshair;
+}
+.nv-auto-crosshair-place:hover{background:#147b83;box-shadow:0 0 0 6px #35e0d447}
+.nv-auto-crosshair-place:active{transform:translate(-50%,-50%) scale(.92);background:#0b505f}
+
+/* Grand aperçu 360° du panneau latéral, cible sur l'image et validation dessous. */
+.nv-fullscreen-gallery-hover-preview.nv-pinned-destination-preview .nv-hover-preview-content{
+ display:flex;flex-direction:column;min-height:0;height:100%;
+}
+.nv-pinned-destination-preview .nv-fullscreen-destination-viewer{
+ position:relative;flex:1 1 auto;min-height:110px;overflow:hidden;
+}
+.nv-pinned-destination-preview .nv-fullscreen-destination-viewer>.nv-hover-preview-media{
+ position:absolute;inset:0;width:100%;height:100%;min-height:0;
+}
+.nv-pinned-destination-preview .nv-fullscreen-destination-viewer .nv-target-center{
+ z-index:11;pointer-events:none;
+}
+.nv-fullscreen-validate-destination{
+ flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+ width:calc(100% - 22px);margin:11px;padding:12px 18px;min-height:46px;
+ color:#edfffc;background:linear-gradient(155deg,#24797b,#1c586d);
+ border:1px solid #6de8dc;border-radius:10px;
+ box-shadow:inset 0 1px 0 #ffffff33;
+ font-weight:800;font-size:14px;cursor:pointer;
+}
+.nv-fullscreen-validate-destination:hover:not(:disabled){filter:brightness(1.13)}
+.nv-fullscreen-validate-destination:disabled{opacity:.45;cursor:not-allowed}
+.nv-fullscreen-gallery-scene.is-selected-destination{
+ border:2px solid #74eee1!important;background:#205767!important;
+ box-shadow:inset 0 0 0 1px #a5fff75c,0 0 0 2px #30c8bd3a!important;
+}
+.nv-fullscreen-gallery-scene.is-selected-destination em{color:#7cfbe8!important;font-weight:750}
+@media(hover:none){
+ .nv-fullscreen-gallery-hover-preview.nv-drawer-gallery-hover-preview.nv-pinned-destination-preview{
+   display:flex!important;
+ }
+}
+
+/* Barre centrée par construction : le bouton Auto occupe la colonne médiane. */
+.nv-studio-pro .toolbar.nv-compact-actions{
+ display:flex!important;justify-content:center!important;
+ padding:7px 10px!important;gap:0!important;
+ overflow-x:auto!important;overflow-y:hidden!important;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;
+ align-items:center;gap:10px;
+ flex:1 1 100%!important;width:100%!important;
+ min-width:0!important;margin:0!important;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-group{
+ display:flex;align-items:center;min-width:0;gap:7px;
+}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-left{justify-content:flex-end}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-right{justify-content:flex-start}
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar{
+ justify-self:center;white-space:nowrap;
+}
+@media(max-width:1180px){
+ .nv-studio-pro .toolbar.nv-compact-actions{justify-content:flex-start!important}
+ .nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center{
+   grid-template-columns:max-content auto max-content!important;
+   flex:0 0 max-content!important;width:max-content!important;min-width:max-content!important;
+ }
+}
+@media(max-width:700px){
+ .nv-pinned-destination-preview .nv-fullscreen-validate-destination{margin:7px;width:calc(100% - 14px);font-size:12px;padding:8px;min-height:40px}
+ .nv-pinned-destination-preview .nv-hover-preview-foot{font-size:9px;padding:7px}
+}
