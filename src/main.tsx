@@ -216,9 +216,12 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
         else if(h.type==='image') a.onImage(h,lastPointer.current);
         else if(h.type==='video' && h.videoOpenFullscreen!==false) a.onVideo(h,lastPointer.current);
       } else if (h.type==='navigation' && h.target && !a.mode) {
-        // En édition, une flèche déjà configurée est directement navigable.
-        // Les autres points restent sélectionnables pour être modifiés.
+        // Une flèche configurée reste navigable en mode édition.
         a.onNavigate(h.target,h);
+      } else if (h.type==='image' && h.imageDataUrl && !a.mode) {
+        // Un clic sur le cadre ouvre la photo avec le fondu même en mode édition.
+        // Pour modifier le cadre, on le sélectionne depuis la liste des points.
+        a.onImage(h,lastPointer.current);
       } else {
         a.onPick(h.id);
       }
@@ -1985,6 +1988,10 @@ function App(){
                       </label>
                       <label className="nv-quick-check"><input type="checkbox" checked={selected.fadeOnClick!==false}
                         onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
+                      {selected.imageDataUrl&&<button type="button" className="nv-quick-primary"
+                        onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
+                        <Eye size={15}/> Tester le popup photo
+                      </button>}
                       <p className="nv-quick-hint">Déplace les quatre petites poignées sur le panorama pour adapter la photo au cadre.</p>
                     </>}
                     {selected.type==='video'&&<>
@@ -2361,6 +2368,9 @@ function App(){
                   <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
                 </label>
                 <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
+                {selected.imageDataUrl&&<button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
+                  <Eye size={15}/> Tester le popup photo
+                </button>}
                 <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
               </> : selected.type==='video' ? <>
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
