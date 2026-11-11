@@ -2722,3 +2722,13 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-command-drawer .nv-creation-fullscreen-palette{margin-top:2px}
 .nv-command-drawer .nv-creation-fullscreen-palette::before{content:"AJOUTER UN ÉLÉMENT";font-size:10px;font-weight:800;letter-spacing:.1em;color:#9cbec8;padding:4px 2px}
 @media(max-width:650px){.nv-command-drawer-handle{padding:12px 8px}.nv-command-drawer{padding:14px 10px}}
+
+
+/* Aller-retour : action unique visible juste après le test de navigation. */
+.nv-reverse-navigation{
+  width:100%;min-height:42px;margin-top:9px;
+  border-color:#39aaa5!important;background:#1a5158!important;
+  color:#d5fff8!important;font-weight:750;
+}
+.nv-reverse-navigation:hover:not(:disabled){background:#216670!important}
+.nv-reverse-navigation:disabled{opacity:.45;cursor:not-allowed}
