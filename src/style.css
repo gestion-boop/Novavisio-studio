@@ -3357,3 +3357,19 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-project-language-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:7px;margin:11px 0}
 .nv-project-language-option{display:flex!important;align-items:center;gap:8px;padding:9px;border:1px solid #34586c;border-radius:9px;background:#183747;cursor:pointer;font-size:11px}
 .nv-project-language-option span{font-size:23px}.nv-project-language-option input{accent-color:#4fd2c5}.nv-project-language-settings>small{color:#93b8c3;font-size:10px}
+
+/* Galerie : les panoramas remontent près des filtres. Déplacement vertical manuel facultatif. */
+.nv-right-panorama-gallery{gap:5px!important;padding-top:2px!important}
+.nv-right-panorama-gallery .nv-gallery-heading{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nv-right-panorama-gallery .nv-gallery-heading .section-title{margin:0!important}
+.nv-right-panorama-gallery>.import{min-height:40px!important;margin:3px 0!important;padding:7px 10px!important}
+.nv-right-panorama-gallery .nv-scene-discovery{margin:2px 0 3px!important;gap:6px!important}
+.nv-right-panorama-gallery .nv-scene-search,.nv-right-panorama-gallery .nv-scene-filter{min-height:39px!important}
+.nv-right-panorama-gallery .nv-gallery-reset{padding:5px 9px;border:1px solid #326a79;background:#193747;color:#85ded9;border-radius:7px;font-size:11px;cursor:pointer;white-space:nowrap}
+.nv-right-panorama-gallery .nv-gallery-reset:hover{background:#275264}
+.nv-right-panorama-gallery .nv-gallery-position{flex:none;transition:margin-top .08s ease-out}
+.nv-right-panorama-gallery .nv-gallery-drag-handle{width:100%;height:18px;min-height:18px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0!important;border:0!important;border-radius:5px!important;background:transparent!important;color:#648c9b!important;cursor:ns-resize;touch-action:none;font-size:10px;user-select:none}
+.nv-right-panorama-gallery .nv-gallery-drag-handle:hover,.nv-right-panorama-gallery .nv-gallery-drag-handle:focus-visible{color:#65d8cb!important;background:#173745!important}
+.nv-gallery-drag-lines{font-size:14px;line-height:1}.nv-gallery-drag-direction{font-size:13px}
+.nv-right-panorama-gallery .nv-gallery-help{display:none!important}
+.nv-right-panorama-gallery .scenes{min-height:90px!important}
