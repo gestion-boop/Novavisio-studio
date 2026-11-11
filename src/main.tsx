@@ -25,6 +25,7 @@ import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
+import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,paletteFromLogo,type SvgIconDesign} from './svgIcons';
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
@@ -108,10 +109,10 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
     iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
   const autoArrow=!preview&&autoNavigation&&h.type==='navigation';
-  const html=autoArrow?'<span class="nv-drag-target nv-nav-auto-marker" data-nv-marker-id="'+h.id+'">'+content+
-    '<button type="button" class="nv-marker-remove-auto" aria-label="Retirer cette flèche" title="Retirer cette flèche incorrecte">×</button></span>':
+  const redCross='<button type="button" class="nv-marker-remove-auto" aria-label="Supprimer cet élément" title="Supprimer cet élément">×</button>';
+  const html=autoArrow?'<span class="nv-drag-target nv-nav-auto-marker" data-nv-marker-id="'+h.id+'">'+content+redCross+'</span>':
     editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+
-      '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button></span>':content;
+      '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button>'+redCross+'</span>':content;
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
     html,
     size:{width,height},anchor:'center center',tooltip:h.title};
@@ -324,11 +325,19 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     const down=(event:PointerEvent)=>{
       const target=event.target;
       if(!(target instanceof HTMLElement))return;
-      const button=target.closest<HTMLButtonElement>('.nv-sphere-handle,.nv-sphere-center');
+      const button=target.closest<HTMLButtonElement>('.nv-sphere-handle,.nv-sphere-center,.nv-sphere-remove');
       const a=actions.current;
-      if(!button||a.preview||!a.selectedId||a.mode)return;
+      if(!button||a.preview||!a.selectedId)return;
       const id=button.dataset.frameId;
       if(id!==a.selectedId)return;
+      if(button.classList.contains('nv-sphere-remove')){
+        event.preventDefault();event.stopImmediatePropagation();
+        suppressMarkerClick.current=true;
+        a.onRemoveNavigation(id);
+        window.setTimeout(()=>{suppressMarkerClick.current=false;},350);
+        return;
+      }
+      if(a.mode)return;
       const h=a.scene.hotspots.find(h=>h.id===id);
       const viewer=viewerRef.current;
       if(!viewer||!h||!id||!(h.imageDataUrl||h.videoDataUrl||h.videoUrl))return;
@@ -405,7 +414,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
       const remove=t.closest<HTMLElement>('.nv-marker-remove-auto');
       if(remove){
         const id=remove.closest<HTMLElement>('.nv-drag-target')?.dataset.nvMarkerId;
-        if(a.autoNavigation&&!a.preview&&id){
+        if(!a.preview&&id&&(a.autoNavigation||a.selectedId===id)){
           e.preventDefault();e.stopImmediatePropagation();
           suppressMarkerClick.current=true;
           a.onRemoveNavigation(id);
@@ -1389,10 +1398,10 @@ function App(){
     setStatus('Vue d’arrivée sauvegardée pour '+active.name);
   }
   function removeAutoNavigationArrow(id:string){
-    if(!active)return;
+    if(!active||!active.hotspots.some(h=>h.id===id))return;
     patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==id)}));
-    setSelectedId('');setDestinationEditId(null);
-    setStatus('Flèche incorrecte retirée · Enregistre avec la disquette.');
+    setSelectedId('');setDestinationEditId(null);setMode(null);
+    setStatus('Élément supprimé du panorama · Enregistre avec la disquette.');
   }
   function moveHotspot(id:string,yaw:number,pitch:number){
     patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch}:h)}));
@@ -2940,7 +2949,7 @@ function App(){
             <div className="mode-active-pill">
               <span className="mode-active-dot" />
               <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Cadre photo':'Écran vidéo'}</strong></span>
-              <button type="button" onClick={()=>setMode(null)}>✕ Annuler (Échap)</button>
+              <button type="button" className="nv-cancel-placement" onClick={()=>setMode(null)}>✕ Annuler la pose (Échap)</button>
             </div>
           )}
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
