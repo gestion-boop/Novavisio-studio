@@ -2261,9 +2261,9 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 }
 .nv-studio-pro .nv-top-left{
   display:flex;
-  flex:0 0 auto;
+  flex:0 1 auto;
   align-items:center;
-  gap:13px;
+  gap:9px;
   min-width:0;
 }
 .nv-studio-pro .nv-top-left .nv-header-menu-list{
@@ -2274,21 +2274,22 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   gap:0;
 }
 .nv-studio-pro .nv-top-center{
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
+  position:static;
+  left:auto;
+  transform:none;
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:13px;
+  gap:10px;
   min-width:0;
-  max-width:43%;
+  max-width:none;
+  flex:1 1 325px;
 }
 .nv-studio-pro .nv-top-center .project-name{
-  min-width:150px;
-  width:225px;
-  max-width:260px;
-  flex:0 1 225px;
+  min-width:135px;
+  width:200px;
+  max-width:225px;
+  flex:1 1 185px;
   margin:0;
 }
 .nv-studio-pro .nv-top-center .project-name-wrapper{
@@ -2303,8 +2304,8 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   display:flex;
   align-items:center;
   flex:0 0 auto;
-  gap:10px;
-  margin-left:auto;
+  gap:8px;
+  margin-left:0;
 }
 .nv-header-save{
   position:relative;
@@ -2347,7 +2348,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   .nv-studio-pro .nv-top-center .mode-btn{padding:7px 8px}
   .nv-studio-pro .top-actions{gap:6px}
 }
-@media(max-width:1320px){
+@media(max-width:1420px){
   .nv-studio-pro .topbar{
     display:flex;
     flex-wrap:wrap;
@@ -3041,7 +3042,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 
 
 /* Phase 1 de la fusion : une fiche NovaGen liée au projet, sans sortir du Studio. */
-.nv-client-top-btn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #38717e;background:#173945;color:#dcf3f5;padding:10px 12px;border-radius:10px;font:600 12px inherit;cursor:pointer}
+.nv-client-top-btn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #38717e;background:#173945;color:#dcf3f5;padding:10px 12px;border-radius:10px;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer}
 .nv-client-top-btn:hover{border-color:#5cdbcd;background:#20525c}
 .nv-client-top-btn span{font-size:10px;color:#7de9d9}
 .nv-client-overlay{position:fixed;inset:0;z-index:1200;background:rgba(1,12,22,.8);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;padding:20px}
@@ -3127,3 +3128,20 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-right-client-panel .nv-client-query-row{grid-template-columns:1fr}
 .nv-right-client-panel .nv-client-search-actions button{width:100%}
 .nv-right-client-panel .nv-client-aspirator{padding:10px}
+
+
+/* No absolute header center: menu, project controls and save must never overlap. */
+.nv-studio-pro .topbar > *{min-width:0}
+.nv-studio-pro .nv-top-center{z-index:1}
+.nv-studio-pro .nv-top-left .nv-header-menu-list{white-space:nowrap}
+.nv-studio-pro .nv-top-left .nv-client-top-btn{flex:0 0 auto}
+.nv-studio-pro .top-actions{white-space:nowrap}
+@media(max-width:1420px){
+  .nv-studio-pro .nv-top-center{flex:1 1 400px;justify-content:flex-start}
+  .nv-studio-pro .top-actions{margin-left:auto}
+}
+@media(max-width:780px){
+  .nv-studio-pro .nv-top-left .nv-client-top-btn{margin-left:auto}
+  .nv-studio-pro .nv-top-left .nv-header-menu-list{justify-content:flex-start;overflow-x:auto;scrollbar-width:thin}
+  .nv-studio-pro .nv-top-center{flex-wrap:wrap}
+}
