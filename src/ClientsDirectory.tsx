@@ -165,7 +165,13 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               </span>
             </span><ChevronRight size={15} className="nv-dir-chevron"/>
           </button>)}
-          {!visible.length&&<p className="nv-directory-empty">Aucun établissement ne correspond à la recherche.</p>}
+          {!visible.length&&<div className="nv-directory-empty">
+             <Building2 size={24}/>
+             <span>{loading?'Chargement du répertoire…':'Aucun établissement visible dans cette recherche.'}</span>
+             {!!errorStudio&&<button type="button" className="nv-directory-secondary-action" onClick={onOpenCloud}>
+               <Cloud size={14}/> Se connecter au Cloud
+             </button>}
+          </div>}
           {nextOffset!==null&&<button type="button" className="nv-directory-more"
             disabled={moreLoading} onClick={()=>void next()}>{moreLoading?'Chargement…':'Afficher les autres fiches NovaGen'}</button>}
         </div>
@@ -241,8 +247,10 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
       </main>
     </div>
     {(errorStudio||errorNovaGen)&&<div className="nv-directory-status">
-      {errorStudio&&<p><Cloud size={14}/> Projets Studio : {errorStudio}</p>}
-      {errorNovaGen&&<p><Database size={14}/> Données NovaGen : {errorNovaGen}</p>}
+      {errorStudio&&<p><Cloud size={14}/> Projets Studio : {errorStudio}
+         <button type="button" onClick={onOpenCloud} className="nv-directory-status-action">Ouvrir le Cloud</button></p>}
+      {errorNovaGen&&<p><Database size={14}/> Données NovaGen : {errorNovaGen}
+         {errorNovaGen.toLowerCase().includes('connecte')&&<button type="button" className="nv-directory-status-action" onClick={onOpenCloud}>Se connecter</button>}</p>}
     </div>}
     {truncated&&<div className="nv-directory-status">NovaGen a atteint la limite de son index (1 000 fiches). Une récupération par lots sera nécessaire pour le reste.</div>}
     <footer className="nv-directory-foot"><span>Lecture seule · Aucune fiche d'origine modifiée</span>
