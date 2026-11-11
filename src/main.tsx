@@ -650,6 +650,17 @@ function App(){
   const [navigationPickerSearch,setNavigationPickerSearch]=useState('');
   const [classicDestinationOpen,setClassicDestinationOpen]=useState(false);
   const [classicDestinationPreviewId,setClassicDestinationPreviewId]=useState<string|null>(null);
+  const [galleryPreviewSceneId,setGalleryPreviewSceneId]=useState<string|null>(null);
+  const [navigationDraft,setNavigationDraft]=useState<{
+    sourceId:string;targetId:string;sourceYaw:number;sourcePitch:number;existingPointId?:string;
+  }|null>(null);
+  const [destinationEditId,setDestinationEditId]=useState<string|null>(null);
+  const [galleryPreviewPinned,setGalleryPreviewPinned]=useState(false);
+  const sidePreviewTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const hoverSidePreview=(id:string)=>{if(galleryPreviewPinned)return;if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);sidePreviewTimer.current=setTimeout(()=>setGalleryPreviewSceneId(id),180);};
+  const leaveSidePreview=()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);if(!galleryPreviewPinned)sidePreviewTimer.current=setTimeout(()=>setGalleryPreviewSceneId(null),330);};
+  useEffect(()=>()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);},[]);
+  const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const destinationListRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     if(!classicDestinationOpen||!classicDestinationPreviewId)return;
@@ -663,18 +674,6 @@ function App(){
       list.scrollBy({top:item.top-viewport.top-(viewport.height-item.height)/2,behavior:'smooth'});
     }
   },[classicDestinationOpen,classicDestinationPreviewId,classicDestinationSearch]);
-
-  const [galleryPreviewSceneId,setGalleryPreviewSceneId]=useState<string|null>(null);
-  const [navigationDraft,setNavigationDraft]=useState<{
-    sourceId:string;targetId:string;sourceYaw:number;sourcePitch:number;existingPointId?:string;
-  }|null>(null);
-  const [destinationEditId,setDestinationEditId]=useState<string|null>(null);
-  const [galleryPreviewPinned,setGalleryPreviewPinned]=useState(false);
-  const sidePreviewTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
-  const hoverSidePreview=(id:string)=>{if(galleryPreviewPinned)return;if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);sidePreviewTimer.current=setTimeout(()=>setGalleryPreviewSceneId(id),180);};
-  const leaveSidePreview=()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);if(!galleryPreviewPinned)sidePreviewTimer.current=setTimeout(()=>setGalleryPreviewSceneId(null),330);};
-  useEffect(()=>()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);},[]);
-  const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [quickLinkMode,setQuickLinkMode]=useState(true);
   const [sideTabsExpanded,setSideTabsExpanded]=useState(false);
