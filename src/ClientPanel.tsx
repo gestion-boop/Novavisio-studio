@@ -116,16 +116,18 @@ export function ClientPanel({value,onChange,onAddLink,compact=false}:{
   const scrape=async(source?:Suggestion)=>{
     const target=source||chosen;
     const name=(target?.nom||query.trim()||p.name).trim();
-    const website=target?.site||(/^https?:\/\//i.test(name)?name:p.website);
+    const sameClient=!target&&name===p.name;
+    const website=target?.site||(/^https?:\/\//i.test(name)?name:(sameClient?p.website:''));
     if(!name&&!website){setError('Saisis un établissement ou une adresse de site.');return;}
     setSuggestions([]);setCandidate(null);setScraping(true);setError('');setNotice('');
     if(target){setChosen(target);setQuery(target.nom);setCity(target.ville||city);}
     try{
       const result=await askNovaGen<ScrapeResult>({
-        mode:'search',nom:target?.nom||name,ville:target?.ville||city||p.city,
-        type:target?.type||p.category,adresse:target?.adresse||p.address,
-        tel:target?.tel||p.phone,site:website,
-        facebook:target?.facebook||p.facebook,instagram:target?.instagram||p.instagram
+        mode:'search',nom:target?.nom||name,ville:target?.ville||city||(sameClient?p.city:''),
+        type:target?.type||(sameClient?p.category:''),adresse:target?.adresse||(sameClient?p.address:''),
+        tel:target?.tel||(sameClient?p.phone:''),site:website,
+        facebook:target?.facebook||(sameClient?p.facebook:''),
+        instagram:target?.instagram||(sameClient?p.instagram:'')
       });
       if(!result.fiche||(!result.fiche.nom&&!result.fiche.site))
         throw Error('Aucune fiche exploitable renvoyée par NovaGen.');
