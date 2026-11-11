@@ -940,8 +940,20 @@ function App(){
     const link=safeLink(raw);
     if (!link) {setStatus('Lien invalide : utilise https://, tel: ou mailto:');return;}
     setInfo(null);
-    if (/^https?:\/\//i.test(link)) setFrame({title,url:link});
-    else launchLink(link);
+    if (/^https?:\/\//i.test(link)){
+      let url=link;
+      // Les pages Figurotta prennent en charge ?langs=fr,es,de,en,nl.
+      // La page intégrée affiche seulement les langues choisies dans le projet.
+      try{
+        const parsed=new URL(link);
+        if(parsed.hostname==='campingfigurotta-infos.vercel.app'){
+          const codes=project.languages??['fr','es','de','en','nl'];
+          parsed.searchParams.set('langs',codes.join(','));
+          url=parsed.toString();
+        }
+      }catch{/* Conserver le lien original si l'URL ne peut pas être analysée. */}
+      setFrame({title,url});
+    }else launchLink(link);
   }
   async function exportTour(){
     if(!visibleScenes.length){setStatus('Cet espace ne contient aucun panorama à exporter');return;}
