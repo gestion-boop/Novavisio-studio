@@ -3468,3 +3468,19 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   .nv-studio-pro .right.panel{padding:8px!important}
   .nv-studio-pro .right.panel .side-tabs button{min-height:44px!important}
 }
+
+/* Ergonomie: outils repliables et sélection immersive avec cible. */
+.nv-side-tabs-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:39px;gap:8px;padding:8px 11px;border-radius:9px;border:1px solid #31596a;background:#142f3e;color:#d8f7f5;font-size:12px;font-weight:750;cursor:pointer;text-align:left;margin:0 0 5px}
+.nv-side-tabs-toggle small{font-size:10px;color:#96b8c6;font-weight:500}
+.nv-studio-pro .right.panel .side-tabs{margin-bottom:6px!important}
+.nv-quick-link-mode[hidden]{display:none!important}
+.nv-targeted-preview{position:relative}
+.nv-target-center{position:absolute;top:50%;left:50%;width:130px;height:130px;transform:translate(-50%,-50%);pointer-events:none;z-index:10;filter:drop-shadow(0 1px 2px #001a)}
+.nv-target-center span:first-child{position:absolute;top:50%;left:0;width:100%;height:1px;background:#70fae2}
+.nv-target-center span:nth-child(2){position:absolute;left:50%;top:0;width:1px;height:100%;background:#70fae2}
+.nv-target-center i{position:absolute;left:50%;top:50%;width:8px;height:8px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #fff;background:#1c918f}
+.nv-icon-set-favorite{position:absolute;bottom:6px;right:6px;z-index:6;min-width:26px;height:26px;border:1px solid #79909a;border-radius:50%;background:#163340;color:#d2d7dc;font-size:18px;cursor:pointer;line-height:1}
+.nv-icon-set-favorite.is-active{color:#ffd76d;background:#39522b;border-color:#f1d074}
+.nv-element-icon-wrap{position:relative;min-width:0}
+.nv-element-icon-wrap>button:first-child{width:100%;height:100%}
+.nv-element-icon-hide{position:absolute;right:3px;top:3px;width:23px;height:23px;border-radius:50%;border:1px solid #9aaeb7;background:#294658;color:#eaffff;cursor:pointer;font-size:19px;line-height:1;z-index:2}
