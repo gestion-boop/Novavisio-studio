@@ -74,25 +74,25 @@ export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,au
     onClose();
   });
 
-  return <div className="overlay" onClick={onClose}><div className="modal cloud-panel" onClick={e=>e.stopPropagation()}>
+  return <div className="overlay" onClick={onClose}><div className="modal cloud-panel nv-cloud-compact" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}>✕</button>
-    <h2>Mes projets Cloud</h2>
+    <div className="nv-cloud-heading"><h2>Mes projets Cloud</h2><button type="button" className="quiet" onClick={()=>void refresh()} disabled={!!busy||!userEmail}>↻ Actualiser</button></div>
     {!cloudConfigured?<>
       <p className="warning">Supabase n’est pas configuré. Définis <code>NEXT_PUBLIC_SUPABASE_URL</code> et <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> (clé <b>publishable</b> uniquement) dans les variables d’environnement du déploiement, puis redéploie.</p>
     </>:!userEmail?<LoginBox intro="Connecte-toi pour sauvegarder tes visites dans Supabase, ou pour ouvrir une visite à laquelle on t’a invité."/>
     :<>
-      <p>Connecté : <b>{userEmail}</b> · <button className="quiet" onClick={()=>void signOut()}>Se déconnecter</button></p>
+      <p className="nv-cloud-account">Connecté : <b>{userEmail}</b> · <button className="quiet" onClick={()=>void signOut()}>Se déconnecter</button></p>
       {manualMode?
-        <p className="hint-inline">Ouvre un projet directement depuis le Cloud, travaille dessus sur n’importe quel appareil, puis clique sur la <b>disquette « Enregistrer »</b> pour sauvegarder dans Supabase. Le téléchargement JSON est facultatif et se fait uniquement sur demande.</p>:
+        <p className="hint-inline nv-cloud-hint">Ouvre une visite, travaille, puis sauvegarde avec la <b>disquette Enregistrer</b>.</p>:
         <label className="toggle-row cloud-auto"><input type="checkbox" checked={autoEnabled} onChange={e=>onAutoChange(e.target.checked)}/> <span><b>Sauvegarde instantanée dans Supabase</b><small>{autoLabel}</small></span></label>}
-      <p className="hint-inline">Chaque enregistrement manuel ci-dessous ajoute une <b>nouvelle révision</b> : rien n’est jamais remplacé ni supprimé dans le cloud.</p>
+      <p className="hint-inline nv-cloud-hint">Chaque sauvegarde crée une nouvelle révision, sans supprimer les précédentes.</p>
       <div className="cloud-actions">
         <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void send(true)}>Envoyer comme nouvelle visite</button>
         {link&&<button className="quiet" disabled={!!busy||!project.scenes.length} onClick={()=>void send(false)}>Nouvelle révision (visite liée, rév. {link.revision})</button>}
       </div>
-      <h3>Visites dans le cloud</h3>
+      <div className="nv-cloud-list-header"><h3>Visites dans le cloud ({items.length})</h3><small>Plus récent en premier · défiler pour voir la suite</small></div>
       {!items.length&&<p className="hint-inline">Aucune visite cloud pour l’instant.</p>}
-      <ul className="cloud-list">{items.map(item=><li key={item.id}>
+      <div className="nv-cloud-scroll" role="region" aria-label="Liste défilante des sauvegardes Cloud" tabIndex={0}><ul className="cloud-list">{items.map(item=><li key={item.id}>
         <span><b>{item.name}{item.shared&&<em className="shared-tag"> · partagée avec toi</em>}</b><small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small></span>
         <div className="nv-cloud-recovery-actions">
           <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
@@ -104,7 +104,7 @@ export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,au
           </button>)}
           {!revisions.length&&<small>Aucune révision disponible.</small>}
         </div>}
-      </li>)}</ul>
+      </li>)}</ul></div>
     </>}
     {busy&&<p className="status-adding">{busy}</p>}
     {error&&<p className="warning">{error}</p>}
