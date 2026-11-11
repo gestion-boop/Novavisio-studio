@@ -3724,3 +3724,113 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
  transform:translateY(1px);
 }
 .nv-command-drawer .nv-creation-fullscreen-controls .nv-fullscreen-auto:focus-visible{outline:2px solid #a4ffff;outline-offset:2px}
+
+/* Suppression précise des cadres sphériques et autres actions du panorama. */
+.nv-sphere-remove{
+  position:relative;display:grid;place-items:center;
+  width:30px;height:30px;min-width:30px;min-height:30px;
+  padding:0;margin:0;
+  transform:translate(30%,-30%);
+  border:2px solid #ffd0d6!important;border-radius:50%;
+  background:#a6263b!important;color:#fff!important;
+  font-size:22px;font-weight:800;line-height:1;
+  box-shadow:0 3px 10px #001823ac,0 0 0 2px #600f1b44;
+  cursor:pointer;touch-action:manipulation;
+  z-index:120;
+}
+.nv-sphere-remove:hover{background:#db3450!important;border-color:white!important}
+.nv-sphere-remove:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.nv-marker-remove-auto{z-index:120}
+.nv-drag-target:has(.nv-marker-move-grip) .nv-marker-move-grip{left:-12px;right:auto}
+.mode-active-pill .nv-cancel-placement{
+  background:#8e283b!important;border:1px solid #fd7182!important;
+  color:#fff!important;font-weight:800!important;padding:6px 10px!important;
+}
+.mode-active-pill .nv-cancel-placement:hover{background:#bc344c!important}
+
+/* Atelier SVG : pictogrammes, couleur unie/dégradé et palettes de logos. */
+.nv-svg-workshop{
+  margin:9px 0 16px;border:1px solid #3d737f;border-radius:13px;
+  overflow:hidden;background:#0f2635;
+}
+.nv-svg-workshop-toggle{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  padding:12px 11px;min-height:40px;gap:8px;
+  background:#174353;color:#b6fff1;border:0;
+  font-size:12px;font-weight:800;cursor:pointer;text-align:left;
+}
+.nv-svg-workshop-toggle:hover{background:#1d5865}
+.nv-svg-workshop-toggle svg{transition:transform .15s}
+.nv-svg-workshop-toggle svg.is-open{transform:rotate(180deg)}
+.nv-svg-workshop-inner{padding:10px;display:flex;flex-direction:column;gap:10px}
+.nv-svg-intro{margin:0!important;font-size:11px!important;color:#a7c8d4!important;line-height:1.5!important}
+.nv-svg-presets{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;max-height:285px;overflow-y:auto;padding:2px;
+}
+.nv-svg-preset{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;min-width:0;min-height:78px;padding:6px 4px;
+  border:1px solid #345b6a;border-radius:9px;background:#182f40;
+  color:#c5d9e3;font-size:9px;cursor:pointer;
+}
+.nv-svg-preset:hover{border-color:#69d5d2;background:#224b58}
+.nv-svg-preset.is-selected{
+  border:2px solid #6ee8dd;background:#20545c;
+  box-shadow:inset 0 1px 7px #0a202a;
+}
+.nv-svg-preset img{width:43px;height:43px;object-fit:contain}
+.nv-svg-preset span{
+  max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.nv-svg-preview-panel{
+  display:flex;align-items:center;gap:14px;padding:10px;
+  border:1px solid #396474;border-radius:11px;background:#0b2230;
+}
+.nv-svg-preview-panel img{width:74px;height:74px;flex:0 0 74px}
+.nv-svg-preview-panel>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.nv-svg-preview-panel strong{font-size:13px;color:#ecfffc}
+.nv-svg-preview-panel small{font-size:10px;color:#96bfcb}
+.nv-svg-colors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.nv-svg-colors label{
+  display:flex;align-items:center;flex-direction:column;gap:6px;
+  padding:7px 4px;border:1px solid #34596a;border-radius:8px;
+  background:#173142;color:#c5e2e9;font-size:10px;text-align:center;
+}
+.nv-svg-colors input[type=color]{
+  display:block;width:100%;height:35px;min-width:0;padding:2px;
+  border:0;border-radius:6px;background:transparent;cursor:pointer;
+}
+.nv-svg-options{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.nv-svg-options label{
+  display:flex;align-items:center;gap:6px;
+  color:#d2e8ed;font-size:11px;white-space:nowrap;
+}
+.nv-svg-options select{
+  width:auto;min-width:95px;padding:6px 8px;font-size:11px;
+}
+.nv-svg-options input[type=checkbox]{accent-color:#43ded0}
+.nv-svg-logo-actions,.nv-svg-create-actions{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+}
+.nv-svg-logo-actions button,.nv-svg-create-actions button{
+  display:flex;align-items:center;justify-content:center;
+  min-height:39px;padding:8px 6px;border-radius:9px;
+  border:1px solid #3a8792;background:#1c4858;
+  color:#e0f6fa;font-size:10.5px;font-weight:750;cursor:pointer;
+}
+.nv-svg-logo-actions button:hover:not(:disabled),
+.nv-svg-create-actions button:hover:not(:disabled){background:#246574;border-color:#64ded8}
+.nv-svg-create-actions .nv-svg-create{
+  background:#1b6a69;border:1px solid #61e7d8;color:#f2fffe;
+}
+.nv-svg-create-actions button:disabled,.nv-svg-logo-actions button:disabled{opacity:.45;cursor:wait}
+.nv-svg-recolor{
+  display:flex;flex-direction:column;gap:8px;
+  padding:10px;border:1px solid #3e6371;border-radius:10px;background:#132d3b;
+}
+.nv-svg-recolor strong{font-size:11px;color:#a9eee7}
+.nv-svg-recolor>select{min-height:38px;max-width:100%;font-size:11px}
+.nv-svg-recolor small{font-size:10px;line-height:1.45;color:#91b4c4}
+.nv-svg-workshop .hint-inline{font-size:10px;line-height:1.45}
+@media(max-width:650px){.nv-svg-presets{grid-template-columns:repeat(4,minmax(0,1fr))}}
