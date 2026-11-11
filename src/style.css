@@ -3592,3 +3592,15 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 }
 .nv-marker-remove-auto:hover{background:#bb304b;border-color:white;transform:scale(1.08)}
 .nv-nav-auto-marker .nv-marker-remove-auto:active{background:#ec3d59}
+
+/* Destination actuellement affichée : sélection persistante visible même en défilant. */
+.nv-classic-destination-list .nv-classic-destination-row.is-active{
+ background:linear-gradient(110deg,#226d77,#1d4b60)!important;
+ border:2px solid #68e7de!important;
+ box-shadow:inset 0 0 0 1px #89fff64d,0 0 0 2px #33bdc52b,0 4px 12px #07192369!important;
+ color:#fff!important;
+}
+.nv-classic-destination-list .nv-classic-destination-row.is-active small{
+ color:#83fff0!important;font-weight:750;
+}
+.nv-classic-destination-list .nv-classic-destination-row.is-active svg{color:#7ffdec}
