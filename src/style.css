@@ -2677,3 +2677,11 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-daynight-switch button.is-active{background:var(--nv-button-bg,#175d62);border-color:var(--nv-button-outline,#4bd5c6);color:var(--nv-icon-color,#fff)}
 .nv-daynight-switch button:hover{filter:brightness(1.16)}
 @media(max-width:620px){.nv-daynight-switch{top:12px;right:67px}.nv-daynight-switch button{padding:7px 8px}.nv-daynight-switch button span{display:none}}
+
+/* Réglage global de la croix : explicite et accessible sans parcourir tous les PNG. */
+.nv-close-current{display:flex;align-items:center;gap:12px;padding:13px;margin:12px 0;border:1px solid #38877e;border-radius:12px;background:#173843}
+.nv-close-current-preview{flex:none;display:grid;place-items:center;width:54px;height:54px;font-size:28px;border-radius:12px;background:#0c222e;color:#d9f8ef}
+.nv-close-current-preview img{width:48px;height:48px;object-fit:contain}
+.nv-close-current>div{display:flex;flex-direction:column;min-width:0;gap:4px}
+.nv-close-current strong{font-size:13px;overflow-wrap:anywhere}
+.nv-close-current small{font-size:11px;color:#8fdec9}
