@@ -621,7 +621,6 @@ function App(){
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [quickLinkMode,setQuickLinkMode]=useState(true);
   const [sideTabsExpanded,setSideTabsExpanded]=useState(false);
-  const [pendingNavigation,setPendingNavigation]=useState<{fromId:string;targetId:string}|null>(null);
   const galleryOrientationRef=useRef<Record<string,{yaw:number;pitch:number;zoom:number}>>({});
   const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
   const [panoramasLayout,setPanoramasLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-panorama-layout')==='grid'?'grid':'list';}catch{return 'list';}});
@@ -698,7 +697,6 @@ function App(){
   projectRef.current=project;
   lockRef.current=lock;
   function adopt(p:StudioProject,stamp:string|null){
-    setPendingNavigation(null);
     setActiveSpaceId(null);setSpaceManagerOpen(false);
     const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
     savedRef.current=upgraded;baseRef.current=stamp;
@@ -1071,7 +1069,6 @@ function App(){
     }
   }
   function selectScene(id:string){
-    setPendingNavigation(null);
     if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
     // Navigation directe : toujours revenir à la vue d'arrivée par défaut du panorama.
     // Une arrivée personnalisée PAR FLÈCHE ne s'applique qu'au clic sur cette flèche.
@@ -1097,28 +1094,15 @@ function App(){
     return [...counts.values()].sort((a,b)=>b.count-a.count)[0]??null;
   }
   const navigationIconDefault=defaultNavigationIconSet();
+  // Sélectionner/Intégrer un panorama pose immédiatement la flèche favorite
+  // au centre exact du point de vue de départ (yaw + pitch du lecteur).
   function createNavigationFromGallery(targetId:string){
     const source=project.scenes.find(scene=>scene.id===activeId);
     const destination=visibleScenes.find(scene=>scene.id===targetId);
     if(preview||!source||!destination||source.id===destination.id)return;
-    // Le choix prépare la cible, sans créer de flèche avant validation.
-    setPendingNavigation({fromId:source.id,targetId:destination.id});
-    setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
-    setFullscreenToolsOpen(false);setNavigationPickerOpen(false);
-    setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
-    setHoveredGallerySceneId(null);
-    setMode(null);
-    setStatus('Destination '+destination.name+' sélectionnée · Oriente la vue avec la cible, puis valide la flèche.');
-  }
-  function validatePendingNavigation(){
-    const pending=pendingNavigation;
-    if(!pending||preview)return;
-    const source=project.scenes.find(scene=>scene.id===pending.fromId);
-    const destination=visibleScenes.find(scene=>scene.id===pending.targetId);
-    if(!source||!destination||source.id!==activeId){setPendingNavigation(null);return;}
     const cam=cameraRef.current;
-    const orientation=cam.sceneId===source.id?cam:{
-      sceneId:source.id,yaw:source.arrivalYaw??0,pitch:source.arrivalPitch??0,zoom:panoramaArrivalZoom(source)
+    const center=cam.sceneId===source.id?cam:{
+      yaw:source.arrivalYaw??0,pitch:source.arrivalPitch??0,zoom:panoramaArrivalZoom(source)
     };
     const arrival=galleryOrientationRef.current[destination.id]??{
       yaw:destination.arrivalYaw??0,pitch:destination.arrivalPitch??0,zoom:panoramaArrivalZoom(destination)
@@ -1126,15 +1110,17 @@ function App(){
     const icon=defaultNavigationIconSet();
     const point:Hotspot={
       id:uid(),type:'navigation',title:'Aller vers '+destination.name,text:'',
-      target:destination.id,yaw:orientation.yaw,pitch:orientation.pitch,
+      target:destination.id,yaw:center.yaw,pitch:center.pitch,
       arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,arrivalZoomModel:'wide',
       ...(icon?{iconId:icon.iconId,hoverIconId:icon.hoverIconId,pressedIconId:icon.pressedIconId,iconSize:icon.iconSize}:{})
     };
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===source.id?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
-    setPendingNavigation(null);
-    setSelectedId(point.id);setSelectedBarId('');setPanel('points');
-    setFullscreenToolsTab('point');setFullscreenToolsOpen(creationFullscreen);
-    setStatus('Flèche du projet créée vers '+destination.name+'. Position modifiable · Enregistre avec la disquette.');
+    setSelectedId(point.id);setSelectedBarId('');setPanel('points');setMode(null);
+    setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
+    setFullscreenToolsOpen(false);setNavigationPickerOpen(false);
+    setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
+    setHoveredGallerySceneId(null);
+    setStatus('Flèche placée au centre vers '+destination.name+' · Enregistre avec la disquette.');
   }
   function chooseFullscreenScene(id:string){
     if(!visibleIds.has(id))return;
@@ -1774,7 +1760,6 @@ function App(){
     const space=spaceId?(project.spaces??[]).find(item=>item.id===spaceId):null;
     if(spaceId&&!space)return;
     const first=space?scenesInSpace(project,space)[0]:project.scenes[0];
-    setPendingNavigation(null);
     setActiveSpaceId(space?.id??null);
     setActiveId(first?.id??'');
     setSelectedId('');setMode(null);setPreview(false);
@@ -2245,23 +2230,7 @@ function App(){
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
             </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
           </div>}
-          {(creationFullscreen&&showArrivalCrosshair||pendingNavigation&&!preview)&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
-          {pendingNavigation&&!preview&&active?.id===pendingNavigation.fromId&&
-            <section className="nv-pending-navigation" aria-label="Confirmer la création de la flèche">
-              <div className="nv-pending-navigation-heading"><strong>➜ Nouvelle navigation</strong>
-                <span>{visibleScenes.find(s=>s.id===pendingNavigation.targetId)?.name??'Destination'}</span></div>
-              <p>Oriente le panorama jusqu'à l'endroit souhaité, sous la cible centrale.</p>
-              <div className="nv-pending-navigation-icon">
-                {navigationIconDefault?<><IconStateVisual icons={project.icons} normal={navigationIconDefault.iconId}
-                  hover={navigationIconDefault.hoverIconId} pressed={navigationIconDefault.pressedIconId}
-                  size={navigationIconDefault.iconSize}/><span>Flèche du projet · {navigationIconDefault.iconSize} px</span></>
-                  :<span>➜ Icône de navigation standard</span>}
-              </div>
-              <div className="nv-pending-navigation-actions">
-                <button type="button" className="nv-pending-confirm" onClick={validatePendingNavigation}>✓ Valider la flèche</button>
-                <button type="button" className="nv-pending-cancel" onClick={()=>setPendingNavigation(null)}>Annuler</button>
-              </div>
-            </section>}
+          {creationFullscreen&&showArrivalCrosshair&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
             <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
