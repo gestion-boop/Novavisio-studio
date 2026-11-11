@@ -1660,6 +1660,42 @@ function App(){
     }catch{setStatus('Création de l’icône impossible dans ce navigateur');}
     finally{setSvgGenerating(false);}
   }
+  // Trois PNG independants : normal, survol et pressé, exploitables dans les champs existants.
+  async function addIconStates(){
+    if(svgGenerating)return;
+    if(project.icons.length>147){setStatus('Il faut trois emplacements libres dans la bibliothèque.');return;}
+    setSvgGenerating(true);
+    try{
+      const brighten=(color:string,scale:number)=>{
+        const channels=[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
+        return '#'+channels.map(n=>Math.round(scale>0?n+(255-n)*scale:n*(1+scale)).toString(16).padStart(2,'0')).join('');
+      };
+      const variants=[
+        {label:'Normal',design:svgDesign},
+        {label:'Survol',design:{...svgDesign,primary:brighten(svgDesign.primary,.22),accent:brighten(svgDesign.accent,.16)}},
+        {label:'Pressé',design:{...svgDesign,primary:brighten(svgDesign.primary,-.18),accent:brighten(svgDesign.accent,-.24)}}
+      ];
+      const data=await Promise.all(variants.map(v=>pngFromSvg(svgPreset,v.design)));
+      if(data.some(item=>!isSafeIconDataUrl(item)))throw Error('Icônes invalides');
+      const name=SVG_ICON_PRESETS.find(p=>p.id===svgPreset)?.name??'Icône';
+      const icons:CustomIcon[]=data.map((dataUrl,i)=>({id:uid(),name:name+' · '+variants[i].label,dataUrl}));
+      setProject(p=>({
+        ...p,icons:[...p.icons,...icons],
+        scenes:p.scenes.map(scene=>scene.id===activeId?{...scene,hotspots:scene.hotspots.map(h=>h.id===selectedId?
+          {...h,iconId:icons[0].id,hoverIconId:icons[1].id,pressedIconId:icons[2].id}:h)}:scene),
+        bottomBar:p.bottomBar.map(item=>item.id===selectedBarId?
+          {...item,iconId:icons[0].id,hoverIconId:icons[1].id,pressedIconId:icons[2].id}:item)
+      }));
+      setSvgExistingIcon(icons[0].id);
+      setStatus('Les états Normal, Survol et Pressé sont créés'+(selectedId||selectedBarId?' et attribués au bouton sélectionné.':'.')+' Enregistre avec la disquette.');
+    }catch{setStatus('Impossible de créer les trois états.');}
+    finally{setSvgGenerating(false);}
+  }
+  function applyLogoPalette(colors:{primary:string;accent:string}){
+    setSvgDesign(d=>({...d,...colors,secondary:'#ffffff'}));
+    // Associe la charte à la barre sans modifier les images originales.
+    changeBarStyle({button:colors.primary,buttonOutline:colors.accent,outline:colors.accent,icon:'#ffffff'});
+  }
   async function recolorExistingSvgIcon(replaceEverywhere=false){
     const icon=project.icons.find(item=>item.id===svgExistingIcon);
     if(!icon){setStatus('Choisis une icône dans la bibliothèque.');return;}
@@ -1751,12 +1787,13 @@ function App(){
           </label>
         </div>
         <div className="nv-svg-logo-actions">
-          <button type="button" disabled={svgGenerating} onClick={()=>void applyColorsFromClientLogo()}>🎨 Appliquer les couleurs du logo</button>
+          <button type="button" disabled={svgGenerating} onClick={()=>void applyColorsFromClientLogo()}>🎨 Charte logo · Icônes et boutons</button>
           <button type="button" disabled={svgGenerating} onClick={()=>svgLogoInput.current?.click()}>Choisir un fichier logo</button>
         </div>
         <div className="nv-svg-create-actions">
           <button type="button" className="nv-svg-create" disabled={svgGenerating||project.icons.length>=150}
             onClick={()=>void addGeneratedSvgIcon()}>＋ Ajouter à mes icônes</button>
+          <button type="button" className="nv-svg-create" disabled={svgGenerating||project.icons.length>147} onClick={()=>void addIconStates()}>＋ Créer Normal / Survol / Pressé</button>
           <button type="button" onClick={downloadSvgSource}>↓ Télécharger SVG</button>
         </div>
         {project.icons.length>0&&<div className="nv-svg-recolor">
