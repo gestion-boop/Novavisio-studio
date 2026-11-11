@@ -70,7 +70,7 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
     await refresh(res.link.projectId);
   });
   const publish=()=>run('Préparation…',async()=>{
-    const res=await publishPermanent(project,link,setBusy);
+    const res=await publishPermanent(project,link,setBusy,!space);
     if(space)writeSpaceCloudLink(space.id,'public',res.link);else writeLink(res.link);
     setLink(res.link);setPub(res.publication);setPubNote('');
     onStatus('Visite publiée : l’adresse permanente est à jour');
