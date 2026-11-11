@@ -217,14 +217,10 @@ function Panorama({scene,icons,mode,preview,night,arrival,onCreate,onPick,onNavi
         else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
         else if(h.type==='image') a.onImage(h,lastPointer.current);
         else if(h.type==='video' && h.videoOpenFullscreen!==false) a.onVideo(h,lastPointer.current);
-      } else if (h.type==='navigation' && h.target && !a.mode) {
-        // Une flèche configurée reste navigable en mode édition.
-        a.onNavigate(h.target,h);
-      } else if ((h.type==='image'||h.type==='information') && h.imageDataUrl && !a.mode) {
-        // Un clic sur le cadre ouvre la photo avec le fondu même en mode édition.
-        // Pour modifier le cadre, on le sélectionne depuis la liste des points.
-        a.onImage(h,lastPointer.current);
       } else {
+        // En mode Éditer, un clic sélectionne TOUJOURS le point pour modifier ses réglages.
+        // Pour tester les liens / photos sans perdre la sélection, utiliser les boutons de test
+        // dans l'inspecteur, ou passer en mode Aperçu.
         a.onPick(h.id);
       }
     });
@@ -551,6 +547,7 @@ function App(){
   const stateIconInput=useRef<HTMLInputElement>(null);
   const stateTarget=useRef<((id:string|undefined)=>void)|null>(null);
   const [libraryFor,setLibraryFor]=useState<string|null>(null);
+  const [showCloseIconLibrary,setShowCloseIconLibrary]=useState(false);
   const [galleryOpen,setGalleryOpen]=useState<string|null>(null);
   const sceneThumbs=useSceneThumbs(project.scenes);
   const sortBusy=useRef(false);
@@ -2632,6 +2629,7 @@ function App(){
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
           <div className="style-settings">
             <div className="section-title">COULEURS ET CONTOURS</div>
+            <button type="button" className="tool" onClick={()=>{setPanel('icons');setShowCloseIconLibrary(false);}}>✕ Configurer la croix de fermeture de tous les popups</button>
             <div className="style-colors">
               {barColorFields.map(field=><label className="style-color-field" key={field.key}>
                 <span>{field.label}</span>
@@ -2761,15 +2759,22 @@ function App(){
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties">
-          <div className="section-title">ICÔNE DE FERMETURE DES POPUPS</div>
-          <p className="hint">Choisis dans ta bibliothèque un PNG de croix pour fermer les photos, vidéos et fenêtres de la visite. L’icône apparaît en haut à droite et suit chaque export.</p>
-          <div className="nv-close-icon-picker">
-            <button type="button" className={!project.closeIconId?'is-active':''} onClick={()=>setProject(p=>({...p,closeIconId:undefined}))} title="Croix classique">✕ <small>Croix classique</small></button>
-            {project.icons.map(icon=><button type="button" key={icon.id} className={project.closeIconId===icon.id?'is-active':''} onClick={()=>setProject(p=>({...p,closeIconId:icon.id}))} title={icon.name}>
+          <div className="section-title">CROIX DE FERMETURE — TOUTES LES FENÊTRES</div>
+          <p className="hint">Une seule icône pour fermer les photos, vidéos, informations et popups de tous les panoramas. Le changement s’applique à l’ensemble de cette visite, y compris à l’export.</p>
+          <div className="nv-close-current">
+            <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
+            <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>Actuellement appliquée partout</small></div>
+          </div>
+          <button type="button" className="import" onClick={()=>{stateTarget.current=id=>setProject(p=>({...p,closeIconId:id}));stateIconInput.current?.click();}}>＋ Importer une nouvelle croix et l’appliquer partout</button>
+          {closeIcon&&<button type="button" className="tool" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
+          <button type="button" className="tool" onClick={()=>setShowCloseIconLibrary(v=>!v)}>{showCloseIconLibrary?'Masquer les croix disponibles':'Choisir une croix dans ma bibliothèque'}</button>
+          <button type="button" className="tool" onClick={()=>setProject(p=>({...p,closeIconId:undefined}))}>Utiliser la croix classique</button>
+          {showCloseIconLibrary&&<div className="nv-close-icon-picker">
+            {project.icons.map(icon=><button type="button" key={icon.id} className={project.closeIconId===icon.id?'is-active':''} onClick={()=>{setProject(p=>({...p,closeIconId:icon.id}));setShowCloseIconLibrary(false);}} title={icon.name}>
               <img src={icon.dataUrl} alt=""/><small>{icon.name}</small>
             </button>)}
-          </div>
-          <p className="hint">Pour utiliser une nouvelle croix PNG, importe-la ci-dessous puis sélectionne-la ici. Sans choix, la fermeture utilise les couleurs de la barre.</p>
+          </div>}
+          <p className="hint">Après avoir choisi la croix, clique sur « Enregistrer » en haut de NovaStudio. Les autres icônes de navigation ne sont pas modifiées.</p>
           <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
           <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
           <button className="import" onClick={()=>iconInput.current?.click()}>＋ Importer mes icônes</button>
