@@ -6,6 +6,7 @@ import {exportStaticTour} from './exportTour';
 import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {confirmEmailLink,type CloudLink} from './cloud';
@@ -138,9 +139,9 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
       // Le bouton plein écran natif n'agrandit que le lecteur 360° et cache les éléments personnalisés.
       // La vue complète (lecteur + barre) est désormais gérée par App.
       navbar:[],mousemove:true,mousewheel:true,touchmoveTwoFingers:false,
-      moveSpeed:1,defaultZoomLvl:scene.arrivalZoom??60,
+      moveSpeed:1,defaultZoomLvl:panoramaArrivalZoom(scene),
       defaultYaw:scene.arrivalYaw??0,defaultPitch:scene.arrivalPitch??0,
-      minFov:35,maxFov:75,fisheye:false,loadingTxt:'',
+      minFov:PANORAMA_MIN_FOV,maxFov:PANORAMA_MAX_FOV,fisheye:false,loadingTxt:'',
       defaultTransition:{speed:260,rotation:false,effect:'fade'},
       plugins:[MarkersPlugin]
     });
@@ -211,7 +212,7 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
       position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
-      zoom:arrivalFor?.zoom??next.arrivalZoom??60
+      zoom:arrivalFor?.zoom??panoramaArrivalZoom(next)
     }).then(async success=>{
       if(disposed||!success)return;
       if(fade)await fade;else resetMarkers(viewer,markersNow());
@@ -864,13 +865,13 @@ function App(){
   }
   function goThroughArrow(h:Hotspot,fromSceneId:string){
     if(!h.target||!visibleIds.has(h.target))return;
-    nextArrivalRef.current=h.arrivalYaw!==undefined?{sceneId:h.target,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:h.arrivalZoom??60}:null;
+    nextArrivalRef.current=h.arrivalYaw!==undefined?{sceneId:h.target,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:panoramaArrivalZoom(h)}:null;
     setArrivedVia({sceneId:h.target,hotspotId:h.id,fromSceneId});
     setActiveId(h.target);setSelectedId('');setMode(null);
   }
   function setArrowArrival(fromSceneId:string,hotspotId:string,view:{yaw:number;pitch:number;zoom:number}|null){
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==fromSceneId?sc:{...sc,hotspots:sc.hotspots.map(h=>h.id!==hotspotId?h:
-      view?{...h,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom}:{...h,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined})})}));
+      view?{...h,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom,arrivalZoomModel:'wide' as const}:{...h,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalZoomModel:undefined})})}));
   }
   function saveArrivalForArrow(){
     if(!active||!viaHotspot)return;
@@ -883,7 +884,7 @@ function App(){
     if(!active)return;
     const view=cameraRef.current;
     if(view.sceneId!==active.id){setStatus('Oriente d’abord le panorama puis réessaie');return;}
-    patchScene(sc=>({...sc,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom}));
+    patchScene(sc=>({...sc,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom,arrivalZoomModel:'wide'}));
     setStatus('Vue d’arrivée sauvegardée pour '+active.name);
   }
   function moveHotspot(id:string,yaw:number,pitch:number){
