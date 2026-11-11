@@ -215,6 +215,10 @@ function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,o
         else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
         else if(h.type==='image') a.onImage(h,lastPointer.current);
         else if(h.type==='video' && h.videoOpenFullscreen!==false) a.onVideo(h,lastPointer.current);
+      } else if (h.type==='navigation' && h.target && !a.mode) {
+        // En édition, une flèche déjà configurée est directement navigable.
+        // Les autres points restent sélectionnables pour être modifiés.
+        a.onNavigate(h.target,h);
       } else {
         a.onPick(h.id);
       }
@@ -1954,12 +1958,18 @@ function App(){
                     <label>Nom du point
                       <input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/>
                     </label>
-                    {selected.type==='navigation'&&<label>Aller vers
-                      <select value={selected.target} onChange={e=>patchPoint({target:e.target.value,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalZoomModel:undefined})}>
-                        <option value="">Choisir un panorama</option>
-                        {visibleScenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                      </select>
-                    </label>}
+                    {selected.type==='navigation'&&<>
+                      <label>Aller vers
+                        <select value={selected.target} onChange={e=>patchPoint({target:e.target.value,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalZoomModel:undefined})}>
+                          <option value="">Choisir un panorama</option>
+                          {visibleScenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                        </select>
+                      </label>
+                      <button type="button" className="tool" disabled={!selected.target||!visibleIds.has(selected.target)}
+                        onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}}>
+                        ➜ Tester la navigation
+                      </button>
+                    </>}
                     {(selected.type==='lien'||selected.type==='information')&&<>
                       <label>Adresse / lien
                         <input type="url" placeholder="https://…" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
@@ -2379,6 +2389,10 @@ function App(){
                     {visibleScenes.filter(sc=>sc.id!==activeId).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
                   </select>
                 </label>
+                <button type="button" className="tool" disabled={!selected.target||!visibleIds.has(selected.target)}
+                  onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}}>
+                  ➜ Tester la navigation vers ce panorama
+                </button>
                 {selected.target&&<div className="arrival-view-card is-inspector">
                   <div className="section-title">VUE D’ARRIVÉE DE CETTE FLÈCHE</div>
                   {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>
