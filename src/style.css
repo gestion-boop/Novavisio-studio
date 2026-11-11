@@ -3318,3 +3318,9 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-directory-status-action:hover{background:#805841}
 .nv-directory-status p{flex-wrap:wrap}
 .nv-directory-list .nv-directory-empty .nv-directory-secondary-action{margin-top:8px}
+
+
+.nv-directory-pagination-status{display:flex;align-items:center;gap:7px;padding:11px 9px;color:#8ee3d8;font-size:11px;border-radius:9px;background:#163643;border:1px dashed #417984;margin-top:6px}
+.nv-directory-pagination-status>svg{flex:none;animation:nv-directory-spin 1.3s linear infinite}
+@keyframes nv-directory-spin{to{transform:rotate(360deg)}}
+.nv-directory-pagination-status .nv-directory-more{flex:1;margin:0}
