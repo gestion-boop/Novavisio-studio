@@ -126,9 +126,10 @@ function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId
 /** Lightweight, read-only spherical preview for a hovered gallery entry.
  * Only one instance exists, and it never changes the editor's active scene.
  */
-function FullscreenGalleryHoverPreview({scene,thumb}:{scene:Scene;thumb?:string}){
+function FullscreenGalleryHoverPreview({scene,thumb,onOrientation}:{scene:Scene;thumb?:string;onOrientation?:(view:{yaw:number;pitch:number;zoom:number})=>void}){
   const host=useRef<HTMLDivElement>(null);
   const [ready,setReady]=useState(false);
+  const orientationRef=useRef(onOrientation);orientationRef.current=onOrientation;
   useEffect(()=>{
     setReady(false);
     const el=host.current;
@@ -147,7 +148,10 @@ function FullscreenGalleryHoverPreview({scene,thumb}:{scene:Scene;thumb?:string}
         minFov:PANORAMA_MIN_FOV,maxFov:PANORAMA_MAX_FOV,
         fisheye:false,loadingTxt:'',
       });
-      instance.addEventListener('ready',()=>{if(alive)setReady(true);});
+      const report=()=>{if(alive&&instance)orientationRef.current?.({yaw:instance.getPosition().yaw,pitch:instance.getPosition().pitch,zoom:instance.getZoomLevel()});};
+      instance.addEventListener('ready',()=>{if(alive){setReady(true);report();}});
+      instance.addEventListener('position-updated',report);
+      instance.addEventListener('zoom-updated',report);
     }catch{/* A thumbnail fallback stays visible if WebGL cannot load. */}
     return ()=>{alive=false;instance?.destroy();};
   },[scene.id,scene.dataUrl,scene.arrivalYaw,scene.arrivalPitch,scene.arrivalZoom,scene.arrivalZoomModel]);
@@ -615,6 +619,8 @@ function App(){
   useEffect(()=>()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);},[]);
   const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
+  const [quickLinkMode,setQuickLinkMode]=useState(true);
+  const galleryOrientationRef=useRef<Record<string,{yaw:number;pitch:number;zoom:number}>>({});
   const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
   const [panoramasLayout,setPanoramasLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-panorama-layout')==='grid'?'grid':'list';}catch{return 'list';}});
   const [showArrivalCrosshair,setShowArrivalCrosshair]=useState(false);
@@ -1067,6 +1073,28 @@ function App(){
     // Une arrivée personnalisée PAR FLÈCHE ne s'applique qu'au clic sur cette flèche.
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(id);
     setSelectedId('');setMode(null);
+  }
+  function createNavigationFromGallery(targetId:string){
+    const source=project.scenes.find(scene=>scene.id===activeId);
+    const destination=visibleScenes.find(scene=>scene.id===targetId);
+    if(!source||!destination||source.id===destination.id)return;
+    const cam=cameraRef.current;
+    if(cam.sceneId!==source.id){setStatus('Oriente le panorama de départ, puis sélectionne une destination.');return;}
+    const arrival=galleryOrientationRef.current[targetId]??{
+      yaw:destination.arrivalYaw??0,pitch:destination.arrivalPitch??0,zoom:panoramaArrivalZoom(destination)
+    };
+    const point:Hotspot={
+      id:uid(),type:'navigation',title:'Aller vers '+destination.name,text:'',
+      target:destination.id,yaw:cam.yaw,pitch:cam.pitch,
+      arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,arrivalZoomModel:'wide'
+    };
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===source.id?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
+    setSelectedId(point.id);setSelectedBarId('');setPanel('points');setMode(null);
+    setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
+    setFullscreenToolsTab('point');setFullscreenToolsOpen(creationFullscreen);
+    setHoveredGallerySceneId(null);
+    setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
+    setStatus('Flèche vers '+destination.name+' créée au centre de la vue avec l’orientation d’arrivée · Enregistre avec la disquette.');
   }
   function chooseFullscreenScene(id:string){
     if(!visibleIds.has(id))return;
@@ -2256,6 +2284,12 @@ function App(){
               </button>
             </div>
 
+            <div className="nv-quick-link-mode">
+              <button type="button" className={quickLinkMode?'is-active':''} aria-pressed={quickLinkMode} onClick={()=>setQuickLinkMode(v=>!v)}>
+                ➜ {quickLinkMode?'Création de flèches activée':'Activer création de flèches'}
+              </button>
+              <small>{quickLinkMode?'Choisis une destination : la flèche est placée au centre de la vue actuelle.':'Choisis un panorama pour l’ouvrir sans créer de flèche.'}</small>
+            </div>
             <div className="nv-gallery-layout-choice" role="group" aria-label="Affichage des panoramas"><button type="button" className={fullscreenGalleryLayout==='grid'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('grid')}>▦ Grille</button><button type="button" className={fullscreenGalleryLayout==='list'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('list')}>☷ Liste</button></div>
             <div className={'nv-fullscreen-gallery-list nv-gallery-layout-'+fullscreenGalleryLayout}>
               {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
@@ -2264,12 +2298,13 @@ function App(){
                 onMouseLeave={()=>dismissGalleryHover()}
                 onFocus={()=>scheduleGalleryHover(scene.id)}
                 onBlur={()=>dismissGalleryHover()}
-                onClick={()=>chooseFullscreenScene(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
+                onClick={()=>quickLinkMode&&!preview?createNavigationFromGallery(scene.id):chooseFullscreenScene(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
                 {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
                   <span className="nv-fullscreen-gallery-placeholder">◎</span>}
                 <span className="nv-fullscreen-gallery-scene-details">
                   <strong>{scene.name}</strong>
                   <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
+                  {quickLinkMode&&!preview&&scene.id!==activeId&&<em>➜ Créer une flèche vers cette scène</em>}
                   {scene.arrivalYaw!==undefined&&<em>✓ Vue d'arrivée définie</em>}
                 </span>
               </button>)}
@@ -2543,7 +2578,7 @@ function App(){
                 </button>
                 {visibleScenes.filter(sc=>sc.id===navigationPickerPreviewId).map(sc=><div key={sc.id} className="nv-navigation-inspect-scene">
                   <strong>{sc.name}</strong>
-                  <div className="nv-navigation-inspect-360"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/></div>
+                  <div className="nv-navigation-inspect-360"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/></div>
                   <small>Fais glisser l’image pour regarder autour avant de choisir.</small>
                   <button type="button" className="nv-navigation-inspect-select" onClick={()=>setNavigationDestination(sc.id)}>
                     <Images size={16}/> Utiliser {sc.name} comme destination
@@ -2593,9 +2628,9 @@ function App(){
                 <div className="nv-hover-preview-content" key={scene.id}>
                   <div className="nv-hover-preview-title">
                     <div><small>APERÇU DU PANORAMA</small><strong title={scene.name}>{scene.name}</strong></div>
-                    <button type="button" onClick={()=>chooseFullscreenScene(scene.id)}>Ouvrir cette scène <ChevronRight size={15}/></button>
+                    <button type="button" onClick={()=>quickLinkMode&&!preview?createNavigationFromGallery(scene.id):chooseFullscreenScene(scene.id)}>{quickLinkMode&&!preview?'➜ Créer la flèche':'Ouvrir cette scène'} <ChevronRight size={15}/></button>
                   </div>
-                  <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
+                  <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]} onOrientation={view=>{galleryOrientationRef.current[scene.id]=view;}}/>
                   <div className="nv-hover-preview-foot"><span>Vue d’arrivée · Fais glisser pour regarder autour</span>
                     <span>{visibleScenes.findIndex(sc=>sc.id===scene.id)+1} / {visibleScenes.length}</span>
                   </div>
@@ -2773,10 +2808,11 @@ function App(){
             <button type="button" onClick={()=>{setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}} aria-label="Fermer l'aperçu">✕</button></div>
           {visibleScenes.filter(sc=>sc.id===galleryPreviewSceneId).map(sc=><div key={sc.id} className="nv-side-preview-content">
             <strong>{sc.name}</strong>
-            <div className="nv-side-preview-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/></div>
+            <div className="nv-side-preview-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/></div>
             <button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);setPanel('points');}}>
               Ouvrir ce panorama pour l'éditer
             </button>
+            {!preview&&sc.id!==activeId&&<button type="button" className="nv-quick-create-arrow" onClick={()=>createNavigationFromGallery(sc.id)}>➜ Créer une flèche vers ce panorama</button>}
           </div>)}
         </div>}
         <div className="helper nv-gallery-help" hidden>
