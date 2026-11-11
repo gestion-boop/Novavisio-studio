@@ -2286,7 +2286,7 @@ function App(){
             <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu">×</button>
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
-            <Users size={16}/> Clients <span>NovaGen</span>
+            <Users size={16}/> Clients
           </button>
           <div className="nv-header-menu-list" ref={topMenusRef}>
           <div className="nv-menu-root">
