@@ -85,3 +85,13 @@
 @keyframes nvGalleryIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
 @keyframes nvGalleryShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.nv-gallery{animation:nvBackdropIn .2s ease both}.nv-gallery-ph{animation:none}}
+
+/* Les boutons de fermeture des vidéos reprennent la palette des boutons de la visite. */
+.nv-video-close{
+  background:var(--nv-button-bg,#481c27);
+  border-color:var(--nv-button-outline,#eac8c8);
+  color:var(--nv-icon-color,#fff);
+  transition:filter .15s ease,transform .15s ease;
+}
+.nv-video-close:hover{filter:brightness(1.18)}
+.nv-video-close:active{transform:scale(.95)}
