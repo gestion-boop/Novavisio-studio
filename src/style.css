@@ -3974,3 +3974,57 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 @media(max-width:600px){
   .nv-studio-pro .view-area .mode-active-pill{bottom:max(12px,env(safe-area-inset-bottom));flex-wrap:wrap;justify-content:center}
 }
+
+/* Menu latéral homogène : cinq actions de même taille et même alignement. */
+.nv-studio-pro .nv-navigation-drawer{gap:8px;padding:14px 13px 18px}
+.nv-studio-pro .nv-navigation-drawer-header{padding:3px 3px 11px;margin-bottom:2px}
+.nv-studio-pro .nv-navigation-drawer .nv-header-menu-list{gap:6px!important}
+.nv-studio-pro .nv-navigation-drawer .nv-menu-root{margin:0;padding:0}
+.nv-studio-pro .nv-navigation-drawer .nv-client-top-btn,
+.nv-studio-pro .nv-navigation-drawer .nv-menu-root > .nv-menu-trigger{
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start!important;
+  width:100%;
+  height:46px;
+  min-height:46px;
+  max-height:46px;
+  margin:0!important;
+  padding:0 13px!important;
+  gap:11px;
+  border:1px solid #365f71;
+  border-radius:11px;
+  background:#102c3d;
+  color:#e2f2f7;
+  font-size:14px;
+  font-weight:700;
+  line-height:1;
+  text-align:left;
+  white-space:nowrap;
+}
+.nv-studio-pro .nv-navigation-drawer .nv-client-top-btn > svg{flex:none;width:17px;height:17px}
+.nv-studio-pro .nv-navigation-drawer .nv-drawer-item-label{
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:11px;
+  flex:1 1 auto;
+  min-width:0;
+  font-size:14px;
+  text-align:left;
+}
+.nv-studio-pro .nv-navigation-drawer .nv-drawer-item-label svg{flex:none;width:17px;height:17px}
+.nv-studio-pro .nv-navigation-drawer .nv-menu-root > .nv-menu-trigger > svg:last-child{
+  flex:none;margin-left:auto;
+}
+.nv-studio-pro .nv-navigation-drawer .nv-client-top-btn:hover,
+.nv-studio-pro .nv-navigation-drawer .nv-menu-root > .nv-menu-trigger:hover{
+  border-color:#54b0b9;background:#1b4352;
+}
+.nv-studio-pro .nv-navigation-drawer .nv-menu-root > .nv-menu-trigger.is-open,
+.nv-studio-pro .nv-navigation-drawer .nv-menu-root > .nv-menu-trigger[aria-expanded="true"]{
+  background:#1b5961;border-color:#61c6c7;
+  box-shadow:inset 0 2px 7px #00182177;
+}
+.nv-studio-pro .nv-navigation-drawer .nv-menu-popover{margin:4px 0 2px}
