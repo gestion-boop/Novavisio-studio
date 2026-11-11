@@ -3572,3 +3572,23 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 }
 .nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar:active{transform:translateY(2px)!important}
 .nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar .nv-auto-symbol{font-size:16px}
+
+/* Mode Auto : retour visuel rouge, flèche déplaçable et suppression ponctuelle. */
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar.is-active{
+ background:linear-gradient(155deg,#a52c42,#742036)!important;
+ border-color:#ff8495!important;color:#fff8f9!important;
+ box-shadow:inset 0 4px 10px #39000c99,0 0 0 1px #ff9cab80!important;
+ transform:translateY(2px)!important;
+}
+.nv-nav-auto-marker{cursor:pointer!important}
+.nv-nav-auto-marker:active{cursor:grab!important}
+.nv-marker-remove-auto{
+ position:absolute;right:-12px;top:-12px;z-index:55;
+ display:grid;place-items:center;width:23px;height:23px;min-height:23px;
+ padding:0;border:2px solid #ffc2c8;border-radius:50%;
+ background:#8b2637;color:white;font-size:18px;line-height:1;
+ font-weight:700;cursor:pointer;touch-action:manipulation;
+ box-shadow:0 2px 7px #001c2d9c;
+}
+.nv-marker-remove-auto:hover{background:#bb304b;border-color:white;transform:scale(1.08)}
+.nv-nav-auto-marker .nv-marker-remove-auto:active{background:#ec3d59}
