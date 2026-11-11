@@ -3142,6 +3142,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 }
 @media(max-width:780px){
   .nv-studio-pro .nv-top-left .nv-client-top-btn{margin-left:auto}
-  .nv-studio-pro .nv-top-left .nv-header-menu-list{justify-content:flex-start;overflow-x:auto;scrollbar-width:thin}
+  .nv-studio-pro .nv-top-left .nv-header-menu-list{justify-content:flex-start;flex-wrap:wrap;overflow:visible}
   .nv-studio-pro .nv-top-center{flex-wrap:wrap}
 }
