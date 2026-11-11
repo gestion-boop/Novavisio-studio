@@ -94,7 +94,9 @@ export const isSafeAudioData = (s:unknown):s is string =>
   typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type StudioProject = { version: 1; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
+export type ClientProfile = {novagenId:string;name:string;category:string;address:string;city:string;phone:string;email:string;website:string;facebook:string;instagram:string;otherLinks:string;description:string; bookingUrl?:string; openingHours?:string; services?:string; logoUrl?:string; photoUrls?:string[]; sourceNotes?:string[]};
+export const emptyClientProfile=():ClientProfile=>({novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''});
+export type StudioProject = { version: 1; clientProfile?:ClientProfile; name: string; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; spaces?: {id:string;name:string;sceneIds:string[]}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -184,6 +186,25 @@ export function validateProject(value:unknown):StudioProject {
   if(p.closeIconId!==undefined && (typeof p.closeIconId!=='string' || !icons.some(icon=>icon.id===p.closeIconId))) throw new Error('Icône de fermeture introuvable');
   for(const field of ['soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId'] as const){
     if(p[field]!==undefined && (typeof p[field]!=='string'||!icons.some(icon=>icon.id===p[field]))) throw new Error('Icône de son introuvable');
+  }
+  if(p.clientProfile!==undefined){
+    if(!p.clientProfile||typeof p.clientProfile!=='object')throw new Error('Fiche client invalide');
+    const profile=p.clientProfile as ClientProfile;
+    for(const field of Object.keys(emptyClientProfile()) as (keyof ClientProfile)[]){
+      if(typeof profile[field]!=='string'||profile[field].length>4000)throw new Error('Champ client invalide : '+field);
+    }
+  }
+  if(p.clientProfile){
+    const client=p.clientProfile as ClientProfile;
+    for(const field of ['bookingUrl','openingHours','services','logoUrl'] as const){
+      if(client[field]!==undefined&&(typeof client[field]!=='string'||client[field].length>4000))
+        throw new Error('Informations NovaGen invalides : '+field);
+    }
+    for(const field of ['photoUrls','sourceNotes'] as const){
+      if(client[field]!==undefined&&(!Array.isArray(client[field])||client[field].length>30||
+        client[field].some(v=>typeof v!=='string'||v.length>2048)))
+        throw new Error('Médias ou notes NovaGen invalides : '+field);
+    }
   }
   // Les projets antérieurs à V0.4 reprennent automatiquement le thème Bordeaux.
   const barStyle = {...defaultBarStyle(),...(p.barStyle ?? {})};

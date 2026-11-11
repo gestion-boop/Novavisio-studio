@@ -2261,9 +2261,9 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 }
 .nv-studio-pro .nv-top-left{
   display:flex;
-  flex:0 0 auto;
+  flex:0 1 auto;
   align-items:center;
-  gap:13px;
+  gap:9px;
   min-width:0;
 }
 .nv-studio-pro .nv-top-left .nv-header-menu-list{
@@ -2274,21 +2274,22 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   gap:0;
 }
 .nv-studio-pro .nv-top-center{
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
+  position:static;
+  left:auto;
+  transform:none;
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:13px;
+  gap:10px;
   min-width:0;
-  max-width:43%;
+  max-width:none;
+  flex:1 1 325px;
 }
 .nv-studio-pro .nv-top-center .project-name{
-  min-width:150px;
-  width:225px;
-  max-width:260px;
-  flex:0 1 225px;
+  min-width:135px;
+  width:200px;
+  max-width:225px;
+  flex:1 1 185px;
   margin:0;
 }
 .nv-studio-pro .nv-top-center .project-name-wrapper{
@@ -2303,8 +2304,8 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   display:flex;
   align-items:center;
   flex:0 0 auto;
-  gap:10px;
-  margin-left:auto;
+  gap:8px;
+  margin-left:0;
 }
 .nv-header-save{
   position:relative;
@@ -2347,7 +2348,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   .nv-studio-pro .nv-top-center .mode-btn{padding:7px 8px}
   .nv-studio-pro .top-actions{gap:6px}
 }
-@media(max-width:1320px){
+@media(max-width:1420px){
   .nv-studio-pro .topbar{
     display:flex;
     flex-wrap:wrap;
@@ -3038,3 +3039,282 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
  .nv-studio-pro .workspace{grid-template-columns:minmax(0,1fr)}
  .nv-studio-pro .workspace>.right.panel{min-height:350px;max-height:55vh}
 }
+
+
+/* Phase 1 de la fusion : une fiche NovaGen liée au projet, sans sortir du Studio. */
+.nv-client-top-btn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border:1px solid #38717e;background:#173945;color:#dcf3f5;padding:10px 12px;border-radius:10px;font-size:12px;font-weight:650;font-family:inherit;cursor:pointer}
+.nv-client-top-btn:hover{border-color:#5cdbcd;background:#20525c}
+.nv-client-top-btn span{font-size:10px;color:#7de9d9}
+.nv-client-overlay{position:fixed;inset:0;z-index:1200;background:rgba(1,12,22,.8);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;padding:20px}
+.nv-client-dialog{background:#102736;color:#e3f3f8;border:1px solid #386477;border-radius:18px;width:min(830px,100%);max-height:90dvh;overflow:auto;box-shadow:0 24px 90px rgba(0,0,0,.5)}
+.nv-client-dialog-head{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:space-between;background:#14313f;padding:16px 20px;border-bottom:1px solid #345566}
+.nv-client-dialog-head>div{display:flex;flex-direction:column;gap:4px}
+.nv-client-dialog-head strong{font-size:18px}.nv-client-dialog-head small{color:#9ebcc8}
+.nv-client-dialog-head button{border:1px solid #4f7480;background:#224455;color:#defaff;font-size:19px;border-radius:9px;padding:4px 11px;cursor:pointer}
+.nv-client-content{padding:18px;display:flex;flex-direction:column;gap:14px}
+.nv-client-panel-title{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.nv-client-panel-title>div{display:flex;flex-direction:column;gap:5px}
+.nv-client-panel-title strong{font-size:15px;color:#e3faf7}
+.nv-client-panel-title small{font-size:11px;color:#8eafc0}
+.nv-client-import{display:flex;align-items:center;gap:7px;border:1px solid #50b6b3;background:#1b535e;color:#eafff6;padding:9px 12px;border-radius:9px;font-weight:700;cursor:pointer;font-size:12px}
+.nv-client-note,.nv-client-footnote{font-size:11px;line-height:1.6;color:#a9c1cd;margin:0}
+.nv-client-footnote{display:flex;align-items:center;gap:7px}
+.nv-client-error{color:#ffb1b8;font-size:12px}
+.nv-client-ok{color:#89eed9;font-size:12px}
+.nv-client-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.nv-client-fields label{display:flex;flex-direction:column;gap:5px;min-width:0}
+.nv-client-fields label span{font-size:11px;font-weight:600;color:#aec9d7}
+.nv-client-fields input,.nv-client-fields textarea{width:100%;font:inherit;font-size:13px;padding:11px 12px;box-sizing:border-box;color:#e3f3f5;border:1px solid #39576e;border-radius:8px;background:#102d3e}
+.nv-client-fields input:focus,.nv-client-fields textarea:focus{border-color:#57c7b9;outline:2px solid #1a6d68}
+.nv-client-wide{grid-column:1/-1}
+.nv-client-reuse{display:flex;flex-direction:column;gap:9px;border:1px solid #2e5a69;border-radius:12px;padding:13px;background:#143644}
+.nv-client-reuse strong{display:flex;align-items:center;gap:8px;font-size:13px;color:#ddfaf4}
+.nv-client-reuse>small,.nv-client-actions>small{font-size:11px;color:#aac0ca}
+.nv-client-actions{display:flex;gap:7px;flex-wrap:wrap}
+.nv-client-actions button{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:8px 10px;background:#1c6264;color:#edffff;border:1px solid #55a6a4;border-radius:8px;cursor:pointer}
+.nv-right-client-panel{padding:0!important;min-width:0;overflow-y:auto}
+.nv-right-client-panel .nv-client-content{padding:10px}
+.nv-right-client-panel .nv-client-fields{grid-template-columns:1fr}
+.nv-right-client-panel .nv-client-panel-title strong{font-size:13px}
+@media(max-width:640px){.nv-client-fields{grid-template-columns:1fr}.nv-client-overlay{padding:6px}.nv-client-dialog{max-height:96dvh}.nv-client-top-btn span{display:none}}
+
+
+/* L'aspirateur NovaGen partage la charte bleu nuit / turquoise du Studio. */
+.nv-client-aspirator{display:flex;flex-direction:column;gap:11px;border:1px solid #317f83;background:linear-gradient(155deg,#143e4b,#102b39);border-radius:13px;padding:14px}
+.nv-client-aspirator-heading{display:flex;gap:9px;align-items:center;color:#a5f1e6}
+.nv-client-aspirator-heading strong{font-size:14px}
+.nv-client-aspirator>p{font-size:11px;line-height:1.6;color:#bdd1d7;margin:0}
+.nv-client-query-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:8px}
+.nv-client-query-row label{display:flex;flex-direction:column;gap:5px;min-width:0;font-size:11px;color:#b6cbd3}
+.nv-client-query-row input{min-width:0;width:100%;border-radius:9px;border:1px solid #427b84;background:#0c2838;padding:11px 10px;color:#f0ffff;outline:none;box-sizing:border-box}
+.nv-client-query-row input:focus{border-color:#6ee9d6;box-shadow:0 0 0 2px #2e8b8a55}
+.nv-client-search-actions,.nv-client-candidate-actions{display:flex;gap:8px;flex-wrap:wrap}
+.nv-client-search-actions button,.nv-client-candidate-actions button{display:flex;align-items:center;justify-content:center;gap:6px;background:#2c8082;border:1px solid #61cbc2;color:#ecfffa;border-radius:9px;padding:10px 12px;cursor:pointer;font-weight:700;font-size:12px}
+.nv-client-search-actions button:hover,.nv-client-candidate-actions button:hover{background:#359a96}
+.nv-client-search-actions button:disabled,.nv-client-candidate-actions button:disabled{opacity:.4;cursor:not-allowed}
+.nv-client-search-actions .nv-client-secondary,.nv-client-candidate-actions .nv-client-secondary{background:#1b3d4b;border-color:#49717b;color:#bddbe2}
+.nv-client-fetching{display:flex;gap:7px;align-items:center;font-size:11px;color:#8ee6d8;line-height:1.45}
+.nv-client-suggestions{display:flex;flex-direction:column;gap:6px;max-height:250px;overflow-y:auto;overscroll-behavior:contain}
+.nv-client-suggestions button{display:flex;flex-direction:column;align-items:stretch;gap:5px;text-align:left;border:1px solid #426d7d;border-radius:9px;background:#17394c;color:#effffc;padding:10px 12px;cursor:pointer}
+.nv-client-suggestions button:hover{border-color:#64e3cf;background:#205062}
+.nv-client-suggestions strong{font-size:12px}
+.nv-client-suggestions small{font-size:10px;color:#afcad2}
+.nv-client-candidate{display:flex;flex-direction:column;gap:9px;border:1px solid #509e99;border-radius:12px;background:#102e3d;padding:12px;color:#edfffb;min-width:0}
+.nv-client-candidate-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.nv-client-candidate-head strong{display:flex;align-items:center;gap:6px;color:#8fe8d7;font-size:12px}
+.nv-client-candidate-head span{color:#a7c4ca;font-size:10px}
+.nv-client-candidate>strong{font-size:16px}
+.nv-client-candidate>small{color:#b2c8d0}
+.nv-client-candidate-facts{display:flex;flex-direction:column;gap:6px;max-width:100%;overflow:hidden}
+.nv-client-candidate-facts span{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d3e9f2}
+.nv-client-candidate-facts p{font-size:11px;line-height:1.55;color:#bfd4dc;margin:2px 0}
+.nv-client-found-media{display:flex;gap:7px;max-width:100%;overflow-x:auto;padding-bottom:4px}
+.nv-client-found-media img{width:80px;height:67px;object-fit:cover;flex:none;border-radius:8px;border:1px solid #4b7183;background:#153f50}
+.nv-client-candidate details{color:#b9d5d9;font-size:11px}
+.nv-client-candidate details p{line-height:1.5}
+.nv-client-replace-check{display:flex;align-items:center;gap:8px;color:#c9e0df;font-size:11px;cursor:pointer}
+.nv-client-replace-check input{width:16px;height:16px;accent-color:#1cbba7}
+.nv-client-candidate .nv-client-note{display:flex;gap:6px;align-items:flex-start;font-size:10px;color:#9cbcc8}
+.nv-client-candidate .nv-client-note svg{flex:none}
+.nv-client-saved-photos{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;border:1px solid #355a6a;background:#112f3c}
+.nv-client-saved-photos strong{font-size:12px;color:#c9eeee}
+.nv-client-saved-photos>div{display:flex;gap:8px;overflow-x:auto}
+.nv-client-saved-photos img{width:88px;height:67px;object-fit:cover;border-radius:7px;flex:none}
+.nv-client-saved-photos small{font-size:10px;color:#adc5cf}
+@media(max-width:650px){
+  .nv-client-query-row{grid-template-columns:1fr}
+  .nv-client-search-actions button{flex:1}
+}
+.nv-right-client-panel .nv-client-query-row{grid-template-columns:1fr}
+.nv-right-client-panel .nv-client-search-actions button{width:100%}
+.nv-right-client-panel .nv-client-aspirator{padding:10px}
+
+
+/* No absolute header center: menu, project controls and save must never overlap. */
+.nv-studio-pro .topbar > *{min-width:0}
+.nv-studio-pro .nv-top-center{z-index:1}
+.nv-studio-pro .nv-top-left .nv-header-menu-list{white-space:nowrap}
+.nv-studio-pro .nv-top-left .nv-client-top-btn{flex:0 0 auto}
+.nv-studio-pro .top-actions{white-space:nowrap}
+@media(max-width:1420px){
+  .nv-studio-pro .nv-top-center{flex:1 1 400px;justify-content:flex-start}
+  .nv-studio-pro .top-actions{margin-left:auto}
+}
+@media(max-width:780px){
+  .nv-studio-pro .nv-top-left .nv-client-top-btn{margin-left:auto}
+  .nv-studio-pro .nv-top-left .nv-header-menu-list{justify-content:flex-start;flex-wrap:wrap;overflow:visible}
+  .nv-studio-pro .nv-top-center{flex-wrap:wrap}
+}
+
+
+/* Les onglets de l'inspecteur doivent tous être des cases visibles,
+   pas uniquement l'onglet actif. */
+.nv-studio-pro .right.panel .side-tabs{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-auto-rows:minmax(54px,auto);
+  align-content:start;
+  gap:7px;
+  padding:8px;
+  border-radius:14px;
+  background:#0b1b29;
+  margin-bottom:12px;
+}
+.nv-studio-pro .right.panel .side-tabs button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  min-width:0;
+  min-height:54px;
+  padding:9px 6px;
+  border:1px solid #304b5d;
+  border-radius:10px;
+  background:#162c3c;
+  color:#b7cedb;
+  font-size:11px;
+  line-height:1.22;
+  font-weight:650;
+  box-shadow:0 1px 2px #0002;
+  transition:background-color .14s ease,border-color .14s ease,color .14s ease;
+}
+.nv-studio-pro .right.panel .side-tabs button:hover{
+  background:#204251;
+  border-color:#4da9aa;
+  color:#ecffff;
+  transform:none;
+}
+.nv-studio-pro .right.panel .side-tabs button.active,
+.nv-studio-pro .right.panel .side-tabs button[aria-selected="true"]{
+  background:#245b65;
+  border-color:#69cfc7;
+  color:#a5fff0;
+  box-shadow:inset 0 0 0 1px #4da9a866;
+}
+.nv-studio-pro .right.panel .side-tabs button:focus-visible{
+  outline:2px solid #82e8df;
+  outline-offset:2px;
+}
+
+
+/* Clients — unified read-only NovaGen / NovaStudio directory. */
+.nv-directory-overlay{position:fixed;inset:0;z-index:1600;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(0,8,18,.85);backdrop-filter:blur(8px);color:#edfafa}
+.nv-directory-shell{display:flex;flex-direction:column;min-width:0;width:min(1200px,100%);height:min(790px,94dvh);max-height:94dvh;border-radius:17px;overflow:hidden;border:1px solid #31576a;background:#0e2433;box-shadow:0 28px 100px rgba(0,0,0,.65)}
+.nv-directory-head{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:18px 22px;border-bottom:1px solid #294655;background:#102c3b;flex:none}
+.nv-directory-heading{display:flex;gap:13px;align-items:center;min-width:0}
+.nv-directory-head-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#22565d;color:#8ceadb;flex:none}
+.nv-directory-heading h2{font-size:21px;line-height:1.2;font-weight:750;margin:0;color:#f0fffd}
+.nv-directory-heading p{font-size:12px;color:#a5bdc9;margin:4px 0 0}
+.nv-directory-head-actions{display:flex;gap:8px;align-items:center}
+.nv-directory-head-actions button{display:inline-flex;align-items:center;gap:6px;border:1px solid #3b5e71;border-radius:9px;background:#173a4a;color:#dceff2;font-weight:650;font-size:12px;min-height:36px;padding:7px 11px;cursor:pointer}
+.nv-directory-head-actions button:hover{border-color:#70c7c1;background:#245666}
+.nv-directory-layout{display:grid;grid-template-columns:315px minmax(0,1fr);flex:1;min-height:0}
+.nv-directory-list{display:flex;flex-direction:column;min-height:0;min-width:0;border-right:1px solid #294b5b;background:#0b1e2c;padding:16px 11px}
+.nv-directory-search{display:flex;align-items:center;gap:9px;padding:0 11px;border-radius:10px;background:#183442;border:1px solid #416371;color:#8db8c8;flex:none}
+.nv-directory-search:focus-within{border-color:#58cec1}
+.nv-directory-search input{height:40px;background:transparent;border:0;outline:0;min-width:0;width:100%;color:#f2ffff;font-size:13px}
+.nv-directory-search input::placeholder{color:#94adbd}
+.nv-directory-list-totals{display:flex;justify-content:space-between;gap:6px;color:#9abac8;font-size:10px;font-weight:650;padding:13px 4px 9px;flex:none}
+.nv-directory-list-scroller{display:flex;flex-direction:column;gap:6px;min-height:0;overflow-y:auto;padding:2px;scrollbar-width:thin}
+.nv-directory-client{display:flex;align-items:center;gap:11px;min-width:0;width:100%;padding:10px 9px;text-align:left;background:transparent;border:1px solid transparent;border-radius:12px;color:#e5f1f5;cursor:pointer;transition:background .13s,border-color .13s}
+.nv-directory-client:hover{background:#193848;border-color:#355e6b}
+.nv-directory-client.selected{background:#1c4856;border-color:#55b9b0;box-shadow:inset 3px 0 0 #76e8d4}
+.nv-directory-logo{display:grid;place-items:center;width:49px;height:49px;flex:none;overflow:hidden;border:1px solid #416c78;border-radius:11px;background:#f3f5f3;color:#55737e}
+.nv-directory-logo img{width:100%;height:100%;object-fit:contain;display:block}
+.nv-directory-client-text{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}
+.nv-directory-client-text strong{font-size:12px;font-weight:720;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nv-directory-client-text>small{font-size:10px;color:#afc2d0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.nv-dir-chevron{flex:none;color:#7394a2}
+.nv-directory-tags{display:flex;gap:4px;flex-wrap:wrap}
+.nv-directory-tags i{font-style:normal;background:#163a46;border:1px solid #376876;color:#a8dcd8;border-radius:99px;padding:2px 6px;font-size:9px;font-weight:750;white-space:nowrap}
+.nv-directory-tags i.is-active{background:#235d50;border-color:#46a68c;color:#bdffe9}
+.nv-directory-more{padding:10px 8px;border-radius:9px;border:1px dashed #4b7b85;background:#193744;color:#91e9df;font-size:11px;cursor:pointer;margin:5px 0}
+.nv-directory-more:disabled{opacity:.55}
+.nv-directory-detail{overflow-y:auto;min-width:0;min-height:0;padding:24px 26px;background:linear-gradient(145deg,#102938,#0c2232);scrollbar-width:thin}
+.nv-directory-detail-inner{max-width:790px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.nv-directory-title-row{display:flex;align-items:center;gap:18px}
+.nv-directory-feature-logo{display:grid;place-items:center;flex:none;width:94px;height:94px;background:#f3f6f4;border:1px solid #668b8d;border-radius:17px;overflow:hidden;color:#547984}
+.nv-directory-feature-logo img{width:100%;height:100%;object-fit:contain}
+.nv-directory-eyebrow{font-size:10px;font-weight:800;color:#70d1c6;letter-spacing:.12em}
+.nv-directory-title-row h3{font-size:24px;line-height:1.15;color:#ecfffc;margin:5px 0}
+.nv-directory-title-row p{color:#99bbc9;font-size:12px;margin:0 0 8px}
+.nv-directory-record-picker{display:flex;align-items:center;gap:9px;font-size:11px;color:#aec9ce}
+.nv-directory-record-picker select{border:1px solid #497b80;border-radius:8px;background:#173948;color:#edf9fc;padding:8px;flex:1;min-width:0}
+.nv-directory-sections{display:flex;flex-direction:column;gap:16px}
+.nv-directory-sections section{display:flex;flex-direction:column;gap:10px;background:#122f3f;border:1px solid #2b5365;border-radius:14px;padding:16px}
+.nv-directory-section-head{display:flex;align-items:center;gap:9px;font-weight:750;color:#daf8f2;font-size:13px;padding-bottom:6px;border-bottom:1px solid #2b5260}
+.nv-dir-info-row{display:grid;grid-template-columns:118px minmax(0,1fr);gap:13px;align-items:baseline;font-size:12px;line-height:1.5}
+.nv-dir-info-row>span{color:#9ab9c6}
+.nv-dir-info-row strong{font-weight:550;color:#e1f3f5;overflow-wrap:anywhere;white-space:pre-wrap}
+.nv-dir-info-row a{display:inline-flex;gap:5px;align-items:baseline;min-width:0;overflow-wrap:anywhere;color:#8be6da;text-decoration:none}
+.nv-dir-info-row a:hover{text-decoration:underline}
+.nv-directory-description{padding:10px 12px;border-radius:9px;background:#193c4b;color:#c5dce3;font-size:12px;line-height:1.6;white-space:pre-wrap;margin:4px 0 0}
+.nv-directory-project{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px;background:#173b49;border:1px solid #305a69;border-radius:9px}
+.nv-directory-project>div{display:flex;flex-direction:column;gap:3px}
+.nv-directory-project strong{font-size:12px}
+.nv-directory-project small{color:#a1bdc8;font-size:10px}
+.nv-directory-project>span{background:#1a584d;border-radius:99px;padding:4px 8px;color:#9cebd4;font-size:9px;white-space:nowrap}
+.nv-directory-secondary-action{display:flex;justify-content:center;align-items:center;gap:7px;border:1px solid #397f84;border-radius:9px;background:#1a4651;color:#cbf7f0;min-height:35px;padding:7px 10px;font-size:11px;font-weight:750;cursor:pointer}
+.nv-directory-secondary-action:hover{background:#28616b}
+.nv-directory-photo-strip{display:flex;gap:9px;overflow-x:auto;padding-bottom:5px;scrollbar-width:thin}
+.nv-directory-photo-strip img{width:110px;height:85px;object-fit:cover;flex:none;border:1px solid #557b89;border-radius:10px;background:#e5e8e7}
+.nv-directory-muted{font-size:11px;color:#a8c1cc;line-height:1.5;margin:0}
+.nv-directory-warning{font-size:11px;color:#ffc2b6;margin:0}
+.nv-directory-bottom-actions{display:flex;flex-direction:column;gap:8px;background:#183b49;border:1px solid #3d777d;border-radius:13px;padding:14px}
+.nv-directory-associate{display:flex;justify-content:center;align-items:center;gap:8px;background:#246e6a;color:#eafff8;border:1px solid #66cabc;border-radius:9px;padding:12px 15px;min-height:40px;font-size:12px;font-weight:750;cursor:pointer}
+.nv-directory-associate:hover:not(:disabled){background:#31938b}
+.nv-directory-associate:disabled{opacity:.65;cursor:default}
+.nv-directory-bottom-actions small{font-size:10px;color:#b4cbd4;line-height:1.45}
+.nv-directory-empty{display:flex;justify-content:center;align-items:center;gap:12px;text-align:center;flex-direction:column;padding:24px;color:#adc4d1;font-size:12px}
+.nv-directory-status{display:flex;flex-direction:column;padding:6px 14px;gap:5px;background:#493028;border-top:1px solid #865844}
+.nv-directory-status p{display:flex;align-items:center;gap:5px;color:#ffcfb3;font-size:11px;margin:2px}
+.nv-directory-foot{display:flex;justify-content:space-between;align-items:center;gap:9px;padding:9px 18px;background:#0a1b29;border-top:1px solid #274858;font-size:10px;color:#85a9b7;flex:none}
+.nv-directory-foot span{display:flex;align-items:center;gap:6px}
+@media(max-width:830px){
+ .nv-directory-overlay{padding:0}
+ .nv-directory-shell{width:100%;height:100dvh;max-height:100dvh;border:0;border-radius:0}
+ .nv-directory-layout{grid-template-columns:minmax(165px,37%) minmax(0,1fr)}
+ .nv-directory-list{padding:10px 6px}
+ .nv-directory-detail{padding:16px 12px}
+ .nv-directory-feature-logo{width:66px;height:66px}
+ .nv-directory-title-row{gap:10px}
+ .nv-directory-title-row h3{font-size:18px}
+ .nv-directory-client{gap:6px;padding:8px 4px}
+ .nv-directory-logo{width:37px;height:37px}
+ .nv-dir-info-row{grid-template-columns:80px minmax(0,1fr)}
+}
+@media(max-width:540px){
+ .nv-directory-head{padding:12px;gap:7px}
+ .nv-directory-heading h2{font-size:17px}
+ .nv-directory-heading p{font-size:10px}
+ .nv-directory-head-actions button:first-child{font-size:0}
+ .nv-directory-head-actions button svg{flex:none}
+ .nv-directory-layout{grid-template-columns:125px minmax(0,1fr)}
+ .nv-directory-logo{width:36px;height:36px}
+ .nv-directory-client .nv-dir-chevron{display:none}
+ .nv-directory-client-text strong{font-size:10px}
+ .nv-directory-tags i{font-size:8px}
+ .nv-directory-list-totals{flex-wrap:wrap}
+ .nv-directory-detail{padding:11px 9px}
+ .nv-directory-title-row{flex-wrap:wrap}
+ .nv-directory-sections section{padding:9px}
+ .nv-dir-info-row{display:flex;flex-direction:column;gap:1px}
+ .nv-directory-foot{font-size:9px}
+}
+
+
+.nv-directory-status-action{
+  color:#ffe7d9;
+  border:1px solid #ab806a;
+  background:#604435;
+  border-radius:7px;
+  padding:5px 8px;
+  cursor:pointer;
+  font-size:10px;
+  font-weight:700;
+  margin-left:auto;
+  white-space:nowrap;
+}
+.nv-directory-status-action:hover{background:#805841}
+.nv-directory-status p{flex-wrap:wrap}
+.nv-directory-list .nv-directory-empty .nv-directory-secondary-action{margin-top:8px}

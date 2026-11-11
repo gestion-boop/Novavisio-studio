@@ -10,6 +10,8 @@ import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
+import {ClientPanel,type ClientLink} from './ClientPanel';
+import {ClientsDirectory} from './ClientsDirectory';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
 import {refreshActivePublication} from './share';
@@ -18,7 +20,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
@@ -31,7 +33,7 @@ import './style.css';
 import './media.css';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music';
+type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'client';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -539,6 +541,7 @@ function App(){
     window.history.replaceState(null,'',window.location.pathname+window.location.search);
   },[]);
   const [shareOpen,setShareOpen]=useState(false);
+  const [clientOpen,setClientOpen]=useState(false);
   const [privateOpen,setPrivateOpen]=useState(false);
   const [photoFeedback,setPhotoFeedback]=useState('');
   const videoInput=useRef<HTMLInputElement>(null);
@@ -1694,6 +1697,14 @@ function App(){
     setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
     cloud.unlink();
   }
+  function addClientLink(item:ClientLink){
+    const next:BottomBarItem={id:uid(),title:item.label,type:item.kind==='info'?'information':'lien',target:'',text:'',url:item.url,builtinIcon:item.label==='Appeler'?'phone':item.label==='Itinéraire'?'grid':'info'};
+    setProject(p=>({...p,bottomBar:[...p.bottomBar,next]}));
+    setSelectedBarId(next.id);setPanel('bar');setStatus('Bouton « '+item.label+' » ajouté à la barre du bas · Enregistre la visite');
+  }
+  const clientView=<ClientPanel value={project.clientProfile}
+    onChange={clientProfile=>setProject(p=>({...p,clientProfile}))}
+    onAddLink={addClientLink}/>;
   return <div ref={studioRef} className={
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
@@ -1712,6 +1723,9 @@ function App(){
             <small>ÉDITEUR DE VISITES 360°</small>
           </div>
         </div>
+        <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setOpenTopMenu(null);}}>
+          <Users size={15}/> Clients <span>NovaGen</span>
+        </button>
         <div className="nv-header-menu-list" ref={topMenusRef}>
           <div className="nv-menu-root">
             <button type="button" className={'nv-menu-trigger '+(openTopMenu==='file'?'is-open':'')}
@@ -2556,7 +2570,9 @@ function App(){
           <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro')}>Intro</button>
           <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements')}>Éléments</button>
           <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music')}>Musique</button>
+          <button role="tab" aria-selected={panel==='client'} className={panel==='client'?'active':''} onClick={()=>setPanel('client')}>NovaGen</button>
         </div>
+        {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
         <div className="section-title">
           <span>PANORAMAS</span>
@@ -3057,6 +3073,17 @@ function App(){
         </div>}
       </aside>
     </div>
+    {clientOpen&&<ClientsDirectory
+      currentProjectName={project.name}
+      currentProfile={project.clientProfile}
+      onClose={()=>setClientOpen(false)}
+      onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
+      onAssociate={clientProfile=>{
+        setProject(p=>({...p,clientProfile}));
+        setPanel('client');
+        setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
+      }}
+    />}
     <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Stockage local sur cet appareil</span></footer>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
@@ -3066,7 +3093,7 @@ function App(){
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
-    {privateOpen&&<PrivatePanel project={projectForSpaceExport(project,currentSpace)} space={currentSpace} onClose={()=>setPrivateOpen(false)} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
+    {privateOpen&&<PrivatePanel project={projectForSpaceExport({...project,clientProfile:undefined},currentSpace)} space={currentSpace} onClose={()=>setPrivateOpen(false)} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}

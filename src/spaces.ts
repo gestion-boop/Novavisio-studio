@@ -35,6 +35,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
   if(!space){
     if(!slim)return project;
     return {...project,
+      clientProfile:undefined, // never publish private customer records
       icons:relevantIcons(project,project.scenes),
       audioTracks:project.audioTracks.filter(track=>project.scenes.some(scene=>scene.musicTrackId===track.id))
     };
@@ -51,6 +52,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
   };
   return {
     ...project,
+    clientProfile:undefined, // only Studio editors receive customer details
     name:project.name+' - '+space.name,
     scenes:scenes.map(scene=>({
       ...scene,
