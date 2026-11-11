@@ -6,6 +6,7 @@ export const config={maxDuration:60};
 const BASE=(process.env.NOVAGEN_BACKEND_URL||'https://novagen-olive.vercel.app/api/fiche').replace(/\/+$/,'');
 const SB_URL=(process.env.NEXT_PUBLIC_SUPABASE_URL||'').replace(/\/+$/,'');
 const SB_KEY=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'';
+const AUTHORIZED_OWNER=process.env.NOVAGEN_DIRECTORY_OWNER_ID||'';
 const allowed=new Set(['suggest','suggest_web','search']);
 const trim=(s,max=180)=>typeof s==='string'?s.trim().slice(0,max):'';
 const safePublicUrl=(raw)=>{
@@ -28,14 +29,14 @@ const cleanSuggestions=(list)=>Array.isArray(list)?list.slice(0,10).map(item=>({
 })).filter(x=>x.nom||x.adresse):[];
 
 async function verifyUser(token){
-  if(!SB_URL||!SB_KEY)return false;
+  if(!SB_URL||!SB_KEY||!AUTHORIZED_OWNER)return false;
   const result=await fetch(SB_URL+'/auth/v1/user',{
     headers:{Authorization:'Bearer '+token,apikey:SB_KEY,accept:'application/json'},
     signal:AbortSignal.timeout(9000)
   });
   if(!result.ok)return false;
   const u=await result.json().catch(()=>null);
-  return !!u?.id;
+  return !!u?.id&&u.id===AUTHORIZED_OWNER;
 }
 export default async function handler(req,res){
   res.setHeader('Cache-Control','no-store, max-age=0');
@@ -44,7 +45,7 @@ export default async function handler(req,res){
     const auth=trim(req.headers.authorization||'',5000);
     const match=/^Bearer\s+(\S+)$/i.exec(auth);
     if(!match||!await verifyUser(match[1]))
-      return res.status(401).json({error:'Connecte-toi au Cloud NovaStudio pour utiliser l’aspirateur NovaGen.'});
+      return res.status(403).json({error:'La recherche NovaGen est réservée au compte administrateur NovaStudio.'});
     let body=typeof req.body==='string'?JSON.parse(req.body):req.body;
     if(!body||typeof body!=='object'||JSON.stringify(body).length>14000||
        !allowed.has(body.mode))
