@@ -214,3 +214,49 @@
   padding:4px 7px;border-radius:5px;color:#ebf1f5;
   background:rgba(10,24,35,.55);pointer-events:none;
 }
+
+
+/* Choix de la musique après l'introduction, valable pour les visites
+ * publiques, privées et exportées. Le navigateur exige un clic explicite. */
+.nv-audio-layer{z-index:65}
+.nv-sound-choice-backdrop{
+  position:fixed;inset:0;z-index:160;display:flex;align-items:center;justify-content:center;
+  background:rgba(5,17,25,.64);backdrop-filter:blur(7px);padding:18px;
+}
+.nv-sound-choice-dialog{
+  width:min(440px,100%);padding:28px 24px 24px;text-align:center;
+  border:1px solid #71999d;border-radius:18px;background:rgba(15,41,53,.97);
+  color:#edf9f9;box-shadow:0 22px 75px #0009;
+}
+.nv-sound-choice-dialog h2{font-size:21px;line-height:1.25;margin:0 0 10px;color:#f2ffff}
+.nv-sound-choice-dialog p{font-size:13px;line-height:1.55;margin:0 0 22px;color:#bed4db}
+.nv-sound-choice-actions{display:flex;justify-content:center;gap:13px}
+.nv-sound-choice-button{
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  gap:9px;min-width:125px;min-height:116px;padding:11px 15px;
+  border:1px solid #65969f;border-radius:13px;color:#e6ffff;
+  background:#214757;font-weight:750;font-size:12px;cursor:pointer;
+}
+.nv-sound-choice-button:hover{background:#286270;border-color:#66d9ca}
+.nv-sound-choice-button:active{transform:scale(.97)}
+.nv-sound-choice-button .nv-sound-glyph{width:61px;height:61px}
+.nv-sound-glyph{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px}
+.nv-sound-glyph img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}
+.nv-sound-glyph .nv-sound-hover,.nv-sound-glyph .nv-sound-pressed{opacity:0}
+button:hover .nv-sound-glyph .nv-sound-hover{opacity:1}
+button:hover .nv-sound-glyph .nv-sound-hover~.nv-sound-normal{opacity:0}
+button:active .nv-sound-glyph .nv-sound-pressed{opacity:1}
+button:active .nv-sound-glyph .nv-sound-hover{opacity:0}
+button:has(.nv-sound-hover):hover .nv-sound-glyph .nv-sound-normal{opacity:0}
+button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
+.nv-audio-toggle{
+  display:flex;align-items:center;justify-content:center;
+  padding:3px;border:0;background:transparent;border-radius:999px;cursor:pointer;
+  box-shadow:0 3px 14px #0004;
+}
+.nv-audio-toggle .nv-sound-glyph{width:42px;height:42px}
+.nv-audio-warning{font-size:10px;color:#fff;background:#173b48;border-radius:6px;padding:5px}
+@media(max-width:460px){
+  .nv-sound-choice-dialog{padding:22px 14px}
+  .nv-sound-choice-button{min-width:0;flex:1}
+}
