@@ -20,7 +20,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
@@ -542,6 +542,61 @@ function App(){
   const [project,setProject]=useState<StudioProject>(newProject());
   const [ready,setReady]=useState(false);
   const [savingManually,setSavingManually]=useState(false);
+  const [updateAvailable,setUpdateAvailable]=useState(false);
+  const updateReloadApproved=useRef(false);
+  // Ne jamais recharger automatiquement : les projets Cloud sont sauvegardés
+  // volontairement à la disquette. La détection est uniquement informative.
+  useEffect(()=>{
+    let stopped=false;
+    let checking=false;
+    const checkUpdate=async()=>{
+      if(stopped||checking||document.visibilityState==='hidden')return;
+      checking=true;
+      try{
+        const response=await fetch('/version.json?check='+Date.now(),{
+          cache:'no-store',headers:{Accept:'application/json'}
+        });
+        if(!response.ok)return;
+        const payload:unknown=await response.json();
+        if(!payload||typeof payload!=='object'||!('buildTime' in payload))return;
+        const remote=(payload as {buildTime:unknown}).buildTime;
+        if(typeof remote!=='string')return;
+        const publishedAt=Date.parse(remote);
+        const openedAt=Date.parse(__NV_BUILD_TIME__);
+        if(!stopped&&Number.isFinite(publishedAt)&&Number.isFinite(openedAt)&&publishedAt>openedAt){
+          setUpdateAvailable(true);
+        }
+      }catch{/* Hors ligne ou publication en cours : nouvel essai plus tard. */}
+      finally{checking=false;}
+    };
+    void checkUpdate();
+    const interval=window.setInterval(()=>void checkUpdate(),60_000);
+    const onFocus=()=>{void checkUpdate();};
+    const onVisibility=()=>{if(document.visibilityState==='visible')void checkUpdate();};
+    window.addEventListener('focus',onFocus);
+    window.addEventListener('online',onFocus);
+    document.addEventListener('visibilitychange',onVisibility);
+    return ()=>{
+      stopped=true;window.clearInterval(interval);
+      window.removeEventListener('focus',onFocus);
+      window.removeEventListener('online',onFocus);
+      document.removeEventListener('visibilitychange',onVisibility);
+    };
+  },[]);
+  function reloadToLatestVersion(){
+    if(savingManually||savingRef.current){
+      setStatus('Sauvegarde en cours : actualise NovaStudio une fois terminée.');
+      return;
+    }
+    if(ready&&projectRef.current!==savedRef.current){
+      const proceed=window.confirm(
+        'Des modifications du projet ne sont pas enregistrées. Enregistre avec la disquette avant de mettre à jour. Actualiser quand même et perdre ces modifications ?'
+      );
+      if(!proceed)return;
+    }
+    updateReloadApproved.current=true;
+    window.location.reload();
+  }
   const [activeId,setActiveId]=useState('');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
@@ -838,7 +893,7 @@ function App(){
   // aucune écriture automatique dans IndexedDB. Avertir seulement si on quitte sans enregistrer.
   useEffect(()=>{
     const onBeforeUnload=(event:BeforeUnloadEvent)=>{
-      if((ready&&projectRef.current!==savedRef.current)||savingRef.current){
+      if(!updateReloadApproved.current&&((ready&&projectRef.current!==savedRef.current)||savingRef.current)){
         event.preventDefault();
         event.returnValue='';
       }
@@ -2145,6 +2200,16 @@ function App(){
         </div>
       </div>
       <div className="top-actions">
+        <button type="button"
+          className={'nv-header-update'+(updateAvailable?' is-available':'')}
+          onClick={reloadToLatestVersion}
+          disabled={savingManually}
+          title={updateAvailable?'Nouvelle version disponible : cliquer pour actualiser':'Actualiser NovaStudio'}
+          aria-label={updateAvailable?'Nouvelle mise à jour disponible : actualiser NovaStudio':'Actualiser NovaStudio'}>
+          <RefreshCw size={16} aria-hidden="true"/>
+          <span>{updateAvailable?'Mise à jour':'À jour'}</span>
+          {updateAvailable&&<i className="nv-header-update-dot" aria-hidden="true"/>}
+        </button>
         <button type="button" className="nv-header-save" disabled={!ready||savingManually||!!lock}
           title={!ready?'Chargement…':savingManually?'Enregistrement en cours…':
             project!==savedRef.current?'Modifications non enregistrées · Enregistrer (⌘S / Ctrl+S)':
