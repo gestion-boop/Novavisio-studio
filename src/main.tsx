@@ -2784,15 +2784,15 @@ function App(){
         <button type="button" className="nv-side-tabs-toggle" aria-expanded={sideTabsExpanded} aria-controls="nv-sidebar-tools" onClick={()=>setSideTabsExpanded(v=>!v)}><span>Outils d'édition <small>· {({panoramas:'Panoramas',points:'Scène & Points',bar:'Barre du bas',icons:'Mes icônes',intro:'Intro',elements:'Éléments',music:'Musique',client:'NovaGen'} as Record<string,string>)[panel]??panel}</small></span><span aria-hidden="true">{sideTabsExpanded?'⌃':'⌄'}</span></button>
         {sideTabsExpanded&&<div id="nv-sidebar-tools" className="side-tabs" role="tablist" aria-label="Options d'édition">
           <button role="tab" aria-selected={panel==='panoramas'} className={panel==='panoramas'?'active':''} onClick={()=>{setPanel('panoramas');setSideTabsExpanded(false);setSelectedId('');setMode(null);}}>▣ Panoramas</button>
-          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points');setSideTabsExpanded(false)}>
+          <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>{setPanel('points');setSideTabsExpanded(false);}}>
             {selectedId ? '◉ Inspecteur' : 'Scène & Points'}
           </button>
-          <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>setPanel('bar');setSideTabsExpanded(false)}>Barre du bas</button>
-          <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>setPanel('icons');setSideTabsExpanded(false)}>Mes icônes</button>
-          <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>setPanel('intro');setSideTabsExpanded(false)}>Intro</button>
-          <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements');setSideTabsExpanded(false)}>Éléments</button>
-          <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music');setSideTabsExpanded(false)}>Musique</button>
-          <button role="tab" aria-selected={panel==='client'} className={panel==='client'?'active':''} onClick={()=>setPanel('client');setSideTabsExpanded(false)}>NovaGen</button>
+          <button role="tab" aria-selected={panel==='bar'} className={panel==='bar'?'active':''} onClick={()=>{setPanel('bar');setSideTabsExpanded(false);}}>Barre du bas</button>
+          <button role="tab" aria-selected={panel==='icons'} className={panel==='icons'?'active':''} onClick={()=>{setPanel('icons');setSideTabsExpanded(false);}}>Mes icônes</button>
+          <button role="tab" aria-selected={panel==='intro'} className={panel==='intro'?'active':''} onClick={()=>{setPanel('intro');setSideTabsExpanded(false);}}>Intro</button>
+          <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>{setPanel('elements');setSideTabsExpanded(false);}}>Éléments</button>
+          <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>{setPanel('music');setSideTabsExpanded(false);}}>Musique</button>
+          <button role="tab" aria-selected={panel==='client'} className={panel==='client'?'active':''} onClick={()=>{setPanel('client');setSideTabsExpanded(false);}}>NovaGen</button>
         </div>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
