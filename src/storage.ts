@@ -14,6 +14,7 @@ export type Hotspot = {
   translations?: Partial<Record<'en'|'es'|'nl',string>>;
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;url?:string;
   imageDataUrl?:string;
+  imageBounce?:boolean;
   videoDataUrl?:string;videoUrl?:string;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
   frameWidth?:number;frameHeight?:number;
   frameReferenceHeight?:number;
@@ -273,6 +274,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 16 || h.iconSize > 120)) ||
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
+        (h.imageBounce !== undefined && typeof h.imageBounce !== 'boolean') ||
         (h.videoDataUrl !== undefined && (h.videoDataUrl.length > 42_000_000 || !isSafeVideoData(h.videoDataUrl))) ||
         (h.videoUrl !== undefined && h.videoUrl !== '' && !isSafeMediaUrl(h.videoUrl)) ||
         (h.videoAutoplay !== undefined && typeof h.videoAutoplay !== 'boolean') ||
