@@ -537,6 +537,8 @@ function App(){
   }
   function endGalleryVerticalDrag(){galleryDragStart.current=null;}
   const [mode,setMode]=useState<EditMode>(null);
+  // Assistant de navigation en chaîne : état temporaire, aucun enregistrement automatique.
+  const [autoNavigation,setAutoNavigation]=useState(false);
   const [preview,setPreview]=useState(false);
   const [status,setStatus]=useState('Initialisation…');
   const [help,setHelp]=useState(false);
@@ -1072,6 +1074,20 @@ function App(){
       setStatus('Import photo : '+message);
     }
   }
+  function stopAutoNavigation(){
+    setAutoNavigation(false);setNavigationDraft(null);setDestinationEditId(null);
+    setClassicDestinationOpen(false);setFullscreenGalleryOpen(false);
+    setFullscreenCommandDrawerOpen(false);setGalleryPreviewSceneId(null);
+    setGalleryPreviewPinned(false);setMode(null);setSelectedId('');
+    setStatus('Mode Auto arrêté · Modifications non enregistrées à sauvegarder avec la disquette.');
+  }
+  function toggleAutoNavigation(){
+    if(autoNavigation){stopAutoNavigation();return;}
+    if(!active||preview)return;
+    setAutoNavigation(true);setMode('navigation');setClassicDestinationOpen(false);
+    setDestinationEditId(null);setNavigationDraft(null);
+    setStatus('Auto activé · Clique dans le panorama pour placer la première flèche.');
+  }
   function selectScene(id:string){
     if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
     // Navigation directe : toujours revenir à la vue d'arrivée par défaut du panorama.
@@ -1146,12 +1162,12 @@ function App(){
     nextArrivalRef.current={sceneId:destination.id,yaw:arrival.yaw,pitch:arrival.pitch,zoom:arrival.zoom};
     setArrivedVia({sceneId:destination.id,hotspotId:id,fromSceneId:source.id});
     setActiveId(destination.id);setSelectedId('');setSelectedBarId('');
-    setMode(null);setPreview(false);setPanel('panoramas');
+    setMode(autoNavigation?'navigation':null);setPreview(false);setPanel('panoramas');
     setNavigationDraft(null);setDestinationEditId(null);
     setNavigationPickerOpen(false);setClassicDestinationOpen(false);
     setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
     setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
-    setStatus('Flèche '+(draft.existingPointId?'mise à jour':'créée')+' vers '+destination.name+' · Vue d’arrivée définie. Enregistre avec la disquette.');
+    setStatus('Flèche '+(draft.existingPointId?'mise à jour':'créée')+' vers '+destination.name+(autoNavigation?' · Auto : place la flèche suivante.':' · Enregistre avec la disquette.'));
   }
   function chooseFullscreenScene(id:string){
     if(!visibleIds.has(id))return;
@@ -2224,8 +2240,8 @@ function App(){
         <section id="nv-classic-destination-picker" className="nv-classic-destination-overlay"
           aria-label="Choix visuel du panorama de destination">
           <div className="nv-classic-destination-heading">
-            <div><small>CHOISIR UNE DESTINATION</small><strong>Galerie 360°</strong></div>
-            <button type="button" onClick={()=>setClassicDestinationOpen(false)} aria-label="Fermer la galerie">✕</button>
+            <div><small>{autoNavigation?'AUTO · ÉTAPE 2 / DESTINATION':'CHOISIR UNE DESTINATION'}</small><strong>Galerie 360°</strong></div>
+            <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)} aria-label={autoNavigation?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}>✕</button>
           </div>
           <div className="nv-classic-destination-layout">
             <div className="nv-classic-destination-list-panel">
@@ -2259,8 +2275,8 @@ function App(){
             </div>
           </div>
           <div className="nv-classic-destination-foot">
-            <span>Oriente la vue d’arrivée avec le viseur, puis sélectionne la destination. La flèche existante est conservée.</span>
-            <button type="button" onClick={()=>setClassicDestinationOpen(false)}>← Retour aux réglages</button>
+            <span>Choisis le prochain panorama, règle la direction avec le viseur, puis valide pour continuer de panorama en panorama.</span>
+            <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)}>{autoNavigation?'✕ Quitter Auto':'← Retour aux réglages'}</button>
           </div>
         </section>}
       <main className="editor">
@@ -2269,17 +2285,18 @@ function App(){
               setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
               const marker=active?.hotspots.find(h=>h.id===id);
               if(marker?.type==='navigation'){
-                if(marker.target&&visibleIds.has(marker.target)){
-                  // Une flèche déjà reliée suit sa destination et sa vue d'arrivée.
+                if(marker.target&&visibleIds.has(marker.target)&&!autoNavigation){
+                  // Sans Auto, un clic suit normalement la flèche enregistrée.
                   setDestinationEditId(null);setClassicDestinationOpen(false);
                   setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);
                   setFullscreenCommandDrawerOpen(false);
                   goThroughArrow(marker,active!.id);
-                  setStatus('Arrivée dans '+(project.scenes.find(sc=>sc.id===marker.target)?.name??'le panorama')+' · Clique sur une autre flèche pour poursuivre.');
+                  setStatus('Arrivée dans '+(project.scenes.find(sc=>sc.id===marker.target)?.name??'le panorama')+'.');
                 }else{
                   // Une flèche nouvelle ouvre directement la galerie.
                   setDestinationEditId(id);
-                  setClassicDestinationPreviewId(null);setClassicDestinationSearch('');
+                  setClassicDestinationPreviewId(marker.target&&visibleIds.has(marker.target)?marker.target:null);
+                  setClassicDestinationSearch('');
                   if(creationFullscreen){
                     setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);
                     setHoveredGallerySceneId(null);
@@ -2305,20 +2322,23 @@ function App(){
                 <div className="nv-direction-preview-inner" key={sc.id}>
                   <div className="nv-direction-preview-head">
                     <div><small>DESTINATION 360°</small><strong>{sc.name}</strong></div>
-                    <button type="button" onClick={()=>{setNavigationDraft(null);setDestinationEditId(null);}} aria-label="Annuler la destination">✕</button>
+                    <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():(setNavigationDraft(null),setDestinationEditId(null))} aria-label={autoNavigation?"Quitter Auto":"Annuler la destination"} title={autoNavigation?"Quitter le mode Auto":"Annuler"}>✕</button>
                   </div>
                   <div className="nv-direction-preview-viewer nv-targeted-preview">
                     <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}
                       onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/>
                     <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
                   </div>
-                  <p>Oriente la vue d'arrivée avec le viseur. La flèche sera placée au centre de la vue de départ.</p>
+                  <p>Oriente l'arrivée avec le viseur, puis valide. {autoNavigation?'Tu passeras directement au panorama suivant pour créer la prochaine flèche.':'La flèche garde sa position dans le panorama de départ.'}</p>
                   <div className="nv-direction-preview-actions">
                     <button type="button" className="nv-direction-confirm" onClick={confirmNavigationDirection}>✓ Valider la direction</button>
-                    <button type="button" onClick={()=>{setNavigationDraft(null);setDestinationEditId(null);}}>Annuler</button>
+                    <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():(setNavigationDraft(null),setDestinationEditId(null))}>{autoNavigation?'Quitter Auto':'Annuler'}</button>
                   </div>
                 </div>)}
             </section>}
+          {active&&!preview&&<button type="button" className={'nv-auto-navigation'+(autoNavigation?' is-active':'')} aria-pressed={autoNavigation}
+            title={autoNavigation?"Quitter l'assistant de navigation":"Lancer la création pas à pas"}
+            onClick={toggleAutoNavigation}><span className="nv-auto-symbol">↪</span> Auto{autoNavigation?' · ON':''}</button>}
           {creationFullscreen&&showArrivalCrosshair&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
