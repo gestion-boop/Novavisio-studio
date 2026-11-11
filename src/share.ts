@@ -110,19 +110,12 @@ export function wrapperHtml(url:string,title:string,introUrl='',duration=6):stri
 (function(){
   var tour=document.getElementById('nv-visit');
   var layer=document.getElementById('nv-intro-layer');
-  var minUntil=Date.now()+${validatedDuration*1000};
-  var ready=false;
-  function reveal(){
-    if(!ready)return;
-    var left=Math.max(0,minUntil-Date.now());
-    if(left){setTimeout(reveal,left);return;}
-    layer.classList.add('nv-intro-done');
-    setTimeout(function(){layer.remove();},420);
-  }
-  window.addEventListener('message',function(event){
-    if(event.source!==tour.contentWindow||event.origin!==new URL(tour.src).origin)return;
-    if(event.data&&event.data.type==='novavisio:tour-ready'){ready=true;reveal();}
-  });
+  // Le lecteur est préchargé derrière la vidéo. Le délai est strict,
+  // même si les panoramas volumineux n'ont pas terminé leur chargement.
+  var duration=${validatedDuration*1000};
+  var fade=Math.min(350,duration/4);
+  setTimeout(function(){layer.classList.add('nv-intro-done');},duration-fade);
+  setTimeout(function(){layer.remove();},duration);
 })();
 </script>`:'';
   return `<!doctype html>
