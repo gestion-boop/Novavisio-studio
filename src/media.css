@@ -138,3 +138,22 @@
 .nv-daynight-switch button.is-active{background:var(--nv-button-bg,#175d62);border-color:var(--nv-button-outline,#4bd5c6);color:var(--nv-icon-color,#fff)}
 .nv-daynight-switch button:hover{filter:brightness(1.16)}
 @media(max-width:620px){.nv-daynight-switch{top:12px;right:67px}.nv-daynight-switch button{padding:7px 8px}.nv-daynight-switch button span{display:none}}
+
+
+/* Le PNG choisi prend réellement la place du bouton natif (pas de fond rouge résiduel). */
+.nv-custom-close .lightbox-close,
+.nv-custom-close .nv-video-close,
+.nv-custom-close .tour-close-image,
+.nv-custom-close .tour-dialog header button,
+.nv-custom-close .embed-shell .embed-actions button,
+.nv-custom-close .info-in-view .modal > .close,
+.nv-custom-close .nv-gallery-close {
+  background-color:transparent!important;
+  background-image:var(--nv-close-icon-image)!important;
+  background-position:center!important;
+  background-repeat:no-repeat!important;
+  background-size:contain!important;
+  border:0!important;
+  box-shadow:none!important;
+  color:transparent!important;
+}
