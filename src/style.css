@@ -2732,3 +2732,52 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 }
 .nv-reverse-navigation:hover:not(:disabled){background:#216670!important}
 .nv-reverse-navigation:disabled{opacity:.45;cursor:not-allowed}
+
+
+/* Une seule galerie dans le tiroir droit : pas de panneau opposé à gauche. */
+.nv-command-drawer:has(.nv-drawer-gallery){
+  overflow:hidden;
+  gap:0;
+  padding:12px 9px;
+}
+.nv-drawer-gallery{
+  display:flex;flex-direction:column;flex:1;min-height:0;
+  margin-top:12px;border:1px solid #345c68;
+  background:#102936;border-radius:12px;overflow:hidden;
+}
+.nv-drawer-gallery .nv-fullscreen-gallery-header{
+  padding:10px 9px;gap:6px;
+}
+.nv-gallery-back{
+  display:flex;align-items:center;justify-content:center;
+  flex:none;border:1px solid #4b8992;border-radius:8px;
+  padding:8px 9px;font-size:11px;font-weight:750;
+  color:#d7fff8;background:#20515c;cursor:pointer;
+}
+.nv-gallery-back:hover{background:#286975}
+.nv-drawer-gallery .nv-fullscreen-gallery-nav{padding:10px 8px;gap:7px}
+.nv-drawer-gallery .nv-fullscreen-gallery-list{
+  flex:1;min-height:0;padding:8px;scrollbar-width:thin;
+}
+.nv-drawer-gallery .nv-fullscreen-gallery-scene{padding:6px;gap:7px}
+.nv-drawer-gallery .nv-fullscreen-gallery-scene img,
+.nv-drawer-gallery .nv-fullscreen-gallery-placeholder{
+  width:72px;height:50px;
+}
+.nv-drawer-gallery .nv-fullscreen-gallery-scene-details strong{font-size:11px}
+.nv-drawer-gallery .nv-fullscreen-gallery-footer{padding:8px}
+.nv-fullscreen-gallery-hover-preview.nv-drawer-gallery-hover-preview{
+  left:auto!important;right:315px!important;
+  top:85px!important;bottom:105px!important;
+  width:min(770px,calc(100% - 355px))!important;
+  z-index:68;
+}
+@media(max-width:720px){
+  .nv-fullscreen-gallery-hover-preview.nv-drawer-gallery-hover-preview{
+    right:260px!important;width:calc(100% - 275px)!important;
+    top:90px!important;bottom:100px!important;
+  }
+}
+@media(hover:none){
+  .nv-fullscreen-gallery-hover-preview.nv-drawer-gallery-hover-preview{display:none}
+}
