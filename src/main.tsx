@@ -13,7 +13,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose} from 'lucide-react';
+import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
@@ -437,6 +437,7 @@ function App(){
   }
   const [project,setProject]=useState<StudioProject>(newProject());
   const [ready,setReady]=useState(false);
+  const [savingManually,setSavingManually]=useState(false);
   const [activeId,setActiveId]=useState('');
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
   const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
@@ -554,7 +555,7 @@ function App(){
   const cameraRef=useRef({sceneId:'',yaw:0,pitch:0,zoom:60});
   const savedRef=useRef<StudioProject|null>(null);
   const baseRef=useRef<string|null>(null);          // date de la version enregistrée que cet onglet connaît
-  const projectRef=useRef<StudioProject>(project);  // dernier état du projet (pour l'enregistrement immédiat)
+  const projectRef=useRef<StudioProject>(project);  // dernier état du projet, sauvegardé uniquement sur demande
   const rawStoredRef=useRef<unknown>(null);          // projet enregistré tel quel, si illisible
   const savingRef=useRef(false);
   const lockRef=useRef<unknown>(null);
@@ -596,8 +597,8 @@ function App(){
       setStatus('Sauvegardé localement');
       setLock(l=>l&&l.kind!=='unreadable'?null:l);
       try{channelRef.current?.postMessage({type:'saved',stamp});}catch{/* ignoré */}
-      // Une modification est arrivée pendant l'enregistrement : on enregistre aussi celle-là.
-      window.setTimeout(()=>{if(!lockRef.current&&projectRef.current!==savedRef.current)void persist(projectRef.current);},300);
+      // Une modification pendant l'écriture reste non enregistrée.
+      // L'utilisateur décide du prochain enregistrement avec la disquette.
       return true;
     }catch(e){
       if(e instanceof SaveConflictError){setLock({kind:'conflict'});setStatus('Modifié dans une autre fenêtre');}
@@ -605,31 +606,26 @@ function App(){
       return false;
     }finally{savingRef.current=false;}
   }
+  // Sauvegarde volontaire : aucun timer, aucune écriture au changement d'onglet,
+  // aucune écriture automatique dans IndexedDB. Avertir seulement si on quitte sans enregistrer.
   useEffect(()=>{
-    // Ne réécrit pas toute la base (panoramas en base64) juste après le chargement ou sans modification.
-    if(!ready||lock||project===savedRef.current)return;
-    const t=setTimeout(()=>{void persist(project);},1200);
-    return ()=>clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[project,ready,lock]);
-  // Enregistrement immédiat quand on quitte l'onglet, et avertissement avant de fermer avec une modification non enregistrée.
-  useEffect(()=>{
-    const dirty=()=>ready&&!lock&&projectRef.current!==savedRef.current;
-    const flush=()=>{if(dirty())void persist(projectRef.current);};
-    const onHide=()=>{if(document.visibilityState==='hidden')flush();};
-    const onBeforeUnload=(e:BeforeUnloadEvent)=>{
-      if(dirty()||savingRef.current){flush();e.preventDefault();e.returnValue='';}
+    const onBeforeUnload=(event:BeforeUnloadEvent)=>{
+      if((ready&&projectRef.current!==savedRef.current)||savingRef.current){
+        event.preventDefault();
+        event.returnValue='';
+      }
     };
-    document.addEventListener('visibilitychange',onHide);
-    window.addEventListener('pagehide',flush);
     window.addEventListener('beforeunload',onBeforeUnload);
-    return ()=>{
-      document.removeEventListener('visibilitychange',onHide);
-      window.removeEventListener('pagehide',flush);
-      window.removeEventListener('beforeunload',onBeforeUnload);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[ready,lock]);
+    return ()=>window.removeEventListener('beforeunload',onBeforeUnload);
+  },[ready]);
+  // Édition multi-onglets : recharger une version enregistrée uniquement si le travail est intact.
+  async function reloadFromStore(){
+    try{
+      const p=await loadProject();
+      if(p){adopt(p,p.updatedAt??null);rawStoredRef.current=null;}
+      setLock(null);setStatus('Projet rechargé depuis la version enregistrée');
+    }catch(e){setLock({kind:'unreadable',reason:e instanceof Error?e.message:String(e)});}
+  }
   // Plusieurs onglets : on est prévenu dès qu'un autre onglet enregistre.
   async function reloadFromStore(){
     try{
@@ -650,14 +646,44 @@ function App(){
     return ()=>{channel.close();channelRef.current=null;};
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
-  // Sauvegarde instantanée dans Supabase (en plus de la copie locale).
-  // Une autre personne a enregistré et tu n'avais rien en cours : ta fenêtre prend sa version (sans changer de panorama).
+  // Cloud en mode manuel : aucun envoi au fil des modifications.
   const cloud=useCloudSync(project,ready&&!lock,(remote,by)=>{
     const up=ensureFrameReferences(remote,viewAreaRef.current?.clientHeight||550);
     setProject(up);
     setActiveId(id=>up.scenes.some(sc=>sc.id===id)?id:up.scenes[0]?.id??'');
-    setStatus('Mis à jour : modifié par '+(by??'une autre personne'));
+    setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
+  },true);
+  async function manualSave(){
+    if(!ready||savingManually||savingRef.current)return;
+    if(lock?.kind==='unreadable'||lock?.kind==='conflict'){
+      setStatus('Enregistrement bloqué : vérifie le conflit ou récupère le projet');
+      return;
+    }
+    const snapshot=projectRef.current;
+    setSavingManually(true);
+    try{
+      const locallySaved=await persist(snapshot);
+      if(!locallySaved)return;
+      if(cloud.signedIn){
+        setStatus('Sauvegarde dans Supabase…');
+        const synced=await cloud.syncNow();
+        setStatus(synced?'Enregistré sur cet appareil et dans Supabase':
+          'Enregistré sur cet appareil · Cloud non synchronisé');
+      }else{
+        setStatus('Enregistré sur cet appareil · Cloud non connecté');
+      }
+    }finally{setSavingManually(false);}
+  }
+  useEffect(()=>{
+    const onSaveShortcut=(event:KeyboardEvent)=>{
+      if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='s'){
+        event.preventDefault();
+        void manualSave();
+      }
+    };
+    window.addEventListener('keydown',onSaveShortcut);
+    return ()=>window.removeEventListener('keydown',onSaveShortcut);
   });
   const cloudLabel=(st:SyncState):string=>
     st.kind==='off'?'':st.kind==='login'?'Non connecté':st.kind==='idle'?'Connecté':st.kind==='paused'?'En pause':
