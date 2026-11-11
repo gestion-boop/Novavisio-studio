@@ -499,6 +499,11 @@ function App(){
   const [openTopMenu,setOpenTopMenu]=useState<HeaderMenu>(null);
   const [navigationDrawerOpen,setNavigationDrawerOpen]=useState(false);
   const [spacesDrawerOpen,setSpacesDrawerOpen]=useState(false);
+  useEffect(()=>{
+    // Garder le tiroir monté pour l'animation, tout en excluant ses commandes
+    // du clavier et du focus lorsqu'il est refermé.
+    document.getElementById('nv-workspace-spaces')?.toggleAttribute('inert',!spacesDrawerOpen);
+  },[spacesDrawerOpen]);
   const [studioFullscreen,setStudioFullscreen]=useState(false);
   const [studioFallback,setStudioFallback]=useState(false);
   const [leftHidden,setLeftHidden]=useState(()=>readStudioLayout().leftHidden);
@@ -2487,7 +2492,7 @@ function App(){
         </button>
       </div>
     </header>
-    <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen} inert={!spacesDrawerOpen}>
+    <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen}>
       
       <div className="nv-space-tab-scroll" role="tablist" aria-label="Espaces du projet">
         <button type="button" role="tab" aria-selected={!currentSpace}
