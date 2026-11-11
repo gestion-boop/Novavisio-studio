@@ -3145,3 +3145,53 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
   .nv-studio-pro .nv-top-left .nv-header-menu-list{justify-content:flex-start;flex-wrap:wrap;overflow:visible}
   .nv-studio-pro .nv-top-center{flex-wrap:wrap}
 }
+
+
+/* Les onglets de l'inspecteur doivent tous être des cases visibles,
+   pas uniquement l'onglet actif. */
+.nv-studio-pro .right.panel .side-tabs{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-auto-rows:minmax(54px,auto);
+  align-content:start;
+  gap:7px;
+  padding:8px;
+  border-radius:14px;
+  background:#0b1b29;
+  margin-bottom:12px;
+}
+.nv-studio-pro .right.panel .side-tabs button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  min-width:0;
+  min-height:54px;
+  padding:9px 6px;
+  border:1px solid #304b5d;
+  border-radius:10px;
+  background:#162c3c;
+  color:#b7cedb;
+  font-size:11px;
+  line-height:1.22;
+  font-weight:650;
+  box-shadow:0 1px 2px #0002;
+  transition:background-color .14s ease,border-color .14s ease,color .14s ease;
+}
+.nv-studio-pro .right.panel .side-tabs button:hover{
+  background:#204251;
+  border-color:#4da9aa;
+  color:#ecffff;
+  transform:none;
+}
+.nv-studio-pro .right.panel .side-tabs button.active,
+.nv-studio-pro .right.panel .side-tabs button[aria-selected="true"]{
+  background:#245b65;
+  border-color:#69cfc7;
+  color:#a5fff0;
+  box-shadow:inset 0 0 0 1px #4da9a866;
+}
+.nv-studio-pro .right.panel .side-tabs button:focus-visible{
+  outline:2px solid #82e8df;
+  outline-offset:2px;
+}
