@@ -2286,14 +2286,14 @@ function App(){
             <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu">×</button>
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
-            <Users size={16}/> Clients
+            <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
           </button>
           <div className="nv-header-menu-list" ref={topMenusRef}>
           <div className="nv-menu-root">
             <button type="button" className={'nv-menu-trigger '+(openTopMenu==='file'?'is-open':'')}
               aria-haspopup="menu" aria-expanded={openTopMenu==='file'}
               onClick={()=>setOpenTopMenu(m=>m==='file'?null:'file')}>
-              Fichier <ChevronDown size={13}/>
+              <span className="nv-drawer-item-label"><Plus size={17}/> Fichier</span><ChevronDown size={15}/>
             </button>
             {openTopMenu==='file'&&<div className="nv-menu-popover" role="menu" aria-label="Fichier">
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
@@ -2320,7 +2320,7 @@ function App(){
             <button type="button" className={'nv-menu-trigger '+(openTopMenu==='share'?'is-open':'')}
               aria-haspopup="menu" aria-expanded={openTopMenu==='share'}
               onClick={()=>setOpenTopMenu(m=>m==='share'?null:'share')}>
-              Partager <ChevronDown size={13}/>
+              <span className="nv-drawer-item-label"><Link2 size={17}/> Partager</span><ChevronDown size={15}/>
             </button>
             {openTopMenu==='share'&&<div className="nv-menu-popover" role="menu" aria-label="Partager">
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setShareOpen(true);}}>
@@ -2335,7 +2335,7 @@ function App(){
             <button type="button" className={'nv-menu-trigger '+(openTopMenu==='display'?'is-open':'')}
               aria-haspopup="menu" aria-expanded={openTopMenu==='display'}
               onClick={()=>setOpenTopMenu(m=>m==='display'?null:'display')}>
-              Affichage <ChevronDown size={13}/>
+              <span className="nv-drawer-item-label"><Eye size={17}/> Affichage</span><ChevronDown size={15}/>
             </button>
             {openTopMenu==='display'&&<div className="nv-menu-popover nv-display-popover"
               role="menu" aria-label="Affichage">
@@ -2372,7 +2372,7 @@ function App(){
           <div className="nv-menu-root">
             <button type="button" className="nv-menu-trigger" title="Sauvegardes et versions Supabase"
               onClick={()=>{setOpenTopMenu(null);setNavigationDrawerOpen(false);setCloudOpen(true);}}>
-              <Cloud size={16}/> Cloud
+              <span className="nv-drawer-item-label"><Cloud size={17}/> Cloud</span>
             </button>
           </div>
           </div>
