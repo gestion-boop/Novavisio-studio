@@ -12,8 +12,9 @@ type Props={
   autoEnabled:boolean;
   onAutoChange:(on:boolean)=>void;
   autoLabel:string;
+  manualMode?:boolean;
 };
-export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel}:Props){
+export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel,manualMode=false}:Props){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
@@ -52,7 +53,7 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
   const open=(item:CloudProject)=>run('Ouverture…',async()=>{
     const which=item.autosave?'la dernière version sauvegardée automatiquement ('+new Date(item.updated_at).toLocaleString('fr-FR')+')'
       :'la dernière version enregistrée À LA MAIN (révision '+item.revision+', '+new Date(item.updated_at).toLocaleString('fr-FR')+')';
-    const warn=item.autosave?'':'\n\nATTENTION : cette visite n’a pas de sauvegarde instantanée. Cette version peut être plus ancienne que celle de la personne qui l’a partagée (panoramas, boutons ou modifications récentes manquants). Demande-lui de vérifier que « ☁ Enregistré » s’affiche chez elle, ou que le fichier SQL de sauvegarde instantanée est installé.';
+    const warn=manualMode?'\n\nLes modifications non enregistrées restent sur cet appareil. Pense à cliquer sur la disquette avant de changer de projet.':item.autosave?'':'\n\nCette version peut être plus ancienne que celle de la personne qui l’a partagée.';
     if(!window.confirm('Ouvrir « '+item.name+' » ('+which+') à la place du projet affiché ? Une sauvegarde .nvstudio.json du projet actuel va d’abord être téléchargée.'+warn))return;
     const loaded=await openCloudProject(item.id,setBusy);
     if(project.scenes.length)onBackup();
@@ -70,7 +71,9 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
     </>:!userEmail?<LoginBox intro="Connecte-toi pour sauvegarder tes visites dans Supabase, ou pour ouvrir une visite à laquelle on t’a invité."/>
     :<>
       <p>Connecté : <b>{userEmail}</b> · <button className="quiet" onClick={()=>void signOut()}>Se déconnecter</button></p>
-      <label className="toggle-row cloud-auto"><input type="checkbox" checked={autoEnabled} onChange={e=>onAutoChange(e.target.checked)}/> <span><b>Sauvegarde instantanée dans Supabase</b><small>{autoLabel}</small></span></label>
+      {manualMode?
+        <p className="hint-inline">Les enregistrements automatiques sont désactivés. Clique sur la <b>disquette « Enregistrer »</b> en haut de Studio pour sauvegarder immédiatement la version en cours sur ton appareil et dans Supabase. Aucune modification n’est envoyée en arrière-plan.</p>:
+        <label className="toggle-row cloud-auto"><input type="checkbox" checked={autoEnabled} onChange={e=>onAutoChange(e.target.checked)}/> <span><b>Sauvegarde instantanée dans Supabase</b><small>{autoLabel}</small></span></label>}
       <p className="hint-inline">Chaque enregistrement manuel ci-dessous ajoute une <b>nouvelle révision</b> : rien n’est jamais remplacé ni supprimé dans le cloud.</p>
       <div className="cloud-actions">
         <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void send(true)}>Envoyer comme nouvelle visite</button>
