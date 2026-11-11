@@ -632,6 +632,7 @@ function App(){
   const [creationFullscreen,setCreationFullscreen]=useState(false);
   const [fullscreenGalleryOpen,setFullscreenGalleryOpen]=useState(false);
   const [hoveredGallerySceneId,setHoveredGallerySceneId]=useState<string|null>(null);
+  const [fullscreenSelectedDestinationId,setFullscreenSelectedDestinationId]=useState<string|null>(null);
   const galleryHoverTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const scheduleGalleryHover=(id:string)=>{
     if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);
@@ -642,7 +643,7 @@ function App(){
     galleryHoverTimer.current=setTimeout(()=>setHoveredGallerySceneId(null),delay);
   };
   useEffect(()=>()=>{if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);},[]);
-  useEffect(()=>{if(!fullscreenGalleryOpen)setHoveredGallerySceneId(null);},[fullscreenGalleryOpen]);
+  useEffect(()=>{if(!fullscreenGalleryOpen){setHoveredGallerySceneId(null);setFullscreenSelectedDestinationId(null);}},[fullscreenGalleryOpen]);
   const [fullscreenToolsOpen,setFullscreenToolsOpen]=useState(false);
   const [navigationPickerOpen,setNavigationPickerOpen]=useState(false);
   const [navigationPickerHover,setNavigationPickerHover]=useState<string|null>(null);
@@ -1220,6 +1221,23 @@ function App(){
     setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
     setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
     setStatus('Flèche '+(draft.existingPointId?'mise à jour':'créée')+' vers '+destination.name+(autoNavigation?' · Auto : place la flèche suivante.':' · Enregistre avec la disquette.'));
+  }
+  function validateFullscreenDestination(targetId:string){
+    if(!active||targetId===active.id)return;
+    // The source arrow position is preserved if a navigation marker was just placed.
+    // Otherwise the crosshair on the source panorama is its current camera center.
+    const existing=destinationEditId?active.hotspots.find(h=>h.id===destinationEditId&&h.type==='navigation'):undefined;
+    const camera=cameraRef.current;
+    const view=camera.sceneId===active.id?camera:{
+      yaw:active.arrivalYaw??0,pitch:active.arrivalPitch??0
+    };
+    confirmNavigationDirection({
+      sourceId:active.id,targetId,
+      sourceYaw:existing?.yaw??view.yaw,
+      sourcePitch:existing?.pitch??view.pitch,
+      existingPointId:existing?.id
+    });
+    setFullscreenSelectedDestinationId(null);
   }
   function chooseFullscreenScene(id:string){
     if(!visibleIds.has(id))return;
@@ -2396,7 +2414,16 @@ function App(){
                   </div>
                 </div>)}
             </section>}
-          {creationFullscreen&&showArrivalCrosshair&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
+          {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
+            <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
+              <span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/>
+              {autoNavigation&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
+                <button type="button" className="nv-auto-crosshair-place" aria-label="Placer la flèche sur la cible au centre"
+                  title="Placer la flèche ici"
+                  onClick={e=>{e.stopPropagation();const v=cameraRef.current;if(active&&v.sceneId===active.id)newPoint(v.yaw,v.pitch);}}>
+                  <span aria-hidden="true">+</span>
+                </button>}
+            </div>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
             <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
@@ -2418,7 +2445,7 @@ function App(){
             <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
             <button type="button" className={'nv-fullscreen-gallery-toggle'+(fullscreenGalleryOpen?' is-active':'')}
               aria-expanded={fullscreenGalleryOpen} aria-controls="nv-fullscreen-gallery"
-              onClick={()=>{setDestinationEditId(null);setFullscreenGalleryOpen(true);setHoveredGallerySceneId(null);setMode(null);setFullscreenToolsOpen(false);}}
+              onClick={()=>{setDestinationEditId(null);setFullscreenSelectedDestinationId(null);setFullscreenGalleryOpen(true);setHoveredGallerySceneId(null);setMode(null);setFullscreenToolsOpen(false);}}
               title="Choisir un panorama dans la galerie">
               <Images size={16}/> Galerie <span className="nv-fullscreen-gallery-count">{visibleScenes.length}</span>
             </button>
@@ -2460,7 +2487,7 @@ function App(){
             {fullscreenGalleryOpen&&<section id="nv-fullscreen-gallery" className="nv-drawer-gallery" aria-label="Galerie des panoramas">
             <header className="nv-fullscreen-gallery-header">
               <div><small>{currentSpace?.name??project.name}</small><strong>Galerie des panoramas</strong></div>
-              <button type="button" className="nv-gallery-back" onClick={()=>{setFullscreenGalleryOpen(false);setHoveredGallerySceneId(null);}}
+              <button type="button" className="nv-gallery-back" onClick={()=>{setFullscreenGalleryOpen(false);setHoveredGallerySceneId(null);setFullscreenSelectedDestinationId(null);}}
                 aria-label="Retour au menu des commandes">← Retour</button>
             </header>
             <div className="nv-fullscreen-gallery-nav">
@@ -2481,18 +2508,20 @@ function App(){
             <div className="nv-gallery-layout-choice" role="group" aria-label="Affichage des panoramas"><button type="button" className={fullscreenGalleryLayout==='grid'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('grid')}>▦ Grille</button><button type="button" className={fullscreenGalleryLayout==='list'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('list')}>☷ Liste</button></div>
             <div className={'nv-fullscreen-gallery-list nv-gallery-layout-'+fullscreenGalleryLayout}>
               {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
-                className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')}
+                className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')+(scene.id===fullscreenSelectedDestinationId?' is-selected-destination':'')}
                 onMouseEnter={()=>scheduleGalleryHover(scene.id)}
                 onMouseLeave={()=>dismissGalleryHover()}
                 onFocus={()=>scheduleGalleryHover(scene.id)}
                 onBlur={()=>dismissGalleryHover()}
-                onClick={()=>createNavigationFromGallery(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
+                onClick={()=>{if(scene.id!==activeId){setFullscreenSelectedDestinationId(scene.id);setHoveredGallerySceneId(scene.id);}}}
+                aria-pressed={scene.id===fullscreenSelectedDestinationId}
+                aria-current={scene.id===activeId?'true':undefined}>
                 {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
                   <span className="nv-fullscreen-gallery-placeholder">◎</span>}
                 <span className="nv-fullscreen-gallery-scene-details">
                   <strong>{scene.name}</strong>
                   <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
-                  {scene.id!==activeId&&<em>⊕ Orienter la destination</em>}
+                  {scene.id===fullscreenSelectedDestinationId?<em>✓ Destination sélectionnée</em>:scene.id!==activeId?<em>⊕ Orienter la destination</em>:null}
                   {scene.arrivalYaw!==undefined&&<em>✓ Vue d'arrivée définie</em>}
                 </span>
               </button>)}
@@ -2804,22 +2833,28 @@ function App(){
                 <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>
               </div>)}
             </aside>}
-          {active&&creationFullscreen&&fullscreenCommandDrawerOpen&&fullscreenGalleryOpen&&hoveredGallerySceneId&&
-            visibleScenes.some(scene=>scene.id===hoveredGallerySceneId)&&
-            <aside className="nv-fullscreen-gallery-hover-preview nv-drawer-gallery-hover-preview"
-              aria-label="Grand aperçu du panorama survolé"
-              onMouseEnter={()=>{
-                if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);
-              }}
-              onMouseLeave={()=>dismissGalleryHover(100)}>
-              {visibleScenes.filter(scene=>scene.id===hoveredGallerySceneId).map(scene=>
+          {active&&creationFullscreen&&fullscreenCommandDrawerOpen&&fullscreenGalleryOpen&&
+            (fullscreenSelectedDestinationId||hoveredGallerySceneId)&&
+            visibleScenes.some(scene=>scene.id===(fullscreenSelectedDestinationId||hoveredGallerySceneId))&&
+            <aside className="nv-fullscreen-gallery-hover-preview nv-drawer-gallery-hover-preview nv-pinned-destination-preview"
+              aria-label="Aperçu de la destination avec viseur"
+              onMouseEnter={()=>{if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);}}
+              onMouseLeave={()=>{if(!fullscreenSelectedDestinationId)dismissGalleryHover(100);}}>
+              {visibleScenes.filter(scene=>scene.id===(fullscreenSelectedDestinationId||hoveredGallerySceneId)).map(scene=>
                 <div className="nv-hover-preview-content" key={scene.id}>
                   <div className="nv-hover-preview-title">
-                    <div><small>APERÇU DU PANORAMA</small><strong title={scene.name}>{scene.name}</strong></div>
-                    <button type="button" onClick={()=>createNavigationFromGallery(scene.id)}>{'➜ Choisir cette destination'} <ChevronRight size={15}/></button>
+                    <div><small>ORIENTATION DE DESTINATION</small><strong title={scene.name}>{scene.name}</strong></div>
                   </div>
-                  <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]} onOrientation={view=>{galleryOrientationRef.current[scene.id]=view;}}/>
-                  <div className="nv-hover-preview-foot"><span>Vue d’arrivée · Fais glisser pour regarder autour</span>
+                  <div className="nv-targeted-preview nv-fullscreen-destination-viewer">
+                    <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}
+                      onOrientation={view=>{galleryOrientationRef.current[scene.id]=view;}}/>
+                    <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
+                  </div>
+                  <button type="button" className="nv-fullscreen-validate-destination"
+                    disabled={scene.id===activeId}
+                    onClick={()=>validateFullscreenDestination(scene.id)}>✓ Valider la destination</button>
+                  <div className="nv-hover-preview-foot">
+                    <span>Oriente la vue sur la cible, puis valide pour continuer</span>
                     <span>{visibleScenes.findIndex(sc=>sc.id===scene.id)+1} / {visibleScenes.length}</span>
                   </div>
                 </div>)}
@@ -2882,6 +2917,7 @@ function App(){
         </div>
         {active && !preview && <div className="toolbar nv-compact-actions" role="toolbar" aria-label="Outils de création">
           <div className="nv-toolbar-center">
+          <div className="nv-toolbar-group nv-toolbar-left">
           <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')} title="Lien de navigation vers un autre panorama">
             ➜ Navigation
           </button>
@@ -2891,9 +2927,11 @@ function App(){
           <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')} title="Lien web, téléphone ou email">
             ↗ Lien web
           </button>
+          </div>
           <button type="button" className={'tool nv-auto-navigation nv-auto-toolbar'+(autoNavigation?' is-active selected':'')} aria-pressed={autoNavigation}
             title={autoNavigation?"Quitter l'assistant de navigation":"Lancer la création pas à pas"}
             onClick={toggleAutoNavigation}><span className="nv-auto-symbol">↪</span> {autoNavigation?'Terminer Auto':'Auto'}</button>
+          <div className="nv-toolbar-group nv-toolbar-right">
           <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')} title="Cadre photo incrusté en perspective">
             ▣ Cadre photo
           </button>
@@ -2904,6 +2942,7 @@ function App(){
           <button className={'tool '+(panel==='bar'?'selected':'')} onClick={()=>{setPanel('bar');setMode(null);setSelectedId('');}}>
             ☷ Barre du bas
           </button>
+          </div>
           </div>
         </div>}
       </main>
