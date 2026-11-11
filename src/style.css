@@ -3342,3 +3342,12 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-info-languages button{font-size:24px;min-width:45px;min-height:39px;padding:4px 7px;background:#183445;border:1px solid #476b78;border-radius:9px;cursor:pointer}
 .nv-info-languages button.is-active{border-color:#51d4cc;background:#27535d;box-shadow:inset 0 2px 5px #0008}
 @media(max-width:790px){.nv-side-panorama-popup{right:10px!important;left:10px!important;width:auto!important;top:50%!important;height:min(480px,70vh)!important}.nv-right-panorama-gallery .scene-slot .scene>img,.nv-right-panorama-gallery .scene-slot .scene>.scene-thumb-ph{flex-basis:85px!important;width:85px!important;height:50px!important}}
+
+/* Historique des sauvegardes Cloud : boutons lisibles sans réduire les noms. */
+.cloud-list li{flex-wrap:wrap}
+.cloud-list li>span{min-width:0;flex:1}
+.nv-cloud-recovery-actions{display:flex;flex-wrap:wrap;gap:6px}
+.nv-cloud-recovery-actions button{white-space:nowrap}
+.nv-cloud-history{flex:0 0 100%;display:flex;flex-direction:column;gap:5px;max-height:205px;overflow-y:auto;padding:8px 0 2px;border-top:1px solid #315669}
+.nv-cloud-history button{width:100%;text-align:left;border:1px solid #315f70;border-radius:7px;background:#142d3d;color:#d4f3f3;padding:8px 9px;cursor:pointer;font-size:11px}
+.nv-cloud-history button:hover{border-color:#56cbc2;background:#204452}
