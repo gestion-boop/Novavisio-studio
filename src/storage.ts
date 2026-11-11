@@ -11,6 +11,7 @@ export type Hotspot = {
   id:string;
   type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
+  translations?: Partial<Record<'en'|'es'|'nl',string>>;
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;url?:string;
   imageDataUrl?:string;
   videoDataUrl?:string;videoUrl?:string;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
@@ -55,6 +56,7 @@ export type BottomBarItem = {
   target: string;
   text: string;
   url: string;
+  translations?: Partial<Record<'en'|'es'|'nl',string>>;
   iconId?: string;
   hoverIconId?: string;
   pressedIconId?: string;
@@ -233,6 +235,7 @@ export function validateProject(value:unknown):StudioProject {
       (item.galleryTitle !== undefined && (typeof item.galleryTitle !== 'string' || item.galleryTitle.length > 100)) ||
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||
+      (item.translations!==undefined && (typeof item.translations!=='object' || item.translations===null || Object.entries(item.translations).some(([lang,txt])=>!['en','es','nl'].includes(lang)||typeof txt!=='string'||txt.length>8000))) ||
       (item.iconId !== undefined && (typeof item.iconId !== 'string' || !icons.some(icon => icon.id === item.iconId))) ||
       (item.hoverIconId !== undefined && (typeof item.hoverIconId !== 'string' || !icons.some(icon => icon.id === item.hoverIconId))) ||
       (item.pressedIconId !== undefined && (typeof item.pressedIconId !== 'string' || !icons.some(icon => icon.id === item.pressedIconId))) ||
