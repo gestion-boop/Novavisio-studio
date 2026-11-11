@@ -6,7 +6,7 @@ import {LoginBox} from './LoginBox';
 type Props={
   project:StudioProject;
   onClose:()=>void;
-  onBackup:()=>void;
+  hasUnsavedChanges:boolean;
   onOpen:(project:StudioProject,link:CloudLink)=>void;
   onStatus:(message:string)=>void;
   autoEnabled:boolean;
@@ -14,7 +14,7 @@ type Props={
   autoLabel:string;
   manualMode?:boolean;
 };
-export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel,manualMode=false}:Props){
+export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel,manualMode=false}:Props){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
@@ -53,12 +53,8 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
     await refresh();
   });
   const open=(item:CloudProject)=>run('Ouverture…',async()=>{
-    const which=item.autosave?'la dernière version sauvegardée automatiquement ('+new Date(item.updated_at).toLocaleString('fr-FR')+')'
-      :'la dernière version enregistrée À LA MAIN (révision '+item.revision+', '+new Date(item.updated_at).toLocaleString('fr-FR')+')';
-    const warn=manualMode?'\n\nLes modifications non enregistrées restent sur cet appareil. Pense à cliquer sur la disquette avant de changer de projet.':item.autosave?'':'\n\nCette version peut être plus ancienne que celle de la personne qui l’a partagée.';
-    if(!window.confirm('Ouvrir « '+item.name+' » ('+which+') à la place du projet affiché ? Une sauvegarde .nvstudio.json du projet actuel va d’abord être téléchargée.'+warn))return;
+    if(hasUnsavedChanges&&!window.confirm('Des modifications du projet actuel ne sont pas encore enregistrées. Ouvrir « '+item.name+' » sans sauvegarder ces modifications ?\n\nClique sur Annuler pour utiliser la disquette avant de changer de projet.'))return;
     const loaded=await openCloudProject(item.id,setBusy);
-    if(project.scenes.length)onBackup();
     writeLink(loaded.link);setLink(loaded.link);
     onOpen(loaded.project,loaded.link);
     onStatus('Visite cloud ouverte (révision '+loaded.link.revision+')');
@@ -70,9 +66,8 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
     setRevisions(await listCloudRevisions(item.id));setHistoryFor(item.id);
   });
   const openRevision=(item:CloudProject,revision:number)=>run('Récupération de la sauvegarde…',async()=>{
-    if(!window.confirm('Restaurer « '+item.name+' » depuis la révision '+revision+' ? Le cloud ne sera pas modifié. Une copie du projet affiché sera téléchargée si nécessaire.'))return;
+    if(hasUnsavedChanges&&!window.confirm('Les modifications non enregistrées du projet affiché seront perdues. Ouvrir la révision '+revision+' de « '+item.name+' » ?'))return;
     const loaded=await openCloudRevision(item.id,revision,setBusy);
-    if(project.scenes.length)onBackup();
     writeLink(loaded.link);setLink(loaded.link);
     onOpen(loaded.project,loaded.link);
     onStatus('Sauvegarde historique ouverte : révision '+revision+'. Pour conserver des changements, crée une nouvelle visite cloud.');
@@ -81,14 +76,14 @@ export function CloudPanel({project,onClose,onBackup,onOpen,onStatus,autoEnabled
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}>✕</button>
-    <h2>Cloud Supabase</h2>
+    <h2>Mes projets Cloud</h2>
     {!cloudConfigured?<>
       <p className="warning">Supabase n’est pas configuré. Définis <code>NEXT_PUBLIC_SUPABASE_URL</code> et <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> (clé <b>publishable</b> uniquement) dans les variables d’environnement du déploiement, puis redéploie.</p>
     </>:!userEmail?<LoginBox intro="Connecte-toi pour sauvegarder tes visites dans Supabase, ou pour ouvrir une visite à laquelle on t’a invité."/>
     :<>
       <p>Connecté : <b>{userEmail}</b> · <button className="quiet" onClick={()=>void signOut()}>Se déconnecter</button></p>
       {manualMode?
-        <p className="hint-inline">Les enregistrements automatiques sont désactivés. Clique sur la <b>disquette « Enregistrer »</b> en haut de Studio pour sauvegarder immédiatement la version en cours sur ton appareil et dans Supabase. Aucune modification n’est envoyée en arrière-plan.</p>:
+        <p className="hint-inline">Ouvre un projet directement depuis le Cloud, travaille dessus sur n’importe quel appareil, puis clique sur la <b>disquette « Enregistrer »</b> pour sauvegarder dans Supabase. Le téléchargement JSON est facultatif et se fait uniquement sur demande.</p>:
         <label className="toggle-row cloud-auto"><input type="checkbox" checked={autoEnabled} onChange={e=>onAutoChange(e.target.checked)}/> <span><b>Sauvegarde instantanée dans Supabase</b><small>{autoLabel}</small></span></label>}
       <p className="hint-inline">Chaque enregistrement manuel ci-dessous ajoute une <b>nouvelle révision</b> : rien n’est jamais remplacé ni supprimé dans le cloud.</p>
       <div className="cloud-actions">
