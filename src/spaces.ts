@@ -13,9 +13,32 @@ export function scenesInSpace(project:StudioProject,space:StudioSpace|null):Scen
   return project.scenes.filter(scene=>allowed.has(scene.id));
 }
 
-/** Prepare an independent visit without changing the parent project or its cloud IDs. */
-export function projectForSpaceExport(project:StudioProject,space:StudioSpace|null):StudioProject{
-  if(!space)return project;
+/** Only assets referenced by visible points, bottom bar, sound controls or close
+ * control belong in a published visit. Keep the full editor library untouched. */
+function relevantIcons(project:StudioProject,scenes:Scene[]){
+  const ids=new Set<string>();
+  const take=(id?:string)=>{if(id)ids.add(id);};
+  for(const scene of scenes)for(const point of scene.hotspots){
+    take(point.iconId);take(point.hoverIconId);take(point.pressedIconId);
+  }
+  for(const item of project.bottomBar){
+    take(item.iconId);take(item.hoverIconId);take(item.pressedIconId);
+  }
+  for(const key of ['closeIconId','soundOnIconId','soundOnHoverIconId','soundOnPressedIconId',
+      'soundOffIconId','soundOffHoverIconId','soundOffPressedIconId'] as const)take(project[key]);
+  return project.icons.filter(icon=>ids.has(icon.id));
+}
+
+/** Prepare an independent visit without changing the parent project or its cloud IDs.
+ * slim=true for published links/static exports: omit unused icon and audio libraries. */
+export function projectForSpaceExport(project:StudioProject,space:StudioSpace|null,slim=false):StudioProject{
+  if(!space){
+    if(!slim)return project;
+    return {...project,
+      icons:relevantIcons(project,project.scenes),
+      audioTracks:project.audioTracks.filter(track=>project.scenes.some(scene=>scene.musicTrackId===track.id))
+    };
+  }
   const scenes=scenesInSpace(project,space);
   const ids=new Set(scenes.map(scene=>scene.id));
   const trimBar=(item:BottomBarItem):BottomBarItem=>{
@@ -38,6 +61,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     })),
     bottomBar:project.bottomBar.map(trimBar),
     spaces:[], // A public standalone visit never exposes unrelated areas.
+    icons:slim?relevantIcons(project,scenes):project.icons,
     audioTracks:project.audioTracks.filter(track=>scenes.some(scene=>scene.musicTrackId===track.id))
   };
 }
