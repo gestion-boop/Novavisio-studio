@@ -30,6 +30,9 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     name:project.name+' - '+space.name,
     scenes:scenes.map(scene=>({
       ...scene,
+      // Conserve la texture de nuit même si sa source est dans un autre espace.
+      nightDataUrl:scene.nightDataUrl??project.scenes.find(other=>other.id===scene.nightSourceSceneId)?.dataUrl,
+      nightSourceSceneId:undefined,
       hotspots:scene.hotspots.filter(h=>h.type!=='navigation'||!h.target||ids.has(h.target))
     })),
     bottomBar:project.bottomBar.map(trimBar),
