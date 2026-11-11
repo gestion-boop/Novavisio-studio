@@ -197,6 +197,8 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     !(window.parent!==window && new URLSearchParams(window.location.search).get('external_intro')==='1')
   ));
   const [introEnding,setIntroEnding]=useState(false);
+  const [introFrameReady,setIntroFrameReady]=useState(false);
+  const [firstPanoramaReady,setFirstPanoramaReady]=useState(false);
   const introInitialised=useRef(Boolean(project));
   const [fullscreen,setFullscreen]=useState(false);
   const [vrAvailable,setVrAvailable]=useState(false);
@@ -220,7 +222,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }
   },[project]);
   useEffect(()=>{
-    if(!showIntro||!project?.introEnabled||!project.introUrl)return;
+    if(!showIntro||!introFrameReady||!project?.introEnabled||!project.introUrl)return;
     // Durée stricte : le panorama se prépare derrière l'intro, mais son
     // chargement ne bloque jamais sa disparition. Une vidéo externe ne peut
     // ni raccourcir ni prolonger la durée choisie.
@@ -230,9 +232,10 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     const fade=window.setTimeout(()=>setIntroEnding(true),duration-fadeMs);
     const finish=window.setTimeout(()=>setShowIntro(false),duration);
     return ()=>{window.clearTimeout(fade);window.clearTimeout(finish);};
-  },[showIntro,project?.introEnabled,project?.introUrl,project?.introDuration]);
+  },[showIntro,introFrameReady,project?.introEnabled,project?.introUrl,project?.introDuration]);
   const reportPanoramaReady=(id:string)=>{
     if(id!==firstSceneId)return;
+    setFirstPanoramaReady(true);
     // The external wrapper can use this to know the viewer is ready;
     // the intro timer itself does not depend on this event.
     if(window.parent!==window)window.parent.postMessage({type:'novavisio:tour-ready'},'*');
@@ -320,7 +323,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         </button>;
       })}
     </nav>}
-    <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!!video}/>
+    <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||!!video}/>
     {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
@@ -338,9 +341,19 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         onPick={id=>{move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
     {photo?.imageDataUrl&&<ZoomImage variant="tour" src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
+    {!showIntro&&!firstPanoramaReady&&<div className="nv-tour-startup-mask" role="status" aria-live="polite">
+      <div className="nv-tour-startup-spinner" aria-hidden="true"/>
+      <span>Préparation de votre visite immersive…</span>
+    </div>}
     {showIntro&&project.introUrl&&<div className={"tour-intro"+(introEnding?" is-ending":"")}>
-      <iframe title={'Introduction de '+project.name} src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
-
+      <iframe title={'Introduction de '+project.name} src={project.introUrl}
+        onLoad={()=>setIntroFrameReady(true)}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+        referrerPolicy="strict-origin-when-cross-origin"/>
+      {!introFrameReady&&<div className="nv-intro-loading-mask" role="status" aria-live="polite">
+        <div className="nv-tour-startup-spinner" aria-hidden="true"/>
+        <span>Votre expérience immersive se prépare…</span>
+      </div>}
     </div>}
   </main>;
 }
