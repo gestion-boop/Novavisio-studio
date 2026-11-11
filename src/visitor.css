@@ -100,3 +100,11 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 @media(prefers-reduced-motion:reduce){
   .nv-tour-startup-spinner{animation-duration:2s}
 }
+
+
+.nv-share-firstpaint{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;
+  background:#0b1c27;color:#c6e1e2;
+  font-size:13px;font-weight:600;letter-spacing:.035em;
+}
