@@ -1453,6 +1453,38 @@ function App(){
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
   }
+  // Une connexion A → B peut créer sa flèche retour B → A en un seul clic.
+  // Le point est placé devant la caméra à l'arrivée sur B ; ajustable ensuite.
+  function reverseNavigation(h:Hotspot){
+    if(!active||h.type!=='navigation'||!h.target||h.target===active.id)return;
+    const originId=active.id,originName=active.name;
+    const destination=project.scenes.find(sc=>sc.id===h.target);
+    if(!destination){setStatus('Panorama de destination introuvable');return;}
+    if(currentSpace&&!visibleIds.has(destination.id)){setStatus('Destination hors de cet espace');return;}
+    const existing=destination.hotspots.find(point=>point.type==='navigation'&&point.target===originId);
+    if(existing){
+      setActiveId(destination.id);setSelectedId(existing.id);setPanel('points');setFullscreenToolsTab('point');
+      setFullscreenToolsOpen(true);setMode(null);
+      setStatus('Le retour existe déjà : point sélectionné dans '+destination.name);
+      return;
+    }
+    const newId=uid();
+    const reverse:Hotspot={
+      id:newId,type:'navigation',title:'Retour vers '+originName,text:'',target:originId,
+      yaw:h.arrivalYaw??destination.arrivalYaw??0,
+      pitch:h.arrivalPitch??destination.arrivalPitch??0,
+      ...(h.iconId?{iconId:h.iconId}:{}),
+      ...(h.hoverIconId?{hoverIconId:h.hoverIconId}:{}),
+      ...(h.pressedIconId?{pressedIconId:h.pressedIconId}:{}),
+      ...(h.iconSize?{iconSize:h.iconSize}:{})
+    };
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===destination.id?
+      {...sc,hotspots:sc.hotspots.some(point=>point.type==='navigation'&&point.target===originId)?
+        sc.hotspots:[...sc.hotspots,reverse]}:sc)}));
+    setActiveId(destination.id);setSelectedId(newId);setPanel('points');setFullscreenToolsTab('point');
+    setFullscreenToolsOpen(true);setMode(null);
+    setStatus('Retour créé dans '+destination.name+' : déplace la flèche si nécessaire puis enregistre.');
+  }
   async function addImages(list:FileList|null){
     if(!list?.length)return;
     const next:Scene[]=[];
@@ -2079,6 +2111,12 @@ function App(){
                         onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}}>
                         ➜ Tester la navigation
                       </button>
+                      <button type="button" className="nv-quick-primary" disabled={!selected.target||!visibleIds.has(selected.target)}
+                        onClick={()=>reverseNavigation(selected)}>
+                        ↩ {project.scenes.find(sc=>sc.id===selected.target)?.hotspots.some(h=>h.type==='navigation'&&h.target===activeId)
+                          ?'Ouvrir le retour existant':'Créer le retour automatiquement'}
+                      </button>
+                      <small className="nv-quick-hint">Crée une flèche retour sur la scène de destination et l’ouvre pour ajuster sa position.</small>
                     </>}
                     {(selected.type==='lien'||selected.type==='information')&&<>
                       <label>Adresse / lien
@@ -2515,6 +2553,12 @@ function App(){
                   onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}}>
                   ➜ Tester la navigation vers ce panorama
                 </button>
+                <button type="button" className="tool nv-reverse-navigation" disabled={!selected.target||!visibleIds.has(selected.target)}
+                  onClick={()=>reverseNavigation(selected)}>
+                  ↩ {project.scenes.find(sc=>sc.id===selected.target)?.hotspots.some(h=>h.type==='navigation'&&h.target===activeId)
+                    ?'Ouvrir le retour existant':'Créer le retour vers ce panorama'}
+                </button>
+                <small className="hint-inline">Crée le point retour sur la scène de destination, avec les mêmes icônes, puis ouvre cette scène pour le repositionner.</small>
                 {selected.target&&<div className="arrival-view-card is-inspector">
                   <div className="section-title">VUE D’ARRIVÉE DE CETTE FLÈCHE</div>
                   {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>
