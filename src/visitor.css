@@ -65,3 +65,6 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 .tour-dialog header button:hover{filter:brightness(1.18)}
 .tour-close-image:active,
 .tour-dialog header button:active{transform:scale(.95)}
+
+/* Fondu final avant retrait de l'introduction ; la visite est chargée dessous. */
+.tour-intro.is-ending{animation:none;opacity:0;transition:opacity .35s ease;pointer-events:none}
