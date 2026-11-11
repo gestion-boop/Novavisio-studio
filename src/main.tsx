@@ -19,7 +19,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
