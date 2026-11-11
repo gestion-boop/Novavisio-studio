@@ -1213,6 +1213,45 @@ function App(){
       {restoreHiddenLink()}
     </div>;
   }
+  // Choix rapide d'un jeu complet, identique à l'inspecteur principal :
+  // une sélection applique normal + survol + clic + taille en une seule opération.
+  function fullscreenIconSetPicker(
+    current:{iconId?:string;hoverIconId?:string;pressedIconId?:string;size:number},
+    apply:(set:{iconId:string;hoverIconId?:string;pressedIconId?:string;size:number})=>void
+  ){
+    const sets=collectIconSets();
+    return <div className="nv-quick-icon-pack">
+      <div className="nv-quick-section-title">JEUX D’ICÔNES COMPLETS</div>
+      <p className="nv-quick-hint">Choisis un groupe : les trois états (normal, survol, clic) et la taille sont appliqués ensemble.</p>
+      {sets.length>0?<div className="nv-quick-icon-packs">
+        {sets.map(set=>{
+          const isCurrent=set.iconId===current.iconId&&
+            set.hoverIconId===current.hoverIconId&&
+            set.pressedIconId===current.pressedIconId&&set.size===current.size;
+          return <button type="button" key={set.key}
+            className={'nv-quick-icon-pack-choice'+(isCurrent?' is-active':'')}
+            title={'Utilisé par : '+set.users.join(', ')}
+            aria-pressed={isCurrent}
+            onClick={()=>{apply(set);setStatus('Jeu appliqué : normal, survol, clic et taille ('+set.size+' px)');}}>
+            <span className="nv-quick-icon-pack-icons">
+              {iconSetCells(set).map(([label,url])=><span key={label} className="nv-quick-icon-pack-state">
+                {url?<img src={url} alt={label}/>:<span className="nv-quick-icon-pack-empty">◎</span>}
+                <small>{label}</small>
+              </span>)}
+            </span>
+            <span className="nv-quick-icon-pack-caption">{set.size} px{isCurrent?' · Actuel':''}</span>
+          </button>;
+        })}
+      </div>:<p className="nv-quick-hint">Aucun pack enregistré. Crée un jeu dans le panneau classique ; il apparaîtra automatiquement ici.</p>}
+      {hiddenIconSetCount()>0&&<button type="button" className="nv-quick-icon-pack-restore" onClick={showAllIconSets}>
+        Réafficher les {hiddenIconSetCount()} jeux masqués
+      </button>}
+      <details className="nv-quick-icon-advanced">
+        <summary>Personnaliser les PNG séparément</summary>
+        <p>Utilise les réglages ci-dessous pour changer un seul état ou importer un PNG personnalisé.</p>
+      </details>
+    </div>;
+  }
   // Un seul état à la fois : on voit l'icône de CE bouton, pas toute la bibliothèque.
   function iconStateEditor(key:string,label:string,iconId:string|undefined,apply:(value:string|undefined)=>void,fallback:string){
     const icon=project.icons.find(i=>i.id===iconId);
@@ -1877,7 +1916,12 @@ function App(){
                       <label className="nv-quick-check"><input type="checkbox" checked={selected.videoOpenFullscreen!==false}
                         onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic</label>
                     </>}
-                    <div className="nv-quick-section-title">Icône du point</div>
+                    {selected.type!=='image'&&selected.type!=='video'&&fullscreenIconSetPicker(
+                      {...selected,size:selected.iconSize??28},
+                      set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,
+                        pressedIconId:set.pressedIconId,iconSize:set.size})
+                    )}
+                    <div className="nv-quick-section-title">Icône du point — réglages individuels</div>
                     {(['iconId','hoverIconId','pressedIconId'] as const).map((field,index)=>
                       <div key={field} className="nv-quick-icon-field">
                         <strong>{['Normale','Survol','Clic'][index]}</strong>
@@ -1930,6 +1974,12 @@ function App(){
                     {(selectedBar.type==='lien'||selectedBar.type==='information')&&<label>Lien
                       <input value={selectedBar.url??''} placeholder="https://…" onChange={e=>patchBar({url:e.target.value})}/>
                     </label>}
+                    {fullscreenIconSetPicker(
+                      {...selectedBar,size:barIconSize(selectedBar)},
+                      set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,
+                        pressedIconId:set.pressedIconId,iconSize:set.size})
+                    )}
+                    <div className="nv-quick-section-title">PNG individuels (optionnel)</div>
                     {(['iconId','hoverIconId','pressedIconId'] as const).map((field,index)=><div key={field} className="nv-quick-icon-field">
                       <strong>{['PNG normal','PNG survol','PNG clic'][index]}</strong>
                       <div className="nv-quick-icon-grid">
