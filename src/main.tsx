@@ -1409,37 +1409,6 @@ function App(){
             <small>ÉDITEUR DE VISITES 360°</small>
           </div>
         </div>
-        <div className="project-name">
-          <div className="project-name-wrapper">
-            <Edit3 size={14} className="project-edit-icon" />
-            <input aria-label="Nom du projet" value={project.name}
-              onChange={e=>setProject(p=>({...p,name:e.target.value}))}/>
-          </div>
-          <span className="save-chip" title={'Sauvegarde : '+status}>{status}</span>
-          {cloud.state.kind!=='off'&&<button type="button"
-            className={'cloud-chip is-'+cloud.state.kind}
-            onClick={()=>cloud.state.kind==='error'?cloud.retryNow():setCloudOpen(true)}
-            title={cloud.state.kind==='saved'&&cloud.state.note?cloud.state.note:'Statut de synchronisation Supabase'}>
-            <Cloud size={12}/> {cloudLabel(cloud.state)}
-          </button>}
-        </div>
-      </div>
-      <div className="top-actions">
-        <div className="mode-switch-group" role="group" aria-label="Mode de l'éditeur">
-          <button type="button" className={'mode-btn '+(!preview?'is-active':'')}
-            aria-pressed={!preview}
-            onClick={()=>{if(preview){setPreview(false);setIntroVisible(false);}}}>
-            <Edit3 size={15}/> Éditer
-          </button>
-          <button type="button" className={'mode-btn '+(preview?'is-active':'')}
-            aria-pressed={preview}
-            title="Visualiser la visite depuis la scène affichée"
-            onClick={()=>{
-              if(!preview){setIntroVisible(false);setPreview(true);setMode(null);setSelectedId('');}
-            }}>
-            <Eye size={15}/> Aperçu
-          </button>
-        </div>
         <div className="nv-header-menu-list" ref={topMenusRef}>
           <div className="nv-menu-root">
             <button type="button" className={'nv-menu-trigger '+(openTopMenu==='file'?'is-open':'')}
@@ -1524,6 +1493,40 @@ function App(){
             </button>
           </div>
         </div>
+      </div>
+      <div className="nv-top-center">
+        <div className="project-name">
+          <div className="project-name-wrapper">
+            <Edit3 size={14} className="project-edit-icon"/>
+            <input aria-label="Nom du projet" value={project.name}
+              onChange={event=>setProject(current=>({...current,name:event.target.value}))}/>
+          </div>
+        </div>
+        <div className="mode-switch-group" role="group" aria-label="Mode de l'éditeur">
+          <button type="button" className={'mode-btn '+(!preview?'is-active':'')}
+            aria-pressed={!preview}
+            onClick={()=>{if(preview){setPreview(false);setIntroVisible(false);}}}>
+            <Edit3 size={15}/> Éditer
+          </button>
+          <button type="button" className={'mode-btn '+(preview?'is-active':'')}
+            aria-pressed={preview}
+            title="Visualiser la visite depuis la scène affichée"
+            onClick={()=>{
+              if(!preview){setIntroVisible(false);setPreview(true);setMode(null);setSelectedId('');}
+            }}>
+            <Eye size={15}/> Aperçu
+          </button>
+        </div>
+      </div>
+      <div className="top-actions">
+        <button type="button" className="nv-header-save" disabled={!ready||savingManually||!!lock}
+          title={!ready?'Chargement…':savingManually?'Enregistrement en cours…':
+            project!==savedRef.current?'Enregistrer maintenant (⌘S / Ctrl+S)':'Enregistrer (⌘S / Ctrl+S)'}
+          onClick={()=>void manualSave()} aria-label="Enregistrer le projet maintenant">
+          <Save size={18}/>
+          <span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
+          {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+        </button>
         <button type="button" className="nv-header-icon-btn"
           title={studioFullscreen?'Quitter le plein écran':'Plein écran de tout NovaVisio Studio'}
           aria-label={studioFullscreen?'Quitter le plein écran du logiciel':'Plein écran du logiciel'}
