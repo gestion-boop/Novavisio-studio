@@ -3533,3 +3533,21 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   margin-top:0!important;
   padding-top:0!important;
 }
+
+/* Assistant pas à pas : CTA bleu NovaVisio au milieu du bas du 360°. */
+.nv-auto-navigation{
+ position:absolute;left:50%;bottom:104px;transform:translateX(-50%);
+ z-index:52;display:flex;align-items:center;justify-content:center;gap:8px;
+ min-width:138px;min-height:43px;padding:9px 20px;
+ border-radius:999px;border:1px solid #67d3e5;
+ background:linear-gradient(155deg,#277fa2 0%,#17618d 58%,#12496d 100%);
+ box-shadow:0 7px 18px #051c2c77,inset 0 1px 0 #ffffff55;
+ color:#f1fdff;font-size:14px;font-weight:800;letter-spacing:.3px;cursor:pointer;
+ transition:transform .15s ease,box-shadow .15s ease,background .15s ease;
+}
+.nv-auto-navigation:hover{filter:brightness(1.12)}
+.nv-auto-navigation:active{transform:translateX(-50%) translateY(2px);box-shadow:inset 0 3px 9px #001a2d99}
+.nv-auto-navigation.is-active{background:linear-gradient(145deg,#166c91,#0a476d);border:2px solid #71e6f2;box-shadow:inset 0 3px 10px #00192b99,0 0 0 3px #44bfd52b;color:white}
+.nv-auto-symbol{font-size:19px;line-height:1}
+.nv-direction-preview~.nv-auto-navigation{visibility:hidden}
+@media(max-width:740px){.nv-auto-navigation{bottom:92px;min-height:41px;min-width:106px;padding:8px 14px;font-size:12px}}
