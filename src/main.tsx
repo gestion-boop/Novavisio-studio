@@ -1637,7 +1637,7 @@ function App(){
     </div>}
     {lock&&<div className="nv-banner" role="alert">
       {lock.kind==='conflict'&&<>
-        <p><b>Ce projet a été modifié dans une autre fenêtre.</b> Rien n’a été écrasé : l’enregistrement automatique est suspendu dans celle-ci pour protéger ton travail.</p>
+        <p><b>Ce projet a été modifié dans une autre fenêtre.</b> Rien n’a été écrasé : l’enregistrement est suspendu dans celle-ci pour protéger ton travail.</p>
         <div className="nv-banner-actions">
           <button className="primary" onClick={()=>void reloadFromStore()}>Recharger la version enregistrée</button>
           <button className="quiet" onClick={download}>Télécharger ma version d’abord</button>
@@ -1653,7 +1653,7 @@ function App(){
         </div>
       </>}
       {lock.kind==='saveError'&&<>
-        <p><b>La sauvegarde automatique a échoué :</b> {lock.reason}. Tes dernières modifications ne sont pas enregistrées.</p>
+        <p><b>La sauvegarde manuelle a échoué :</b> {lock.reason}. Tes dernières modifications ne sont pas enregistrées.</p>
         <div className="nv-banner-actions">
           <button className="primary" onClick={download}>Télécharger ma sauvegarde (.nvstudio.json)</button>
           <button className="quiet" onClick={()=>setLock(null)}>Réessayer</button>
@@ -2292,7 +2292,7 @@ function App(){
     {privateOpen&&<PrivatePanel project={project} onClose={()=>setPrivateOpen(false)} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state} autoEnabled={cloud.enabled}/>}
     {shareOpen&&<SharePanel project={project} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onBackup={download} onStatus={setStatus}
-      autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
+      autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
       onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
