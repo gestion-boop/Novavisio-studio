@@ -498,6 +498,7 @@ function App(){
   const topMenusRef=useRef<HTMLDivElement>(null);
   const [openTopMenu,setOpenTopMenu]=useState<HeaderMenu>(null);
   const [navigationDrawerOpen,setNavigationDrawerOpen]=useState(false);
+  const [spacesDrawerOpen,setSpacesDrawerOpen]=useState(false);
   const [studioFullscreen,setStudioFullscreen]=useState(false);
   const [studioFallback,setStudioFallback]=useState(false);
   const [leftHidden,setLeftHidden]=useState(()=>readStudioLayout().leftHidden);
@@ -2430,6 +2431,14 @@ function App(){
           </button>
         </div>
       </div>
+      <button type="button" className={'nv-header-spaces-trigger'+(spacesDrawerOpen?' is-open':'')}
+        aria-expanded={spacesDrawerOpen} aria-controls="nv-workspace-spaces"
+        title={spacesDrawerOpen?'Masquer les espaces pour agrandir le panorama':'Afficher les espaces du projet'}
+        onClick={()=>setSpacesDrawerOpen(open=>!open)}>
+        <Layers size={17}/><span>Espaces</span>
+        <small>{(project.spaces?.length??0)+1}</small>
+        <ChevronDown size={15} className={spacesDrawerOpen?'is-open':''}/>
+      </button>
       <div className="nv-header-tool-picker" ref={toolsMenuRef}>
         <button type="button" className={'nv-header-tools-trigger'+(toolsMenuOpen?' is-open':'')}
           aria-haspopup="menu" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
@@ -2478,7 +2487,7 @@ function App(){
         </button>
       </div>
     </header>
-    <section className="nv-space-strip" aria-label="Espaces de travail du projet">
+    <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen} inert={!spacesDrawerOpen}>
       
       <div className="nv-space-tab-scroll" role="tablist" aria-label="Espaces du projet">
         <button type="button" role="tab" aria-selected={!currentSpace}
