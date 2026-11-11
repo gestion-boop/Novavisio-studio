@@ -620,6 +620,7 @@ function App(){
   const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [quickLinkMode,setQuickLinkMode]=useState(true);
+  const [pendingNavigation,setPendingNavigation]=useState<{fromId:string;targetId:string}|null>(null);
   const galleryOrientationRef=useRef<Record<string,{yaw:number;pitch:number;zoom:number}>>({});
   const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
   const [panoramasLayout,setPanoramasLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-panorama-layout')==='grid'?'grid':'list';}catch{return 'list';}});
@@ -696,6 +697,7 @@ function App(){
   projectRef.current=project;
   lockRef.current=lock;
   function adopt(p:StudioProject,stamp:string|null){
+    setPendingNavigation(null);
     setActiveSpaceId(null);setSpaceManagerOpen(false);
     const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
     savedRef.current=upgraded;baseRef.current=stamp;
@@ -1068,37 +1070,68 @@ function App(){
     }
   }
   function selectScene(id:string){
+    setPendingNavigation(null);
     if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
     // Navigation directe : toujours revenir à la vue d'arrivée par défaut du panorama.
     // Une arrivée personnalisée PAR FLÈCHE ne s'applique qu'au clic sur cette flèche.
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(id);
     setSelectedId('');setMode(null);
   }
+  // Réutiliser le jeu Navigation réellement employé par le projet.
+  // Ainsi Figurotta reprend ses trois PNG et sa taille 50px.
+  function defaultNavigationIconSet(){
+    const valid=new Set(project.icons.map(icon=>icon.id));
+    const counts=new Map<string,{iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number;count:number}>();
+    for(const scene of project.scenes)for(const point of scene.hotspots){
+      if(point.type!=='navigation'||!point.iconId||!valid.has(point.iconId))continue;
+      const iconSize=point.iconSize??28;
+      const hoverIconId=point.hoverIconId&&valid.has(point.hoverIconId)?point.hoverIconId:undefined;
+      const pressedIconId=point.pressedIconId&&valid.has(point.pressedIconId)?point.pressedIconId:undefined;
+      const key=[point.iconId,hoverIconId??'',pressedIconId??'',iconSize].join('|');
+      const old=counts.get(key);
+      counts.set(key,old?{...old,count:old.count+1}:{iconId:point.iconId,hoverIconId,pressedIconId,iconSize,count:1});
+    }
+    return [...counts.values()].sort((a,b)=>b.count-a.count)[0]??null;
+  }
+  const navigationIconDefault=defaultNavigationIconSet();
   function createNavigationFromGallery(targetId:string){
     const source=project.scenes.find(scene=>scene.id===activeId);
     const destination=visibleScenes.find(scene=>scene.id===targetId);
-    if(!source||!destination||source.id===destination.id)return;
+    if(preview||!source||!destination||source.id===destination.id)return;
+    // Le choix prépare la cible, sans créer de flèche avant validation.
+    setPendingNavigation({fromId:source.id,targetId:destination.id});
+    setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
+    setFullscreenToolsOpen(false);setNavigationPickerOpen(false);
+    setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
+    setHoveredGallerySceneId(null);
+    setMode(null);
+    setStatus('Destination '+destination.name+' sélectionnée · Oriente la vue avec la cible, puis valide la flèche.');
+  }
+  function validatePendingNavigation(){
+    const pending=pendingNavigation;
+    if(!pending||preview)return;
+    const source=project.scenes.find(scene=>scene.id===pending.fromId);
+    const destination=visibleScenes.find(scene=>scene.id===pending.targetId);
+    if(!source||!destination||source.id!==activeId){setPendingNavigation(null);return;}
     const cam=cameraRef.current;
-    // The viewer may not have emitted its first camera event yet.
-    // Use the source's recorded default orientation rather than doing nothing.
     const orientation=cam.sceneId===source.id?cam:{
       sceneId:source.id,yaw:source.arrivalYaw??0,pitch:source.arrivalPitch??0,zoom:panoramaArrivalZoom(source)
     };
-    const arrival=galleryOrientationRef.current[targetId]??{
+    const arrival=galleryOrientationRef.current[destination.id]??{
       yaw:destination.arrivalYaw??0,pitch:destination.arrivalPitch??0,zoom:panoramaArrivalZoom(destination)
     };
+    const icon=defaultNavigationIconSet();
     const point:Hotspot={
       id:uid(),type:'navigation',title:'Aller vers '+destination.name,text:'',
       target:destination.id,yaw:orientation.yaw,pitch:orientation.pitch,
-      arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,arrivalZoomModel:'wide'
+      arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,arrivalZoomModel:'wide',
+      ...(icon?{iconId:icon.iconId,hoverIconId:icon.hoverIconId,pressedIconId:icon.pressedIconId,iconSize:icon.iconSize}:{})
     };
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===source.id?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
-    setSelectedId(point.id);setSelectedBarId('');setPanel('points');setMode(null);
-    setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
+    setPendingNavigation(null);
+    setSelectedId(point.id);setSelectedBarId('');setPanel('points');
     setFullscreenToolsTab('point');setFullscreenToolsOpen(creationFullscreen);
-    setHoveredGallerySceneId(null);
-    setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
-    setStatus('Flèche vers '+destination.name+' créée au centre de la vue avec l’orientation d’arrivée · Enregistre avec la disquette.');
+    setStatus('Flèche du projet créée vers '+destination.name+'. Position modifiable · Enregistre avec la disquette.');
   }
   function chooseFullscreenScene(id:string){
     if(!visibleIds.has(id))return;
@@ -1736,6 +1769,7 @@ function App(){
     const space=spaceId?(project.spaces??[]).find(item=>item.id===spaceId):null;
     if(spaceId&&!space)return;
     const first=space?scenesInSpace(project,space)[0]:project.scenes[0];
+    setPendingNavigation(null);
     setActiveSpaceId(space?.id??null);
     setActiveId(first?.id??'');
     setSelectedId('');setMode(null);setPreview(false);
@@ -2212,7 +2246,23 @@ function App(){
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
             </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
           </div>}
-          {creationFullscreen&&showArrivalCrosshair&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
+          {(creationFullscreen&&showArrivalCrosshair||pendingNavigation&&!preview)&&<div className="nv-arrival-crosshair" aria-hidden="true"><span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/></div>}
+          {pendingNavigation&&!preview&&active?.id===pendingNavigation.fromId&&
+            <section className="nv-pending-navigation" aria-label="Confirmer la création de la flèche">
+              <div className="nv-pending-navigation-heading"><strong>➜ Nouvelle navigation</strong>
+                <span>{visibleScenes.find(s=>s.id===pendingNavigation.targetId)?.name??'Destination'}</span></div>
+              <p>Oriente le panorama jusqu'à l'endroit souhaité, sous la cible centrale.</p>
+              <div className="nv-pending-navigation-icon">
+                {navigationIconDefault?<><IconStateVisual icons={project.icons} normal={navigationIconDefault.iconId}
+                  hover={navigationIconDefault.hoverIconId} pressed={navigationIconDefault.pressedIconId}
+                  size={navigationIconDefault.iconSize}/><span>Flèche du projet · {navigationIconDefault.iconSize} px</span></>
+                  :<span>➜ Icône de navigation standard</span>}
+              </div>
+              <div className="nv-pending-navigation-actions">
+                <button type="button" className="nv-pending-confirm" onClick={validatePendingNavigation}>✓ Valider la flèche</button>
+                <button type="button" className="nv-pending-cancel" onClick={()=>setPendingNavigation(null)}>Annuler</button>
+              </div>
+            </section>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
             <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
@@ -2292,7 +2342,7 @@ function App(){
               <button type="button" className={quickLinkMode?'is-active':''} aria-pressed={quickLinkMode} onClick={()=>setQuickLinkMode(v=>!v)}>
                 ➜ {quickLinkMode?'Création de flèches activée':'Activer création de flèches'}
               </button>
-              <small>{quickLinkMode?'Choisis une destination : la flèche est placée au centre de la vue actuelle.':'Choisis un panorama pour l’ouvrir sans créer de flèche.'}</small>
+              <small>{quickLinkMode?'Choisis une destination, vise avec la croix, puis valide. Les icônes du projet seront utilisées.':'Choisis un panorama pour l’ouvrir sans créer de flèche.'}</small>
             </div>
             <div className="nv-gallery-layout-choice" role="group" aria-label="Affichage des panoramas"><button type="button" className={fullscreenGalleryLayout==='grid'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('grid')}>▦ Grille</button><button type="button" className={fullscreenGalleryLayout==='list'?'is-active':''} onClick={()=>setFullscreenGalleryLayout('list')}>☷ Liste</button></div>
             <div className={'nv-fullscreen-gallery-list nv-gallery-layout-'+fullscreenGalleryLayout}>
@@ -2308,7 +2358,7 @@ function App(){
                 <span className="nv-fullscreen-gallery-scene-details">
                   <strong>{scene.name}</strong>
                   <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
-                  {quickLinkMode&&!preview&&scene.id!==activeId&&<em>➜ Créer une flèche vers cette scène</em>}
+                  {quickLinkMode&&!preview&&scene.id!==activeId&&<em>⊕ Sélectionner, viser, valider</em>}
                   {scene.arrivalYaw!==undefined&&<em>✓ Vue d'arrivée définie</em>}
                 </span>
               </button>)}
@@ -2757,7 +2807,7 @@ function App(){
             onClick={()=>setQuickLinkMode(v=>!v)}>
             ➜ {quickLinkMode?'Flèche automatique : activée':'Flèche automatique : désactivée'}
           </button>
-          <small>{quickLinkMode?'Clique sur un panorama ci-dessous pour placer immédiatement sa flèche dans la vue actuelle.':'Clique sur un panorama pour l’ouvrir sans créer de flèche.'}</small>
+          <small>{quickLinkMode?'Choisis une destination, oriente la cible, puis valide la flèche avec les icônes du projet.':'Clique sur un panorama pour l’ouvrir sans créer de flèche.'}</small>
         </div>}
         <button className="import" onClick={()=>upload.current?.click()}>
           <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer des panoramas
@@ -2823,7 +2873,7 @@ function App(){
             <button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);setPanel('points');}}>
               Ouvrir ce panorama pour l'éditer
             </button>
-            {!preview&&sc.id!==activeId&&<button type="button" className="nv-quick-create-arrow" onClick={()=>createNavigationFromGallery(sc.id)}>➜ Créer une flèche vers ce panorama</button>}
+            {!preview&&sc.id!==activeId&&<button type="button" className="nv-quick-create-arrow" onClick={()=>createNavigationFromGallery(sc.id)}>⊕ Sélectionner cette destination</button>}
           </div>)}
         </div>}
         <div className="helper nv-gallery-help" hidden>
