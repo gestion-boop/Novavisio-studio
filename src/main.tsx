@@ -31,7 +31,7 @@ import './style.css';
 import './media.css';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'bar' | 'icons' | 'intro' | 'elements' | 'music';
+type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -583,6 +583,7 @@ function App(){
   const [navigationPickerSearch,setNavigationPickerSearch]=useState('');
   const [classicDestinationOpen,setClassicDestinationOpen]=useState(false);
   const [classicDestinationPreviewId,setClassicDestinationPreviewId]=useState<string|null>(null);
+  const [galleryPreviewSceneId,setGalleryPreviewSceneId]=useState<string|null>(null);
   const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
@@ -2037,68 +2038,6 @@ function App(){
             <button type="button" onClick={()=>setClassicDestinationOpen(false)}>← Retour aux réglages</button>
           </div>
         </section>}
-      <aside className="left panel">
-        <div className="section-title">
-          <span>PANORAMAS</span>
-          <span className="counter">{visibleScenes.length}</span>
-        </div>
-        {currentSpace&&<div className="nv-space-sidebar-context">
-          <strong>{currentSpace.name}</strong>
-          <small>Les originaux restent dans « Projet complet ».</small>
-          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
-        </div>}
-        <button className="import" onClick={()=>upload.current?.click()}>
-          <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer des panoramas
-        </button>
-        <div className="nv-scene-discovery">
-          <label className="nv-scene-search">
-            <Search size={16} aria-hidden="true"/>
-            <input type="search" value={sceneSearch} aria-label="Rechercher un panorama"
-              placeholder="Rechercher une scène…" onChange={event=>setSceneSearch(event.target.value)}/>
-          </label>
-          <select className="nv-scene-filter" aria-label="Filtrer les panoramas"
-            value={sceneFilter} onChange={event=>setSceneFilter(event.target.value as SceneFilter)}>
-            <option value="all">Toutes</option>
-            <option value="with">Avec points</option>
-            <option value="without">Sans points</option>
-          </select>
-        </div>
-        <div className="scenes" ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
-          onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
-          onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
-          <button className={'scene '+(s.id===activeId?'active':'')} title="Glisse pour changer l’ordre (ou Alt + ↑ / ↓)"
-            onKeyDown={e=>{
-              if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
-              e.preventDefault();
-              moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
-            }}
-            onClick={()=>{selectScene(s.id);setSelectedId('');setMode(null);}}>
-            {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
-            <span className="nv-scene-description">
-              <strong title={s.name}>{s.name}</strong>
-              <small>Scène {visibleScenes.findIndex(scene=>scene.id===s.id)+1}
-                {s.id===visibleScenes[0]?.id?' · Accueil':''} · {s.hotspots.length} point{s.hotspots.length>1?'s':''}</small>
-            </span>
-          </button>
-          {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
-             aria-label={'Retirer '+s.name+' de cet espace'}
-             onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}>✕</button>:
-            <span className="scene-grip" aria-hidden="true" title="Glisse pour changer l’ordre">⋮⋮</span>}
-        </div>)}
-        {currentSpace&&!visibleScenes.length&&<div className="nv-space-empty-list">
-          <p>Aucun panorama dans cet espace.</p>
-          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>Choisir des panoramas</button>
-        </div>}
-        {visibleScenes.length>0&&!filteredScenes.length&&<div className="nv-space-empty-list">
-          <p>Aucun panorama ne correspond à la recherche.</p>
-          <button type="button" onClick={()=>{setSceneSearch('');setSceneFilter('all');}}>Effacer les filtres</button>
-        </div>}</div>
-        <div className="helper">
-          <strong>✦ Guide rapide</strong>
-          <p>Clique sur un point dans le 360° pour modifier directement ses propriétés à droite.</p>
-          <button className="help" onClick={()=>setHelp(true)}>Guide de démarrage →</button>
-        </div>
-      </aside>
       <main className="editor">
         <div className="editor-top">
           <span>{currentSpace?currentSpace.name:'PROJET COMPLET'} / <strong>{active?.name??'Sélectionner un panorama'}</strong></span>
@@ -2618,6 +2557,7 @@ function App(){
       </main>
       <aside className="right panel">
         <div className="side-tabs" role="tablist" aria-label="Options d'édition">
+          <button role="tab" aria-selected={panel==='panoramas'} className={panel==='panoramas'?'active':''} onClick={()=>{setPanel('panoramas');setSelectedId('');setMode(null);}}>▣ Panoramas</button>
           <button role="tab" aria-selected={panel==='points'} className={panel==='points'?'active':''} onClick={()=>setPanel('points')}>
             {selectedId ? '◉ Inspecteur' : 'Scène & Points'}
           </button>
@@ -2627,6 +2567,81 @@ function App(){
           <button role="tab" aria-selected={panel==='elements'} className={panel==='elements'?'active':''} onClick={()=>setPanel('elements')}>Éléments</button>
           <button role="tab" aria-selected={panel==='music'} className={panel==='music'?'active':''} onClick={()=>setPanel('music')}>Musique</button>
         </div>
+        {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
+        <div className="section-title">
+          <span>PANORAMAS</span>
+          <span className="counter">{visibleScenes.length}</span>
+        </div>
+        {currentSpace&&<div className="nv-space-sidebar-context">
+          <strong>{currentSpace.name}</strong>
+          <small>Les originaux restent dans « Projet complet ».</small>
+          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
+        </div>}
+        <button className="import" onClick={()=>upload.current?.click()}>
+          <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer des panoramas
+        </button>
+        <div className="nv-scene-discovery">
+          <label className="nv-scene-search">
+            <Search size={16} aria-hidden="true"/>
+            <input type="search" value={sceneSearch} aria-label="Rechercher un panorama"
+              placeholder="Rechercher une scène…" onChange={event=>setSceneSearch(event.target.value)}/>
+          </label>
+          <select className="nv-scene-filter" aria-label="Filtrer les panoramas"
+            value={sceneFilter} onChange={event=>setSceneFilter(event.target.value as SceneFilter)}>
+            <option value="all">Toutes</option>
+            <option value="with">Avec points</option>
+            <option value="without">Sans points</option>
+          </select>
+        </div>
+        <div className="scenes" ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
+          onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
+          onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
+          <button className={'scene '+(s.id===activeId?'active':'')} title="Ouvrir ce panorama dans la grande vue"
+            onKeyDown={e=>{
+              if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
+              e.preventDefault();
+              moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
+            }}
+            onClick={()=>{selectScene(s.id);setSelectedId('');setMode(null);setGalleryPreviewSceneId(null);}}>
+            {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
+            <span className="nv-scene-description">
+              <strong title={s.name}>{s.name}</strong>
+              <small>Scène {visibleScenes.findIndex(scene=>scene.id===s.id)+1}
+                {s.id===visibleScenes[0]?.id?' · Accueil':''} · {s.hotspots.length} point{s.hotspots.length>1?'s':''}</small>
+            </span>
+          </button>
+          <button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
+            onClick={()=>setGalleryPreviewSceneId(s.id)}>360°</button>
+          {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
+             aria-label={'Retirer '+s.name+' de cet espace'}
+             onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}>✕</button>:
+            <span className="scene-grip" aria-hidden="true" title="Glisse pour changer l’ordre">⋮⋮</span>}
+        </div>)}
+        {currentSpace&&!visibleScenes.length&&<div className="nv-space-empty-list">
+          <p>Aucun panorama dans cet espace.</p>
+          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>Choisir des panoramas</button>
+        </div>}
+        {visibleScenes.length>0&&!filteredScenes.length&&<div className="nv-space-empty-list">
+          <p>Aucun panorama ne correspond à la recherche.</p>
+          <button type="button" onClick={()=>{setSceneSearch('');setSceneFilter('all');}}>Effacer les filtres</button>
+        </div>}</div>
+        {galleryPreviewSceneId&&visibleScenes.some(sc=>sc.id===galleryPreviewSceneId)&&<div className="nv-side-panorama-preview">
+          <div className="nv-side-preview-title"><strong>Aperçu 360°</strong>
+            <button type="button" onClick={()=>setGalleryPreviewSceneId(null)} aria-label="Fermer l'aperçu">✕</button></div>
+          {visibleScenes.filter(sc=>sc.id===galleryPreviewSceneId).map(sc=><div key={sc.id} className="nv-side-preview-content">
+            <strong>{sc.name}</strong>
+            <div className="nv-side-preview-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/></div>
+            <button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setPanel('points');}}>
+              Ouvrir ce panorama pour l'éditer
+            </button>
+          </div>)}
+        </div>}
+        <div className="helper">
+          <strong>✦ Guide rapide</strong>
+          <p>Clique sur un point dans le 360° pour modifier directement ses propriétés à droite.</p>
+          <button className="help" onClick={()=>setHelp(true)}>Guide de démarrage →</button>
+        </div>
+        </div>}
         {panel==='points' && <div className="properties">
           {active&&nightSceneControls(active)}
           {!active?<div className="hint">Importe un panorama pour commencer à créer.</div>:selected ? (
