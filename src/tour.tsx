@@ -53,6 +53,7 @@ type ViewerProps={
   scene:Scene;
   icons:CustomIcon[];
   night:boolean;
+  nightTexture?:string;
   navigate:(id:string,via?:Hotspot)=>void;
   arrival?:{sceneId:string;yaw:number;pitch:number;zoom:number}|null;
   info:(h:Hotspot)=>void;
@@ -61,7 +62,7 @@ type ViewerProps={
   video:(h:Hotspot,from?:ZoomOrigin|null)=>void;
   onReady:(sceneId:string)=>void;
 };
-function Pano({scene,icons,night,arrival,navigate,info,linked,image,video,onReady}:ViewerProps){
+function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image,video,onReady}:ViewerProps){
   const container=useRef<HTMLDivElement>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic : point de départ du zoom photo/vidéo
   useEffect(()=>{
@@ -80,7 +81,7 @@ function Pano({scene,icons,night,arrival,navigate,info,linked,image,video,onRead
     if(!container.current)return;
     const instance=new Viewer({
       container:container.current,
-      panorama:night&&scene.nightDataUrl?scene.nightDataUrl:scene.dataUrl,
+      panorama:night&&nightTexture?nightTexture:scene.dataUrl,
       navbar:[],defaultZoomLvl:panoramaArrivalZoom(scene),
       defaultYaw:scene.arrivalYaw??0,defaultPitch:scene.arrivalPitch??0,
       minFov:PANORAMA_MIN_FOV,maxFov:PANORAMA_MAX_FOV,fisheye:false,loadingTxt:'',
@@ -134,7 +135,7 @@ function Pano({scene,icons,night,arrival,navigate,info,linked,image,video,onRead
     const markersNow=()=>next.hotspots.map(h=>publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel()));
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),260);};
     instance.addEventListener('panorama-loaded',onLoaded);
-    const nextTexture=night&&next.nightDataUrl?next.nightDataUrl:next.dataUrl;
+    const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
     void instance.setPanorama(nextTexture,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
@@ -153,7 +154,7 @@ function Pano({scene,icons,night,arrival,navigate,info,linked,image,video,onRead
   useEffect(()=>{
     const instance=viewer.current;
     if(!instance||loadedScene.current!==scene.id)return;
-    const texture=night&&scene.nightDataUrl?scene.nightDataUrl:scene.dataUrl;
+    const texture=night&&nightTexture?nightTexture:scene.dataUrl;
     if(currentTexture.current===texture)return;
     let disposed=false;
     const position=instance.getPosition(),zoom=instance.getZoomLevel();
@@ -161,7 +162,7 @@ function Pano({scene,icons,night,arrival,navigate,info,linked,image,video,onRead
       .then(success=>{if(success&&!disposed)currentTexture.current=texture;})
       .catch(()=>{/* Conserve la version précédente si la photo de nuit ne charge pas. */});
     return ()=>{disposed=true;};
-  },[scene.id,night,scene.nightDataUrl,scene.dataUrl]);
+  },[scene.id,night,nightTexture,scene.dataUrl]);
   useEffect(()=>{
     const instance=viewer.current;
     if(!instance||loadedScene.current!==scene.id)return;
@@ -254,7 +255,9 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   } as CSSProperties;
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const current=project.scenes.find(s=>s.id===sceneId)??project.scenes[0];
-  const nightActive=nightSceneId===current.id&&!!current.nightDataUrl;
+  const nightSource=project.scenes.find(sc=>sc.id===current.nightSourceSceneId);
+  const nightTexture=current.nightDataUrl??nightSource?.dataUrl;
+  const nightActive=nightSceneId===current.id&&!!nightTexture;
   const move=(id:string,via?:Hotspot)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);
     setArrival(via&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:panoramaArrivalZoom(via)}:null);
     setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
@@ -296,8 +299,8 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
   return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
-    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} night={nightActive} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
-    {current.nightDataUrl&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
+    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
+    {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
       <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
       <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(current.id)}>☾ <span>Nuit</span></button>
     </div>}
