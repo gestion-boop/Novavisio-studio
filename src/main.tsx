@@ -2290,15 +2290,6 @@ function App(){
   }>
     <header className="topbar">
       <div className="nv-top-left">
-        <div className="brand">
-          <div className="brand-logo">
-            <img src="/brand/novavisio-logo.png" alt="Logo NovaVisio" draggable={false}/>
-          </div>
-          <div className="nv-brand-text">
-            <strong>NovaVisio <span>Studio</span></strong>
-            <small>ÉDITEUR DE VISITES 360°</small>
-          </div>
-        </div>
         <button type="button" className={'nv-header-burger'+(navigationDrawerOpen?' is-open':'')}
           aria-label="Ouvrir le menu de navigation" aria-expanded={navigationDrawerOpen}
           aria-controls="nv-studio-navigation" onClick={()=>{setNavigationDrawerOpen(open=>!open);setOpenTopMenu(null);}}>
@@ -2308,6 +2299,17 @@ function App(){
           aria-label="Fermer le menu" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}}/>}
         <nav id="nv-studio-navigation" className={'nv-navigation-drawer'+(navigationDrawerOpen?' is-open':'')}
           aria-label="Navigation NovaStudio" aria-hidden={!navigationDrawerOpen}>
+          <div className="nv-navigation-brand">
+            <div className="brand">
+              <div className="brand-logo">
+                <img src="/brand/novavisio-logo.png" alt="Logo NovaVisio" draggable={false}/>
+              </div>
+              <div className="nv-brand-text">
+                <strong>NovaVisio <span>Studio</span></strong>
+                <small>ÉDITEUR DE VISITES 360°</small>
+              </div>
+            </div>
+          </div>
           <div className="nv-navigation-drawer-header"><strong>Navigation</strong>
             <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu">×</button>
           </div>
