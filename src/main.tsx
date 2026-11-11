@@ -2514,6 +2514,18 @@ function App(){
               title="Choisir un panorama dans la galerie">
               <Images size={16}/> Galerie <span className="nv-fullscreen-gallery-count">{visibleScenes.length}</span>
             </button>
+            {!preview&&<button type="button"
+              className={'nv-fullscreen-auto'+(autoNavigation?' is-active':'')}
+              aria-pressed={autoNavigation}
+              title={autoNavigation?'Terminer le parcours Auto':'Lancer la création automatique panorama par panorama'}
+              onClick={()=>{
+                toggleAutoNavigation();
+                setFullscreenCommandDrawerOpen(false);
+                setFullscreenGalleryOpen(false);
+                setFullscreenToolsOpen(false);
+              }}>
+              ↪ {autoNavigation?'Terminer Auto':'Auto'}
+            </button>}
             <button type="button" className={!preview?'nv-fullscreen-mode is-active':'nv-fullscreen-mode'}
               onClick={()=>{setPreview(false);setIntroVisible(false);}} title="Retoucher les éléments 360°">
               <Edit3 size={16}/> Éditer
