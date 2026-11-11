@@ -12,6 +12,7 @@ import {barIconSize,defaultBarStyle,defaultFrameCorners,type StudioProject,type 
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {startVr,vrSupported} from './vr';
 import './visitor.css';
 import './media.css';
 
@@ -179,6 +180,15 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [introCompleted,setIntroCompleted]=useState(false);
   const [firstPanoramaReady,setFirstPanoramaReady]=useState(false);
   const [fullscreen,setFullscreen]=useState(false);
+  const [vrAvailable,setVrAvailable]=useState(false);
+  const [vrActive,setVrActive]=useState(false);
+  const [vrError,setVrError]=useState('');
+  const [vrSceneId,setVrSceneId]=useState<string|null>(null);
+  const projectRef=useRef<StudioProject|null>(null);
+  projectRef.current=project;
+  const needSceneRef=useRef(onNeedScene);needSceneRef.current=onNeedScene;
+  const vrStop=useRef<null|(()=>void)>(null);
+  useEffect(()=>{void vrSupported().then(setVrAvailable);return ()=>vrStop.current?.();},[]);
   const firstSceneId=project?.scenes[0]?.id??'';
   useEffect(()=>{
     if(!showIntro||!project?.introEnabled||!project.introUrl)return;
@@ -244,17 +254,33 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       setModal({title:item.title,text:item.text});
     }
   };
+  const enterVr=async()=>{
+    if(vrActive||!projectRef.current)return;
+    setVrError('');
+    try{
+      vrStop.current=await startVr({
+        getProject:()=>projectRef.current as StudioProject,
+        startSceneId:current.id,
+        ensureScene:id=>needSceneRef.current?.(id),
+        onSceneChange:id=>setVrSceneId(id),
+        onEnd:last=>{vrStop.current=null;setVrActive(false);setVrSceneId(null);if(projectRef.current?.scenes.some(s=>s.id===last))setSceneId(last);}
+      });
+      setVrActive(true);
+    }catch(error){setVrError(error instanceof Error?error.message:'Impossible de démarrer la VR.');}
+  };
   const toggleFull=async()=>{
     try{
       if(document.fullscreenElement)await document.exitFullscreen();
       else await wrap.current?.requestFullscreen();
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
-  return <main className="tour-app" ref={wrap}>
+  return <main className="tour-app" ref={wrap} data-scene={vrSceneId||current.id}>
     {current.dataUrl?<Pano scene={current} icons={project.icons??[]} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
+    {vrAvailable&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Entrer en VR">{vrActive?'VR en cours…':'🥽 Entrer en VR'}</button>}
+    {vrError&&<div className="tour-vr-error" role="alert" onClick={()=>setVrError('')}>{vrError}</div>}
     {project.bottomBar?.length>0&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
         const icon=project.icons?.find(i=>i.id===item.iconId);
@@ -263,7 +289,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         </button>;
       })}
     </nav>}
-    <ContinuousMusic project={project} scene={current} paused={showIntro||!!video}/>
+    <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!!video}/>
     {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>

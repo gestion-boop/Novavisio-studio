@@ -83,3 +83,8 @@ Par défaut, le lien des e-mails Supabase est consommé dès qu'il est ouvert : 
 - Migration : `supabase/migrations/20261110040000_nvstudio_publication.sql` (après `…010000_share_links`). Ajoute `nvstudio_publications`, `nvstudio_publish`, `nvstudio_unpublish` et étend `nvstudio_get_share` / `nvstudio_share_active`.
 - « Publier » (panneau **Lien public**) enregistre une révision immuable et fait pointer l'adresse permanente dessus ; l'adresse `…/share.html?t=<jeton>` ne change jamais, son contenu change à chaque publication. « Arrêter la publication » la ferme sans rien supprimer.
 - Le bouton « Télécharger index.html pour NovaTour » produit un seul fichier (iframe plein écran vers l'adresse permanente) à envoyer **une fois** dans NovaTour.
+
+## Mode VR (casque Meta Quest)
+Aucune migration Supabase. Dans la visite (lien public, lien permanent, visite exportée) un bouton « 🥽 Entrer en VR » apparaît automatiquement quand le navigateur du casque gère le WebXR.
+Version de base : panorama autour du spectateur, flèches cliquables à la gâchette, barre flottante (galerie, boutons d'information, « Quitter la VR »), panoramas allégés à 4096 px.
+Non inclus : cadres photo/vidéo, fenêtres d'information sur les points, musique.

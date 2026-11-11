@@ -47,3 +47,8 @@ button{font:inherit;cursor:pointer}button:focus-visible{outline:2px solid #6cf4e
 .share-card h1{margin:12px 0 8px;font-size:22px}
 .share-card p{margin:0;color:#a9c8d1;line-height:1.55}
 .share-logo{font-size:34px;color:#4bebde}
+
+/* Bouton « Entrer en VR » (casque Meta Quest) */
+.tour-vr{position:absolute;top:14px;right:70px;z-index:30;border:0;border-radius:999px;padding:11px 18px;font:600 15px/1 system-ui,sans-serif;background:#5d131a;color:#f4d69a;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer}
+.tour-vr:disabled{opacity:.6;cursor:default}
+.tour-vr-error{position:absolute;top:64px;right:14px;z-index:30;max-width:320px;padding:10px 14px;border-radius:12px;background:#fff;color:#7a1a22;font:14px system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.3)}
