@@ -2781,3 +2781,22 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 @media(hover:none){
   .nv-fullscreen-gallery-hover-preview.nv-drawer-gallery-hover-preview{display:none}
 }
+
+
+/* Action de vue d'arrivée fixée en bas du tiroir de commandes. */
+.nv-drawer-arrival-action{
+  position:sticky;bottom:0;z-index:2;
+  display:flex;flex-direction:column;gap:7px;
+  margin-top:auto;padding:13px 5px 3px;
+  background:linear-gradient(180deg,rgba(8,27,39,.02),rgba(8,27,39,.98) 12%);
+}
+.nv-drawer-arrival-save{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;min-height:45px;padding:10px 8px;
+  border:1px solid #3fe0d1;border-radius:10px;
+  background:#205c65;color:#e3fff9;font-weight:750;font-size:12px;
+  cursor:pointer;
+}
+.nv-drawer-arrival-save:hover{background:#2a7378;border-color:#70f7e5}
+.nv-drawer-arrival-current{font-size:10.5px;font-weight:700;text-align:center;color:#83e7d1}
+.nv-drawer-arrival-note{font-size:10px;line-height:1.5;text-align:center;color:#a2bbc6}
