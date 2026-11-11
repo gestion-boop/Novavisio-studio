@@ -3402,3 +3402,17 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-quick-link-mode small{font-size:10px;color:#a3bfcc;line-height:1.35}
 .nv-quick-create-arrow{border:1px solid #50d5cb!important;background:#23575d!important;color:#edfffd!important}
 .nv-side-panorama-popup .nv-quick-create-arrow{width:100%;padding:10px;border-radius:8px;font-weight:750;margin-top:5px}
+
+/* Navigation rapide : viser puis valider avec les icônes déjà employées. */
+.nv-pending-navigation{position:absolute;z-index:72;left:50%;bottom:112px;transform:translateX(-50%);
+width:min(365px,calc(100% - 28px));padding:13px;border:1px solid #62d8cd;border-radius:13px;
+background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdrop-filter:blur(10px)}
+.nv-pending-navigation-heading{display:flex;flex-direction:column;gap:3px;font-size:12px}
+.nv-pending-navigation-heading strong{color:#72e5d7}.nv-pending-navigation-heading span{font-size:15px;font-weight:750}
+.nv-pending-navigation p{font-size:11px;line-height:1.45;margin:8px 0;color:#b5d4dc}
+.nv-pending-navigation-icon{display:flex;align-items:center;justify-content:center;gap:12px;min-height:48px;font-size:11px;color:#bbe6e5}
+.nv-pending-navigation-actions{display:flex;gap:8px;margin-top:9px}
+.nv-pending-navigation-actions button{flex:1;padding:10px 8px;border-radius:8px;font-weight:800;font-size:12px;cursor:pointer}
+.nv-pending-confirm{border:1px solid #72e9dd;background:#236c6b;color:white}
+.nv-pending-cancel{border:1px solid #587b8a;background:#203747;color:#d3e4ec}
+@media(max-height:650px){.nv-pending-navigation{bottom:65px}}
