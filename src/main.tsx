@@ -1246,10 +1246,6 @@ function App(){
       {hiddenIconSetCount()>0&&<button type="button" className="nv-quick-icon-pack-restore" onClick={showAllIconSets}>
         Réafficher les {hiddenIconSetCount()} jeux masqués
       </button>}
-      <details className="nv-quick-icon-advanced">
-        <summary>Personnaliser les PNG séparément</summary>
-        <p>Utilise les réglages ci-dessous pour changer un seul état ou importer un PNG personnalisé.</p>
-      </details>
     </div>;
   }
   // Un seul état à la fois : on voit l'icône de CE bouton, pas toute la bibliothèque.
@@ -1921,7 +1917,8 @@ function App(){
                       set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,
                         pressedIconId:set.pressedIconId,iconSize:set.size})
                     )}
-                    <div className="nv-quick-section-title">Icône du point — réglages individuels</div>
+                    <details className="nv-quick-icon-advanced">
+                      <summary>Personnaliser les PNG séparément</summary>
                     {(['iconId','hoverIconId','pressedIconId'] as const).map((field,index)=>
                       <div key={field} className="nv-quick-icon-field">
                         <strong>{['Normale','Survol','Clic'][index]}</strong>
@@ -1939,6 +1936,7 @@ function App(){
                             onChange={e=>{void uploadFullscreenIcon(e.target.files?.[0],field);e.currentTarget.value='';}}/>
                         </label>
                       </div>)}
+                    </details>
                     <label>Taille de l’icône : {selected.iconSize??28} px
                       <input type="range" min="16" max="80" value={selected.iconSize??28}
                         onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
@@ -1979,7 +1977,8 @@ function App(){
                       set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,
                         pressedIconId:set.pressedIconId,iconSize:set.size})
                     )}
-                    <div className="nv-quick-section-title">PNG individuels (optionnel)</div>
+                    <details className="nv-quick-icon-advanced">
+                      <summary>Personnaliser les PNG séparément</summary>
                     {(['iconId','hoverIconId','pressedIconId'] as const).map((field,index)=><div key={field} className="nv-quick-icon-field">
                       <strong>{['PNG normal','PNG survol','PNG clic'][index]}</strong>
                       <div className="nv-quick-icon-grid">
@@ -1994,6 +1993,7 @@ function App(){
                           onChange={e=>{void uploadFullscreenIcon(e.target.files?.[0],field);e.currentTarget.value='';}}/>
                       </label>
                     </div>)}
+                    </details>
                     <label>Taille du bouton : {barIconSize(selectedBar)} px
                       <input type="range" min="20" max="72" value={barIconSize(selectedBar)}
                         onChange={e=>patchBar({iconSize:Number(e.target.value)})}/>
