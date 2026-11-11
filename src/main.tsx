@@ -2264,6 +2264,8 @@ function App(){
                       </label>
                       <label className="nv-quick-check"><input type="checkbox" checked={selected.fadeOnClick!==false}
                         onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
+                      <label className="nv-quick-check"><input type="checkbox" checked={selected.imageBounce!==false}
+                        onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>
                       {selected.imageDataUrl&&<button type="button" className="nv-quick-primary"
                         onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
                         <Eye size={15}/> Tester le popup photo
@@ -2728,6 +2730,7 @@ function App(){
                   <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
                 </label>
                 <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
+                <label className="toggle-row"><input type="checkbox" checked={selected.imageBounce!==false} onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>
                 {selected.imageDataUrl&&<button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
                   <Eye size={15}/> Tester le popup photo
                 </button>}
