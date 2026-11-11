@@ -38,7 +38,7 @@ const writeFp=(v:{projectId:string;version:number;fp:string}|null)=>{try{if(v)lo
 const plainLink=(l:CloudLink):CloudLink=>({projectId:l.projectId,revision:l.revision,...(l.version!==undefined?{version:l.version}:{})});
 
 /** `onRemote` remplace le projet affiché par celui d'une autre personne et renvoie l'objet projet réellement affiché. */
-export function useCloudSync(project:StudioProject,active:boolean,onRemote:(project:StudioProject,by:string|null)=>StudioProject){
+export function useCloudSync(project:StudioProject,active:boolean,onRemote:(project:StudioProject,by:string|null)=>StudioProject,manualOnly=false){
   const [signedIn,setSignedIn]=useState(false);
   const [enabled,setEnabledState]=useState(()=>{try{return localStorage.getItem(ENABLED_KEY)!=='off';}catch{return true;}});
   const [state,setState]=useState<SyncState>(cloudConfigured?{kind:'login'}:{kind:'off'});
@@ -63,7 +63,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     return ()=>sub.subscription.unsubscribe();
   },[]);
 
-  const canRun=cloudConfigured&&signedIn&&enabled&&active;
+  const canRun=cloudConfigured&&signedIn&&(manualOnly||enabled)&&active;
   canRunRef.current=canRun;
 
   const schedule=useCallback((ms:number)=>{
@@ -89,22 +89,26 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
       setState({kind:'saved',at:Date.now(),note});
     }catch(e){
       if(e instanceof CloudConflictError){
-        // La dernière personne qui agit a la main : on reprend la main sur la version du cloud et on renvoie aussitôt.
-        const link=readLink();
-        if(link)writeLink({...link,version:e.cloudVersion});
-        takeoverRef.current=true;
-        attemptRef.current=0;
-        schedule(0);
+        if(manualOnly){
+          // In manual mode, never silently replace an existing cloud version.
+          setState({kind:'error',message:'Le cloud a une version plus récente. Ouvre l’historique dans Cloud avant de décider.'});
+        }else{
+          const link=readLink();
+          if(link)writeLink({...link,version:e.cloudVersion});
+          takeoverRef.current=true;
+          attemptRef.current=0;
+          schedule(0);
+        }
       }else if(e instanceof CloudSetupError){blockedRef.current='setup';setState({kind:'setup',message:e.message});}
       else{
         attemptRef.current++;
         setState({kind:'error',message:e instanceof Error?e.message:String(e)});
-        schedule(Math.min(60000,2000*2**Math.min(attemptRef.current,5))); // nouvel essai automatique : 4 s, 8 s, 16 s… 60 s
+        if(!manualOnly)schedule(Math.min(60000,2000*2**Math.min(attemptRef.current,5)));
       }
     }finally{
       runningRef.current=false;
       // Une modification est arrivée pendant l'envoi : on envoie aussi celle-là, tout de suite.
-      if(!blockedRef.current&&attemptRef.current===0&&projectRef.current!==syncedRef.current&&canRunRef.current)schedule(150);
+      if(!manualOnly&&!blockedRef.current&&attemptRef.current===0&&projectRef.current!==syncedRef.current&&canRunRef.current)schedule(150);
     }
   };
 
@@ -129,7 +133,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
 
   // Chaque modification : envoi quasi immédiat.
   useEffect(()=>{
-    if(!canRun||blockedRef.current)return;
+    if(manualOnly||!canRun||blockedRef.current)return;
     if(project===syncedRef.current||!project.scenes.length)return;
     setState(s=>s.kind==='saving'?s:{kind:'pending'});
     schedule(DEBOUNCE_MS);
@@ -138,7 +142,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
 
   // Travail à plusieurs : si quelqu'un d'autre a enregistré et que tu n'as rien en cours, ta fenêtre se met à jour toute seule.
   useEffect(()=>{
-    if(!canRun)return;
+    if(manualOnly||!canRun)return;
     let stopped=false;
     const tick=async()=>{
       if(stopped||document.hidden||runningRef.current||adoptingRef.current||blockedRef.current)return;
@@ -168,6 +172,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
 
   // Envoi immédiat quand on quitte l'onglet ou quand le réseau revient.
   useEffect(()=>{
+    if(manualOnly)return;
     const flush=()=>{if(canRunRef.current&&!blockedRef.current)void runRef.current();};
     const onHide=()=>{if(document.visibilityState==='hidden')flush();};
     document.addEventListener('visibilitychange',onHide);
@@ -184,7 +189,11 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     try{localStorage.setItem(ENABLED_KEY,on?'on':'off');}catch{/* ignoré */}
     setEnabledState(on);
   },[]);
-  const retryNow=useCallback(()=>{attemptRef.current=0;blockedRef.current=null;schedule(0);},[schedule]);
+  const retryNow=useCallback(()=>{
+    attemptRef.current=0;blockedRef.current=null;
+    if(manualOnly){void runRef.current();}
+    else schedule(0);
+  },[schedule,manualOnly]);
   /** Le projet affiché vient du cloud (ou vient d'y être enregistré) : il est synchronisé, rien à renvoyer. */
   const markSynced=useCallback((synced:StudioProject,link:CloudLink)=>{
     syncedRef.current=synced;blockedRef.current=null;attemptRef.current=0;takeoverRef.current=false;
@@ -203,6 +212,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   /** Envoie tout de suite et attend la fin. Renvoie vrai si la visite affichée est entièrement enregistrée dans le cloud. */
   const syncNow=useCallback(async():Promise<boolean>=>{
     if(!canRunRef.current)return false;
+    attemptRef.current=0;
     window.clearTimeout(timerRef.current);
     const wait=async()=>{for(let i=0;i<1500&&(runningRef.current||adoptingRef.current);i++)await new Promise(r=>setTimeout(r,200));};
     await wait();
@@ -213,5 +223,5 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     return projectRef.current===syncedRef.current&&!!readLink();
   },[]);
 
-  return {state,enabled,setEnabled,retryNow,markSynced,unlink,signedIn,syncNow};
+  return {state,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,syncNow};
 }
