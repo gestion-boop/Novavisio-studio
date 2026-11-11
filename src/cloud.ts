@@ -126,6 +126,10 @@ export async function listCloudProjects():Promise<CloudProject[]>{
     const times=[l?.created_at,hasWorking?row.working_updated_at??undefined:undefined,row.created_at].filter(Boolean) as string[];
     return {id:row.id,name:row.name||l?.name||'Visite',created_at:row.created_at,revision:l?.revision??0,
       updated_at:times.sort().reverse()[0],autosave:hasWorking,shared:!!row.owner_id&&!!me&&row.owner_id!==me};
+  }).sort((a,b)=>{
+    // Dernière sauvegarde effective en premier (révision ou copie Cloud).
+    const delta=Date.parse(b.updated_at)-Date.parse(a.updated_at);
+    return Number.isFinite(delta)&&delta!==0?delta:a.name.localeCompare(b.name,'fr');
   });
 }
 
