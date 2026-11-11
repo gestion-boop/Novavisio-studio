@@ -2848,3 +2848,18 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
  .nv-navigation-gallery-picker{top:75px;left:8px;bottom:70px;width:calc(100% - 16px);max-width:360px}
  .nv-navigation-gallery-preview{display:none}
 }
+
+
+/* Inspection 360° du panorama destination dans la galerie gauche avant confirmation. */
+.nv-navigation-gallery-picker.is-preview{width:min(530px,calc(100% - 395px))}
+.nv-navigation-inspect{flex:1;display:flex;flex-direction:column;min-height:0;gap:10px;padding:12px}
+.nv-navigation-inspect-back{display:flex;align-items:center;gap:7px;background:#183b4b;color:#e5f9f7;border:1px solid #49848b;border-radius:9px;padding:10px;cursor:pointer;font-weight:700}
+.nv-navigation-inspect-scene{display:flex;flex-direction:column;flex:1;min-height:0;gap:10px}
+.nv-navigation-inspect-scene>strong{font-size:14px}
+.nv-navigation-inspect-360{position:relative;flex:1;min-height:190px;border:1px solid #376676;border-radius:12px;overflow:hidden;background:#112a37}
+.nv-navigation-inspect-360 .nv-hover-preview-content{height:100%}
+.nv-navigation-inspect-360 .nv-hover-preview-media{flex:1}
+.nv-navigation-inspect-scene>small{font-size:11px;color:#a6c7d1;line-height:1.45}
+.nv-navigation-inspect-select{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:#206269;color:#e9fff9;border:1px solid #4be0d1;border-radius:9px;font-weight:750;cursor:pointer}
+.nv-navigation-inspect-select:hover{background:#277980}
+@media(max-width:950px){.nv-navigation-gallery-picker.is-preview{width:min(530px,calc(100% - 25px))}}
