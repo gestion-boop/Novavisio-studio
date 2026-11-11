@@ -2981,3 +2981,60 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 
 /* L'introduction disparait à la seconde configurée, avec un fondu final de 350 ms. */
 .intro-overlay.is-ending{animation:none;opacity:0;transition:opacity .35s ease;pointer-events:none}
+
+
+/* Nouveau flux : panorama en grand + une seule colonne de contrôles à droite. */
+.nv-studio-pro .workspace{
+  grid-template-columns:minmax(0,1fr) 350px;
+}
+.nv-studio-pro .workspace>.editor{min-width:0}
+.nv-studio-pro .workspace>.right.panel{min-width:0}
+.nv-studio-pro .right .side-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.nv-studio-pro .right .side-tabs button{min-width:0;font-size:11px;padding:10px 4px;white-space:normal}
+.nv-right-panorama-gallery{display:flex;flex-direction:column;gap:10px;min-height:0;flex:1;padding:9px 0 2px}
+.nv-right-panorama-gallery .scenes{min-height:160px;flex:1;overflow-y:auto;margin-top:0;scrollbar-width:thin}
+.nv-right-panorama-gallery .scene{min-width:0}
+.nv-right-panorama-gallery .scene-slot{position:relative}
+.nv-right-panorama-gallery .nv-scene-360-preview-btn{
+  position:absolute;top:9px;right:23px;z-index:2;
+  padding:5px 7px;border:1px solid #5cc9c0;border-radius:7px;
+  color:#eafff8;background:#1c5964;font-size:10px;font-weight:800;cursor:pointer;
+}
+.nv-right-panorama-gallery .scene-slot .nv-space-exclude{right:0}
+.nv-side-panorama-preview{
+  display:flex;flex-direction:column;flex:none;gap:8px;padding:8px;
+  border:1px solid #428f92;border-radius:11px;background:#0b2736;
+}
+.nv-side-preview-title{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#e5fcf9}
+.nv-side-preview-title button{background:#1b4150;border:1px solid #436c77;color:#f5ffff;border-radius:7px;padding:5px 8px}
+.nv-side-preview-content{display:flex;flex-direction:column;gap:8px;min-height:0}
+.nv-side-preview-content>strong{font-size:11px;color:#e4f9f7}
+.nv-side-preview-viewer{height:200px;position:relative;min-height:180px;border:1px solid #386775;border-radius:9px;overflow:hidden}
+.nv-side-preview-content>button{border:1px solid #4edbcc;border-radius:8px;background:#205965;color:#eafff9;padding:9px;cursor:pointer;font-size:11px;font-weight:700}
+.nv-right-panorama-gallery .helper{margin-top:4px}
+.nv-studio-pro .nv-classic-destination-overlay{right:362px}
+/* Fix aperçu noir : le bloc flex doit occuper toute la hauteur du viewer,
+   sinon le canvas WebGL est créé avec une hauteur nulle. */
+.nv-classic-destination-viewer>.nv-hover-preview-media,
+.nv-navigation-inspect-360>.nv-hover-preview-media,
+.nv-side-preview-viewer>.nv-hover-preview-media{display:block;position:relative;height:100%;width:100%;min-height:100%}
+.nv-classic-destination-viewer .nv-hover-preview-viewer,
+.nv-navigation-inspect-360 .nv-hover-preview-viewer,
+.nv-side-preview-viewer .nv-hover-preview-viewer{inset:0;width:100%;height:100%}
+.nv-classic-destination-viewer .nv-hover-preview-thumb,
+.nv-navigation-inspect-360 .nv-hover-preview-thumb,
+.nv-side-preview-viewer .nv-hover-preview-thumb{z-index:1;pointer-events:none}
+.nv-classic-destination-viewer .nv-hover-preview-thumb.is-loaded,
+.nv-navigation-inspect-360 .nv-hover-preview-thumb.is-loaded,
+.nv-side-preview-viewer .nv-hover-preview-thumb.is-loaded{opacity:0;visibility:hidden}
+.nv-classic-destination-viewer .nv-hover-preview-loading,
+.nv-navigation-inspect-360 .nv-hover-preview-loading,
+.nv-side-preview-viewer .nv-hover-preview-loading{z-index:2;pointer-events:none}
+@media(max-width:950px){
+ .nv-studio-pro .workspace{grid-template-columns:minmax(0,1fr) 300px}
+ .nv-studio-pro .nv-classic-destination-overlay{right:12px}
+}
+@media(max-width:650px){
+ .nv-studio-pro .workspace{grid-template-columns:minmax(0,1fr)}
+ .nv-studio-pro .workspace>.right.panel{min-height:350px;max-height:55vh}
+}
