@@ -503,6 +503,7 @@ function App(){
   const [savingManually,setSavingManually]=useState(false);
   const [activeId,setActiveId]=useState('');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
+  const [infoLanguage,setInfoLanguage]=useState<'fr'|'en'|'es'|'nl'>('fr');
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
   const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
   const [editingSpaceId,setEditingSpaceId]=useState<string|null>(null);
@@ -587,6 +588,11 @@ function App(){
   const [classicDestinationOpen,setClassicDestinationOpen]=useState(false);
   const [classicDestinationPreviewId,setClassicDestinationPreviewId]=useState<string|null>(null);
   const [galleryPreviewSceneId,setGalleryPreviewSceneId]=useState<string|null>(null);
+  const [galleryPreviewPinned,setGalleryPreviewPinned]=useState(false);
+  const sidePreviewTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const hoverSidePreview=(id:string)=>{if(galleryPreviewPinned)return;if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);sidePreviewTimer.current=setTimeout(()=>setGalleryPreviewSceneId(id),180);};
+  const leaveSidePreview=()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);if(!galleryPreviewPinned)sidePreviewTimer.current=setTimeout(()=>setGalleryPreviewSceneId(null),330);};
+  useEffect(()=>()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);},[]);
   const [classicDestinationSearch,setClassicDestinationSearch]=useState('');
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
@@ -1276,7 +1282,7 @@ function App(){
       if(dest)selectScene(dest);
     }else if(item.type==='information') {
       if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url);
-      else {setFrame(null);setInfo({id:item.id,type:'information',title:item.title,text:item.text,target:'',yaw:0,pitch:0});}
+      else {setFrame(null);setInfoLanguage('fr');setInfo({id:item.id,type:'information',title:item.title,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
     }
     else if(item.url)openLinkInTour(item.title,item.url);
   }
@@ -2532,7 +2538,10 @@ function App(){
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
             <div className="modal" onClick={event=>event.stopPropagation()}>
               <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer">✕</button>
-              <h2>{info.title}</h2><p className="preserve">{info.text||'Aucune information renseignée.'}</p>
+              <h2>{info.title}</h2>
+              <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
+                {([{code:'fr',flag:'🇫🇷',name:'Français'},{code:'en',flag:'🇬🇧',name:'English'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}] as const).map(lang=><button type="button" key={lang.code} title={lang.name} aria-label={lang.name} aria-pressed={infoLanguage===lang.code} className={infoLanguage===lang.code?'is-active':''} onClick={()=>setInfoLanguage(lang.code)}>{lang.flag}</button>)}
+              </div><p className="preserve">{(infoLanguage==='fr'?info.text:info.translations?.[infoLanguage]||info.text)||'Aucune information renseignée.'}</p>
               <button className="primary" onClick={()=>setInfo(null)}>Fermer</button>
             </div>
           </div>}
@@ -2604,7 +2613,8 @@ function App(){
           </select>
         </div>
         <div className="scenes" ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
-          onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
+          onMouseEnter={()=>hoverSidePreview(s.id)} onMouseLeave={leaveSidePreview}
+           onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
           <button className={'scene '+(s.id===activeId?'active':'')} title="Ouvrir ce panorama dans la grande vue"
             onKeyDown={e=>{
@@ -2612,7 +2622,7 @@ function App(){
               e.preventDefault();
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
-            onClick={()=>{selectScene(s.id);setSelectedId('');setMode(null);setGalleryPreviewSceneId(null);}}>
+            onClick={()=>{selectScene(s.id);setSelectedId('');setMode(null);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}}>
             {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
             <span className="nv-scene-description">
               <strong title={s.name}>{s.name}</strong>
@@ -2621,7 +2631,7 @@ function App(){
             </span>
           </button>
           <button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
-            onClick={()=>setGalleryPreviewSceneId(s.id)}>360°</button>
+            onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
              onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}>✕</button>:
@@ -2635,13 +2645,13 @@ function App(){
           <p>Aucun panorama ne correspond à la recherche.</p>
           <button type="button" onClick={()=>{setSceneSearch('');setSceneFilter('all');}}>Effacer les filtres</button>
         </div>}</div>
-        {galleryPreviewSceneId&&visibleScenes.some(sc=>sc.id===galleryPreviewSceneId)&&<div className="nv-side-panorama-preview">
+        {galleryPreviewSceneId&&visibleScenes.some(sc=>sc.id===galleryPreviewSceneId)&&<div className="nv-side-panorama-preview nv-side-panorama-popup" onMouseEnter={()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);}} onMouseLeave={leaveSidePreview}>
           <div className="nv-side-preview-title"><strong>Aperçu 360°</strong>
-            <button type="button" onClick={()=>setGalleryPreviewSceneId(null)} aria-label="Fermer l'aperçu">✕</button></div>
+            <button type="button" onClick={()=>{setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}} aria-label="Fermer l'aperçu">✕</button></div>
           {visibleScenes.filter(sc=>sc.id===galleryPreviewSceneId).map(sc=><div key={sc.id} className="nv-side-preview-content">
             <strong>{sc.name}</strong>
             <div className="nv-side-preview-viewer"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/></div>
-            <button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setPanel('points');}}>
+            <button type="button" onClick={()=>{selectScene(sc.id);setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);setPanel('points');}}>
               Ouvrir ce panorama pour l'éditer
             </button>
           </div>)}
@@ -2941,7 +2951,7 @@ function App(){
               <option value="navigation">Aller vers un panorama</option><option value="gallery">Galerie de panoramas (raccourcis)</option><option value="information">Afficher des informations</option><option value="lien">Ouvrir un lien / réserver / appeler</option>
             </select></label>
             {selectedBar.type==='gallery'?galleryPanel(selectedBar):selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
-            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
+            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label><label>🇳🇱 Nederlands — texte du panneau<textarea rows={4} value={selectedBar.translations?.nl??''} placeholder="Texte en néerlandais…" onChange={e=>patchBar({translations:{...selectedBar.translations,nl:e.target.value}})}/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
