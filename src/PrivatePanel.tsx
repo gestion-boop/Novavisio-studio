@@ -17,7 +17,7 @@ const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{day:'2-digit',mont
  * Lien privé : donner accès à la visite à une autre personne (e-mail + mot de passe) pour qu'elle travaille dessus.
  * Règle de sauvegarde : la dernière personne qui agit a la main (sa sauvegarde remplace la précédente, qui est archivée).
  */
-export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEnabled}:{project:StudioProject;onClose:()=>void;onStatus:(m:string)=>void;syncNow:()=>Promise<boolean>;syncState:SyncState;autoEnabled:boolean}){
+export function PrivatePanel({project,onClose,onStatus,syncNow,syncState}:{project:StudioProject;onClose:()=>void;onStatus:(m:string)=>void;syncNow:()=>Promise<boolean>;syncState:SyncState}){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState(()=>generatePassword());
@@ -60,7 +60,7 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEna
     ...(o.result==='confirm'?['   (Tu vas d’abord recevoir un e-mail de confirmation : clique sur le lien qu’il contient.)']:[]),
     '3. Dans « Visites dans le cloud », clique sur « Ouvrir » à côté de « '+(project.name||'Visite')+' ».',
     '',
-    'Tes modifications s’enregistrent automatiquement. Si nous modifions en même temps, la dernière personne qui agit garde la main.'
+    'Pour enregistrer tes modifications, clique sur la disquette Enregistrer. Les versions précédentes restent consultables.'
   ].join('\n');
 
   async function invite(){
@@ -72,11 +72,10 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEna
       if(!project.scenes.length)throw new Error('Importe au moins un panorama avant d’inviter quelqu’un.');
       // 1) la visite doit être ENTIÈREMENT dans le cloud, à jour : sinon la personne invitée ouvrirait une ancienne version.
       if(syncState.kind==='setup')throw new Error(syncState.message);
-      if(!autoEnabled)throw new Error('La sauvegarde instantanée est en pause : active-la (bouton « Cloud ») pour que la personne reçoive ta version actuelle.');
       setBusy('Envoi de ta visite dans le cloud (la personne doit recevoir la version actuelle)…');
       const done=await syncNow();
       const link=readLink();
-      if(!done||!link)throw new Error('Ta visite n’est pas encore entièrement enregistrée dans le cloud'+(syncState.kind==='error'?' ('+syncState.message+')':'')+'. Attends que la pastille « ☁ Enregistré » apparaisse en haut, puis recommence.');
+      if(!done||!link)throw new Error('Ta visite n’est pas encore entièrement enregistrée dans le cloud'+(syncState.kind==='error'?' ('+syncState.message+')':'')+'. Vérifie les détails dans Cloud, puis réessaie l’envoi.');
       setProjectId(link.projectId);
       // 2) autoriser l'adresse, puis créer le compte (e-mail + mot de passe)
       setBusy('Création de l’accès…');
@@ -109,7 +108,7 @@ export function PrivatePanel({project,onClose,onStatus,syncNow,syncState,autoEna
         :syncState.kind==='saving'||syncState.kind==='pending'?'☁ Envoi de ta visite dans le cloud en cours…'
         :syncState.kind==='error'?'☁ Envoi impossible pour le moment : '+syncState.message
         :'☁ Ta visite sera envoyée dans le cloud au moment de créer l’accès.'}</div>
-      <div className="private-rule"><b>Qui sauvegarde ?</b> La dernière personne qui fait une action a la main : sa sauvegarde remplace la précédente (l’ancienne version est archivée). Si l’autre personne modifie pendant que tu ne fais rien, ta fenêtre se met à jour toute seule. Évitez de modifier le même panorama en même temps.</div>
+      <div className="private-rule"><b>Qui sauvegarde ?</b> Chaque personne doit cliquer sur la disquette « Enregistrer » pour sauvegarder. L’envoi manuel conserve l’historique des versions. Évitez d’éditer la même scène simultanément.</div>
       <form className="login-form" onSubmit={e=>{e.preventDefault();void invite();}}>
         <label>Adresse e-mail de la personne<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="prenom@exemple.fr" autoComplete="off" required/></label>
         <label>Mot de passe à lui donner (8 caractères minimum)
