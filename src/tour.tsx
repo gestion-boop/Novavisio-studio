@@ -95,7 +95,7 @@ function Pano({scene,icons,arrival,navigate,info,linked,image,video,onReady}:Vie
       const h=a.scene.hotspots.find(x=>x.id===marker.id);
       if(!h)return;
       if(h.type==='navigation'){if(h.target)a.navigate(h.target,h);}
-      else if(h.type==='image')a.image(h,lastPointer.current);
+      else if(h.type==='image'||(h.type==='information'&&h.imageDataUrl))a.image(h,lastPointer.current);
       else if(h.type==='video' && h.videoOpenFullscreen!==false)a.video(h,lastPointer.current);
       else if(h.url && checkedLink(h.url))a.linked(h.title,h.url);
       else if(h.type==='information')a.info(h);
