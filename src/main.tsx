@@ -117,6 +117,41 @@ function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId
   }
   return all;
 }
+/** Lightweight, read-only spherical preview for a hovered gallery entry.
+ * Only one instance exists, and it never changes the editor's active scene.
+ */
+function FullscreenGalleryHoverPreview({scene,thumb}:{scene:Scene;thumb?:string}){
+  const host=useRef<HTMLDivElement>(null);
+  const [ready,setReady]=useState(false);
+  useEffect(()=>{
+    setReady(false);
+    const el=host.current;
+    if(!el||!scene.dataUrl)return;
+    let instance:Viewer|null=null;
+    let alive=true;
+    try{
+      instance=new Viewer({
+        container:el,
+        panorama:scene.dataUrl,
+        navbar:[],
+        mousemove:true,mousewheel:true,touchmoveTwoFingers:false,
+        defaultYaw:scene.arrivalYaw??0,
+        defaultPitch:scene.arrivalPitch??0,
+        defaultZoomLvl:panoramaArrivalZoom(scene),
+        minFov:PANORAMA_MIN_FOV,maxFov:PANORAMA_MAX_FOV,
+        fisheye:false,loadingTxt:'',
+      });
+      instance.addEventListener('ready',()=>{if(alive)setReady(true);});
+    }catch{/* A thumbnail fallback stays visible if WebGL cannot load. */}
+    return ()=>{alive=false;instance?.destroy();};
+  },[scene.id,scene.dataUrl,scene.arrivalYaw,scene.arrivalPitch,scene.arrivalZoom,scene.arrivalZoomModel]);
+  return <div className="nv-hover-preview-media">
+    {thumb&&<img className={'nv-hover-preview-thumb'+(ready?' is-loaded':'')} src={thumb} alt="" draggable={false}/>}
+    <div ref={host} className="nv-hover-preview-viewer" aria-label={'Vue 360° de '+scene.name}/>
+    {!ready&&<span className="nv-hover-preview-loading">Aperçu 360°</span>}
+  </div>;
+}
+
 function Panorama({scene,icons,mode,preview,arrival,onCreate,onPick,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
@@ -501,6 +536,18 @@ function App(){
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const [creationFullscreen,setCreationFullscreen]=useState(false);
   const [fullscreenGalleryOpen,setFullscreenGalleryOpen]=useState(false);
+  const [hoveredGallerySceneId,setHoveredGallerySceneId]=useState<string|null>(null);
+  const galleryHoverTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  const scheduleGalleryHover=(id:string)=>{
+    if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);
+    galleryHoverTimer.current=setTimeout(()=>setHoveredGallerySceneId(id),110);
+  };
+  const dismissGalleryHover=(delay=230)=>{
+    if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);
+    galleryHoverTimer.current=setTimeout(()=>setHoveredGallerySceneId(null),delay);
+  };
+  useEffect(()=>()=>{if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);},[]);
+  useEffect(()=>{if(!fullscreenGalleryOpen)setHoveredGallerySceneId(null);},[fullscreenGalleryOpen]);
   const [fullscreenToolsOpen,setFullscreenToolsOpen]=useState(false);
   const [fullscreenToolsTab,setFullscreenToolsTab]=useState<'point'|'bar'|'scene'>('point');
   const [creationFullscreenFallback,setCreationFullscreenFallback]=useState(false);
@@ -2096,6 +2143,10 @@ function App(){
             <div className="nv-fullscreen-gallery-list">
               {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
                 className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')}
+                onMouseEnter={()=>scheduleGalleryHover(scene.id)}
+                onMouseLeave={()=>dismissGalleryHover()}
+                onFocus={()=>scheduleGalleryHover(scene.id)}
+                onBlur={()=>dismissGalleryHover()}
                 onClick={()=>chooseFullscreenScene(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
                 {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
                   <span className="nv-fullscreen-gallery-placeholder">◎</span>}
@@ -2110,6 +2161,26 @@ function App(){
               {visibleScenes.length} panorama{visibleScenes.length>1?'s':''} dans cet espace
             </footer>
           </aside>}
+          {active&&creationFullscreen&&fullscreenGalleryOpen&&hoveredGallerySceneId&&
+            visibleScenes.some(scene=>scene.id===hoveredGallerySceneId)&&
+            <aside className={'nv-fullscreen-gallery-hover-preview'+(fullscreenToolsOpen?' with-tools':'')}
+              aria-label="Grand aperçu du panorama survolé"
+              onMouseEnter={()=>{
+                if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);
+              }}
+              onMouseLeave={()=>dismissGalleryHover(100)}>
+              {visibleScenes.filter(scene=>scene.id===hoveredGallerySceneId).map(scene=>
+                <div className="nv-hover-preview-content" key={scene.id}>
+                  <div className="nv-hover-preview-title">
+                    <div><small>APERÇU DU PANORAMA</small><strong title={scene.name}>{scene.name}</strong></div>
+                    <button type="button" onClick={()=>chooseFullscreenScene(scene.id)}>Ouvrir cette scène <ChevronRight size={15}/></button>
+                  </div>
+                  <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
+                  <div className="nv-hover-preview-foot"><span>Vue d’arrivée · Fais glisser pour regarder autour</span>
+                    <span>{visibleScenes.findIndex(sc=>sc.id===scene.id)+1} / {visibleScenes.length}</span>
+                  </div>
+                </div>)}
+            </aside>}
           {active && creationFullscreen && !preview && <div className="nv-creation-fullscreen-palette" role="toolbar" aria-label="Ajouter des éléments dans la création">
             {([
               ['navigation','➜ Navigation'],
