@@ -1884,7 +1884,7 @@ function App(){
             {preview ? '👁️ APERÇU INTERACTIF' : mode ? '📍 CLIQUEZ DANS LE PANORAMA POUR PLACER LE POINT' : '✏️ MODE ÉDITION'}
           </b>
         </div>
-        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')} ref={viewAreaRef}>
+        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')} ref={viewAreaRef} style={barCss}>
           {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} onCreate={newPoint} onPick={id=>{setSelectedId(id);setSelectedBarId('');setPanel('points');if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}}} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
