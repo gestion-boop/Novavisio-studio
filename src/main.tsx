@@ -667,7 +667,7 @@ function App(){
       if(!locallySaved)return;
       if(cloud.signedIn){
         setStatus('Sauvegarde dans Supabase…');
-        const synced=await cloud.syncNow();
+        const synced=await cloud.syncNow(snapshot);
         setStatus(synced?'Enregistré sur cet appareil et dans Supabase':
           'Enregistré sur cet appareil · Cloud non synchronisé');
       }else{
