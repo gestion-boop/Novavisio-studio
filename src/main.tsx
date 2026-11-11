@@ -669,21 +669,59 @@ function App(){
     setProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');setSelectedId('');setMode(null);
   }
   useEffect(()=>{
-    loadProject().then(p=>{
-      if (p) {
-        rawStoredRef.current=p;
-        try{adopt(p,p.updatedAt??null);rawStoredRef.current=null;}
-        catch(e){
-          // Projet enregistré illisible : on ne touche à RIEN (aucun enregistrement automatique) pour ne pas l'écraser.
-          setLock({kind:'unreadable',reason:e instanceof Error?e.message:String(e)});
-          setReady(true);setStatus('Projet illisible — enregistrement suspendu');return;
+    let cancelled=false;
+    const restore=async()=>{
+      // A linked cloud project always takes precedence over the older "current"
+      // IndexedDB project; otherwise refreshing reopens an unrelated customer.
+      const link=readLink();
+      if(link){
+        setStatus('Réouverture du dernier projet Cloud…');
+        try{
+          const {supabase,openCloudProject,cloudConfigured}=await import('./cloud');
+          if(!cloudConfigured)throw new Error('Cloud non configuré');
+          const {data:{session},error}=await supabase().auth.getSession();
+          if(cancelled)return;
+          if(error)throw error;
+          if(!session){
+            setStatus('Connecte-toi au Cloud pour retrouver ton dernier projet · bouton Cloud.');
+            setReady(true);
+            return;
+          }
+          const loaded=await openCloudProject(link.projectId,message=>{if(!cancelled)setStatus(message);});
+          if(cancelled)return;
+          adopt(loaded.project,null);
+          writeLink(loaded.link);
+          setStatus('Projet Cloud restauré : '+loaded.project.name);
+          setReady(true);
+          return;
+        }catch(e){
+          if(cancelled)return;
+          // Never silently switch to an unrelated locally stored project.
+          setStatus('Impossible de rouvrir le dernier projet Cloud : '+(e instanceof Error?e.message:String(e))+' · Ouvre Cloud pour choisir une sauvegarde.');
+          setReady(true);
+          return;
         }
       }
-      setReady(true);setStatus('Prêt');
-    }).catch(e=>{
-      setLock({kind:'unreadable',reason:'Stockage du navigateur indisponible ('+(e instanceof Error?e.message:String(e))+')'});
-      setReady(true);setStatus('Stockage indisponible — enregistrement suspendu');
-    });
+      try{
+        const p=await loadProject();
+        if(cancelled)return;
+        if(p){
+          rawStoredRef.current=p;
+          try{adopt(p,p.updatedAt??null);rawStoredRef.current=null;}
+          catch(e){
+            setLock({kind:'unreadable',reason:e instanceof Error?e.message:String(e)});
+            setReady(true);setStatus('Projet local illisible — enregistrement suspendu');return;
+          }
+        }
+        setReady(true);setStatus('Prêt');
+      }catch(e){
+        if(cancelled)return;
+        setLock({kind:'unreadable',reason:'Stockage du navigateur indisponible ('+(e instanceof Error?e.message:String(e))+')'});
+        setReady(true);setStatus('Stockage indisponible — enregistrement suspendu');
+      }
+    };
+    void restore();
+    return ()=>{cancelled=true;};
   },[]);
   // Enregistrement : jamais pendant un verrou, jamais en écrasant le travail d'un autre onglet.
   async function persist(snapshot:StudioProject,force=false):Promise<boolean>{
@@ -730,6 +768,8 @@ function App(){
     const channel=new BroadcastChannel('novavisio-studio-project');
     channelRef.current=channel;
     channel.onmessage=ev=>{
+      // Local changes belong to a different project while a Cloud project is open.
+      if(readLink())return;
       if(ev.data?.type!=='saved'||ev.data.stamp===baseRef.current)return;
       if(projectRef.current===savedRef.current)void reloadFromStore(); // aucun travail en cours ici : on se met simplement à jour
       else setLock({kind:'conflict'});                                 // travail non enregistré ici ET modifs ailleurs : on demande
