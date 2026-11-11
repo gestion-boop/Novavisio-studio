@@ -275,7 +275,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       else await wrap.current?.requestFullscreen();
     }catch{/* Le navigateur peut interdire le plein écran. */}
   };
-  return <main className="tour-app" ref={wrap} data-scene={vrSceneId||current.id}>
+  return <main className="tour-app" ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
     {current.dataUrl?<Pano scene={current} icons={project.icons??[]} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={fullscreen?'Quitter le plein écran':'Passer en plein écran'}>
       {fullscreen?<Minimize size={21}/>:<Maximize size={21}/>}
