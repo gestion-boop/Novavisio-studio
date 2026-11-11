@@ -1779,15 +1779,25 @@ function App(){
   }
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
+    const favorite=mode==='navigation'?defaultNavigationIconSet():null;
     const h:Hotspot={
       id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Cadre photo':mode==='video'?'Écran vidéo':'Informations',
       text:'',target:'',yaw,pitch,
+      ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
+        pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{}),
       ...(['image','video'].includes(mode)?{frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameReferenceZoom:cameraRef.current.zoom,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
       ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{})
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
-    if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
+    if(mode==='navigation'){
+      setDestinationEditId(h.id);setClassicDestinationPreviewId(null);setClassicDestinationSearch('');
+      if(creationFullscreen){
+        setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);
+      }else setClassicDestinationOpen(true);
+    }else if(creationFullscreen){
+      setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);
+    }
   }
   function selectSpace(spaceId:string|null){
     const space=spaceId?(project.spaces??[]).find(item=>item.id===spaceId):null;
@@ -2240,8 +2250,8 @@ function App(){
                      <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/>
                      <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
                    </div>
-                  <button type="button" className="nv-classic-destination-confirm" onClick={()=>setNavigationDestination(sc.id)}>
-                    <Images size={16}/> Utiliser {sc.name} comme destination
+                  <button type="button" className="nv-classic-destination-confirm" onClick={()=>createNavigationFromGallery(sc.id)}>
+                    <Images size={16}/> Orienter l'arrivée vers {sc.name}
                   </button>
                 </div>)}
               {!visibleScenes.some(sc=>sc.id===classicDestinationPreviewId&&sc.id!==activeId)&&
@@ -2259,14 +2269,21 @@ function App(){
               setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
               const marker=active?.hotspots.find(h=>h.id===id);
               if(marker?.type==='navigation'){
-                setDestinationEditId(id);
-                setClassicDestinationPreviewId(marker.target&&visibleIds.has(marker.target)?marker.target:null);
-                setClassicDestinationSearch('');
-                if(creationFullscreen){
-                  setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);
-                  setHoveredGallerySceneId(null);
+                if(marker.target&&visibleIds.has(marker.target)){
+                  // Une flèche déjà reliée suit sa destination et sa vue d'arrivée.
+                  setDestinationEditId(null);setClassicDestinationOpen(false);
+                  setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);
+                  setFullscreenCommandDrawerOpen(false);
+                  goThroughArrow(marker,active!.id);
+                  setStatus('Arrivée dans '+(project.scenes.find(sc=>sc.id===marker.target)?.name??'le panorama')+' · Clique sur une autre flèche pour poursuivre.');
                 }else{
-                  setClassicDestinationOpen(true);
+                  // Une flèche nouvelle ouvre directement la galerie.
+                  setDestinationEditId(id);
+                  setClassicDestinationPreviewId(null);setClassicDestinationSearch('');
+                  if(creationFullscreen){
+                    setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);
+                    setHoveredGallerySceneId(null);
+                  }else setClassicDestinationOpen(true);
                 }
               }else if(creationFullscreen){
                 setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);
