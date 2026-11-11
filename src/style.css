@@ -3394,3 +3394,11 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-right-panorama-gallery .nv-panorama-list-grid .scene-slot .scene>img,.nv-right-panorama-gallery .nv-panorama-list-grid .scene-slot .scene>.scene-thumb-ph{width:100%!important;height:86px!important;flex:0 0 86px!important}
 .nv-right-panorama-gallery .nv-panorama-list-grid .nv-scene-360-preview-btn{top:10px!important;right:10px!important}
 .nv-right-panorama-gallery .nv-panorama-list-grid .nv-scene-description small{font-size:10px}
+
+/* Création rapide de flèches depuis les panoramas de la galerie. */
+.nv-quick-link-mode{display:flex;flex-direction:column;gap:5px;padding:8px;background:#123442;border:1px solid #3b6c76;border-radius:9px;margin:3px 0 7px}
+.nv-quick-link-mode>button{padding:8px;border:1px solid #40868a;border-radius:7px;background:#183c4a;color:#c2e9e9;font-weight:750;font-size:11px;cursor:pointer}
+.nv-quick-link-mode>button.is-active{background:#216565;border-color:#54e0d1;color:#fff}
+.nv-quick-link-mode small{font-size:10px;color:#a3bfcc;line-height:1.35}
+.nv-quick-create-arrow{border:1px solid #50d5cb!important;background:#23575d!important;color:#edfffd!important}
+.nv-side-panorama-popup .nv-quick-create-arrow{width:100%;padding:10px;border-radius:8px;font-weight:750;margin-top:5px}
