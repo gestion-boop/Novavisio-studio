@@ -105,9 +105,9 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
         {pubNote&&<small className="warning-inline">{pubNote}</small>}
         {publicationActive(pub)&&pub?<>
           <input readOnly value={shareUrl(pub.token)} onFocus={e=>e.currentTarget.select()}/>
-          <small className="hint-inline">Publiée le <b>{fmt(pub.published_at)}</b>. Les visiteurs voient cette version.</small>
+          <small className="hint-inline">Publiée le <b>{fmt(pub.published_at)}</b>. <b>Les prochaines modifications seront publiées automatiquement sur ce même lien lors de chaque clic sur « Enregistrer », si tu es connecté au Cloud.</b></small>
           <div className="cloud-actions">
-            <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void publish()}>Publier la mise à jour</button>
+            <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void publish()}>Mettre à jour maintenant</button>
             <button className="quiet" onClick={downloadWrapper}>Télécharger index.html pour NovaTour</button>
             <button className="quiet" onClick={()=>void navigator.clipboard.writeText(shareUrl(pub.token)).then(()=>{setPubCopied(true);setTimeout(()=>setPubCopied(false),1800);}).catch(()=>undefined)}>{pubCopied?'Copié ✓':'Copier l’adresse'}</button>
             <a className="quiet share-open" href={shareUrl(pub.token)} target="_blank" rel="noopener">Ouvrir</a>
