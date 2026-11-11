@@ -1132,8 +1132,10 @@ function App(){
     setClassicDestinationOpen(false);
     setStatus('Oriente le panorama '+destination.name+' puis clique sur Valider la direction.');
   }
-  function confirmNavigationDirection(){
-    const draft=navigationDraft;
+  function confirmNavigationDirection(draftOverride?:{
+    sourceId:string;targetId:string;sourceYaw:number;sourcePitch:number;existingPointId?:string;
+  }){
+    const draft=draftOverride??navigationDraft;
     if(!draft)return;
     const source=project.scenes.find(scene=>scene.id===draft.sourceId);
     const destination=project.scenes.find(scene=>scene.id===draft.targetId);
@@ -1807,7 +1809,11 @@ function App(){
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
     if(mode==='navigation'){
-      setDestinationEditId(h.id);setClassicDestinationPreviewId(null);setClassicDestinationSearch('');
+      const sceneIndex=visibleScenes.findIndex(sc=>sc.id===active.id);
+      const suggestion=visibleScenes[(sceneIndex+1)%visibleScenes.length];
+      setDestinationEditId(h.id);
+      setClassicDestinationPreviewId(suggestion&&suggestion.id!==active.id?suggestion.id:null);
+      setClassicDestinationSearch('');
       if(creationFullscreen){
         setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);
       }else setClassicDestinationOpen(true);
@@ -2253,7 +2259,7 @@ function App(){
                     onClick={()=>setClassicDestinationPreviewId(sc.id)}
                     aria-pressed={classicDestinationPreviewId===sc.id}>
                     {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}
-                    <span><strong>{sc.name}</strong><small>{sc.id===selected.target?'✓ Destination actuelle':'Voir en 360°'}</small></span>
+                    <span><strong>{sc.name}</strong><small>{sc.id===selected.target?'✓ Destination actuelle':sc.id===classicDestinationPreviewId?'◉ Aperçu actif':'Voir en 360°'}</small></span>
                     <ChevronRight size={15}/>
                   </button>)}
               </div>
@@ -2266,8 +2272,14 @@ function App(){
                      <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/>
                      <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
                    </div>
-                  <button type="button" className="nv-classic-destination-confirm" onClick={()=>createNavigationFromGallery(sc.id)}>
-                    <Images size={16}/> Orienter l'arrivée vers {sc.name}
+                  <button type="button" className="nv-classic-destination-confirm" onClick={()=>{
+                      if(!active||!selected||selected.type!=='navigation')return;
+                      confirmNavigationDirection({
+                        sourceId:active.id,targetId:sc.id,sourceYaw:selected.yaw,sourcePitch:selected.pitch,
+                        existingPointId:selected.id
+                      });
+                    }}>
+                    <Images size={16}/> ✓ Valider la direction
                   </button>
                 </div>)}
               {!visibleScenes.some(sc=>sc.id===classicDestinationPreviewId&&sc.id!==activeId)&&
