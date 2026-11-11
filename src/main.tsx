@@ -941,7 +941,8 @@ function App(){
   function chooseFullscreenScene(id:string){
     if(!visibleIds.has(id))return;
     selectScene(id);
-    setFullscreenGalleryOpen(false);
+    setFullscreenGalleryOpen(true);
+    setFullscreenCommandDrawerOpen(true);
   }
   function stepFullscreenScene(direction:-1|1){
     if(!visibleScenes.length)return;
@@ -2019,18 +2020,18 @@ function App(){
             <Maximize2 size={18}/> Plein écran création
           </button>}
           {active && creationFullscreen && <button type="button" className={'nv-command-drawer-handle'+(fullscreenCommandDrawerOpen?' is-open':'')}
-            onClick={()=>{setFullscreenCommandDrawerOpen(open=>!open);setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);}}
+            onClick={()=>{setFullscreenCommandDrawerOpen(open=>!open);setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);setHoveredGallerySceneId(null);}}
             aria-expanded={fullscreenCommandDrawerOpen} aria-controls="nv-fullscreen-command-drawer"
             aria-label={fullscreenCommandDrawerOpen?'Masquer les commandes':'Afficher les commandes'}>
             <PanelRightClose size={19}/> <span>{fullscreenCommandDrawerOpen?'Masquer':'Commandes'}</span>
           </button>}
           {active && creationFullscreen && fullscreenCommandDrawerOpen && <div id="nv-fullscreen-command-drawer" className="nv-command-drawer" aria-label="Commandes de création">
-            <div className="nv-command-drawer-heading"><strong>Commandes</strong><button type="button" onClick={()=>setFullscreenCommandDrawerOpen(false)} aria-label="Fermer le tiroir">✕</button></div>
-            <div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
+            <div className="nv-command-drawer-heading"><strong>{fullscreenGalleryOpen?'Galerie':'Commandes'}</strong><button type="button" onClick={()=>setFullscreenCommandDrawerOpen(false)} aria-label="Fermer le tiroir">✕</button></div>
+            {fullscreenGalleryOpen?null:<><div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
             <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
             <button type="button" className={'nv-fullscreen-gallery-toggle'+(fullscreenGalleryOpen?' is-active':'')}
               aria-expanded={fullscreenGalleryOpen} aria-controls="nv-fullscreen-gallery"
-              onClick={()=>{setFullscreenGalleryOpen(open=>!open);setFullscreenCommandDrawerOpen(false);setMode(null);}}
+              onClick={()=>{setFullscreenGalleryOpen(true);setHoveredGallerySceneId(null);setMode(null);}}
               title="Choisir un panorama dans la galerie">
               <Images size={16}/> Galerie <span className="nv-fullscreen-gallery-count">{visibleScenes.length}</span>
             </button>
@@ -2068,7 +2069,44 @@ function App(){
                   title={'Ajouter : '+label}>{label}</button>
               ))}
               {mode&&<button type="button" className="nv-fullscreen-tool nv-fullscreen-cancel" onClick={()=>setMode(null)}>Annuler</button>}
-            </div>}
+            </div>}</>}
+            {fullscreenGalleryOpen&&<section id="nv-fullscreen-gallery" className="nv-drawer-gallery" aria-label="Galerie des panoramas">
+            <header className="nv-fullscreen-gallery-header">
+              <div><small>{currentSpace?.name??project.name}</small><strong>Galerie des panoramas</strong></div>
+              <button type="button" className="nv-gallery-back" onClick={()=>{setFullscreenGalleryOpen(false);setHoveredGallerySceneId(null);}}
+                aria-label="Retour au menu des commandes">← Retour</button>
+            </header>
+            <div className="nv-fullscreen-gallery-nav">
+              <button type="button" onClick={()=>stepFullscreenScene(-1)} title="Panorama précédent">
+                <ChevronLeft size={16}/> Précédent
+              </button>
+              <button type="button" onClick={()=>stepFullscreenScene(1)} title="Panorama suivant">
+                Suivant <ChevronRight size={16}/>
+              </button>
+            </div>
+
+            <div className="nv-fullscreen-gallery-list">
+              {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
+                className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')}
+                onMouseEnter={()=>scheduleGalleryHover(scene.id)}
+                onMouseLeave={()=>dismissGalleryHover()}
+                onFocus={()=>scheduleGalleryHover(scene.id)}
+                onBlur={()=>dismissGalleryHover()}
+                onClick={()=>chooseFullscreenScene(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
+                {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
+                  <span className="nv-fullscreen-gallery-placeholder">◎</span>}
+                <span className="nv-fullscreen-gallery-scene-details">
+                  <strong>{scene.name}</strong>
+                  <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
+                  {scene.arrivalYaw!==undefined&&<em>✓ Vue d'arrivée définie</em>}
+                </span>
+              </button>)}
+            </div>
+            <footer className="nv-fullscreen-gallery-footer">
+              {visibleScenes.length} panorama{visibleScenes.length>1?'s':''} dans cet espace
+            </footer>
+            </section>}
+
           </div>}
           {active&&creationFullscreen&&!preview&&fullscreenToolsOpen&&
             <aside id="nv-fullscreen-tools" className="nv-fullscreen-tools-panel" aria-label="Réglages en plein écran">
@@ -2293,7 +2331,7 @@ function App(){
                     <Eye size={15}/> Définir cette vue comme arrivée
                   </button>
                   <p className="nv-quick-hint">Oriente et zoome comme tu le souhaites, puis enregistre cette vue. Les orientations propres aux flèches restent prioritaires.</p>
-                  <button type="button" className="nv-quick-primary" onClick={()=>{setFullscreenToolsOpen(false);setFullscreenGalleryOpen(true);}}>
+                  <button type="button" className="nv-quick-primary" onClick={()=>{setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);}}>
                     <Images size={15}/> Choisir un autre panorama
                   </button>
                 </div>}
@@ -2304,46 +2342,9 @@ function App(){
                 </button>
               </div>
             </aside>}
-          {active && creationFullscreen && fullscreenGalleryOpen && <aside id="nv-fullscreen-gallery"
-            className="nv-fullscreen-gallery-panel" aria-label="Galerie des panoramas">
-            <header className="nv-fullscreen-gallery-header">
-              <div><small>{currentSpace?.name??project.name}</small><strong>Galerie des panoramas</strong></div>
-              <button type="button" className="nv-fullscreen-gallery-close" onClick={()=>setFullscreenGalleryOpen(false)}
-                aria-label="Fermer la galerie">✕</button>
-            </header>
-            <div className="nv-fullscreen-gallery-nav">
-              <button type="button" onClick={()=>stepFullscreenScene(-1)} title="Panorama précédent">
-                <ChevronLeft size={16}/> Précédent
-              </button>
-              <button type="button" onClick={()=>stepFullscreenScene(1)} title="Panorama suivant">
-                Suivant <ChevronRight size={16}/>
-              </button>
-            </div>
-
-            <div className="nv-fullscreen-gallery-list">
-              {visibleScenes.map((scene,index)=><button type="button" key={scene.id}
-                className={'nv-fullscreen-gallery-scene'+(scene.id===activeId?' is-active':'')}
-                onMouseEnter={()=>scheduleGalleryHover(scene.id)}
-                onMouseLeave={()=>dismissGalleryHover()}
-                onFocus={()=>scheduleGalleryHover(scene.id)}
-                onBlur={()=>dismissGalleryHover()}
-                onClick={()=>chooseFullscreenScene(scene.id)} aria-current={scene.id===activeId?'true':undefined}>
-                {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
-                  <span className="nv-fullscreen-gallery-placeholder">◎</span>}
-                <span className="nv-fullscreen-gallery-scene-details">
-                  <strong>{scene.name}</strong>
-                  <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
-                  {scene.arrivalYaw!==undefined&&<em>✓ Vue d'arrivée définie</em>}
-                </span>
-              </button>)}
-            </div>
-            <footer className="nv-fullscreen-gallery-footer">
-              {visibleScenes.length} panorama{visibleScenes.length>1?'s':''} dans cet espace
-            </footer>
-          </aside>}
-          {active&&creationFullscreen&&fullscreenGalleryOpen&&hoveredGallerySceneId&&
+          {active&&creationFullscreen&&fullscreenCommandDrawerOpen&&fullscreenGalleryOpen&&hoveredGallerySceneId&&
             visibleScenes.some(scene=>scene.id===hoveredGallerySceneId)&&
-            <aside className={'nv-fullscreen-gallery-hover-preview'+(fullscreenToolsOpen?' with-tools':'')}
+            <aside className="nv-fullscreen-gallery-hover-preview nv-drawer-gallery-hover-preview"
               aria-label="Grand aperçu du panorama survolé"
               onMouseEnter={()=>{
                 if(galleryHoverTimer.current)clearTimeout(galleryHoverTimer.current);
