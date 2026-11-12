@@ -2411,7 +2411,8 @@ function App(){
     (rightHidden?' nv-studio-hide-right':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
-    <header className="topbar">
+    <header className="topbar nv-topbar-v2">
+      <div className="nv-hrow nv-hrow-main">
       <div className="nv-top-left">
         <button type="button" className={'nv-header-burger'+(navigationDrawerOpen?' is-open':'')}
           aria-label="Ouvrir le menu de navigation" aria-expanded={navigationDrawerOpen}
@@ -2555,35 +2556,18 @@ function App(){
           </button>
         </div>
       </div>
+      <div className="nv-hgroup nv-hgroup-team" role="group" aria-label="Travail à plusieurs">
+        <span className="nv-hgroup-label">Équipe</span>
       <WriteHand onStatus={setStatus}/>
       <button type="button" className={'nv-header-live'+(liveProjectId?' is-on':'')} onClick={()=>void toggleLive()}
         title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
         <Users size={16}/><span>Écran partagé</span>
       </button>
-      <button type="button" className={'nv-header-spaces-trigger'+(spacesDrawerOpen?' is-open':'')}
-        aria-expanded={spacesDrawerOpen} aria-controls="nv-workspace-spaces"
-        title={spacesDrawerOpen?'Masquer les espaces pour agrandir le panorama':'Afficher les espaces du projet'}
-        onClick={()=>setSpacesDrawerOpen(open=>!open)}>
-        <Layers size={17}/><span>Espaces</span>
-        <small>{(project.spaces?.length??0)+1}</small>
-        <ChevronDown size={15} className={spacesDrawerOpen?'is-open':''}/>
-      </button>
-      <div className="nv-header-tool-picker" ref={toolsMenuRef}>
-        <button type="button" className={'nv-header-tools-trigger'+(toolsMenuOpen?' is-open':'')}
-          aria-haspopup="menu" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
-          onClick={()=>setToolsMenuOpen(open=>!open)}>
-          <LayoutGrid size={17}/><span>{rightHidden?'Outils d’édition':toolOptions.find(item=>item.key===panel)?.label??'Outils d’édition'}</span>
-          <ChevronDown size={15}/>
-        </button>
-        {toolsMenuOpen&&<div id="nv-header-tools-options" className="nv-header-tools-options" role="menu" aria-label="Outils d’édition">
-          {toolOptions.map(item=><button type="button" role="menuitemcheckbox" aria-checked={!rightHidden&&panel===item.key}
-            key={item.key} className={!rightHidden&&panel===item.key?'is-active':''}
-            onClick={()=>toggleToolPanel(item.key)}>
-            <span>{item.label}</span>{!rightHidden&&panel===item.key&&<span aria-hidden="true">✓</span>}
-          </button>)}
-        </div>}
       </div>
-      <div className="top-actions">
+      </div>
+      <div className="nv-hrow nv-hrow-actions">
+      <div className="top-actions nv-hgroup nv-hgroup-file" role="group" aria-label="Fichier et publication">
+        <span className="nv-hgroup-label">Fichier</span>
         <button type="button"
           className={'nv-header-update'+(updateAvailable?' is-available':'')}
           onClick={reloadToLatestVersion}
@@ -2615,6 +2599,33 @@ function App(){
           onClick={()=>void exportTour()}>
           <Download size={15}/>{exporting?'Export…':'Exporter'}
         </button>
+      </div>
+      <div className="nv-hgroup nv-hgroup-project" role="group" aria-label="Organisation du projet">
+        <span className="nv-hgroup-label">Projet</span>
+      <button type="button" className={'nv-header-spaces-trigger'+(spacesDrawerOpen?' is-open':'')}
+        aria-expanded={spacesDrawerOpen} aria-controls="nv-workspace-spaces"
+        title={spacesDrawerOpen?'Masquer les espaces pour agrandir le panorama':'Afficher les espaces du projet'}
+        onClick={()=>setSpacesDrawerOpen(open=>!open)}>
+        <Layers size={17}/><span>Espaces</span>
+        <small>{(project.spaces?.length??0)+1}</small>
+        <ChevronDown size={15} className={spacesDrawerOpen?'is-open':''}/>
+      </button>
+      <div className="nv-header-tool-picker" ref={toolsMenuRef}>
+        <button type="button" className={'nv-header-tools-trigger'+(toolsMenuOpen?' is-open':'')}
+          aria-haspopup="menu" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
+          onClick={()=>setToolsMenuOpen(open=>!open)}>
+          <LayoutGrid size={17}/><span>{rightHidden?'Outils d’édition':toolOptions.find(item=>item.key===panel)?.label??'Outils d’édition'}</span>
+          <ChevronDown size={15}/>
+        </button>
+        {toolsMenuOpen&&<div id="nv-header-tools-options" className="nv-header-tools-options" role="menu" aria-label="Outils d’édition">
+          {toolOptions.map(item=><button type="button" role="menuitemcheckbox" aria-checked={!rightHidden&&panel===item.key}
+            key={item.key} className={!rightHidden&&panel===item.key?'is-active':''}
+            onClick={()=>toggleToolPanel(item.key)}>
+            <span>{item.label}</span>{!rightHidden&&panel===item.key&&<span aria-hidden="true">✓</span>}
+          </button>)}
+        </div>}
+      </div>
+      </div>
       </div>
     </header>
     <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen}>

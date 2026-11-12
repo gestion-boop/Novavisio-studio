@@ -4297,3 +4297,21 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 
 /* Le bouton son (haut gauche du panorama) ne doit jamais flotter par-dessus le menu de navigation ouvert. */
 body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointer-events:none}
+
+/* ===== En-tête organisé en deux lignes logiques =====
+   Ligne 1 : Menu · nom du projet · mode (Éditer / Aperçu) ……… Équipe (la main, écran partagé)
+   Ligne 2 : Fichier (mise à jour, enregistrer, publier, plein écran, exporter) ……… Projet (espaces, outils d'édition) */
+.nv-studio-pro .topbar.nv-topbar-v2{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:8px;height:auto;min-height:0;padding:9px 16px}
+.nv-topbar-v2 .nv-hrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.nv-studio-pro .topbar.nv-topbar-v2 .nv-top-left{flex:0 0 auto;width:auto;justify-content:flex-start}
+.nv-studio-pro .topbar.nv-topbar-v2 .nv-top-center{flex:0 1 auto;justify-content:flex-start}
+.nv-topbar-v2 .nv-hrow-main .nv-hgroup-team,.nv-topbar-v2 .nv-hrow-actions .nv-hgroup-project{margin-left:auto}
+.nv-studio-pro .topbar.nv-topbar-v2 .top-actions{flex:0 0 auto;margin-left:0;justify-content:flex-start;flex-wrap:wrap}
+.nv-topbar-v2 .nv-hgroup{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 8px 4px 10px;border:1px solid #ffffff17;border-radius:13px;background:#ffffff08}
+.nv-topbar-v2 .nv-hgroup-label{font:700 10px/1 system-ui,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#7fb2bd;margin-right:2px;white-space:nowrap}
+.nv-topbar-v2 .nv-hgroup-file{border-color:#2f7d6c55;background:#1f7a5a14}
+.nv-topbar-v2 .nv-hgroup-team{border-color:#f2994a44}
+.nv-topbar-v2 .nv-hgroup-project{border-color:#2f80ed44}
+@media(max-width:700px){.nv-topbar-v2 .nv-hgroup-label{display:none}.nv-topbar-v2 .nv-hrow-main .nv-hgroup-team,.nv-topbar-v2 .nv-hrow-actions .nv-hgroup-project{margin-left:0}}
+.nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow>*{order:0}
+.nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow-main .nv-hgroup-team,.nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow-actions .nv-hgroup-project{margin-left:auto}
