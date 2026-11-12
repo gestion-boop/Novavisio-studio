@@ -147,3 +147,11 @@ Le rendu doit être vérifié sur des panoramas réels, et particulièrement sur
 - Le fichier est copié dans le projet : les liens NovaGen de lecture temporaires ne sont jamais sauvegardés dans la visite. Enregistrer envoie la copie dans le Cloud Studio ; l’export HTML inclut le fichier sous `media/videos/`.
 - Limite : 45 Mo par vidéo. Les anciennes vidéos NovaGen conservées seulement sur un ordinateur doivent être importées depuis leur fichier avec l’outil Vidéo.
 - La passerelle conserve la restriction au compte administrateur configuré ; elle ne modifie aucune fiche ni vidéo d’origine dans NovaGen.
+
+
+## Répertoire Clients et édition des flèches
+
+- Le répertoire lit d’abord l’index NovaGen, puis charge les noms par lots de trois (deux lots en parallèle). Chaque lot reste sous la durée d’exécution de la passerelle.
+- Les résumés sont gardés en mémoire dans l’onglet, par compte connecté ; l’index vérifie les ajouts, suppressions et modifications à chaque ouverture. Les détails et liens temporaires des médias sont relus à la sélection d’un client. La progression et les échecs partiels restent visibles ; Actualiser reprend les fiches manquantes.
+- En mode Éditer, un clic sur une flèche la sélectionne sans quitter le panorama. La croix la supprime, la poignée la déplace, et « Panorama d’arrivée » change sa destination en conservant sa position et son icône. Une nouvelle destination utilise sa propre vue d’arrivée.
+- En mode Aperçu, un clic suit la flèche. Les boutons de test de navigation restent disponibles dans l’inspecteur.

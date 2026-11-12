@@ -190,7 +190,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
   const loadedSceneRef=useRef<string|null>(null);
   const currentTextureRef=useRef(scene.dataUrl);
   const lastPointer=useRef<ZoomOrigin|null>(null);
-  const suppressMarkerClick=useRef(false); // dernier clic dans le panorama : point de départ du zoom photo/vidéo
+  const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
   const actions = useRef({scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
   actions.current = {scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
@@ -240,7 +240,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
       const a=actions.current;
       const h=a.scene.hotspots.find(item=>item.id===marker.id);
       if (!h) return;
-      if(suppressMarkerClick.current){suppressMarkerClick.current=false;return;}
+      if(suppressMarkerClick.current===marker.id){suppressMarkerClick.current=null;return;}
       if (a.preview) {
         if(h.type==='navigation' && h.target) a.onNavigate(h.target,h);
         else if(h.type==='information') {
@@ -348,9 +348,9 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
       if(id!==a.selectedId)return;
       if(button.classList.contains('nv-sphere-remove')){
         event.preventDefault();event.stopImmediatePropagation();
-        suppressMarkerClick.current=true;
+        suppressMarkerClick.current=id;
         a.onRemoveNavigation(id);
-        window.setTimeout(()=>{suppressMarkerClick.current=false;},350);
+        window.setTimeout(()=>{if(suppressMarkerClick.current===id)suppressMarkerClick.current=null;},350);
         return;
       }
       if(a.mode)return;
@@ -432,9 +432,9 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
         const id=remove.closest<HTMLElement>('.nv-drag-target')?.dataset.nvMarkerId;
         if(!a.preview&&id&&(a.autoNavigation||a.selectedId===id)){
           e.preventDefault();e.stopImmediatePropagation();
-          suppressMarkerClick.current=true;
+          suppressMarkerClick.current=id;
           a.onRemoveNavigation(id);
-          setTimeout(()=>{suppressMarkerClick.current=false;},350);
+          setTimeout(()=>{if(suppressMarkerClick.current===id)suppressMarkerClick.current=null;},350);
         }
         return;
       }
@@ -452,7 +452,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
       let dragging=!autoDrag;
       if(!autoDrag){e.preventDefault();e.stopImmediatePropagation();}
       let timer:ReturnType<typeof setTimeout>|null=autoDrag?setTimeout(()=>{
-        dragging=true;suppressMarkerClick.current=true;
+        dragging=true;suppressMarkerClick.current=id;
       },320):null;
       let final:{yaw:number;pitch:number}|null=null;
       const move=(p:PointerEvent)=>{
@@ -474,9 +474,9 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
         if(p.pointerId!==e.pointerId)return;
         move(p);clear();
         if(final)actions.current.onMarkerMove(id,final.yaw,final.pitch);
-        if(autoDrag&&dragging)setTimeout(()=>{suppressMarkerClick.current=false;},350);
+        if(autoDrag&&dragging)setTimeout(()=>{if(suppressMarkerClick.current===id)suppressMarkerClick.current=null;},350);
       };
-      const cancel=(p:PointerEvent)=>{if(p.pointerId===e.pointerId){clear();suppressMarkerClick.current=false;}};
+      const cancel=(p:PointerEvent)=>{if(p.pointerId===e.pointerId){clear();suppressMarkerClick.current=null;}};
       document.addEventListener('pointermove',move,true);
       document.addEventListener('pointerup',up,true);
       document.addEventListener('pointercancel',cancel,true);
@@ -1147,6 +1147,11 @@ function App(){
     const frame=requestAnimationFrame(()=>document.getElementById('nv-bar-button-settings')?.scrollIntoView({block:'start'}));
     return ()=>cancelAnimationFrame(frame);
   },[selectedBarId,panel]);
+  useEffect(()=>{
+    if(!selectedId||panel!=='points')return;
+    const frame=requestAnimationFrame(()=>document.getElementById('nv-selected-point')?.scrollIntoView({block:'start'}));
+    return ()=>cancelAnimationFrame(frame);
+  },[selectedId,panel]);
   const closeIcon=project.icons.find(icon=>icon.id===project.closeIconId);
   const popupThemeClass=closeIcon?' nv-custom-close':'';
   useEffect(()=>{
@@ -2091,19 +2096,40 @@ function App(){
       setStatus('Icône importée et appliquée');
     }catch{setStatus('Erreur pendant l’import de l’icône');}
   }
+  function selectPointForEditing(id:string){
+    if(autoNavigation)stopAutoNavigation();
+    setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);setRightHidden(false);
+    setDestinationEditId(null);setClassicDestinationOpen(false);setNavigationPickerOpen(false);
+    setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
+    if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);}
+  }
+  function navigationEditor(){
+    if(!selected||selected.type!=='navigation')return null;
+    return <div className="nv-navigation-edit-card">
+      <strong>Modifier cette flèche</strong>
+      <label>Panorama d’arrivée
+        <select aria-label="Panorama d’arrivée" value={selected.target} onChange={event=>setNavigationDestination(event.target.value)}>
+          <option value="">Choisir un panorama…</option>
+          {visibleScenes.filter(scene=>scene.id!==activeId).map(scene=><option key={scene.id} value={scene.id}>{scene.name}</option>)}
+        </select>
+      </label>
+      <small>Glisse la poignée ✥ à côté de la flèche pour la déplacer. La croix rouge la supprime.</small>
+      <button type="button" className="delete" onClick={()=>removeAutoNavigationArrow(selected.id)}>Supprimer la flèche</button>
+    </div>;
+  }
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
   }
   // Le choix d'une destination ne crée JAMAIS un point de retour implicitement.
   // L'utilisateur peut créer ce retour volontairement via reverseNavigation.
   function setNavigationDestination(targetId:string){
-    if(!active||!selected||selected.type!=='navigation')return;
+    if(!active||!selected||selected.type!=='navigation'||(targetId&&(!visibleIds.has(targetId)||targetId===active.id)))return;
     const fromId=active.id,pointId=selected.id;
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===fromId?
       {...sc,hotspots:sc.hotspots.map(h=>h.id===pointId?
-        {...h,target:targetId,arrivalYaw:galleryOrientationRef.current[targetId]?.yaw??h.arrivalYaw,
-          arrivalPitch:galleryOrientationRef.current[targetId]?.pitch??h.arrivalPitch,
-          arrivalZoom:galleryOrientationRef.current[targetId]?.zoom??h.arrivalZoom,
+        {...h,target:targetId,arrivalYaw:galleryOrientationRef.current[targetId]?.yaw??(h.target===targetId?h.arrivalYaw:undefined),
+          arrivalPitch:galleryOrientationRef.current[targetId]?.pitch??(h.target===targetId?h.arrivalPitch:undefined),
+          arrivalZoom:galleryOrientationRef.current[targetId]?.zoom??(h.target===targetId?h.arrivalZoom:undefined),
           arrivalZoomModel:'wide' as const}:h)}:sc)}));
     setNavigationPickerOpen(false);
     setClassicDestinationOpen(false);
@@ -2706,7 +2732,8 @@ function App(){
                    </div>
                   <button type="button" className="nv-classic-destination-confirm" onClick={()=>{
                       if(!active||!selected||selected.type!=='navigation')return;
-                      confirmNavigationDirection({
+                      if(!autoNavigation)setNavigationDestination(sc.id);
+                      else confirmNavigationDirection({
                         sourceId:active.id,targetId:sc.id,sourceYaw:selected.yaw,sourcePitch:selected.pitch,
                         existingPointId:selected.id
                       });
@@ -2726,32 +2753,7 @@ function App(){
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
           {rightHidden&&!preview&&<button type="button" className="nv-inspector-reopen" aria-label="Ouvrir le panneau latéral" onClick={()=>setRightHidden(false)}><ChevronLeft size={17}/> Réglages</button>}
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{
-              setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
-              const marker=active?.hotspots.find(h=>h.id===id);
-              if(marker?.type==='navigation'){
-                if(marker.target&&visibleIds.has(marker.target)){
-                  // Sans Auto, un clic suit normalement la flèche enregistrée.
-                  setDestinationEditId(null);setClassicDestinationOpen(false);
-                  setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);
-                  setFullscreenCommandDrawerOpen(false);
-                  goThroughArrow(marker,active!.id);
-                  if(autoNavigation)setMode('navigation');
-                  setStatus('Arrivée dans '+(project.scenes.find(sc=>sc.id===marker.target)?.name??'le panorama')+(autoNavigation?' · Auto : place la flèche suivante.':'.'));
-                }else{
-                  // Une flèche nouvelle ouvre directement la galerie.
-                  setDestinationEditId(id);
-                  setClassicDestinationPreviewId(marker.target&&visibleIds.has(marker.target)?marker.target:null);
-                  setClassicDestinationSearch('');
-                  if(creationFullscreen){
-                    setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);
-                    setHoveredGallerySceneId(null);
-                  }else setClassicDestinationOpen(true);
-                }
-              }else if(creationFullscreen){
-                setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);
-              }
-            }} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -2943,13 +2945,14 @@ function App(){
                   <div className="nv-quick-point-list">
                     {active.hotspots.map(h=><button type="button" key={h.id}
                       className={selectedId===h.id?'is-active':''}
-                      onClick={()=>{setSelectedId(h.id);setSelectedBarId('');setMode(null);}}>
+                      onClick={()=>selectPointForEditing(h.id)}>
                       <span>{h.type==='navigation'?'➜':h.type==='image'?'▣':h.type==='video'?'▶':h.type==='lien'?'↗':'ⓘ'}</span>
                       <strong>{h.title||'Sans titre'}</strong>
                     </button>)}
                     {!active.hotspots.length&&<p className="nv-quick-hint">Ajoute un élément depuis la barre supérieure, puis clique dans le panorama.</p>}
                   </div>
                   {selected?<div className="nv-quick-fields">
+                    {navigationEditor()}
                     <label>Nom du point
                       <input value={selected.title} onChange={e=>patchPoint({title:e.target.value})}/>
                     </label>
@@ -3418,7 +3421,7 @@ function App(){
             /* ============================================================== */
             /* DIRECT ELEMENT INSPECTOR (QUAND UN ÉLÉMENT DU 360° EST CLIQUÉ) */
             /* ============================================================== */
-            <div className="element-inspector">
+            <div id="nv-selected-point" className="element-inspector">
               <div className="element-inspector-header">
                 <div className="element-inspector-badge">
                   <span className="badge-glyph">
@@ -3434,10 +3437,11 @@ function App(){
                 </button>
               </div>
 
+              {navigationEditor()}
               {active.hotspots.length > 1 && (
                 <div className="point-quick-switcher">
                   <label>Passer à un autre point :
-                    <select value={selectedId} onChange={e=>setSelectedId(e.target.value)}>
+                    <select value={selectedId} onChange={e=>selectPointForEditing(e.target.value)}>
                       {active.hotspots.map((h, idx) => (
                         <option key={h.id} value={h.id}>
                           {idx + 1}. {h.type==='navigation'?'➜ ':h.type==='lien'?'↗ ':h.type==='image'?'▣ ':h.type==='video'?'▶ ':'ⓘ '}
@@ -3489,7 +3493,7 @@ function App(){
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
-                <small className="hint-inline">22 Mo max en local, ou renseigne une URL HTTPS directe :</small>
+                <small className="hint-inline">45 Mo max en local, ou renseigne une URL HTTPS directe :</small>
                 <label>Ou URL HTTPS de la vidéo
                   <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''} onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
                 </label>
@@ -3651,7 +3655,7 @@ function App(){
                 <div className="points-list">
                   <p className="hint-small">Clique sur un point ci-dessous ou directement dans le panorama 360° pour le modifier :</p>
                   {active.hotspots.map(h => (
-                    <button key={h.id} type="button" className="point-item-btn" onClick={() => setSelectedId(h.id)}>
+                    <button key={h.id} type="button" className="point-item-btn" onClick={() => selectPointForEditing(h.id)}>
                       <span className="point-item-glyph">
                         {project.icons.find(i=>i.id===h.iconId)?<img className="point-icon-small" src={project.icons.find(i=>i.id===h.iconId)!.dataUrl} alt=""/>:h.type==='navigation'?'➜':h.type==='lien'?'↗':h.type==='image'?'▣':h.type==='video'?'▶':'ⓘ'}
                       </span>

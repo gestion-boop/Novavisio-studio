@@ -33,3 +33,9 @@
 .nv-novagen-videos details{font-size:12px;line-height:1.5}
 .nv-novagen-videos summary{cursor:pointer;color:#9fd5d7}
 .nv-novagen-videos details p{margin-top:8px}
+
+.nv-navigation-edit-card{display:flex;flex-direction:column;gap:10px;margin:12px 0;padding:13px;border:1px solid #45b7ad;border-radius:9px;background:#163e49;color:#daf9f2}
+.nv-navigation-edit-card small{font-size:12px;line-height:1.5;color:#acd1d7}
+.nv-navigation-edit-card label{display:flex;flex-direction:column;gap:7px;font-size:13px}
+.nv-navigation-edit-card select{width:100%;min-width:0;padding:9px;background:#0d2532;border:1px solid #537b8b;color:#e4f6f5;border-radius:7px}
+#nv-selected-point{scroll-margin-top:64px}

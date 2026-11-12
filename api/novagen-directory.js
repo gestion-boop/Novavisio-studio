@@ -25,12 +25,12 @@ async function verify(req){
   const data=await u.json().catch(()=>({}));
   return data.id===OWNER_ID;
 }
-async function store(body){
+async function store(body,timeout=22000){
   const r=await fetch(STORE,{
     method:'POST',headers:{
       'content-type':'application/json',
       ...(process.env.NOVAGEN_APP_PASSWORD?{'x-pass':process.env.NOVAGEN_APP_PASSWORD}:{})
-    },body:JSON.stringify(body),signal:AbortSignal.timeout(22000)
+    },body:JSON.stringify(body),signal:AbortSignal.timeout(timeout)
   });
   const result=await r.json().catch(()=>({}));
   if(!r.ok)throw Error(r.status===401?'Connexion NovaGen non autorisée.':
@@ -80,7 +80,25 @@ export default async function handler(req,res){
   try{
     if(!await verify(req))return res.status(403).json({error:'Connecte-toi avec le compte administrateur NovaStudio pour voir le répertoire NovaGen.'});
     const b=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
-    if(!['list','detail','videos'].includes(b.mode))return res.status(400).json({error:'Mode inconnu.'});
+    if(!['list','index','summaries','detail','videos'].includes(b.mode))return res.status(400).json({error:'Mode inconnu.'});
+    if(b.mode==='index'){
+      const items=(await store({mode:'list'})).items||[];
+      return res.status(200).json({items:items.filter(x=>!x.deleted_at&&okId(x.id)).map(x=>({id:x.id,updatedAt:x.updated_at||''})),truncated:items.length>=1000});
+    }
+    if(b.mode==='summaries'){
+      if(!Array.isArray(b.ids)||b.ids.length>3||b.ids.some(id=>!okId(id)))return res.status(400).json({error:'Lot de clients invalide.'});
+      const clients=await Promise.all([...new Set(b.ids)].map(async id=>{
+        try{
+          const row=await store({mode:'get',id},12000);
+          if(row.row?.deleted_at)throw Error('Fiche supprimée');
+          const full=normal(row),p=full.profile;
+          return {...full,profile:{novagenId:id,name:p.name,city:p.city,category:p.category,address:p.address,
+            phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''},
+            photoUrls:[],logoUrl:'',notes:[],summaryOnly:true};
+        }catch{return {id,unavailable:true};}
+      }));
+      return res.status(200).json({clients});
+    }
     if(b.mode==='detail'||b.mode==='videos'){
       if(!okId(b.id))return res.status(400).json({error:'Identifiant client incorrect.'});
       const result=await store({mode:'get',id:b.id});
@@ -95,7 +113,7 @@ export default async function handler(req,res){
     const items=(await store({mode:'list'})).items||[];
     const live=items.filter(x=>!x.deleted_at&&okId(x.id));
     const offset=Math.min(1000,Math.max(0,Number(b.offset)||0));
-    const limit=18;
+    const limit=3;
     const chunk=live.slice(offset,offset+limit);
     let cursor=0;
     const results=Array(chunk.length).fill(null);

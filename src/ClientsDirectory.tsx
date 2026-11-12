@@ -1,16 +1,11 @@
 import {useEffect,useMemo,useState} from 'react';
 import {Building2,Check,ChevronRight,Cloud,Database,ExternalLink,FolderOpen,Image as ImageIcon,LoaderCircle,RefreshCw,Search,Users,X} from 'lucide-react';
-import {cloudConfigured,listCloudProjects,supabase,type CloudProject} from './cloud';
+import {listCloudProjects,type CloudProject} from './cloud';
+import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
 import type {ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
 import type {ImportedClientVideo} from './novagenVideos';
 
-type RemoteClient={
- id:string;profile:ClientProfile;logoUrl:string;photoUrls:string[];
- notes:string[];photoCount:number;videoCount?:number;hasLogo?:boolean;updatedAt:string;
- source:'novagen';unavailable?:boolean
-};
-type DirectoryResult={clients:RemoteClient[];total:number;nextOffset:number|null;truncated:boolean};
 type Group={key:string;name:string;city:string;projects:CloudProject[];records:RemoteClient[];logoUrl:string;current:boolean};
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
  .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -19,20 +14,6 @@ const safeRemoteUrl=(s:string)=>{
  catch{return '';}
 };
 const blankProfile:ClientProfile={novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''};
-
-async function listNovaGen(offset:number):Promise<DirectoryResult>{
- if(!cloudConfigured)throw Error('Le Cloud NovaStudio doit être configuré.');
- const {data,error}=await supabase().auth.getSession();
- if(error||!data.session?.access_token)throw Error('Connecte-toi au Cloud NovaStudio pour consulter les clients NovaGen.');
- const res=await fetch('/api/novagen-directory',{
-   method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+data.session.access_token},
-   body:JSON.stringify({mode:'list',offset}),cache:'no-store'
- });
- let body:Record<string,unknown>;
- try{body=await res.json() as Record<string,unknown>;}catch{throw Error('Répertoire NovaGen non disponible sur cette version.');}
- if(!res.ok)throw Error(String(body.error||'Erreur de lecture du répertoire NovaGen.'));
- return body as DirectoryResult;
-}
 
 export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo}:{
  currentProjectName:string;currentProfile?:ClientProfile;
@@ -49,41 +30,24 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  const [errorStudio,setErrorStudio]=useState('');
  const [errorNovaGen,setErrorNovaGen]=useState('');
  const [totalNovaGen,setTotalNovaGen]=useState<number|null>(null);
- const [nextOffset,setNextOffset]=useState<number|null>(null);
  const [truncated,setTruncated]=useState(false);
  const [refresh,setRefresh]=useState(0);
+ const [detailLoading,setDetailLoading]=useState(false),[detailError,setDetailError]=useState('');
+ const [detailRetry,setDetailRetry]=useState(0);
  useEffect(()=>{
-  let cancelled=false;
-  setLoading(true);setErrorStudio('');setErrorNovaGen('');setRemote([]);setTotalNovaGen(null);setNextOffset(null);
-  const run=async()=>{
-   try{
-    const ps=await listCloudProjects();
-    if(!cancelled)setStudio(ps);
-   }catch(e){if(!cancelled){setStudio([]);setErrorStudio(e instanceof Error?e.message:String(e));}}
-   // Progressively fetch every NovaGen page, not just the first 18 clients.
-   // Keep each completed batch visible, without modifying either database.
-   let offset:number|null=0;
-   const visited=new Set<number>();
-   let firstPage=true;
-   try{
-    while(offset!==null&&!cancelled){
-     if(visited.has(offset))throw new Error('Pagination NovaGen incohérente.');
-     visited.add(offset);
-     if(!firstPage)setMoreLoading(true);
-     const page=await listNovaGen(offset);
-     if(cancelled)break;
-     setRemote(old=>[...old,...page.clients.filter(x=>!old.some(y=>y.id===x.id))]);
-     setTotalNovaGen(page.total);
-     setTruncated(page.truncated);
-     offset=page.nextOffset;
-     setNextOffset(offset);
-     if(firstPage){setLoading(false);firstPage=false;}
-    }
-   }catch(e){if(!cancelled)setErrorNovaGen(e instanceof Error?e.message:String(e));}
-   if(!cancelled){setLoading(false);setMoreLoading(false);}
-  };
-  void run();
-  return ()=>{cancelled=true;};
+  const controller=new AbortController();
+  setLoading(true);setMoreLoading(true);setErrorStudio('');setErrorNovaGen('');
+  // Independent sources: a slow Studio request must not delay NovaGen clients.
+  void listCloudProjects().then(projects=>{if(!controller.signal.aborted)setStudio(projects);})
+    .catch(e=>{if(!controller.signal.aborted)setErrorStudio(e instanceof Error?e.message:String(e));});
+  void loadClientDirectory(controller.signal,page=>{
+    if(controller.signal.aborted)return;
+    setRemote(previous=>page.clients.map(client=>{const full=previous.find(row=>row.id===client.id&&!row.summaryOnly&&row.updatedAt===client.updatedAt);return full??client;}));setTotalNovaGen(page.total);setTruncated(page.truncated);setLoading(false);
+  }).then(({failed})=>{
+    if(!controller.signal.aborted&&failed)setErrorNovaGen(failed+' fiche(s) non chargée(s). Clique sur Actualiser pour reprendre.');
+  }).catch(e=>{if(!controller.signal.aborted)setErrorNovaGen(e instanceof Error?e.message:String(e));})
+    .finally(()=>{if(!controller.signal.aborted){setLoading(false);setMoreLoading(false);}});
+  return ()=>controller.abort();
  },[refresh]);
  const groups=useMemo(()=>{
    const map=new Map<string,Group>();
@@ -108,23 +72,25 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    }
    return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
  },[studio,remote,currentProjectName,currentProfile]);
- const visible=groups.filter(g=>norm([g.name,g.city,g.records.map(r=>r.profile.address).join(' ')].join(' ')).includes(norm(search)));
+ const visible=groups.filter(g=>norm([g.name,g.city,g.records.map(r=>r.profile.address+' '+r.profile.city).join(' ')].join(' ')).includes(norm(search)));
  const selected=groups.find(g=>g.key===selectedKey)||visible[0]||groups[0];
  const selectedRecord=selected?.records.find(r=>r.id===recordId)||selected?.records[0];
  const profile=selectedRecord?.profile||
    (selected?.current&&currentProfile?currentProfile:blankProfile);
  const associated=!!currentProfile?.novagenId&&currentProfile.novagenId===profile.novagenId&&!!profile.novagenId;
- const next=async()=>{
-   if(nextOffset===null||moreLoading)return;
-   setMoreLoading(true);setErrorNovaGen('');
-   try{const r=await listNovaGen(nextOffset);
-    setRemote(old=>[...old,...r.clients.filter(x=>!old.some(y=>y.id===x.id))]);
-    setTotalNovaGen(r.total);setNextOffset(r.nextOffset);setTruncated(r.truncated);
-   }catch(e){setErrorNovaGen(e instanceof Error?e.message:String(e));}
-   finally{setMoreLoading(false);}
- };
+ useEffect(()=>{
+  const id=selectedRecord?.id;
+  setDetailError('');setDetailLoading(false);
+  if(!id||!selectedRecord.summaryOnly)return;
+  const controller=new AbortController();setDetailLoading(true);
+  void requestDirectory<{client:RemoteClient}>({mode:'detail',id},controller.signal)
+    .then(({client})=>{if(!controller.signal.aborted)setRemote(rows=>rows.map(row=>row.id===id?client:row));})
+    .catch(e=>{if(!controller.signal.aborted)setDetailError(e instanceof Error?e.message:String(e));})
+    .finally(()=>{if(!controller.signal.aborted)setDetailLoading(false);});
+  return ()=>controller.abort();
+ },[selectedRecord?.id,selectedRecord?.summaryOnly,detailRetry]);
  const pair=(key:string)=>{
-   if(!selectedRecord)return;
+   if(!selectedRecord||selectedRecord.summaryOnly||selectedRecord.unavailable)return;
    const src=selectedRecord.profile;
    const target:ClientProfile={
      ...blankProfile,novagenId:src.novagenId||selectedRecord.id,
@@ -166,7 +132,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
           <input type="search" value={search} placeholder="Rechercher un client…" onChange={e=>setSearch(e.target.value)}/>
         </label>
         <div className="nv-directory-list-totals"><span>{groups.length} établissement{groups.length>1?'s':''}</span>
-          <span>{loading?'Chargement…':totalNovaGen===null?'NovaGen à connecter':totalNovaGen+' fiche(s) NovaGen'}</span>
+          <span>{loading?'Chargement…':totalNovaGen===null?'NovaGen à connecter':remote.length+' / '+totalNovaGen+' fiche(s) NovaGen'}</span>
         </div>
         <div className="nv-directory-list-scroller">
           {visible.map(g=><button key={g.key} type="button" onClick={()=>{setSelectedKey(g.key);setRecordId('');}}
@@ -186,15 +152,12 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
           </button>)}
           {!visible.length&&<div className="nv-directory-empty">
              <Building2 size={24}/>
-             <span>{loading?'Chargement du répertoire…':'Aucun établissement visible dans cette recherche.'}</span>
+             <span>{loading||moreLoading?'Chargement du répertoire…':'Aucun établissement visible dans cette recherche.'}</span>
              {!!errorStudio&&<button type="button" className="nv-directory-secondary-action" onClick={onOpenCloud}>
                <Cloud size={14}/> Se connecter au Cloud
              </button>}
           </div>}
-          {nextOffset!==null&&<div className="nv-directory-pagination-status">
-            {moreLoading?<><LoaderCircle size={14}/> Récupération automatique des autres fiches NovaGen…</>:
-              <button type="button" className="nv-directory-more" onClick={()=>void next()}>Reprendre le chargement des fiches NovaGen</button>}
-          </div>}
+
         </div>
       </aside>
       <main className="nv-directory-detail">
@@ -223,6 +186,8 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
           <div className="nv-directory-sections">
             <section>
               <div className="nv-directory-section-head"><Database size={16}/> Informations</div>
+              {detailLoading&&<p role="status">Chargement des détails du client…</p>}
+              {detailError&&<p role="alert" className="nv-directory-warning">{detailError} <button type="button" onClick={()=>setDetailRetry(n=>n+1)}>Réessayer les détails</button></p>}
               {selectedRecord?.unavailable&&<p className="nv-directory-warning">Cette fiche NovaGen n'a pas pu être lue.</p>}
               {detailRow('Activité',profile.category)}
               {detailRow('Adresse',profile.address)}
@@ -258,10 +223,10 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               </div>
               <p className="nv-directory-muted">Aperçus temporaires depuis NovaGen. Les fichiers restent dans leur stockage d'origine.</p>
             </section>}
-            {selectedRecord&&!selectedRecord.unavailable&&<NovaGenVideos key={selectedRecord.id} clientId={selectedRecord.id} canPlace={canPlaceVideo} onPlace={onPlaceVideo}/>}
+            {selectedRecord&&!selectedRecord.unavailable&&!selectedRecord.summaryOnly&&<NovaGenVideos key={selectedRecord.id} clientId={selectedRecord.id} canPlace={canPlaceVideo} onPlace={onPlaceVideo}/>}
           </div>
           {selectedRecord&&!selectedRecord.unavailable&&<div className="nv-directory-bottom-actions">
-            <button type="button" className="nv-directory-associate" disabled={associated} onClick={()=>pair(selected.key)}>
+            <button type="button" className="nv-directory-associate" disabled={associated||!!selectedRecord.summaryOnly} onClick={()=>pair(selected.key)}>
               {associated?<><Check size={16}/> Déjà associé</>:<><Check size={16}/> Associer à la visite en cours</>}
             </button>
             <small>Les données de l'établissement sont copiées dans la fiche du projet ; ses photos et son logo restent dans NovaGen.</small>
@@ -278,7 +243,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
     {truncated&&<div className="nv-directory-status">NovaGen a atteint la limite de son index (1 000 fiches). Une récupération par lots sera nécessaire pour le reste.</div>}
     <footer className="nv-directory-foot"><span>Lecture seule · Aucune fiche d'origine modifiée</span>
       <span>{loading?<><LoaderCircle size={13}/> Connexion aux deux sources…</>:
-           moreLoading?<><LoaderCircle size={13}/> Import de toutes les fiches NovaGen en cours…</>:
+           moreLoading?<><LoaderCircle size={13}/> Chargement des clients : {remote.length} / {totalNovaGen??'…'} fiches NovaGen</>:
            'Sources : NovaStudio Cloud et NovaGen'}</span></footer>
   </section>
  </div>;
