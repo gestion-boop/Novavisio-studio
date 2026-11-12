@@ -6,6 +6,7 @@ import {BarGalleryEditor,type BarGalleryTab} from './BarGalleryEditor';
 import './workflow.css';
 import {CreationToolbar} from './CreationToolbar';
 import {reorderItems,useGripSort} from './gripSort';
+import {useHorizontalSort} from './hSort';
 import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisplay';
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
@@ -1192,6 +1193,7 @@ function App(){
     }
   },[ready,lock,project.preparationComplete,project.scenes.length]);
   const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
+  const spaceSort=useHorizontalSort((project.spaces??[]).map(sp=>sp.id),(from,to)=>setProject(p=>({...p,spaces:reorderItems(p.spaces??[],from,to,sp=>sp.id)})));
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-bar-bg':project.barStyle.background,
@@ -2303,7 +2305,8 @@ function App(){
   function finishSpaceRename(spaceId:string){
     if(!cancelSpaceEditRef.current){
       const name=safeSpaceName(editingSpaceName).trim();
-      if(name)renameSpace(spaceId,name);
+      if(name&&spaceId==='__project__')setProject(p=>({...p,name:name.slice(0,150)}));
+      else if(name)renameSpace(spaceId,name);
     }
     cancelSpaceEditRef.current=false;
     setEditingSpaceId(null);
@@ -2634,14 +2637,29 @@ function App(){
     </header>
     <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen}>
 
-      <div className="nv-space-tab-scroll" role="tablist" aria-label="Espaces du projet">
-        <button type="button" role="tab" aria-selected={!currentSpace}
-          className={'nv-space-tab'+(!currentSpace?' is-active':'')}
-          onClick={()=>selectSpace(null)} title="Tous les panoramas originaux">
-          <Home size={13}/> Projet complet <small>{project.scenes.length}</small>
-        </button>
-        {(project.spaces??[]).map(space=><div key={space.id}
-          className={'nv-space-tab nv-space-tab-editable'+(activeSpaceId===space.id?' is-active':'')}>
+      <div className="nv-space-tab-scroll" role="tablist" aria-label="Espaces du projet" data-hsort="spaces">
+        <div className={'nv-space-tab nv-space-tab-editable'+(!currentSpace?' is-active':'')}>
+          {editingSpaceId==='__project__'?
+            <input autoFocus className="nv-space-tab-rename" value={editingSpaceName} maxLength={150} aria-label="Nouveau nom du projet"
+              onChange={e=>setEditingSpaceName(e.target.value)}
+              onBlur={()=>finishSpaceRename('__project__')}
+              onKeyDown={e=>{
+                if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur();}
+                if(e.key==='Escape'){e.preventDefault();cancelSpaceEditRef.current=true;e.currentTarget.blur();}
+              }}/>:
+            <>
+              <button type="button" role="tab" aria-selected={!currentSpace} className="nv-space-tab-select"
+                onClick={()=>selectSpace(null)} onDoubleClick={()=>startSpaceRename('__project__',project.name)}
+                title={project.name+' · tous les panoramas originaux · double-clic pour renommer'}>
+                <Home size={13}/><span>{project.name||'Projet complet'}</span><small>{project.scenes.length}</small>
+              </button>
+              <button type="button" className="nv-space-tab-rename-button" aria-label="Renommer le projet" title="Renommer le projet"
+                onClick={()=>startSpaceRename('__project__',project.name)}><Edit3 size={13}/></button>
+            </>}
+        </div>
+        {(project.spaces??[]).map(space=><div key={space.id} data-hsort-id={space.id}
+          className={'nv-space-tab nv-space-tab-editable'+(activeSpaceId===space.id?' is-active':'')+(spaceSort.drag===space.id?' is-dragging':'')}>
+          {editingSpaceId!==space.id&&spaceSort.grip(space.id,space.name)}
           {editingSpaceId===space.id?
             <input autoFocus className="nv-space-tab-rename" value={editingSpaceName}
               maxLength={100} aria-label={'Nouveau nom de '+space.name}
