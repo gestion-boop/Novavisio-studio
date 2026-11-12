@@ -25,6 +25,14 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
   const thumb=(id:string)=><span className="gallery-thumb">{thumbs[id]&&<img src={thumbs[id]} alt="" draggable={false}/>}</span>;
   return <div className="gallery-editor">
     <label>Titre du panneau<input value={item.galleryTitle??''} placeholder={item.title||'Espaces et panoramas'} onChange={event=>onChange({galleryTitle:event.target.value})}/></label>
+    <div className="nv-gallery-bg-picker">
+      <div className="section-title">PHOTO DE FOND DU PANNEAU</div>
+      <div className="nv-gallery-bg-options" role="radiogroup" aria-label="Photo de fond du panneau">
+        <button type="button" role="radio" aria-checked={!item.galleryBackground} className={!item.galleryBackground?'is-selected':''} onClick={()=>onChange({galleryBackground:undefined})}><span className="nv-gallery-bg-none">Aucune</span></button>
+        {spaces.filter(space=>space.coverDataUrl).map(space=><button type="button" role="radio" key={'space:'+space.id} aria-checked={item.galleryBackground==='space:'+space.id} title={'Couverture de '+space.name} className={item.galleryBackground==='space:'+space.id?'is-selected':''} onClick={()=>onChange({galleryBackground:'space:'+space.id})}><img src={space.coverDataUrl} alt="" draggable={false}/><small>{space.name}</small></button>)}
+        {scenes.map(scene=><button type="button" role="radio" key={'scene:'+scene.id} aria-checked={item.galleryBackground==='scene:'+scene.id} title={scene.name} className={item.galleryBackground==='scene:'+scene.id?'is-selected':''} onClick={()=>onChange({galleryBackground:'scene:'+scene.id})}>{thumbs[scene.id]?<img src={thumbs[scene.id]} alt="" draggable={false}/>:<span className="nv-gallery-bg-none">◎</span>}<small>{scene.name}</small></button>)}
+      </div>
+    </div>
     <p className="hint-inline">Coche les espaces à proposer dans le popup. Chaque carte ouvre la visite de cet espace. Tu peux aussi ajouter des panoramas dans le même panneau.</p>
     <div className="nv-gallery-content-tabs" role="group" aria-label="Contenu du panneau">
       <button type="button" aria-pressed={tab==='spaces'} onClick={()=>onTabChange('spaces')}>Espaces ({selectedSpaces.length})</button>

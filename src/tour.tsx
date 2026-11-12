@@ -10,7 +10,7 @@ import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plug
 import {frameWorldCorners} from './sphericalFrame';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
-import {PanoramaGallery,galleryEntries} from './gallery';
+import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
@@ -373,7 +373,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {galleryId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
       if(!item)return null;
-      return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={current.id}
+      return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={current.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
         entries={galleryEntries(item,project.scenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)}))}
         onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}

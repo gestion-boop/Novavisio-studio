@@ -48,6 +48,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     return {
       ...item,
       gallerySpaceIds:[],
+      galleryBackground:item.galleryBackground?.startsWith('scene:')&&ids.has(item.galleryBackground.slice(6))?item.galleryBackground:undefined,
       target:item.target&&ids.has(item.target)?item.target:'',
       ...(gallery?{gallery}:{})
     };
