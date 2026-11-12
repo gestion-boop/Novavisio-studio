@@ -7,10 +7,10 @@ export function captureSkin(project:StudioProject,name:string,id:string=crypto.r
   const appearances=project.bottomBar.map(item=>({id:item.id,title:item.title,type:'information' as const,text:'',url:'',target:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize}));
   const nav=project.defaultNavigationIcon??(project.iconPackId==='classic'?undefined:inferNavigation(project));
   const used=new Set<string>();
-  for(const item of [...appearances,...(nav?[nav]:[])])for(const key of ['iconId','hoverIconId','pressedIconId'] as const){if(item[key])used.add(item[key]!);}
+  for(const item of [...appearances,...(nav?[nav]:[]),...(project.buttonSets??[])])for(const key of ['iconId','hoverIconId','pressedIconId'] as const){if(item[key])used.add(item[key]!);}
   for(const key of globalIcons)if(project[key])used.add(project[key]!);
   const appearance:StudioProject={...newProject(),name:'Skin',barStyle:{...project.barStyle},bottomBar:appearances,
-    icons:project.icons.filter(icon=>used.has(icon.id)),languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId};
+    icons:project.icons.filter(icon=>used.has(icon.id)),buttonSets:project.buttonSets,languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId};
   for(const key of globalIcons)appearance[key]=project[key];
   return validateSkin({version:1,id,name:name.trim(),updatedAt:new Date().toISOString(),appearance});
 }
@@ -34,7 +34,7 @@ export function validateSkin(value:unknown):Skin {
   if(!source||!Array.isArray(source.icons)||!Array.isArray(source.bottomBar))throw Error('Présentation du skin invalide');
   const appearance=validateProject({...newProject(),name:'Skin',icons:source.icons,barStyle:source.barStyle,
     bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:'information',target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
-    languages:source.languages,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
+    languages:source.languages,buttonSets:source.buttonSets,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
     ...Object.fromEntries(globalIcons.map(key=>[key,source[key]]))});
   return {version:1,id:skin.id,name:skin.name.trim(),updatedAt:typeof skin.updatedAt==='string'?skin.updatedAt:new Date().toISOString(),appearance};
 }
@@ -53,8 +53,14 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
     if(!visual)return item;
     return {...item,...Object.fromEntries(['iconId','hoverIconId','pressedIconId'].map(key=>[key,remap(visual[key as keyof BottomBarItem] as string|undefined)])),iconSize:visual.iconSize,builtinIcon:visual.builtinIcon};
   });
+  const buttonSets=[...(project.buttonSets??[])];
+  for(const set of source.buttonSets??[]){
+    const mapped={...set,iconId:remap(set.iconId)!,hoverIconId:remap(set.hoverIconId),pressedIconId:remap(set.pressedIconId)};
+    if(buttonSets.some(existing=>existing.iconId===mapped.iconId&&existing.hoverIconId===mapped.hoverIconId&&existing.pressedIconId===mapped.pressedIconId&&existing.iconSize===mapped.iconSize))continue;
+    buttonSets.push({...mapped,id:buttonSets.some(existing=>existing.id===mapped.id)?crypto.randomUUID():mapped.id});
+  }
   const nav=source.defaultNavigationIcon;
-  const next={...project,icons,bottomBar,barStyle:{...source.barStyle},languages:source.languages,iconPackId:source.iconPackId,
+  const next={...project,icons,bottomBar,buttonSets,barStyle:{...source.barStyle},languages:source.languages,iconPackId:source.iconPackId,
     defaultNavigationIcon:nav?{...nav,iconId:remap(nav.iconId)!,hoverIconId:remap(nav.hoverIconId),pressedIconId:remap(nav.pressedIconId)}:undefined,
     favoriteNavigationIconSet:undefined};
   for(const key of globalIcons)next[key]=remap(source[key]);

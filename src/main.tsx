@@ -1909,6 +1909,7 @@ function App(){
     if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
     setProject(p=>({...p,
       icons:p.icons.filter(i=>i.id!==id),
+      buttonSets:p.buttonSets?.filter(set=>set.iconId!==id).map(set=>({...set,hoverIconId:set.hoverIconId===id?undefined:set.hoverIconId,pressedIconId:set.pressedIconId===id?undefined:set.pressedIconId})),
       defaultNavigationIcon:p.defaultNavigationIcon?.iconId===id?undefined:p.defaultNavigationIcon?{...p.defaultNavigationIcon,hoverIconId:p.defaultNavigationIcon.hoverIconId===id?undefined:p.defaultNavigationIcon.hoverIconId,pressedIconId:p.defaultNavigationIcon.pressedIconId===id?undefined:p.defaultNavigationIcon.pressedIconId}:undefined,
       closeIconId:p.closeIconId===id?undefined:p.closeIconId,
       soundOnIconId:p.soundOnIconId===id?undefined:p.soundOnIconId,
@@ -1942,6 +1943,7 @@ function App(){
       if(entry.users.length<4&&!entry.users.includes(user))entry.users.push(user);
       map.set(key,entry);
     };
+    project.buttonSets?.forEach(set=>add('Bouton : '+set.name,set.iconSize,set.iconId,set.hoverIconId,set.pressedIconId));
     project.bottomBar.forEach(b=>add('Barre : '+b.title,barIconSize(b),b.iconId,b.hoverIconId,b.pressedIconId));
     if(project.defaultNavigationIcon){const nav=project.defaultNavigationIcon;add('Flèche par défaut',nav.iconSize,nav.iconId,nav.hoverIconId,nav.pressedIconId);}
     add('Fermeture des popups',42,project.closeIconId);

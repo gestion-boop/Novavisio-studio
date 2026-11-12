@@ -108,7 +108,8 @@ export const emptyClientProfile=():ClientProfile=>({novagenId:'',name:'',categor
 export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
 export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
 export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number};
-export type StudioProject = { version: 1; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[]}[] };
+export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
+export type StudioProject = { version: 1; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[]}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -327,6 +328,14 @@ export function validateProject(value:unknown):StudioProject {
   const nav=p.defaultNavigationIcon;
   if(nav && (typeof nav!=='object'||!icons.some(i=>i.id===nav.iconId)||[nav.hoverIconId,nav.pressedIconId].some(id=>id!==undefined&&!icons.some(i=>i.id===id))||!Number.isFinite(nav.iconSize)||nav.iconSize<16||nav.iconSize>80))throw new Error('Icône de navigation par défaut invalide');
   if(p.iconPackId!==undefined&&(typeof p.iconPackId!=='string'||p.iconPackId.length>100))throw new Error('Collection d’icônes invalide');
+  if(p.buttonSets!==undefined){
+    if(!Array.isArray(p.buttonSets)||p.buttonSets.length>150)throw new Error('Bibliothèque de boutons invalide');
+    const buttonIds=new Set<string>();
+    for(const set of p.buttonSets){
+      if(!set||typeof set.id!=='string'||!set.id||buttonIds.has(set.id)||typeof set.name!=='string'||!set.name.trim()||set.name.length>100||!icons.some(i=>i.id===set.iconId)||[set.hoverIconId,set.pressedIconId].some(id=>id!==undefined&&!icons.some(i=>i.id===id))||!Number.isFinite(set.iconSize)||set.iconSize<20||set.iconSize>72)throw new Error('Bouton importé invalide');
+      buttonIds.add(set.id);
+    }
+  }
   const hiddenIconSets = Array.isArray(p.hiddenIconSets) ? p.hiddenIconSets.filter(k => typeof k === 'string' && k.length < 600).slice(0, 300) : undefined;
   const hiddenAvailableIcons=Array.isArray(p.hiddenAvailableIcons)?p.hiddenAvailableIcons.filter(id=>typeof id==='string'&&icons.some(icon=>icon.id===id)).slice(0,300):undefined;
   const favoriteNavigationIconSet=typeof p.favoriteNavigationIconSet==='string'&&p.favoriteNavigationIconSet.length<600?p.favoriteNavigationIconSet:undefined;
