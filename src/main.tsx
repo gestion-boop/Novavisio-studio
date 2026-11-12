@@ -515,6 +515,8 @@ function App(){
   const [openTopMenu,setOpenTopMenu]=useState<HeaderMenu>(null);
   const [navigationDrawerOpen,setNavigationDrawerOpen]=useState(false);
   const [spacesDrawerOpen,setSpacesDrawerOpen]=useState(false);
+  const [spaceDelete,setSpaceDelete]=useState<{id:string;target:string}|null>(null);  // fenêtre « supprimer un espace »
+  const [spaceTransferTo,setSpaceTransferTo]=useState('');
   useEffect(()=>{
     // Garder le tiroir monté pour l'animation, tout en excluant ses commandes
     // du clavier et du focus lorsqu'il est refermé.
@@ -2288,13 +2290,36 @@ function App(){
     setSceneInSpace(spaceId,sceneId,false);
     setStatus('« '+sc.name+' » retiré de cet espace uniquement. Original conservé.');
   }
-  function deleteSpace(spaceId:string){
+  /** Ajoute (copie) ou déplace tous les panoramas d'un espace vers un autre. Les panoramas originaux ne sont jamais touchés. */
+  function transferSpaceScenes(fromId:string,toId:string,move:boolean){
+    const from=(project.spaces??[]).find(item=>item.id===fromId),to=(project.spaces??[]).find(item=>item.id===toId);
+    if(!from||!to||from.id===to.id)return;
+    const moved=from.sceneIds.filter(id=>project.scenes.some(sc=>sc.id===id));
+    const added=moved.filter(id=>!to.sceneIds.includes(id)).length;
+    setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>{
+      if(sp.id===toId)return {...sp,sceneIds:[...sp.sceneIds,...moved.filter(id=>!sp.sceneIds.includes(id))]};
+      if(sp.id===fromId&&move)return {...sp,sceneIds:[]};
+      return sp;
+    })}));
+    if(move){setActiveId('');setSelectedId('');}
+    setStatus(added+' panorama(s) '+(move?'déplacé(s)':'ajouté(s)')+' vers « '+to.name+' ». Les originaux sont conservés.');
+  }
+  /** Supprime un espace ; ses panoramas peuvent d'abord être transférés vers un autre espace. */
+  function deleteSpace(spaceId:string,transferTo?:string){
     const space=(project.spaces??[]).find(item=>item.id===spaceId);
-    if(!space||!window.confirm('Supprimer uniquement l’espace « '+space.name+' » ? Les panoramas originaux seront conservés.'))return;
-    setProject(p=>({...p,spaces:(p.spaces??[]).filter(item=>item.id!==spaceId)}));
-    setActiveSpaceId(null);setActiveId(project.scenes[0]?.id??'');
-    setSelectedId('');setPreview(false);setMode(null);setSpaceManagerOpen(false);
-    setStatus('Espace supprimé. Tous les panoramas du projet principal sont conservés.');
+    if(!space)return;
+    const target=transferTo?(project.spaces??[]).find(item=>item.id===transferTo&&item.id!==spaceId):undefined;
+    const moved=target?space.sceneIds.filter(id=>project.scenes.some(sc=>sc.id===id)):[];
+    setProject(p=>({...p,spaces:(p.spaces??[]).filter(item=>item.id!==spaceId).map(sp=>
+      target&&sp.id===target.id?{...sp,sceneIds:[...sp.sceneIds,...moved.filter(id=>!sp.sceneIds.includes(id))]}:sp)}));
+    if(target){
+      setActiveSpaceId(target.id);
+      setActiveId(moved[0]??target.sceneIds[0]??'');
+    }else{
+      setActiveSpaceId(null);setActiveId(project.scenes[0]?.id??'');
+    }
+    setSelectedId('');setPreview(false);setMode(null);setSpaceManagerOpen(false);setSpaceDelete(null);
+    setStatus(target?'Espace supprimé · panoramas transférés vers « '+target.name+' ». Rien n\'est perdu.':'Espace supprimé. Tous les panoramas du projet principal sont conservés.');
   }
   function download(){
     const blob=new Blob(projectJsonParts(project),{type:'application/json'}); // par morceaux : pas de limite de ~512 Mo
@@ -2590,6 +2615,11 @@ function App(){
                 onClick={()=>startSpaceRename(space.id,space.name)}>
                 <Edit3 size={13}/>
               </button>
+              <button type="button" className="nv-space-tab-rename-button nv-space-tab-trash"
+                aria-label={'Supprimer '+space.name} title={'Supprimer '+space.name+' (avec transfert possible)'}
+                onClick={()=>{setSpaceDelete({id:space.id,target:''});}}>
+                <Trash2 size={13}/>
+              </button>
             </>}
         </div>)}
       </div>
@@ -2633,12 +2663,43 @@ function App(){
             <span>{scene.name}</span>
           </label>)}
         </div>
+        {(project.spaces??[]).length>1&&<div className="nv-space-select-actions nv-space-transfer">
+          <span>Transférer les {currentSpace.sceneIds.length} panoramas de cet espace vers :</span>
+          <select aria-label="Espace de destination" value={spaceTransferTo} onChange={e=>setSpaceTransferTo(e.target.value)}>
+            <option value="">Choisir un espace…</option>
+            {(project.spaces??[]).filter(sp=>sp.id!==currentSpace.id).map(sp=><option key={sp.id} value={sp.id}>{sp.name}</option>)}
+          </select>
+          <button type="button" disabled={!spaceTransferTo} onClick={()=>transferSpaceScenes(currentSpace.id,spaceTransferTo,false)}>Ajouter (copier)</button>
+          <button type="button" disabled={!spaceTransferTo} onClick={()=>transferSpaceScenes(currentSpace.id,spaceTransferTo,true)}>Déplacer</button>
+        </div>}
         <div className="nv-space-modal-footer">
-          <button type="button" className="nv-space-delete" onClick={()=>deleteSpace(currentSpace.id)}>Supprimer cet espace seulement</button>
+          <button type="button" className="nv-space-delete" onClick={()=>setSpaceDelete({id:currentSpace.id,target:''})}>Supprimer cet espace…</button>
           <button type="button" className="primary" onClick={()=>setSpaceManagerOpen(false)}>Terminer</button>
         </div>
       </section>
     </div>}
+    {spaceDelete&&(()=>{
+      const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
+      if(!sp)return null;
+      const others=(project.spaces??[]).filter(item=>item.id!==sp.id);
+      return <div className="overlay nv-space-overlay" onMouseDown={event=>{if(event.target===event.currentTarget)setSpaceDelete(null);}}>
+        <section className="nv-space-modal" role="alertdialog" aria-modal="true" aria-label="Supprimer l’espace">
+          <div className="nv-space-modal-head"><div><small>PROJET : {project.name}</small><h2>Supprimer « {sp.name} »</h2></div>
+            <button type="button" className="nv-space-close" onClick={()=>setSpaceDelete(null)} aria-label="Fermer">✕</button></div>
+          <p>Seul l’espace est supprimé : les {sp.sceneIds.length} panoramas restent dans le projet complet. Vous pouvez aussi les ajouter à un autre espace.</p>
+          <label className="nv-space-name-label">Transférer ses panoramas vers
+            <select value={spaceDelete.target} onChange={e=>setSpaceDelete({id:sp.id,target:e.target.value})}>
+              <option value="">Aucun transfert (supprimer l’espace seulement)</option>
+              {others.map(o=><option key={o.id} value={o.id}>{o.name} ({o.sceneIds.length} panoramas)</option>)}
+            </select>
+          </label>
+          <div className="nv-space-modal-footer">
+            <button type="button" onClick={()=>setSpaceDelete(null)}>Annuler</button>
+            <button type="button" className="nv-space-delete" onClick={()=>deleteSpace(sp.id,spaceDelete.target||undefined)}>{spaceDelete.target?'Transférer puis supprimer':'Supprimer l’espace'}</button>
+          </div>
+        </section>
+      </div>;
+    })()}
     {emailLink&&<div className="overlay"><div className="modal cloud-panel">
       <h2>{emailLink.done?'Adresse confirmée ✓':'Confirmer mon accès'}</h2>
       {emailLink.done?<>

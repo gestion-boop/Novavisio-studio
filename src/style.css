@@ -4254,3 +4254,8 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   .nv-studio-pro .topbar .top-actions>button{padding:0 9px}
   .nv-studio-pro .topbar .top-actions>.nv-header-icon-btn{padding:0}
 }
+
+/* Espaces : suppression avec transfert des panoramas */
+.nv-space-tab-trash{color:#ffb3bd}
+.nv-space-transfer select,.nv-space-name-label select{background:#102a33;color:#e6f6f8;border:1px solid #426b77;border-radius:7px;padding:7px 9px;font-size:12px;max-width:100%}
+.nv-space-transfer button:disabled{opacity:.45}
