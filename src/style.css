@@ -4404,3 +4404,7 @@ body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointe
 .nv-hsort-grip:hover,.nv-hsort-grip[aria-pressed=true]{color:#fff;opacity:1}
 .nv-space-tab.is-dragging{outline:2px solid #66d9ca;box-shadow:0 6px 18px #0008;transform:translateY(-2px);z-index:2}
 body.nv-is-sorting{cursor:grabbing;user-select:none}
+
+/* Pages intégrées dans l'éditeur : même agrandissement */
+.embed-shell{width:min(100%,1600px);height:min(96%,1100px)}
+@media(max-width:700px){.embed-overlay{padding:0}.embed-shell{width:100%;height:100%;border-radius:0}}

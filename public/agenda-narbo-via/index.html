@@ -45,7 +45,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #toc button{display:flex;justify-content:space-between;gap:14px;width:100%;text-align:left;background:none;border:0;border-radius:10px;padding:9px 12px;font-size:14px}
 #toc button:hover{background:rgba(255,255,255,.08)}
 #toc button i{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
-main{flex:1;min-height:0;position:relative;display:grid;place-items:center;padding:0 clamp(8px,4vw,70px)}
+main{flex:1;min-height:0;position:relative;display:grid;place-items:center;padding:0 clamp(6px,1.2vw,16px)}
 #stage{width:100%;height:100%;display:grid;place-items:center;position:relative;touch-action:pan-y;transition:transform .35s cubic-bezier(.2,.7,.2,1);transform-origin:center}
 #book{position:relative;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55));opacity:0;transition:opacity .5s}
 #book.ready{opacity:1}
@@ -92,7 +92,14 @@ footer{display:flex;align-items:center;gap:16px;justify-content:center;padding:1
 .sheet-text .muted{color:var(--muted);font-style:italic}
 .sheet-text .note{display:inline-block;background:rgba(241,90,22,.16);border:1px solid rgba(241,90,22,.4);color:#ffc9a8;font-size:12px;padding:3px 10px;border-radius:99px;margin-bottom:14px}
 @media (max-width:760px){.sheet-body{grid-template-columns:1fr;grid-template-rows:auto 1fr}.sheet-pages{flex-direction:row;justify-content:center;padding:10px}.sheet-pages img{max-width:96px}}
-@media (max-width:700px){.brand span{display:none}.nav{width:40px;height:40px}.btn{padding:8px 12px}.btn .lbl{display:none}#bar{display:none}.hint{font-size:11px}.langs button{width:30px;height:30px}}
+/* Mode lecture : en-tête et pied de page flottent par-dessus le livre et s'effacent au bout de quelques secondes */
+body.immersive header{position:fixed;top:0;left:0;right:0;background:linear-gradient(rgba(20,10,6,.94),rgba(20,10,6,0));z-index:35;transition:opacity .35s,transform .35s}
+body.immersive footer{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(rgba(20,10,6,0),rgba(20,10,6,.92));z-index:35;transition:opacity .35s,transform .35s}
+body.immersive.idle header{opacity:0;transform:translateY(-100%);pointer-events:none}
+body.immersive.idle footer{opacity:0;transform:translateY(100%);pointer-events:none}
+/* Écrans peu hauts : en-tête et pied de page plus compacts pour laisser la place au livre */
+@media (max-height:760px){header{padding-top:max(6px,env(safe-area-inset-top));padding-bottom:2px}.btn{padding:6px 12px}.brand b{font-size:17px}footer{padding:2px 18px max(8px,env(safe-area-inset-bottom))}}
+@media (max-width:700px){main{padding:0}header{padding-top:max(8px,env(safe-area-inset-top));padding-bottom:4px;gap:8px}footer{padding:4px 12px max(10px,env(safe-area-inset-bottom))}.brand span{display:none}.nav{width:40px;height:40px}.btn{padding:8px 12px}.btn .lbl{display:none}#bar{display:none}.hint{font-size:11px}.langs button{width:30px;height:30px}}
 @media (prefers-reduced-motion:reduce){#stage,#book,.sheet{transition:none}}
 .is-zoomed #stage{cursor:grab}.is-zoomed #stage:active{cursor:grabbing}
 </style>
@@ -208,37 +215,59 @@ footer{display:flex;align-items:center;gap:16px;justify-content:center;padding:1
 
   /* ---------- Livre ---------- */
   var RATIO=419.528/595.276;
+  var flip=null,s=null,shown=false;
   function size(){
-    var w=main.clientWidth-20,h=main.clientHeight-10;
-    var portrait=w<760;
-    var pageH=Math.min(h,(portrait?w:w/2)/RATIO);
+    var cs=getComputedStyle(main),padX=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight);
+    var w=main.clientWidth-padX,h=main.clientHeight;
+    var portrait=w<720||(h>w*1.05&&w<900);          // téléphone en hauteur ou fenêtre étroite : une seule page
+    var pageH=Math.min(h-4,(portrait?w:w/2)/RATIO);
     return {w:pageH*RATIO,h:pageH,portrait:portrait};
   }
-  var s=size();
-  book.style.width=Math.round(s.portrait?s.w:s.w*2)+'px';book.style.height=Math.round(s.h)+'px';
-  pages.forEach(function(src,i){
-    var d=document.createElement('div');d.className='page';
-    d.dataset.density=(i===0||i===TOTAL-1)?'hard':'soft';
-    var img=new Image();img.alt='Page '+(i+1);img.decoding='async';img.draggable=false;img.src=src;d.appendChild(img);book.appendChild(d);
-  });
-  var flip=new St.PageFlip(book,{width:Math.round(s.w),height:Math.round(s.h),size:'fixed',showCover:true,flippingTime:950,usePortrait:true,startPage:0,
-    maxShadowOpacity:.55,drawShadow:true,mobileScrollSupport:false,useMouseEvents:true,swipeDistance:25,clickEventForward:true,showPageCorners:true,disableFlipByClick:false,autoSize:false});
-  flip.loadFromHTML(document.querySelectorAll('.page'));
-
-  var loaded=0,gate=6;
-  [].forEach.call(book.querySelectorAll('img'),function(img,i){
-    function done(){loaded++;lp.value=Math.round(loaded/gate*100);if(loaded>=gate)reveal();}
-    if(i>=gate)return;
-    if(img.complete)done();else{img.addEventListener('load',done);img.addEventListener('error',done);}
-  });
-  var shown=false;
+  function build(startIndex){
+    // Nouveau conteneur à chaque (re)construction : le livre prend toute la place disponible, à la page où l'on était.
+    var old=book;var fresh=document.createElement('div');fresh.id='book';fresh.setAttribute('aria-live','polite');
+    if(shown)fresh.classList.add('ready');
+    old.parentNode.replaceChild(fresh,old);book=fresh;
+    if(flip){try{flip.destroy();}catch(e){}}
+    s=size();
+    book.style.width=Math.round(s.portrait?s.w:s.w*2)+'px';book.style.height=Math.round(s.h)+'px';
+    if(typeof zoom==='number'&&zoom!==1)book.style.pointerEvents='none';
+    pages.forEach(function(src,i){
+      var d=document.createElement('div');d.className='page';
+      d.dataset.density=(i===0||i===TOTAL-1)?'hard':'soft';
+      var img=new Image();img.alt='Page '+(i+1);img.decoding='async';img.draggable=false;img.src=src;d.appendChild(img);book.appendChild(d);
+    });
+    flip=new St.PageFlip(book,{width:Math.round(s.w),height:Math.round(s.h),size:'fixed',showCover:true,flippingTime:950,usePortrait:true,startPage:0,
+      maxShadowOpacity:.55,drawShadow:true,mobileScrollSupport:false,useMouseEvents:true,swipeDistance:25,clickEventForward:true,showPageCorners:true,disableFlipByClick:false,autoSize:false});
+    flip.loadFromHTML(book.querySelectorAll('.page'));
+    flip.on('flip',ui);flip.on('changeOrientation',ui);flip.on('init',ui);
+    flip.on('changeState',function(e){if(e.data==='flipping')swish();});
+    if(!shown){
+      var loaded=0,gate=6;
+      [].forEach.call(book.querySelectorAll('img'),function(img,i){
+        function done(){loaded++;lp.value=Math.round(loaded/gate*100);if(loaded>=gate)reveal();}
+        if(i>=gate)return;
+        if(img.complete)done();else{img.addEventListener('load',done);img.addEventListener('error',done);}
+      });
+    }
+    if(startIndex>0){flip.turnToPage(startIndex);}
+    book.style.transition='none';centerBook(startIndex||0,true);
+    ui();
+  }
   function reveal(){if(shown)return;shown=true;book.classList.add('ready');loader.classList.add('done');
     setTimeout(function(){$('hint').classList.add('show');setTimeout(function(){$('hint').classList.remove('show');},5200);},900);}
   setTimeout(reveal,6000);
+  // Couverture et 4e de couverture : le livre fermé se centre à l'écran au lieu de rester d'un côté.
+  function centerBook(i,instant){
+    var dx=0;
+    if(s&&!s.portrait){if(i===0)dx=-s.w/2;else if(i>=TOTAL-1)dx=s.w/2;}
+    book.style.transition=instant?'none':'transform .7s cubic-bezier(.2,.7,.2,1)';
+    book.style.transform=dx?'translateX('+dx+'px)':'';
+  }
   var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){
-    var cur=flip.getCurrentPageIndex();var n=size();
-    if(n.portrait!==s.portrait||Math.abs(n.h-s.h)>40){location.hash='p'+(cur+1);location.reload();}
-  },350);});
+    var n=size();
+    if(n.portrait!==s.portrait||Math.abs(n.h-s.h)>8||Math.abs(n.w-s.w)>8)build(flip.getCurrentPageIndex());
+  },250);});
 
   function isPortrait(){return flip.getOrientation&&flip.getOrientation()==='portrait';}
   function leftIndex(){var i=flip.getCurrentPageIndex();return isPortrait()?i:(i===0?-1:(i%2===1?i:i-1));}
@@ -248,30 +277,59 @@ footer{display:flex;align-items:center;gap:16px;justify-content:center;padding:1
     var l=leftIndex();return [l,l+1];
   }
   function ui(){
-    var i=flip.getCurrentPageIndex(),t=T();
-    if(i===0)count.textContent=t.cover;
-    else if(i>=TOTAL-1)count.textContent=t.back;
-    else if(isPortrait())count.innerHTML=t.page+' <b>'+(i+1)+'</b> / '+TOTAL;
-    else{var l=leftIndex();count.innerHTML=t.pages+' <b>'+(l+1)+'–'+(l+2)+'</b> / '+TOTAL;}
+    var i=flip.getCurrentPageIndex(),t=T(),label;
+    if(i===0)label=t.cover;
+    else if(i>=TOTAL-1)label=t.back;
+    else if(isPortrait())label=t.page+' <b>'+(i+1)+'</b> / '+TOTAL;
+    else{var l=leftIndex();label=t.pages+' <b>'+(l+1)+'–'+(l+2)+'</b> / '+TOTAL;}
+    count.innerHTML=label;
     bar.style.width=Math.round((i+1)/TOTAL*100)+'%';
     prev.disabled=i<=0;next.disabled=i>=TOTAL-1;
+    centerBook(i);
     history.replaceState(null,'','#p'+(i+1)+(location.search||''));
     if($('reader').classList.contains('open'))renderReader();
   }
-  flip.on('flip',ui);flip.on('changeOrientation',ui);flip.on('init',ui);
-  flip.on('changeState',function(e){if(e.data==='flipping')swish();});
   prev.onclick=function(){flip.flipPrev('bottom');};
   next.onclick=function(){flip.flipNext('bottom');};
   document.addEventListener('keydown',function(e){
-    if(e.key==='Escape'){closeToc();closeReader();return;}
+    if(e.key==='Escape'){closeToc();closeReader();if(document.body.classList.contains('immersive')&&!document.fullscreenElement)setImmersive(false);return;}
     if(e.key==='ArrowRight'||e.key==='PageDown'){flip.flipNext('bottom');}
     else if(e.key==='ArrowLeft'||e.key==='PageUp'){flip.flipPrev('bottom');}
     else if(e.key==='Home'){flip.turnToPage(0);}
     else if(e.key==='End'){flip.turnToPage(TOTAL-1);}
   });
   $('bar').addEventListener('click',function(e){var r=this.getBoundingClientRect();var p=Math.round((e.clientX-r.left)/r.width*(TOTAL-1));flip.flip(Math.max(0,Math.min(TOTAL-1,p)),'bottom');});
-  var start=parseInt((location.hash.match(/p(\d+)/)||[])[1],10);
-  if(start>1&&start<=TOTAL){setTimeout(function(){flip.turnToPage(start-1);ui();},0);}
+
+  /* ---------- Mode lecture plein écran : le livre prend toute la place ---------- */
+  function setImmersive(on){
+    if(document.body.classList.contains('immersive')===on)return;
+    document.body.classList.toggle('immersive',on);wake();
+    $('fsBtn').setAttribute('aria-pressed',on);
+    requestAnimationFrame(function(){requestAnimationFrame(function(){build(flip?flip.getCurrentPageIndex():0);});});
+  }
+  function toggleImmersive(){
+    var on=!document.body.classList.contains('immersive');
+    setImmersive(on);
+    var d=document.documentElement;
+    try{
+      if(on&&d.requestFullscreen){d.requestFullscreen().catch(function(){});}
+      else if(!on&&document.fullscreenElement){document.exitFullscreen();}
+    }catch(e){}
+  }
+  var idleTimer=0;
+  function wake(){
+    document.body.classList.remove('idle');clearTimeout(idleTimer);
+    if(!document.body.classList.contains('immersive'))return;
+    idleTimer=setTimeout(function(){if(!$('toc').classList.contains('open')&&!$('reader').classList.contains('open'))document.body.classList.add('idle');},3200);
+  }
+  ['pointermove','pointerdown','keydown','touchstart','wheel'].forEach(function(ev){document.addEventListener(ev,wake,{passive:true});});
+  document.addEventListener('fullscreenchange',function(){if(!document.fullscreenElement&&document.body.classList.contains('immersive'))setImmersive(false);});
+  $('fsBtn').onclick=toggleImmersive;
+  var hashStart=parseInt((location.hash.match(/p(\d+)/)||[])[1],10);
+  var startAt=(hashStart>1&&hashStart<=TOTAL)?hashStart-1:0;
+  // Téléphone tenu en travers : très peu de hauteur, on masque directement l'en-tête pour agrandir le livre.
+  if(window.matchMedia&&window.matchMedia('(max-height:520px)').matches){document.body.classList.add('immersive');wake();}
+  build(startAt);
 
   /* ---------- Sommaire ---------- */
   var tocEl=$('toc'),tocBtn=$('tocBtn');
@@ -285,7 +343,6 @@ footer{display:flex;align-items:center;gap:16px;justify-content:center;padding:1
   function closeToc(){tocEl.classList.remove('open');tocBtn.setAttribute('aria-expanded','false');}
   tocBtn.onclick=function(e){e.stopPropagation();var o=tocEl.classList.toggle('open');tocBtn.setAttribute('aria-expanded',o);};
   document.addEventListener('click',function(e){if(!tocEl.contains(e.target))closeToc();});
-  $('fsBtn').onclick=function(){var d=document;if(d.fullscreenElement){d.exitFullscreen();}else{(d.documentElement.requestFullscreen||function(){}).call(d.documentElement);}};
 
   /* ---------- Zoom ---------- */
   var zoomBtn=$('zoomBtn'),zoom=1,pan={x:0,y:0},drag=null;

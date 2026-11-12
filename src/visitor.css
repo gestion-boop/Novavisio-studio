@@ -139,3 +139,7 @@ html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
 .tour-app:fullscreen .tour-bottom-bar{
   bottom:max(12px,env(safe-area-inset-bottom));
 }
+
+/* Pages intégrées (agenda, menu, photos…) : fenêtre beaucoup plus grande, plein écran sur téléphone */
+.tour-dialog{width:min(100%,1600px);height:min(96dvh,1100px)}
+@media(max-width:700px){.tour-overlay{padding:0}.tour-dialog{width:100%;height:100dvh;border-radius:0}}
