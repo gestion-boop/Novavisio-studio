@@ -23,6 +23,7 @@ import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
 import {useLiveSession,LiveOverlay} from './liveSession';
 import {WriteHand} from './WriteHand';
+import {withReturn,withAllReturns,missingReturns} from './returnArrow';
 import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
@@ -523,6 +524,11 @@ function App(){
   // Écran partagé (présence en direct à deux sur le même projet Cloud)
   const [liveProjectId,setLiveProjectId]=useState<string|null>(null);
   const [liveLabel,setLiveLabel]=useState('');
+  // Retour automatique : une flèche aller A → B crée aussitôt sa flèche retour B → A (réglable).
+  const [autoReturn,setAutoReturnState]=useState(()=>{try{return localStorage.getItem('nv-auto-return')!=='off';}catch{return true;}});
+  const setAutoReturn=(on:boolean)=>{setAutoReturnState(on);try{localStorage.setItem('nv-auto-return',on?'on':'off');}catch{/* ignoré */}};
+  const [returnNotice,setReturnNotice]=useState<{sceneId:string;pointId:string;from:string;to:string}|null>(null);
+  useEffect(()=>{if(!returnNotice)return;const t=window.setTimeout(()=>setReturnNotice(null),9000);return ()=>window.clearTimeout(t);},[returnNotice]);
   const pendingClientSaveRef=useRef(false);
   useEffect(()=>{
     // Garder le tiroir monté pour l'animation, tout en excluant ses commandes
@@ -1419,13 +1425,18 @@ function App(){
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
     };
-    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==source.id?sc:{
-      ...sc,hotspots:draft.existingPointId?
-        sc.hotspots.map(h=>h.id===draft.existingPointId?{
-          ...h,target:destination.id,arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,
-          arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const
-        }:h):[...sc.hotspots,point]
-    })}));
+    setProject(p=>{
+      const updated={...p,scenes:p.scenes.map(sc=>sc.id!==source.id?sc:{
+        ...sc,hotspots:draft.existingPointId?
+          sc.hotspots.map(h=>h.id===draft.existingPointId?{
+            ...h,target:destination.id,arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,
+            arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const
+          }:h):[...sc.hotspots,point]
+      })};
+      return autoReturn?withReturn(updated,source.id,id).project:updated;
+    });
+    if(autoReturn&&!destination.hotspots.some(h=>h.type==='navigation'&&h.target===source.id))
+      setReturnNotice({sceneId:destination.id,pointId:'ret-'+id,from:source.name,to:destination.name});
     // Arriver automatiquement au panorama de destination avec l'orientation choisie.
     nextArrivalRef.current={sceneId:destination.id,yaw:arrival.yaw,pitch:arrival.pitch,zoom:arrival.zoom};
     setArrivedVia({sceneId:destination.id,hotspotId:id,fromSceneId:source.id});
@@ -2159,8 +2170,7 @@ function App(){
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
   }
-  // Le choix d'une destination ne crée JAMAIS un point de retour implicitement.
-  // L'utilisateur peut créer ce retour volontairement via reverseNavigation.
+  // Le retour est créé automatiquement quand l'option « Retour auto » est activée (barre d'outils sous le panorama).
   function setNavigationDestination(targetId:string){
     if(!active||!selected||selected.type!=='navigation'||(targetId&&(!visibleIds.has(targetId)||targetId===active.id)))return;
     const fromId=active.id,pointId=selected.id;
@@ -2170,11 +2180,17 @@ function App(){
           arrivalPitch:galleryOrientationRef.current[targetId]?.pitch??(h.target===targetId?h.arrivalPitch:undefined),
           arrivalZoom:galleryOrientationRef.current[targetId]?.zoom??(h.target===targetId?h.arrivalZoom:undefined),
           arrivalZoomModel:'wide' as const}:h)}:sc)}));
+    if(targetId&&autoReturn){
+      const dest=project.scenes.find(sc=>sc.id===targetId);
+      setProject(p=>withReturn(p,fromId,pointId).project);
+      if(dest&&!dest.hotspots.some(h=>h.type==='navigation'&&h.target===fromId))
+        setReturnNotice({sceneId:targetId,pointId:'ret-'+pointId,from:active.name,to:dest.name});
+    }
     setNavigationPickerOpen(false);
     setClassicDestinationOpen(false);
     setNavigationPickerHover(null);
     setNavigationPickerPreviewId(null);
-    setStatus(targetId?'Destination sélectionnée · aucun retour créé automatiquement':'Destination retirée');
+    setStatus(targetId?(autoReturn?'Destination sélectionnée · retour créé automatiquement':'Destination sélectionnée · aucun retour créé (option désactivée)'):'Destination retirée');
   }
   // Une connexion A → B peut créer sa flèche retour B → A en un seul clic.
   // Le point est placé devant la caméra à l'arrivée sur B ; ajustable ensuite.
@@ -2743,6 +2759,11 @@ function App(){
           <button type="button" className="primary" onClick={()=>setSpaceManagerOpen(false)}>Terminer</button>
         </div>
       </section>
+    </div>}
+    {returnNotice&&<div className="nv-return-toast" role="status">
+      <span>↩ Retour créé : <b>{returnNotice.to}</b> → <b>{returnNotice.from}</b>, placé derrière vous. À l'arrivée, vous regarderez dans le sens opposé de l'aller.</span>
+      <button type="button" onClick={()=>{setActiveId(returnNotice.sceneId);setSelectedId(returnNotice.pointId);setPanel('points');setMode(null);setReturnNotice(null);}}>Ajuster le retour</button>
+      <button type="button" className="is-quiet" onClick={()=>setReturnNotice(null)}>Continuer</button>
     </div>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
@@ -3432,7 +3453,7 @@ function App(){
             </div>
           </div>}
         </div>
-        {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation}
+        {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation} autoReturn={autoReturn} onAutoReturn={()=>setAutoReturn(!autoReturn)}
           onTool={tool=>{
             if(autoNavigation)stopAutoNavigation();
             if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);}
@@ -3769,6 +3790,10 @@ function App(){
 
               </InspectorSection>
 
+              {(()=>{const missing=missingReturns(project,visibleIds);return missing.length>0&&<button type="button" className="nv-bulk-return" onClick={()=>{
+                const result=withAllReturns(project,visibleIds);setProject(result.project);
+                setStatus(result.count+' retour(s) créé(s) automatiquement · vérifie-les puis enregistre.');
+              }}>↩ Créer les {missing.length} retour{missing.length>1?'s':''} manquant{missing.length>1?'s':''} d’un clic</button>;})()}
               <div className="section-title">
                 <span>POINTS INTERACTIFS</span>
                 <span className="counter">{active.hotspots.length}</span>
