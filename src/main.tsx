@@ -23,7 +23,6 @@ import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
 import {useLiveSession,LiveOverlay} from './liveSession';
 import {WriteHand} from './WriteHand';
-import {withReturn,withAllReturns,missingReturns} from './returnArrow';
 import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
@@ -105,6 +104,7 @@ type PanoramaProps = {
   onMarkerMove:(id:string,yaw:number,pitch:number)=>void;
   onAssetDrop:(iconId:string,yaw:number,pitch:number)=>void;
   onCameraChange:(yaw:number,pitch:number,zoom:number)=>void;
+  turn?:{n:number;yaw:number;pitch:number}|null; // demande de rotation de la vue (parcours guidé)
 };
 function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig {
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
@@ -188,7 +188,7 @@ function FullscreenGalleryHoverPreview({scene,thumb,onOrientation}:{scene:Scene;
   </div>;
 }
 
-function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange}:PanoramaProps) {
+function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
@@ -302,6 +302,12 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
     return ()=>{disposed=true;viewer.removeEventListener('panorama-loaded',onLoaded);};
   },[scene.id,scene.dataUrl]);
+  useEffect(()=>{
+    // Parcours guidé : tourne la vue (ex. demi-tour pour placer le retour) sans changer de panorama.
+    const viewer=viewerRef.current;
+    if(!viewer||!turn||loadedSceneRef.current!==scene.id)return;
+    void viewer.animate({yaw:turn.yaw,pitch:turn.pitch,speed:'40rpm'});
+  },[turn?.n]);
   useEffect(()=>{
     // Jour/Nuit : on change seulement la texture, sans toucher à la caméra ni aux points.
     const viewer=viewerRef.current;
@@ -524,11 +530,6 @@ function App(){
   // Écran partagé (présence en direct à deux sur le même projet Cloud)
   const [liveProjectId,setLiveProjectId]=useState<string|null>(null);
   const [liveLabel,setLiveLabel]=useState('');
-  // Retour automatique : une flèche aller A → B crée aussitôt sa flèche retour B → A (réglable).
-  const [autoReturn,setAutoReturnState]=useState(()=>{try{return localStorage.getItem('nv-auto-return')!=='off';}catch{return true;}});
-  const setAutoReturn=(on:boolean)=>{setAutoReturnState(on);try{localStorage.setItem('nv-auto-return',on?'on':'off');}catch{/* ignoré */}};
-  const [returnNotice,setReturnNotice]=useState<{sceneId:string;pointId:string;from:string;to:string}|null>(null);
-  useEffect(()=>{if(!returnNotice)return;const t=window.setTimeout(()=>setReturnNotice(null),9000);return ()=>window.clearTimeout(t);},[returnNotice]);
   const pendingClientSaveRef=useRef(false);
   useEffect(()=>{
     // Garder le tiroir monté pour l'animation, tout en excluant ses commandes
@@ -721,6 +722,9 @@ function App(){
   const [mode,setMode]=useState<EditMode>(null);
   // Assistant de navigation en chaîne : état temporaire, aucun enregistrement automatique.
   const [autoNavigation,setAutoNavigation]=useState(false);
+  // Parcours guidé (Auto) : suit l'ordre des panoramas. 'forward' = poser la flèche vers le suivant, 'back' = demi-tour puis valider le retour.
+  const [guide,setGuide]=useState<{phase:'forward'|'back';prevId?:string;fwdYaw:number;fwdPitch:number}|null>(null);
+  const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number}|null>(null);
   const [preview,setPreview]=useState(false);
   const [clientVideoPlacement,setClientVideoPlacement]=useState<(ImportedClientVideo&{sceneId:string})|null>(null);
   useEffect(()=>{
@@ -1345,7 +1349,7 @@ function App(){
     }
   }
   function stopAutoNavigation(){
-    setAutoNavigation(false);setNavigationDraft(null);setDestinationEditId(null);
+    setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);
     setClassicDestinationOpen(false);setFullscreenGalleryOpen(false);
     setFullscreenCommandDrawerOpen(false);setGalleryPreviewSceneId(null);
     setGalleryPreviewPinned(false);setMode(null);setSelectedId('');
@@ -1356,7 +1360,8 @@ function App(){
     if(!active||preview)return;
     setAutoNavigation(true);setMode('navigation');setClassicDestinationOpen(false);
     setDestinationEditId(null);setNavigationDraft(null);
-    setStatus('Auto activé · Clique dans le panorama pour placer la première flèche.');
+    setGuide({phase:'forward',fwdYaw:cameraRef.current.yaw,fwdPitch:cameraRef.current.pitch});
+    setStatus('Parcours guidé · Vise avec la cible puis clique sur + : la flèche part vers le panorama suivant.');
   }
   function selectScene(id:string){
     if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
@@ -1406,13 +1411,14 @@ function App(){
   }
   function confirmNavigationDirection(draftOverride?:{
     sourceId:string;targetId:string;sourceYaw:number;sourcePitch:number;existingPointId?:string;
+    arrivalOverride?:{yaw:number;pitch:number;zoom:number};
   }){
     const draft=draftOverride??navigationDraft;
     if(!draft)return;
     const source=project.scenes.find(scene=>scene.id===draft.sourceId);
     const destination=project.scenes.find(scene=>scene.id===draft.targetId);
     if(!source||!destination){setNavigationDraft(null);return;}
-    const arrival=galleryOrientationRef.current[destination.id]??{
+    const arrival=(draftOverride?.arrivalOverride)??galleryOrientationRef.current[destination.id]??{
       yaw:destination.arrivalYaw??0,pitch:destination.arrivalPitch??0,zoom:panoramaArrivalZoom(destination)
     };
     const favorite=defaultNavigationIconSet();
@@ -1425,18 +1431,13 @@ function App(){
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
     };
-    setProject(p=>{
-      const updated={...p,scenes:p.scenes.map(sc=>sc.id!==source.id?sc:{
-        ...sc,hotspots:draft.existingPointId?
-          sc.hotspots.map(h=>h.id===draft.existingPointId?{
-            ...h,target:destination.id,arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,
-            arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const
-          }:h):[...sc.hotspots,point]
-      })};
-      return autoReturn?withReturn(updated,source.id,id).project:updated;
-    });
-    if(autoReturn&&!destination.hotspots.some(h=>h.type==='navigation'&&h.target===source.id))
-      setReturnNotice({sceneId:destination.id,pointId:'ret-'+id,from:source.name,to:destination.name});
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==source.id?sc:{
+      ...sc,hotspots:draft.existingPointId?
+        sc.hotspots.map(h=>h.id===draft.existingPointId?{
+          ...h,target:destination.id,arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,
+          arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const
+        }:h):[...sc.hotspots,point]
+    })}));
     // Arriver automatiquement au panorama de destination avec l'orientation choisie.
     nextArrivalRef.current={sceneId:destination.id,yaw:arrival.yaw,pitch:arrival.pitch,zoom:arrival.zoom};
     setArrivedVia({sceneId:destination.id,hotspotId:id,fromSceneId:source.id});
@@ -1447,6 +1448,53 @@ function App(){
     setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
     setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
     setStatus('Flèche '+(draft.existingPointId?'mise à jour':'créée')+' vers '+destination.name+(autoNavigation?' · Auto : place la flèche suivante.':' · Enregistre avec la disquette.'));
+  }
+  // ── Parcours guidé ──────────────────────────────────────────────────────────
+  // Aller : la flèche part vers le panorama SUIVANT dans l'ordre, on y arrive en regardant dans le même sens (on avance).
+  // Retour : dans ce panorama on fait demi-tour (180°), on valide la vue, la flèche retour est posée, puis on repart en avant.
+  function guidedForward(yaw:number,pitch:number){
+    if(!active)return;
+    const index=visibleScenes.findIndex(sc=>sc.id===active.id);
+    const next=visibleScenes[index+1];
+    if(!next){stopAutoNavigation();setStatus('Dernier panorama atteint · le parcours est terminé. Enregistre avec la disquette.');return;}
+    const existing=active.hotspots.find(h=>h.type==='navigation'&&h.target===next.id);
+    const prevId=active.id;
+    const alreadyBack=next.hotspots.some(h=>h.type==='navigation'&&h.target===prevId);
+    confirmNavigationDirection({
+      sourceId:active.id,targetId:next.id,sourceYaw:existing?.yaw??yaw,sourcePitch:existing?.pitch??pitch,
+      existingPointId:existing?.id,arrivalOverride:{yaw:existing?.yaw??yaw,pitch:0,zoom:panoramaArrivalZoom(next)}
+    });
+    const fwdYaw=existing?.yaw??yaw,fwdPitch=existing?.pitch??pitch;
+    if(alreadyBack){setGuide({phase:'forward',fwdYaw,fwdPitch});return;}
+    // On arrive déjà tourné à 180° : il ne reste qu'à valider la vue pour le retour.
+    const half=(fwdYaw+Math.PI)%(2*Math.PI);
+    nextArrivalRef.current={sceneId:next.id,yaw:half,pitch:0,zoom:panoramaArrivalZoom(next)};
+    setGuide({phase:'back',prevId,fwdYaw,fwdPitch});
+    setStatus('Retour · '+next.name+' : tourne la vue vers l’arrière (180°) puis clique sur « Valider le retour ».');
+  }
+  function guidedBack(){
+    if(!active||!guide||guide.phase!=='back'||!guide.prevId)return;
+    const origin=project.scenes.find(sc=>sc.id===guide.prevId);
+    const camera=cameraRef.current;
+    if(!origin||camera.sceneId!==active.id)return;
+    const favorite=defaultNavigationIconSet();
+    const point:Hotspot={
+      id:uid(),type:'navigation',title:'Retour vers '+origin.name,text:'',target:origin.id,
+      yaw:camera.yaw,pitch:camera.pitch,
+      // En revenant, on regarde à l'opposé de l'aller : on remonte l'allée.
+      arrivalYaw:(guide.fwdYaw+Math.PI)%(2*Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(origin),arrivalZoomModel:'wide',
+      ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
+    };
+    patchScene(sc=>({...sc,hotspots:[...sc.hotspots,point]}));
+    setTurnRequest({n:Date.now(),yaw:guide.fwdYaw,pitch:guide.fwdPitch});
+    setGuide({phase:'forward',fwdYaw:guide.fwdYaw,fwdPitch:guide.fwdPitch});
+    setStatus('Retour créé vers '+origin.name+' · Continue : vise la suite et clique sur +.');
+  }
+  function guidedSkipBack(){
+    if(!guide||guide.phase!=='back')return;
+    setTurnRequest({n:Date.now(),yaw:guide.fwdYaw,pitch:guide.fwdPitch});
+    setGuide({phase:'forward',fwdYaw:guide.fwdYaw,fwdPitch:guide.fwdPitch});
+    setStatus('Pas de retour ici · Continue : vise la suite et clique sur +.');
   }
   function validateFullscreenDestination(targetId:string){
     if(!active||targetId===active.id)return;
@@ -2170,7 +2218,8 @@ function App(){
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
   }
-  // Le retour est créé automatiquement quand l'option « Retour auto » est activée (barre d'outils sous le panorama).
+  // Le choix d'une destination ne crée JAMAIS un point de retour implicitement.
+  // L'utilisateur peut créer ce retour volontairement via reverseNavigation.
   function setNavigationDestination(targetId:string){
     if(!active||!selected||selected.type!=='navigation'||(targetId&&(!visibleIds.has(targetId)||targetId===active.id)))return;
     const fromId=active.id,pointId=selected.id;
@@ -2180,17 +2229,11 @@ function App(){
           arrivalPitch:galleryOrientationRef.current[targetId]?.pitch??(h.target===targetId?h.arrivalPitch:undefined),
           arrivalZoom:galleryOrientationRef.current[targetId]?.zoom??(h.target===targetId?h.arrivalZoom:undefined),
           arrivalZoomModel:'wide' as const}:h)}:sc)}));
-    if(targetId&&autoReturn){
-      const dest=project.scenes.find(sc=>sc.id===targetId);
-      setProject(p=>withReturn(p,fromId,pointId).project);
-      if(dest&&!dest.hotspots.some(h=>h.type==='navigation'&&h.target===fromId))
-        setReturnNotice({sceneId:targetId,pointId:'ret-'+pointId,from:active.name,to:dest.name});
-    }
     setNavigationPickerOpen(false);
     setClassicDestinationOpen(false);
     setNavigationPickerHover(null);
     setNavigationPickerPreviewId(null);
-    setStatus(targetId?(autoReturn?'Destination sélectionnée · retour créé automatiquement':'Destination sélectionnée · aucun retour créé (option désactivée)'):'Destination retirée');
+    setStatus(targetId?'Destination sélectionnée · aucun retour créé automatiquement':'Destination retirée');
   }
   // Une connexion A → B peut créer sa flèche retour B → A en un seul clic.
   // Le point est placé devant la caméra à l'arrivée sur B ; ajustable ensuite.
@@ -2760,11 +2803,6 @@ function App(){
         </div>
       </section>
     </div>}
-    {returnNotice&&<div className="nv-return-toast" role="status">
-      <span>↩ Retour créé : <b>{returnNotice.to}</b> → <b>{returnNotice.from}</b>, placé derrière vous. À l'arrivée, vous regarderez dans le sens opposé de l'aller.</span>
-      <button type="button" onClick={()=>{setActiveId(returnNotice.sceneId);setSelectedId(returnNotice.pointId);setPanel('points');setMode(null);setReturnNotice(null);}}>Ajuster le retour</button>
-      <button type="button" className="is-quiet" onClick={()=>setReturnNotice(null)}>Continuer</button>
-    </div>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
       const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
@@ -2902,7 +2940,7 @@ function App(){
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
           {rightHidden&&!preview&&<button type="button" className="nv-inspector-reopen" aria-label="Ouvrir le panneau latéral" onClick={()=>setRightHidden(false)}><ChevronLeft size={17}/> Réglages</button>}
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else guidedForward(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -2933,13 +2971,21 @@ function App(){
                   </div>
                 </div>)}
             </section>}
+          {autoNavigation&&!preview&&guide?.phase==='back'&&<div className="nv-guide-banner" role="status">
+            <span>↩ <b>Retour</b> · fais un demi-tour (180°), ajuste la vue si besoin, puis valide.</span>
+            <button type="button" className="nv-guide-ok" onClick={guidedBack}>✓ Valider le retour</button>
+            <button type="button" onClick={guidedSkipBack}>Passer</button>
+          </div>}
+          {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
+            <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : la flèche part vers le panorama suivant.</span>
+          </div>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
               <span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/>
-              {autoNavigation&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
+              {autoNavigation&&guide?.phase!=='back'&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
                 <button type="button" className="nv-auto-crosshair-place" aria-label="Placer la flèche sur la cible au centre"
                   title="Placer la flèche ici"
-                  onClick={e=>{e.stopPropagation();const v=cameraRef.current;if(active&&v.sceneId===active.id)newPoint(v.yaw,v.pitch);}}>
+                  onClick={e=>{e.stopPropagation();const v=cameraRef.current;if(active&&v.sceneId===active.id)guidedForward(v.yaw,v.pitch);}}>
                   <span aria-hidden="true">+</span>
                 </button>}
             </div>}
@@ -3453,7 +3499,7 @@ function App(){
             </div>
           </div>}
         </div>
-        {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation} autoReturn={autoReturn} onAutoReturn={()=>setAutoReturn(!autoReturn)}
+        {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation}
           onTool={tool=>{
             if(autoNavigation)stopAutoNavigation();
             if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);}
@@ -3790,10 +3836,6 @@ function App(){
 
               </InspectorSection>
 
-              {(()=>{const missing=missingReturns(project,visibleIds);return missing.length>0&&<button type="button" className="nv-bulk-return" onClick={()=>{
-                const result=withAllReturns(project,visibleIds);setProject(result.project);
-                setStatus(result.count+' retour(s) créé(s) automatiquement · vérifie-les puis enregistre.');
-              }}>↩ Créer les {missing.length} retour{missing.length>1?'s':''} manquant{missing.length>1?'s':''} d’un clic</button>;})()}
               <div className="section-title">
                 <span>POINTS INTERACTIFS</span>
                 <span className="counter">{active.hotspots.length}</span>
