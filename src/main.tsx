@@ -20,6 +20,7 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
+import {useLiveSession,LiveOverlay} from './liveSession';
 import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
@@ -517,6 +518,9 @@ function App(){
   const [spacesDrawerOpen,setSpacesDrawerOpen]=useState(false);
   const [spaceDelete,setSpaceDelete]=useState<{id:string;target:string}|null>(null);  // fenêtre « supprimer un espace »
   const [spaceTransferTo,setSpaceTransferTo]=useState('');
+  // Écran partagé (présence en direct à deux sur le même projet Cloud)
+  const [liveProjectId,setLiveProjectId]=useState<string|null>(null);
+  const [liveLabel,setLiveLabel]=useState('');
   useEffect(()=>{
     // Garder le tiroir monté pour l'animation, tout en excluant ses commandes
     // du clavier et du focus lorsqu'il est refermé.
@@ -654,6 +658,29 @@ function App(){
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
+  const live=useLiveSession({
+    projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
+    state:{sceneId:activeId,spaceId:activeSpaceId},
+    onRemoteState:remote=>{
+      const current=projectRef.current;
+      const space=remote.spaceId?(current.spaces??[]).find(sp=>sp.id===remote.spaceId):null;
+      if(remote.spaceId&&!space)return;                 // espace pas (encore) présent dans ma copie
+      if(!current.scenes.some(sc=>sc.id===remote.sceneId))return;
+      setActiveSpaceId(space?.id??null);setActiveId(remote.sceneId);setSelectedId('');
+    }
+  });
+  async function toggleLive(){
+    if(liveProjectId){setLiveProjectId(null);return;}
+    const link=readLink();
+    if(!link){setStatus('Écran partagé : ouvre d’abord le projet depuis le Cloud (bouton Cloud), comme la personne avec qui tu travailles.');return;}
+    try{
+      const {supabase}=await import('./cloud');
+      const {data:{session}}=await supabase().auth.getSession();
+      const email=session?.user?.email??'';
+      setLiveLabel((email.split('@')[0]||'Invité').slice(0,24));
+      setLiveProjectId(link.projectId);
+    }catch(e){setStatus('Écran partagé indisponible : '+(e instanceof Error?e.message:String(e)));}
+  }
   const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
   const [editingSpaceId,setEditingSpaceId]=useState<string|null>(null);
   const [editingSpaceName,setEditingSpaceName]=useState('');
@@ -2527,6 +2554,10 @@ function App(){
           </button>
         </div>
       </div>
+      <button type="button" className={'nv-header-live'+(liveProjectId?' is-on':'')} onClick={()=>void toggleLive()}
+        title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
+        <Users size={16}/><span>Écran partagé</span>
+      </button>
       <button type="button" className={'nv-header-spaces-trigger'+(spacesDrawerOpen?' is-open':'')}
         aria-expanded={spacesDrawerOpen} aria-controls="nv-workspace-spaces"
         title={spacesDrawerOpen?'Masquer les espaces pour agrandir le panorama':'Afficher les espaces du projet'}
@@ -2678,6 +2709,7 @@ function App(){
         </div>
       </section>
     </div>}
+    {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
       const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
       if(!sp)return null;

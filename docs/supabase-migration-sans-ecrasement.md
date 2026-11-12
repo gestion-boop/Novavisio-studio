@@ -88,3 +88,6 @@ Par défaut, le lien des e-mails Supabase est consommé dès qu'il est ouvert : 
 Aucune migration Supabase. Dans la visite (lien public, lien permanent, visite exportée) un bouton « 🥽 Entrer en VR » apparaît automatiquement quand le navigateur du casque gère le WebXR.
 Version de base : panorama autour du spectateur, flèches cliquables à la gâchette, barre flottante (galerie, boutons d'information, « Quitter la VR »), panoramas allégés à 4096 px.
 Non inclus : cadres photo/vidéo, fenêtres d'information sur les points, musique.
+
+## Écran partagé (travail à deux en direct)
+Aucune migration. Bouton « Écran partagé » dans l'en-tête : les deux personnes ouvrent le même projet Cloud puis cliquent chacune dessus. Souris de l'autre visible (couleur + prénom), pastille à chaque clic, « Prendre / Donner la main » : celui qui a la main fait suivre le panorama et l'espace affichés (suivi désactivable). Passe par Supabase Realtime (canal `nvlive:<id du projet>`) ; seules des positions de souris et l'identifiant du panorama transitent, jamais le contenu du projet.
