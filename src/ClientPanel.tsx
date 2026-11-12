@@ -2,6 +2,8 @@ import {useEffect,useRef,useState} from 'react';
 import {ExternalLink,FileJson,Link2,PlusCircle,Search,RefreshCw,Sparkles,Check,Image as ImageIcon} from 'lucide-react';
 import {emptyClientProfile,type ClientProfile} from './storage';
 import {cloudConfigured,supabase} from './cloud';
+import {NovaGenVideos} from './NovaGenVideos';
+import type {ImportedClientVideo} from './novagenVideos';
 
 type Field='name'|'category'|'address'|'city'|'phone'|'email'|'website'|'facebook'|'instagram'|'otherLinks'|'description'|'bookingUrl'|'openingHours'|'services';
 const fields:Array<{key:Field;label:string;placeholder?:string}>=[
@@ -63,11 +65,12 @@ async function askNovaGen<T>(payload:Record<string,unknown>,signal?:AbortSignal)
   return parsed as T;
 }
 
-export function ClientPanel({value,onChange,onAddLink,compact=false}:{
+export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo,compact=false}:{
   value:ClientProfile|undefined;
   onChange:(p:ClientProfile)=>void;
   onAddLink:(link:ClientLink)=>void;
   compact?:boolean;
+  canPlaceVideo:boolean;onPlaceVideo:(video:ImportedClientVideo)=>void;
 }){
   const p=value??emptyClientProfile();
   const input=useRef<HTMLInputElement>(null);
@@ -278,6 +281,7 @@ export function ClientPanel({value,onChange,onAddLink,compact=false}:{
         {!profileLinks(p).length&&<small>Renseigne un téléphone, un e-mail ou un site pour créer des boutons.</small>}
       </div>
     </div>
+    {p.novagenId&&<NovaGenVideos key={p.novagenId} clientId={p.novagenId} canPlace={canPlaceVideo} onPlace={onPlaceVideo}/>}
     <p className="nv-client-footnote"><ExternalLink size={13}/> L’aspirateur nécessite une session Cloud. Les données client ne sont pas publiées dans les visites. Enregistre le projet avec la disquette.</p>
   </section>;
 }

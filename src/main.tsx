@@ -27,6 +27,7 @@ import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaL
 import {CloudPanel} from './CloudPanel';
 import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
+import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
 import {refreshActivePublication,publishPermanent} from './share';
@@ -44,7 +45,7 @@ import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './media.css';
 
@@ -683,6 +684,10 @@ function App(){
   // Assistant de navigation en chaîne : état temporaire, aucun enregistrement automatique.
   const [autoNavigation,setAutoNavigation]=useState(false);
   const [preview,setPreview]=useState(false);
+  const [clientVideoPlacement,setClientVideoPlacement]=useState<(ImportedClientVideo&{sceneId:string})|null>(null);
+  useEffect(()=>{
+    if(mode!=='video'||preview||clientVideoPlacement?.sceneId!==activeId)setClientVideoPlacement(null);
+  },[mode,preview,activeId,clientVideoPlacement?.sceneId]);
   const [status,setStatus]=useState('Initialisation…');
   const [help,setHelp]=useState(false);
   const [info,setInfo]=useState<Hotspot|null>(null);
@@ -1201,8 +1206,8 @@ function App(){
   async function addVideo(file?:File,placement?:{sceneId:string;hotspotId:string}){
     const sceneId=placement?.sceneId??activeId,hotspotId=placement?.hotspotId??selectedId;
     if(!file||!sceneId||!hotspotId)return;
-    if(!['video/mp4','video/webm'].includes(file.type)||file.size>22*1024*1024){
-      setStatus('Vidéo : MP4/WebM, 22 Mo maximum pour ce prototype');return;
+    if(!['video/mp4','video/webm'].includes(file.type)||file.size>VIDEO_MAX_BYTES){
+      setStatus('Vidéo : MP4/WebM, 45 Mo maximum');return;
     }
     try{
       const data=await readImage(file);
@@ -2161,6 +2166,7 @@ function App(){
   }
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
+    const importedVideo=mode==='video'&&clientVideoPlacement?.sceneId===active.id?clientVideoPlacement:null;
     const favorite=mode==='navigation'?defaultNavigationIconSet():mode==='image'?project.defaultPhotoIcon:mode==='video'?project.defaultVideoIcon:null;
     const h:Hotspot={
       id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Photo':mode==='video'?'Vidéo':'Informations',
@@ -2169,13 +2175,15 @@ function App(){
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{}),
       ...(['image','video'].includes(mode)?{mediaDisplay:'popup' as const,frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameReferenceZoom:cameraRef.current.zoom,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
       ...(mode==='lien'?{linkMode:'embed' as const}:{}),
-      ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{})
+      ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{}),
+      ...(importedVideo?{videoDataUrl:importedVideo.dataUrl,title:importedVideo.name.replace(/\.[^.]+$/,'').slice(0,120)}:{})
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
     if(mode==='information'){setRightHidden(false);setInformationEdit({sceneId:active.id,pointId:h.id});}
     if(mode==='lien')setRightHidden(false);
-    if(mode==='image'||mode==='video'){
+    if(importedVideo){setClientVideoPlacement(null);setRightHidden(false);setStatus('Vidéo NovaGen placée · Enregistre la visite pour conserver le fichier');}
+    if(mode==='image'||(mode==='video'&&!importedVideo)){
       setRightHidden(false);
       pendingMediaPlacement.current={sceneId:active.id,hotspotId:h.id,type:mode};
       const input=placedMediaInput.current;
@@ -2306,9 +2314,17 @@ function App(){
     setProject(p=>({...p,bottomBar:[...p.bottomBar,next]}));
     setSelectedBarId(next.id);setPanel('bar');setStatus('Bouton « '+item.label+' » ajouté à la barre du bas · Enregistre la visite');
   }
+  function placeClientVideo(video:ImportedClientVideo){
+    if(!active)return;
+    if(autoNavigation)stopAutoNavigation();
+    setClientOpen(false);setPreview(false);setSelectedId('');setSelectedBarId('');
+    setPanel('points');setMode('video');setRightHidden(false);
+    setClientVideoPlacement({...video,sceneId:active.id});
+    setStatus('Clique dans le panorama pour placer « '+video.name+' »');
+  }
   const clientView=<ClientPanel value={project.clientProfile}
     onChange={clientProfile=>setProject(p=>({...p,clientProfile}))}
-    onAddLink={addClientLink}/>;
+    onAddLink={addClientLink} canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}/>;
   return <div ref={studioRef} className={
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
@@ -3235,7 +3251,7 @@ function App(){
           {active && !preview && mode && (
             <div className="mode-active-pill">
               <span className="mode-active-dot" />
-              <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Photo':'Vidéo'}</strong></span>
+              <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Photo':clientVideoPlacement?.name??'Vidéo'}</strong></span>
               <button type="button" className="nv-cancel-placement" onClick={()=>setMode(null)}>✕ Annuler la pose (Échap)</button>
             </div>
           )}
@@ -3857,6 +3873,7 @@ function App(){
     {clientOpen&&<ClientsDirectory
       currentProjectName={project.name}
       currentProfile={project.clientProfile}
+      canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
       onClose={()=>setClientOpen(false)}
       onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
       onAssociate={clientProfile=>{

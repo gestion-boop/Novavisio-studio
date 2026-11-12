@@ -1,3 +1,4 @@
+export const VIDEO_MAX_BYTES = 45*1024*1024;
 export type Corner = {x:number;y:number};
 export type FrameCorners = {tl:Corner;tr:Corner;br:Corner;bl:Corner};
 export type FrameSphericalCorners=[
@@ -296,7 +297,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.mediaDisplay !== undefined && !['popup','inline'].includes(h.mediaDisplay)) ||
         (h.imageBounce !== undefined && typeof h.imageBounce !== 'boolean') ||
         (h.imageFrameStyle !== undefined && !IMAGE_FRAME_STYLES.includes(h.imageFrameStyle)) ||
-        (h.videoDataUrl !== undefined && (h.videoDataUrl.length > 42_000_000 || !isSafeVideoData(h.videoDataUrl))) ||
+        (h.videoDataUrl !== undefined && (h.videoDataUrl.length > Math.ceil(VIDEO_MAX_BYTES/3)*4+64 || !isSafeVideoData(h.videoDataUrl))) ||
         (h.videoUrl !== undefined && h.videoUrl !== '' && !isSafeMediaUrl(h.videoUrl)) ||
         (h.videoAutoplay !== undefined && typeof h.videoAutoplay !== 'boolean') ||
         (h.videoLoop !== undefined && typeof h.videoLoop !== 'boolean') ||

@@ -17,3 +17,19 @@
 .nv-studio-pro .gallery-bulk button{padding:8px 10px;background:#183b48;border:1px solid #416e7e;border-radius:6px;color:#d5e8ef;cursor:pointer;font-size:11px}.nv-studio-pro .gallery-bulk button:disabled{opacity:.5;cursor:default}
 
 #nv-bar-button-settings{scroll-margin-top:64px}
+
+.nv-novagen-videos{display:flex;flex-direction:column;gap:12px;padding:16px;border:1px solid #3b6375;border-radius:10px;background:#112d3b;color:#d7edf3;margin-top:16px;min-width:0}
+.nv-novagen-videos-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.nv-novagen-videos button{padding:9px 12px;border:1px solid #3b8b8d;border-radius:7px;background:#19514f;color:#d1fff0;cursor:pointer;font:inherit;font-size:12px}
+.nv-novagen-videos button:disabled{opacity:.55;cursor:default}
+.nv-novagen-videos button:focus-visible{outline:2px solid #6df1d9;outline-offset:2px}
+.nv-novagen-videos p{font-size:12px;line-height:1.5;margin:0}
+.nv-novagen-videos>small,.nv-novagen-video-grid small{color:#9fbdc9;font-size:11px;line-height:1.5}
+.nv-novagen-videos [role=alert]{color:#ffcfac}
+.nv-novagen-video-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px}
+.nv-novagen-video-grid article{min-width:0;display:flex;flex-direction:column;gap:8px;padding:10px;background:#0b202c;border:1px solid #315467;border-radius:9px}
+.nv-novagen-video-grid video{display:block;width:100%;height:200px;background:#000;border-radius:6px;object-fit:contain}
+.nv-novagen-video-grid strong{overflow-wrap:anywhere;font-size:13px}
+.nv-novagen-videos details{font-size:12px;line-height:1.5}
+.nv-novagen-videos summary{cursor:pointer;color:#9fd5d7}
+.nv-novagen-videos details p{margin-top:8px}

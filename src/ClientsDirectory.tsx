@@ -2,10 +2,12 @@ import {useEffect,useMemo,useState} from 'react';
 import {Building2,Check,ChevronRight,Cloud,Database,ExternalLink,FolderOpen,Image as ImageIcon,LoaderCircle,RefreshCw,Search,Users,X} from 'lucide-react';
 import {cloudConfigured,listCloudProjects,supabase,type CloudProject} from './cloud';
 import type {ClientProfile} from './storage';
+import {NovaGenVideos} from './NovaGenVideos';
+import type {ImportedClientVideo} from './novagenVideos';
 
 type RemoteClient={
  id:string;profile:ClientProfile;logoUrl:string;photoUrls:string[];
- notes:string[];photoCount:number;hasLogo?:boolean;updatedAt:string;
+ notes:string[];photoCount:number;videoCount?:number;hasLogo?:boolean;updatedAt:string;
  source:'novagen';unavailable?:boolean
 };
 type DirectoryResult={clients:RemoteClient[];total:number;nextOffset:number|null;truncated:boolean};
@@ -32,8 +34,9 @@ async function listNovaGen(offset:number):Promise<DirectoryResult>{
  return body as DirectoryResult;
 }
 
-export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud}:{
+export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo}:{
  currentProjectName:string;currentProfile?:ClientProfile;
+ canPlaceVideo:boolean;onPlaceVideo:(video:ImportedClientVideo)=>void;
  onClose:()=>void;onAssociate:(profile:ClientProfile)=>void;onOpenCloud:()=>void
 }){
  const [studio,setStudio]=useState<CloudProject[]>([]);
@@ -206,6 +209,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               <p>{selected.city||'Client à compléter'}</p>
               <div className="nv-directory-tags">
                 {selected.records.length>0&&<i>NovaGen</i>}
+                {!!selectedRecord?.videoCount&&<i>{selectedRecord.videoCount} vidéo{selectedRecord.videoCount>1?'s':''}</i>}
                 {selected.projects.length>0&&<i>NovaStudio</i>}
               </div>
             </div>
@@ -254,6 +258,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               </div>
               <p className="nv-directory-muted">Aperçus temporaires depuis NovaGen. Les fichiers restent dans leur stockage d'origine.</p>
             </section>}
+            {selectedRecord&&!selectedRecord.unavailable&&<NovaGenVideos key={selectedRecord.id} clientId={selectedRecord.id} canPlace={canPlaceVideo} onPlace={onPlaceVideo}/>}
           </div>
           {selectedRecord&&!selectedRecord.unavailable&&<div className="nv-directory-bottom-actions">
             <button type="button" className="nv-directory-associate" disabled={associated} onClick={()=>pair(selected.key)}>

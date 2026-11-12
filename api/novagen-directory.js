@@ -37,6 +37,16 @@ async function store(body){
     trim(result.error||'Réponse du stockage NovaGen indisponible.',350));
   return result;
 }
+// NovaGen stores final client videos in adVids, with files under <client>/pv/.
+// Playback URLs expire after one hour: they are generated only on demand.
+function videoMetadata(row){
+  const data=row.row?.data||{};
+  return (Array.isArray(data.adVids)?data.adVids:[]).filter(v=>v&&okId(v.id)).slice(0,100).map(v=>({
+    id:v.id,name:trim(v.name,160)||'Vidéo NovaGen',
+    size:Number.isFinite(v.size)&&v.size>0?v.size:0,
+    date:Number.isFinite(v.date)?v.date:0
+  }));
+}
 function normal(row){
   const d=row.row?.data||{};
   const f=d.fiche&&typeof d.fiche==='object'?d.fiche:{};
@@ -61,7 +71,7 @@ function normal(row){
   const photoUrls=photos.slice(0,12).map(p=>safeImg(urls['p/'+p.id+'.jpg'])).filter(Boolean);
   const notes=Array.isArray(d.notes)?d.notes.slice(0,12).map(x=>trim(typeof x==='string'?x:x?.t,260)).filter(Boolean):[];
   return {id:row.row.id,profile,logoUrl,photoUrls,notes,
-    photoCount:photos.length,hasLogo:!!d.logo,
+    photoCount:photos.length,hasLogo:!!d.logo,videoCount:videoMetadata(row).length,
     updatedAt:row.row.updated_at||'',source:'novagen'};
 }
 export default async function handler(req,res){
@@ -70,10 +80,16 @@ export default async function handler(req,res){
   try{
     if(!await verify(req))return res.status(403).json({error:'Connecte-toi avec le compte administrateur NovaStudio pour voir le répertoire NovaGen.'});
     const b=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
-    if(b.mode!=='list'&&b.mode!=='detail')return res.status(400).json({error:'Mode inconnu.'});
-    if(b.mode==='detail'){
+    if(!['list','detail','videos'].includes(b.mode))return res.status(400).json({error:'Mode inconnu.'});
+    if(b.mode==='detail'||b.mode==='videos'){
       if(!okId(b.id))return res.status(400).json({error:'Identifiant client incorrect.'});
       const result=await store({mode:'get',id:b.id});
+      if(result.row?.deleted_at)return res.status(404).json({error:'Cette fiche NovaGen a été supprimée.'});
+      if(b.mode==='videos'){
+        const videos=videoMetadata(result);
+        const signed=videos.length?await store({mode:'dl',id:b.id,names:videos.map(v=>'pv/'+v.id+'.mp4')}):{urls:{}};
+        return res.status(200).json({videos:videos.map(v=>({...v,url:safeImg(signed.urls?.['pv/'+v.id+'.mp4'])}))});
+      }
       return res.status(200).json({client:normal(result)});
     }
     const items=(await store({mode:'list'})).items||[];

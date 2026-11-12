@@ -138,3 +138,12 @@ Les images insérées ne sont plus des éléments HTML superposés et redimensio
 - L'export HTML de NovaVisio conserve exactement la même structure de dossier et les coordonnées 3D dans `data/visite.json`.
 
 Le rendu doit être vérifié sur des panoramas réels, et particulièrement sur les cadres proches des bords et dans les zones fortement déformées par la projection sphérique.
+
+
+## Vidéos NovaGen dans Studio
+
+- Menu → Clients affiche les vidéos finales sauvegardées sur le serveur NovaGen (`adVids`, fichiers `pv/`). Les vidéos sont aussi accessibles dans la fiche du client associé.
+- « Placer dans la visite » télécharge le fichier MP4, puis un clic dans le panorama pose un point avec l’icône vidéo par défaut. Le mode Popup/Incrustation reste modifiable dans l’inspecteur.
+- Le fichier est copié dans le projet : les liens NovaGen de lecture temporaires ne sont jamais sauvegardés dans la visite. Enregistrer envoie la copie dans le Cloud Studio ; l’export HTML inclut le fichier sous `media/videos/`.
+- Limite : 45 Mo par vidéo. Les anciennes vidéos NovaGen conservées seulement sur un ordinateur doivent être importées depuis leur fichier avec l’outil Vidéo.
+- La passerelle conserve la restriction au compte administrateur configuré ; elle ne modifie aucune fiche ni vidéo d’origine dans NovaGen.
