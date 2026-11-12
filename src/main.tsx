@@ -896,6 +896,7 @@ function App(){
   projectRef.current=project;
   lockRef.current=lock;
   function adopt(p:StudioProject,stamp:string|null){
+    setPreparationOpen(false);
     setActiveSpaceId(null);setSpaceManagerOpen(false);
     const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
     savedRef.current=upgraded;baseRef.current=stamp;
@@ -1139,9 +1140,9 @@ function App(){
   useEffect(()=>{
     if(ready&&!lock&&!preparationPrompted.current){
       preparationPrompted.current=true;
-      if(!project.preparationComplete)setPreparationOpen(true);
+      if(!project.preparationComplete&&project.scenes.length===0&&!readLink())setPreparationOpen(true);
     }
-  },[ready,lock,project.preparationComplete]);
+  },[ready,lock,project.preparationComplete,project.scenes.length]);
   const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
@@ -2300,7 +2301,7 @@ function App(){
       if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
       setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
       cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
-      setStatus('Projet importé');setPreparationOpen(!imported.preparationComplete);
+      setStatus('Projet importé');setPreparationOpen(false);
     }catch(e){window.alert('Impossible d’ouvrir ce projet : '+String(e));}
     finally {if(projectInput.current)projectInput.current.value='';}
   }
@@ -3914,7 +3915,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setPreparationOpen(!up.preparationComplete);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setPreparationOpen(false);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
