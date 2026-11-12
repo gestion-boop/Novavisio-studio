@@ -4358,3 +4358,14 @@ body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointe
 .nv-discovery-actions-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .nv-discovery-actions-row small{flex:1 1 100%}
 .nv-directory-associate.is-create{background:#2f80ed;border-color:#7fb4ff}
+
+/* Parcours de préparation d'une visite créée à partir d'un client */
+.nv-setup-client{display:grid;gap:6px;padding:12px;border:1px solid #ffffff1a;border-radius:14px;background:#ffffff08;margin:10px 0}
+.nv-setup-client-head{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.nv-setup-client-head img{width:56px;height:56px;object-fit:contain;background:#fff;border-radius:12px;padding:4px}
+.nv-setup-client-head strong{display:block;font-size:16px}.nv-setup-client-head small{color:#9cc2cd}
+.nv-setup-proposals{margin:10px 0 14px}
+.nv-setup-button-list{display:grid;gap:8px;margin:12px 0}
+.nv-setup-button-list label{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #ffffff1f;border-radius:12px;background:#ffffff0a;cursor:pointer}
+.nv-setup-button-list label.is-done{opacity:.6}
+.nv-setup-button-list span{display:grid}.nv-setup-button-list small{color:#9cc2cd;overflow-wrap:anywhere}
