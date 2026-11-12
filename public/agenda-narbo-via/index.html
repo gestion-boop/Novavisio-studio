@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Narbo Via · Agenda octobre 2026 – janvier 2027</title>
+<meta name="description" content="Feuilletez l'agenda de Narbo Via (octobre 2026 – janvier 2027) comme un vrai livre.">
+<meta property="og:title" content="Narbo Via · Agenda octobre 2026 – janvier 2027">
+<meta property="og:description" content="Musée en fête : 5 ans avec vous ! Feuilletez l'agenda.">
+<meta property="og:image" content="pages/p01.webp">
+<style>
+:root{
+  --orange:#f15a16;--orange-soft:#ff8a4d;--ink:#f6efe7;--muted:#c9b8aa;
+  --bg1:#2b130a;--bg2:#140a06;--panel:#20110b;--line:rgba(255,255,255,.14);
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{
+  font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;color:var(--ink);overflow:hidden;
+  background:radial-gradient(1200px 700px at 50% 38%,#4a2212 0%,var(--bg1) 38%,var(--bg2) 100%);
+  display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent;
+}
+body::before{ /* grain léger de « table » */
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+}
+header{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:max(12px,env(safe-area-inset-top)) clamp(14px,3vw,34px) 8px;position:relative;z-index:5;
+}
+.brand{display:flex;align-items:baseline;gap:12px;min-width:0}
+.brand b{font-weight:300;font-size:clamp(18px,2.4vw,26px);letter-spacing:.16em}
+.brand span{font-size:clamp(11px,1.3vw,13px);color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.tools{margin-left:auto;display:flex;gap:8px;align-items:center;position:relative}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.06);
+  border-radius:999px;padding:9px 15px;font-size:13px;backdrop-filter:blur(6px);transition:background .2s,transform .15s,border-color .2s;
+}
+.btn:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3)}
+.btn:active{transform:scale(.96)}
+.btn[aria-pressed=true]{background:var(--orange);border-color:var(--orange)}
+.btn svg{width:16px;height:16px;flex:none}
+#toc{
+  position:absolute;right:0;top:calc(100% + 8px);width:min(360px,86vw);max-height:min(70vh,520px);overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px;box-shadow:0 24px 60px rgba(0,0,0,.55);
+  opacity:0;transform:translateY(-6px);pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;
+}
+#toc.open{opacity:1;transform:none;pointer-events:auto}
+#toc h2{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--orange-soft);padding:10px 12px 6px}
+#toc button{
+  display:flex;justify-content:space-between;gap:14px;width:100%;text-align:left;background:none;border:0;border-radius:10px;
+  padding:9px 12px;font-size:14px;
+}
+#toc button:hover{background:rgba(255,255,255,.08)}
+#toc button i{font-style:normal;color:var(--muted);font-variant-numeric:tabular-nums}
+#toc button.sub{padding-left:26px;font-size:13px;color:#e7d9cc}
+main{flex:1;min-height:0;position:relative;display:grid;place-items:center;padding:0 clamp(8px,4vw,70px)}
+#stage{
+  width:100%;height:100%;display:grid;place-items:center;position:relative;touch-action:pan-y;
+  transition:transform .35s cubic-bezier(.2,.7,.2,1);transform-origin:center;
+}
+#book{position:relative;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55));opacity:0;transition:opacity .5s}
+#book.ready{opacity:1}
+.page{background:#fff;overflow:hidden}
+.page img{display:block;width:100%;height:100%;object-fit:cover;user-select:none;-webkit-user-drag:none}
+.nav{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:6;width:46px;height:46px;border-radius:50%;
+  border:1px solid var(--line);background:rgba(20,10,6,.55);backdrop-filter:blur(6px);display:grid;place-items:center;
+  transition:background .2s,opacity .2s,transform .15s;
+}
+.nav:hover{background:var(--orange);border-color:var(--orange)}
+.nav:active{transform:translateY(-50%) scale(.94)}
+.nav[disabled]{opacity:.25;pointer-events:none}
+.nav svg{width:22px;height:22px}
+#prev{left:clamp(4px,1.5vw,22px)}#next{right:clamp(4px,1.5vw,22px)}
+footer{
+  display:flex;align-items:center;gap:16px;justify-content:center;padding:10px 18px max(16px,env(safe-area-inset-bottom));position:relative;z-index:5;
+}
+#count{font-size:13px;color:var(--muted);min-width:150px;text-align:center;font-variant-numeric:tabular-nums;letter-spacing:.04em}
+#count b{color:var(--ink);font-weight:600}
+#bar{flex:0 1 380px;height:4px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden;cursor:pointer;position:relative}
+#bar i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--orange),var(--orange-soft));border-radius:99px;transition:width .35s}
+.hint{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:12px;color:var(--muted);white-space:nowrap;opacity:0;transition:opacity .6s;pointer-events:none}
+.hint.show{opacity:.85}
+#loader{position:fixed;inset:0;display:grid;place-items:center;z-index:50;background:var(--bg2);transition:opacity .5s}
+#loader.done{opacity:0;pointer-events:none}
+#loader div{text-align:center}
+#loader b{display:block;font-weight:300;letter-spacing:.3em;font-size:22px;margin-bottom:18px}
+#loader progress{width:200px;height:3px;appearance:none;border:0;border-radius:9px;background:rgba(255,255,255,.15);overflow:hidden}
+#loader progress::-webkit-progress-bar{background:rgba(255,255,255,.15)}
+#loader progress::-webkit-progress-value{background:var(--orange)}
+#loader progress::-moz-progress-bar{background:var(--orange)}
+@media (max-width:700px){
+  .brand span{display:none}.nav{width:40px;height:40px}.btn{padding:8px 12px}.btn .lbl{display:none}
+  #bar{display:none}.hint{font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){#stage,#book{transition:none}}
+.is-zoomed #stage{cursor:grab}.is-zoomed #stage:active{cursor:grabbing}
+</style>
+</head>
+<body>
+<div id="loader"><div><b>NARBO — VIA</b><progress id="lp" max="100" value="0"></progress></div></div>
+
+<header>
+  <div class="brand"><b>NARBO — VIA</b><span>Agenda · octobre 2026 – janvier 2027</span></div>
+  <div class="tools">
+    <button class="btn" id="tocBtn" aria-expanded="false" aria-controls="toc">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span class="lbl">Sommaire</span></button>
+    <button class="btn" id="zoomBtn" aria-pressed="false" title="Agrandir la lecture">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg><span class="lbl">Zoom</span></button>
+    <button class="btn" id="soundBtn" aria-pressed="false" title="Bruit de page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg><span class="lbl">Son</span></button>
+    <button class="btn" id="fsBtn" title="Plein écran">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg><span class="lbl">Plein écran</span></button>
+    <nav id="toc" aria-label="Sommaire"><h2>Aller à</h2></nav>
+  </div>
+</header>
+
+<main>
+  <button class="nav" id="prev" aria-label="Page précédente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div id="stage"><div id="book" aria-live="polite"></div></div>
+  <button class="nav" id="next" aria-label="Page suivante"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  <div class="hint" id="hint">Glissez un coin de page, cliquez ou utilisez les flèches du clavier ← →</div>
+</main>
+
+<footer>
+  <div id="count">Couverture</div>
+  <div id="bar" role="progressbar" aria-label="Avancement dans l'agenda"><i></i></div>
+</footer>
+
+<script src="page-flip.browser.js"></script>
+<script>
+(function(){
+  var TOTAL=52;                       // couverture + 25 doubles pages + 4e de couverture
+  var pad=function(n){return (n<10?'0':'')+n;};
+  var pages=[];for(var i=1;i<=TOTAL;i++)pages.push('pages/p'+pad(i)+'.webp');
+
+  // Sommaire (numéros de pages imprimés ; la page imprimée n est la page n du livre)
+  var toc=[
+    ['Couverture',1],['Sommaire',3],['Édito',5],['1 musée, 2 sites',6],["L'actu de Narbo Via",7],
+    ["Parcours d'art contemporain · Jiang Qiong Er",8],['Exposition temporaire · Mémoires de lagune',10],
+    ['Les événements et temps forts',12],['Les visites, rencontres et ateliers',16],
+    ['Les experts : rencontres et conférences',32],['Narbo Via pratique',36],['Venir en groupe',41],['Calendrier',42]
+  ];
+
+  var book=document.getElementById('book'),stage=document.getElementById('stage');
+  var main=document.querySelector('main');
+  var lp=document.getElementById('lp'),loader=document.getElementById('loader');
+  var count=document.getElementById('count'),bar=document.querySelector('#bar i');
+  var prev=document.getElementById('prev'),next=document.getElementById('next');
+
+  // Dimensions du livre : 2 pages A5 (ratio 0,7048) qui tiennent dans la zone disponible
+  var RATIO=419.528/595.276;
+  var flip;
+  function size(){
+    var w=main.clientWidth-20,h=main.clientHeight-10;
+    var portrait=w<760;
+    var pageH=Math.min(h,(portrait?w:w/2)/RATIO);
+    var pageW=pageH*RATIO;
+    return {w:pageW,h:pageH,portrait:portrait};
+  }
+  var s=size();
+  // Le conteneur doit avoir la taille exacte du livre (2 pages en largeur, 1 seule sur petit écran).
+  book.style.width=Math.round(s.portrait?s.w:s.w*2)+'px';book.style.height=Math.round(s.h)+'px';
+  pages.forEach(function(src,i){
+    var d=document.createElement('div');d.className='page';
+    d.dataset.density=(i===0||i===TOTAL-1)?'hard':'soft';           // couvertures rigides
+    var img=new Image();img.alt='Page '+(i+1);img.decoding='async';img.draggable=false;
+    img.src=src;d.appendChild(img);book.appendChild(d);
+  });
+
+  flip=new St.PageFlip(book,{
+    width:Math.round(s.w),height:Math.round(s.h),size:'fixed',
+    showCover:true,flippingTime:950,usePortrait:true,startPage:0,
+    maxShadowOpacity:.55,drawShadow:true,mobileScrollSupport:false,
+    useMouseEvents:true,swipeDistance:25,clickEventForward:true,showPageCorners:true,disableFlipByClick:false,autoSize:false
+  });
+  flip.loadFromHTML(document.querySelectorAll('.page'));
+
+  // Chargement : barre de progression pendant que les pages se préparent
+  var loaded=0,gate=Math.min(6,TOTAL);
+  [].forEach.call(book.querySelectorAll('img'),function(img,i){
+    function done(){loaded++;lp.value=Math.round(loaded/gate*100);if(loaded>=gate)reveal();}
+    if(i>=gate)return;
+    if(img.complete)done();else{img.addEventListener('load',done);img.addEventListener('error',done);}
+  });
+  var shown=false;
+  function reveal(){if(shown)return;shown=true;book.classList.add('ready');loader.classList.add('done');setTimeout(function(){document.getElementById('hint').classList.add('show');setTimeout(function(){document.getElementById('hint').classList.remove('show');},5200);},900);}
+  setTimeout(reveal,6000);
+
+  // Taille adaptative : si la fenêtre change vraiment de forme, on reconstruit le livre à la même page
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){
+    var cur=flip.getCurrentPageIndex();var n=size();
+    // Reconstruit proprement si l'orientation change (livre ouvert ↔ page seule)
+    if(n.portrait!==s.portrait||Math.abs(n.h-s.h)>40){location.hash='p'+(cur+1);location.reload();}
+  },350);});
+
+  // Interface : numéros, progression, flèches
+  function ui(){
+    var i=flip.getCurrentPageIndex();
+    var portrait=flip.getOrientation&&flip.getOrientation()==='portrait';
+    var left=portrait?i:(i%2===1?i:i-1);                 // index de la page de gauche affichée
+    if(i===0)count.textContent='Couverture';
+    else if(i>=TOTAL-1)count.textContent='4e de couverture';
+    else if(portrait)count.innerHTML='Page <b>'+(i+1)+'</b> / '+TOTAL;
+    else count.innerHTML='Pages <b>'+(left+1)+'–'+(left+2)+'</b> / '+TOTAL;
+    bar.style.width=Math.round((i+1)/TOTAL*100)+'%';
+    prev.disabled=i<=0;next.disabled=i>=TOTAL-1;
+    history.replaceState(null,'','#p'+(i+1));
+  }
+  flip.on('flip',function(){ui();});
+  flip.on('changeOrientation',ui);
+  flip.on('init',ui);
+  flip.on('changeState',function(e){if(e.data==='flipping')swish();});
+  prev.onclick=function(){flip.flipPrev('bottom');};
+  next.onclick=function(){flip.flipNext('bottom');};
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key==='PageDown'){flip.flipNext('bottom');}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){flip.flipPrev('bottom');}
+    else if(e.key==='Home'){flip.turnToPage(0);}
+    else if(e.key==='End'){flip.turnToPage(TOTAL-1);}
+    else if(e.key==='Escape'){closeToc();}
+  });
+  document.getElementById('bar').addEventListener('click',function(e){
+    var r=this.getBoundingClientRect();var p=Math.round((e.clientX-r.left)/r.width*(TOTAL-1));flip.flip(Math.max(0,Math.min(TOTAL-1,p)),'bottom');
+  });
+  var start=parseInt((location.hash.match(/p(\d+)/)||[])[1],10);
+  if(start>1&&start<=TOTAL){setTimeout(function(){flip.turnToPage(start-1);ui();},0);}
+
+  // Sommaire
+  var tocEl=document.getElementById('toc'),tocBtn=document.getElementById('tocBtn');
+  toc.forEach(function(t){
+    var b=document.createElement('button');b.innerHTML='<span>'+t[0]+'</span><i>p. '+t[1]+'</i>';
+    b.onclick=function(){closeToc();flip.flip(Math.min(TOTAL-1,t[1]-1),'bottom');};tocEl.appendChild(b);
+  });
+  function closeToc(){tocEl.classList.remove('open');tocBtn.setAttribute('aria-expanded','false');}
+  tocBtn.onclick=function(e){e.stopPropagation();var o=tocEl.classList.toggle('open');tocBtn.setAttribute('aria-expanded',o);};
+  document.addEventListener('click',function(e){if(!tocEl.contains(e.target))closeToc();});
+
+  // Plein écran
+  document.getElementById('fsBtn').onclick=function(){
+    var d=document;if(d.fullscreenElement){d.exitFullscreen();}else{(d.documentElement.requestFullscreen||function(){}).call(d.documentElement);}
+  };
+
+  // Zoom : agrandit le livre, déplacement au glisser (désactive le tournage de page pendant le zoom)
+  var zoomBtn=document.getElementById('zoomBtn'),zoom=1,pan={x:0,y:0},drag=null;
+  function applyZoom(){stage.style.transform='translate('+pan.x+'px,'+pan.y+'px) scale('+zoom+')';}
+  zoomBtn.onclick=function(){
+    var on=zoom===1;zoom=on?1.9:1;pan={x:0,y:0};applyZoom();
+    zoomBtn.setAttribute('aria-pressed',on);document.body.classList.toggle('is-zoomed',on);
+    book.style.pointerEvents=on?'none':'';prev.style.display=next.style.display=on?'none':'';
+  };
+  stage.addEventListener('pointerdown',function(e){if(zoom===1)return;drag={x:e.clientX-pan.x,y:e.clientY-pan.y};stage.setPointerCapture(e.pointerId);});
+  stage.addEventListener('pointermove',function(e){if(!drag)return;
+    var lim=Math.max(main.clientWidth,main.clientHeight)*.6;
+    pan.x=Math.max(-lim,Math.min(lim,e.clientX-drag.x));pan.y=Math.max(-lim,Math.min(lim,e.clientY-drag.y));applyZoom();});
+  stage.addEventListener('pointerup',function(){drag=null;});
+  stage.addEventListener('wheel',function(e){if(zoom===1)return;e.preventDefault();
+    zoom=Math.max(1.2,Math.min(3.2,zoom*(e.deltaY<0?1.1:.9)));applyZoom();},{passive:false});
+
+  // Bruit de page (synthétisé, désactivé par défaut)
+  var sound=false,ctx=null,soundBtn=document.getElementById('soundBtn');
+  soundBtn.onclick=function(){sound=!sound;soundBtn.setAttribute('aria-pressed',sound);if(sound&&!ctx){try{ctx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){sound=false;}}if(ctx&&ctx.state==='suspended')ctx.resume();};
+  function swish(){
+    if(!sound||!ctx)return;
+    var len=Math.floor(ctx.sampleRate*.42),buf=ctx.createBuffer(1,len,ctx.sampleRate),d=buf.getChannelData(0);
+    for(var i=0;i<len;i++){var t=i/len;d[i]=(Math.random()*2-1)*Math.sin(Math.PI*t)*Math.pow(1-t,.6);}
+    var src=ctx.createBufferSource();src.buffer=buf;
+    var f=ctx.createBiquadFilter();f.type='bandpass';f.frequency.value=2600;f.Q.value=.7;
+    var g=ctx.createGain();g.gain.value=.18;src.connect(f);f.connect(g);g.connect(ctx.destination);src.start();
+  }
+})();
+</script>
+</body>
+</html>
