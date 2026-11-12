@@ -14,7 +14,7 @@ const PAUSE_MS=4200;         // puis un rebond toutes les ~5 secondes
 const STAGGER_MS=110;        // plusieurs affiches : léger décalage entre elles
 const AMPLITUDE=0.05;
 
-const isPoster=(h:Hotspot)=>h.type==='image'&&!!h.imageDataUrl&&h.imageBounce!==false;
+const isPoster=(h:Hotspot)=>h.type==='image'&&h.mediaDisplay!=='popup'&&!!h.imageDataUrl&&h.imageBounce!==false;
 const wrap=(a:number)=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;};
 const curve=(t:number)=>1+AMPLITUDE*Math.sin(t*Math.PI*2*1.5)*Math.exp(-3.5*t);
 

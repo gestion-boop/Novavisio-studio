@@ -1,5 +1,6 @@
 
 /* Shared between the Studio editor and the exported HTML visitor. */
+.nv-media-popup-marker{display:grid;place-items:center;width:42px;height:42px;box-sizing:border-box;border:2px solid #66d5c7;border-radius:12px;background:linear-gradient(140deg,#285668,#102b3a);color:#edfffb;font-size:23px;box-shadow:0 3px 12px #0008;cursor:pointer}
 .nv-studio-pro .visitor-bottom-bar,.tour-app .tour-bottom-bar{
   box-sizing:border-box;width:var(--nv-bar-width,max-content);max-width:calc(100% - 24px);
   height:var(--nv-bar-height,82px);min-height:var(--nv-bar-height,82px);

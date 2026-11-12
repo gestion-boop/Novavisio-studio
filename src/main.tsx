@@ -1,3 +1,7 @@
+import {CreationToolbar} from './CreationToolbar';
+import {reorderItems,useGripSort} from './gripSort';
+import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisplay';
+import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
 import {BarDimensions,InspectorSection} from './PreparationControls';
@@ -94,22 +98,22 @@ type PanoramaProps = {
 function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig {
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
   // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
-  if(h.type==='image'&&h.imageDataUrl){
+  if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
     return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
   }
   const videoSource=h.videoDataUrl||h.videoUrl;
-  if(h.type==='video'&&videoSource){
+  if(h.type==='video'&&videoSource&&!isPopupMedia(h)){
     return {id:h.id,videoLayer:videoSource,position:frameWorldCorners(h),
       autoplay:h.videoAutoplay!==false,hoverScale:false};
   }
-  const isMedia=h.type==='image'||h.type==='video';
-  const sz=Math.max(16,Math.min(80,h.iconSize??28));
+  const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
+  const sz=isPopupMedia(h)?42:Math.max(16,Math.min(80,h.iconSize??28));
   const scaled=isMedia?responsiveFrameSize(h,viewerHeight,zoom):null;
   const width=scaled?.width??sz;
   const height=scaled?.height??sz;
   const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
-  const content=h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
+  const content=isPopupMedia(h)?popupMediaMarkerHtml(h):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
     h.type==='video'?videoMarkerHtml(h,width,height):
     iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
@@ -128,7 +132,7 @@ function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId
     all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
       h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;
-    if(!preview&&selectedId===h.id&&hasMedia){
+    if(!preview&&selectedId===h.id&&hasMedia&&!isPopupMedia(h)){
       all.push(...editingFrameControls(h));
     }
   }
@@ -239,7 +243,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
         }
         else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
         else if(h.type==='image') a.onImage(h,lastPointer.current);
-        else if(h.type==='video' && h.videoOpenFullscreen!==false) a.onVideo(h,lastPointer.current);
+        else if(h.type==='video' && (isPopupMedia(h)||h.videoOpenFullscreen!==false)) a.onVideo(h,lastPointer.current);
       } else {
         // En mode Éditer, un clic sélectionne TOUJOURS le point pour modifier ses réglages.
         // Pour tester les liens / photos sans perdre la sélection, utiliser les boutons de test
@@ -701,6 +705,18 @@ function App(){
   const nightInput=useRef<HTMLInputElement>(null);
   const upload=useRef<HTMLInputElement>(null);
   const projectInput=useRef<HTMLInputElement>(null);
+  const placedMediaInput=useRef<HTMLInputElement>(null);
+  const pendingMediaPlacement=useRef<{sceneId:string;hotspotId:string;type:'image'|'video'}|null>(null);
+  useEffect(()=>{
+    const input=placedMediaInput.current;if(!input)return;
+    const cancel=()=>{
+      const pending=pendingMediaPlacement.current;if(!pending)return;pendingMediaPlacement.current=null;
+      setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===pending.sceneId?{...scene,hotspots:scene.hotspots.filter(h=>h.id!==pending.hotspotId||!!(h.imageDataUrl||h.videoDataUrl||h.videoUrl))}:scene)}));
+      setSelectedId(current=>current===pending.hotspotId?'':current);setStatus('Import du média annulé');
+    };
+    input.addEventListener('cancel',cancel);return ()=>input.removeEventListener('cancel',cancel);
+  },[]);
+
   const iconInput=useRef<HTMLInputElement>(null);
   const replaceIconInput=useRef<HTMLInputElement>(null);
   const replacingIconId=useRef<string|null>(null);
@@ -1112,6 +1128,7 @@ function App(){
       if(!project.preparationComplete)setPreparationOpen(true);
     }
   },[ready,lock,project.preparationComplete]);
+  const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-bar-bg':project.barStyle.background,
@@ -1158,15 +1175,16 @@ function App(){
     }catch(err){setStatus('Échec de l’export : '+(err instanceof Error?err.message:String(err)));}
     finally{setExporting(false);}
   }
-  async function addVideo(file?:File){
-    if(!file||!selectedId)return;
+  async function addVideo(file?:File,placement?:{sceneId:string;hotspotId:string}){
+    const sceneId=placement?.sceneId??activeId,hotspotId=placement?.hotspotId??selectedId;
+    if(!file||!sceneId||!hotspotId)return;
     if(!['video/mp4','video/webm'].includes(file.type)||file.size>22*1024*1024){
       setStatus('Vidéo : MP4/WebM, 22 Mo maximum pour ce prototype');return;
     }
     try{
       const data=await readImage(file);
       if(!isSafeVideoData(data))throw Error('Fichier vidéo incompatible');
-      patchPoint({videoDataUrl:data,videoUrl:''});
+      setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===hotspotId?{...h,videoDataUrl:data,videoUrl:'',...(placement?{title:file.name.replace(/\.[^.]+$/,'').slice(0,120)}:{})}:h)}:scene)}));
       setStatus('Vidéo ajoutée à l’écran');
     }catch{setStatus('Impossible de lire la vidéo');}
     if(videoInput.current)videoInput.current.value='';
@@ -1200,9 +1218,9 @@ function App(){
       scenes:p.scenes.map(sc=>sc.musicTrackId===trackId?{...sc,musicTrackId:undefined}:sc)
     }));
   }
-  async function addFrameImage(file?:File){
+  async function addFrameImage(file?:File,placement?:{sceneId:string;hotspotId:string}){
     if(!file)return;
-    const sceneId=activeId,hotspotId=selectedId;
+    const sceneId=placement?.sceneId??activeId,hotspotId=placement?.hotspotId??selectedId;
     if(!sceneId||!hotspotId){setPhotoFeedback('Sélectionne un cadre photo ou un point Information avant d’importer une image.');return;}
     setPhotoFeedback('Import de la photo…');
     if(file.size>40*1024*1024){
@@ -1238,7 +1256,7 @@ function App(){
       }
       if(!isSafeFrameImage(data)||data.length>12_000_000)throw Error('Image trop lourde après conversion. Réduis sa résolution.');
       setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==sceneId?sc:{
-        ...sc,hotspots:sc.hotspots.map(h=>h.id===hotspotId?{...h,imageDataUrl:data}:h)
+        ...sc,hotspots:sc.hotspots.map(h=>h.id===hotspotId?{...h,imageDataUrl:data,...(placement?{title:file.name.replace(/\.[^.]+$/,'').slice(0,120)}:{})}:h)
       })}));
       setPhotoFeedback('Photo importée avec succès.');
       setStatus('Photo ajoutée au panorama');
@@ -2175,15 +2193,21 @@ function App(){
     if(!active||!mode)return;
     const favorite=mode==='navigation'?defaultNavigationIconSet():null;
     const h:Hotspot={
-      id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Cadre photo':mode==='video'?'Écran vidéo':'Informations',
+      id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Photo':mode==='video'?'Vidéo':'Informations',
       text:'',target:'',yaw,pitch,
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{}),
-      ...(['image','video'].includes(mode)?{frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameReferenceZoom:cameraRef.current.zoom,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
+      ...(['image','video'].includes(mode)?{mediaDisplay:'popup' as const,frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameReferenceZoom:cameraRef.current.zoom,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
       ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{})
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
+    if(mode==='image'||mode==='video'){
+      setRightHidden(false);
+      pendingMediaPlacement.current={sceneId:active.id,hotspotId:h.id,type:mode};
+      const input=placedMediaInput.current;
+      if(input){input.accept=mode==='image'?'image/*,.heic,.heif':'video/mp4,video/webm';input.value='';input.click();}
+    }
     if(mode==='navigation'){
       const sceneIndex=visibleScenes.findIndex(sc=>sc.id===active.id);
       const suggestion=visibleScenes[(sceneIndex+1)%visibleScenes.length];
@@ -2984,6 +3008,7 @@ function App(){
                       <p className="nv-quick-hint">Dans la visite classique, un clic sur l’icône Information ouvre cette photo en grand.</p>
                     </>}
                     {selected.type==='image'&&<>
+                      <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                       <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                       <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo':'Ajouter une photo'}
                         <input type="file" accept="image/*,.heic,.heif"
@@ -2991,15 +3016,16 @@ function App(){
                       </label>
                       <label className="nv-quick-check"><input type="checkbox" checked={selected.fadeOnClick!==false}
                         onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
-                      <label className="nv-quick-check"><input type="checkbox" checked={selected.imageBounce!==false}
-                        onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>
+                      {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.imageBounce!==false}
+                        onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>}
                       {selected.imageDataUrl&&<button type="button" className="nv-quick-primary"
                         onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
                         <Eye size={15}/> Tester le popup photo
                       </button>}
-                      <p className="nv-quick-hint">Déplace les quatre petites poignées sur le panorama pour adapter la photo au cadre.</p>
+                      {!isPopupMedia(selected)&&<p className="nv-quick-hint">Déplace les quatre petites poignées sur le panorama pour adapter la photo.</p>}
                     </>}
                     {selected.type==='video'&&<>
+                      <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                       <label>URL de la vidéo
                         <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''}
                           onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
@@ -3009,12 +3035,12 @@ function App(){
                           void addVideo(e.target.files?.[0]);e.currentTarget.value='';
                         }}/>
                       </label>
-                      <label className="nv-quick-check"><input type="checkbox" checked={selected.videoAutoplay!==false}
-                        onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Lecture automatique</label>
+                      {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.videoAutoplay!==false}
+                        onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Lecture automatique</label>}
                       <label className="nv-quick-check"><input type="checkbox" checked={selected.videoLoop!==false}
                         onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Boucle</label>
-                      <label className="nv-quick-check"><input type="checkbox" checked={selected.videoOpenFullscreen!==false}
-                        onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic</label>
+                      {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.videoOpenFullscreen!==false}
+                        onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic</label>}
                     </>}
                     {selected.type!=='image'&&selected.type!=='video'&&fullscreenIconSetPicker(
                       {...selected,size:selected.iconSize??28},
@@ -3229,19 +3255,19 @@ function App(){
           {active && !preview && mode && (
             <div className="mode-active-pill">
               <span className="mode-active-dot" />
-              <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Cadre photo':'Écran vidéo'}</strong></span>
+              <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Photo':'Vidéo'}</strong></span>
               <button type="button" className="nv-cancel-placement" onClick={()=>setMode(null)}>✕ Annuler la pose (Échap)</button>
             </div>
           )}
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
-          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
+          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" data-sort-scope="visit-bar" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <button type="button" key={item.id} style={icon?{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties:undefined} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+              return <div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-sort-item">{!preview&&barSort.grip(item.id,item.title)}<button type="button" style={icon?{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties:undefined} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
-              </button>;
+              </button></div></div>;
             })}
           </nav>}
           {introVisible && project.introEnabled && project.introUrl && <div className={"intro-overlay"+(introEnding?" is-ending":"")}>
@@ -3282,36 +3308,13 @@ function App(){
             </div>
           </div>}
         </div>
-        {active && !preview && <div className="toolbar nv-compact-actions" role="toolbar" aria-label="Outils de création">
-          <div className="nv-toolbar-center">
-          <div className="nv-toolbar-group nv-toolbar-left">
-          <button className={'tool '+(mode==='navigation'?'selected':'')} onClick={()=>setMode(mode==='navigation'?null:'navigation')} title="Lien de navigation vers un autre panorama">
-            ➜ Navigation
-          </button>
-          <button className={'tool '+(mode==='information'?'selected':'')} onClick={()=>setMode(mode==='information'?null:'information')} title="Bulle d'information ou page intégrée">
-            ⓘ Information
-          </button>
-          <button className={'tool '+(mode==='lien'?'selected':'')} onClick={()=>setMode(mode==='lien'?null:'lien')} title="Lien web, téléphone ou email">
-            ↗ Lien web
-          </button>
-          </div>
-          <button type="button" className={'tool nv-auto-navigation nv-auto-toolbar'+(autoNavigation?' is-active selected':'')} aria-pressed={autoNavigation}
-            title={autoNavigation?"Quitter l'assistant de navigation":"Lancer la création pas à pas"}
-            onClick={toggleAutoNavigation}><span className="nv-auto-symbol">↪</span> {autoNavigation?'Terminer Auto':'Auto'}</button>
-          <div className="nv-toolbar-group nv-toolbar-right">
-          <button className={'tool '+(mode==='image'?'selected':'')} onClick={()=>setMode(mode==='image'?null:'image')} title="Cadre photo incrusté en perspective">
-            ▣ Cadre photo
-          </button>
-          <button className={'tool '+(mode==='video'?'selected':'')} onClick={()=>setMode(mode==='video'?null:'video')} title="Écran vidéo animé">
-            ▶ Écran vidéo
-          </button>
-          <div className="toolbar-sep"/>
-          <button className={'tool '+(panel==='bar'?'selected':'')} onClick={()=>{setPanel('bar');setMode(null);setSelectedId('');}}>
-            ☷ Barre du bas
-          </button>
-          </div>
-          </div>
-        </div>}
+        {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation}
+          onTool={tool=>{
+            if(autoNavigation)stopAutoNavigation();
+            if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);}
+            else setMode(current=>current===tool?null:tool);
+          }}/>}
+
       </main>
       <aside className="right panel">
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
@@ -3427,7 +3430,7 @@ function App(){
                     {selected.type==='navigation'?'➜':selected.type==='lien'?'↗':selected.type==='image'?'▣':selected.type==='video'?'▶':'ⓘ'}
                   </span>
                   <div>
-                    <strong>{selected.type==='navigation'?'Navigation':selected.type==='lien'?'Lien web':selected.type==='image'?'Cadre photo':selected.type==='video'?'Écran vidéo':'Information'}</strong>
+                    <strong>{selected.type==='navigation'?'Navigation':selected.type==='lien'?'Lien web':selected.type==='image'?'Photo':selected.type==='video'?'Vidéo':'Information'}</strong>
                     <small>Paramètres de l’élément sélectionné</small>
                   </div>
                 </div>
@@ -3458,6 +3461,7 @@ function App(){
               </div>
 
               {selected.type==='image' ? <>
+                <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                 <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
                   onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
@@ -3470,6 +3474,7 @@ function App(){
                 <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo max</small>
                 {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
                 {selected.imageDataUrl&&<img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo intégrée au cadre"/>}
+                {!isPopupMedia(selected)&&<>
                 {selected.imageDataUrl && <p className="hint">💡 Cadrage : déplace directement les quatre poignées turquoise sur le cadre photo dans le 360° pour suivre la perspective.</p>}
                 <label>Largeur : {selected.frameWidth??320} px
                   <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
@@ -3477,13 +3482,15 @@ function App(){
                 <label>Hauteur : {selected.frameHeight??200} px
                   <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
                 </label>
+                </>}
                 <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
-                <label className="toggle-row"><input type="checkbox" checked={selected.imageBounce!==false} onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>
+                {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.imageBounce!==false} onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>}
                 {selected.imageDataUrl&&<button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
                   <Eye size={15}/> Tester le popup photo
                 </button>}
-                <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
+                {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
               </> : selected.type==='video' ? <>
+                <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
                 <small className="hint-inline">22 Mo max en local, ou renseigne une URL HTTPS directe :</small>
                 <label>Ou URL HTTPS de la vidéo
@@ -3491,18 +3498,20 @@ function App(){
                 </label>
                 {selected.videoUrl && !isSafeMediaUrl(selected.videoUrl)&&<small className="warning-inline">Adresse HTTPS invalide.</small>}
                 {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
+                {!isPopupMedia(selected)&&<>
                 <div className="section-title">ADAPTER L'ÉCRAN À LA PERSPECTIVE</div>
-                <CornerEditor width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()} onChange={v=>patchPoint({frameCorners:v})}/>
+                <CornerEditor width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()} onChange={v=>patchPoint({frameCorners:v,frameSphericalCorners:undefined})}/>
                 <label>Largeur : {selected.frameWidth??320} px
                   <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
                 </label>
                 <label>Hauteur : {selected.frameHeight??200} px
                   <input type="range" min="60" max="700" step="10" value={selected.frameHeight??200} onChange={e=>patchPoint({frameHeight:Number(e.target.value)})}/>
                 </label>
-                <label className="toggle-row"><input type="checkbox" checked={selected.videoAutoplay!==false} onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Démarrer automatiquement (muet)</label>
+                </>}
+                {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.videoAutoplay!==false} onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Démarrer automatiquement (muet)</label>}
                 <label className="toggle-row"><input type="checkbox" checked={selected.videoLoop!==false} onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Répéter la vidéo en boucle</label>
-                <label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic avec le son</label>
-                <button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners()})}>Réinitialiser les 4 coins</button>
+                {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic avec le son</label>}
+                {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
               </> : selected.type==='navigation' ? (
                 <>
                 <label>Scène de destination</label>
@@ -3644,7 +3653,7 @@ function App(){
                       </span>
                       <span className="point-item-info">
                         <strong>{h.title || '(Sans titre)'}</strong>
-                        <small>{h.type==='navigation'?'Navigation':h.type==='lien'?'Lien web':h.type==='image'?'Cadre photo':h.type==='video'?'Écran vidéo':'Information'}</small>
+                        <small>{h.type==='navigation'?'Navigation':h.type==='lien'?'Lien web':h.type==='image'?'Photo':h.type==='video'?'Vidéo':'Information'}</small>
                       </span>
                       <ChevronRight size={14} className="point-item-arrow"/>
                     </button>
@@ -3691,10 +3700,10 @@ function App(){
           </div>
           </InspectorSection>
           <InspectorSection title="Boutons et actions" initiallyOpen>
-          <div className="bar-items-list">{project.bottomBar.map(item=><button key={item.id} className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
+          <div className="bar-items-list" data-sort-scope="visit-bar">{project.bottomBar.map(item=><div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-list-sort">{barSort.grip(item.id,item.title)}<button className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
             <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
             <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
-          </button>)}</div>
+          </button></div></div>)}</div>
           <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
           <button className="preset-button" onClick={()=>{if(window.confirm('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
           {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
@@ -3872,6 +3881,12 @@ function App(){
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
     {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}
+    <input ref={placedMediaInput} hidden type="file" aria-label="Importer le média placé" onChange={e=>{
+      const file=e.currentTarget.files?.[0],placement=pendingMediaPlacement.current;
+      if(!file){e.currentTarget.dispatchEvent(new Event('cancel'));return;}
+      pendingMediaPlacement.current=null;e.currentTarget.value='';if(!placement)return;
+      if(placement.type==='image')void addFrameImage(file,placement);else void addVideo(file,placement);
+    }}/>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>

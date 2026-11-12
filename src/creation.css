@@ -1,0 +1,36 @@
+.nv-sortable-item{position:relative;min-width:0;flex:none}
+.nv-sortable-item.is-dragging{opacity:.55}
+.nv-sortable-item.is-drop-target{outline:2px solid #65e3d1;outline-offset:2px;border-radius:9px}
+.nv-sort-grip{display:inline-flex;align-items:center;justify-content:center;flex:none;width:23px;height:36px;padding:0;border:1px solid #345967;border-radius:6px;background:#14323f;color:#84a9b7;cursor:grab;touch-action:none;user-select:none}
+.nv-sort-grip:hover{background:#245363;color:#c7fff5;border-color:#59adac}
+.nv-sort-grip:active{cursor:grabbing;background:#27626c}
+.nv-sort-grip:focus-visible{outline:2px solid #80f6dd;outline-offset:2px}
+.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar{height:auto;min-height:58px;max-height:none}
+.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar .nv-toolbar-center{
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;
+  flex:1 1 100%!important;width:100%!important;min-width:0!important;gap:9px;
+}
+.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar .nv-toolbar-group{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-sortable-item{display:inline-flex;align-items:center;gap:3px}
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-sortable-item>.tool{min-width:0;padding:8px 9px;font-size:12px;white-space:nowrap}
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-sort-grip{width:19px;min-height:34px;height:34px;border-radius:5px}
+.nv-studio-pro .nv-bar-sort-item{position:relative;display:flex;align-items:center;justify-content:center}
+.nv-studio-pro .nv-bar-sort-item>.nv-sort-grip{position:absolute;z-index:2;top:0;right:-3px;width:19px;height:19px;border-radius:5px;background:#12313edf;box-shadow:0 1px 4px #0007}
+.nv-bar-list-sort{display:flex;gap:6px;align-items:center;min-width:0}
+.nv-bar-list-sort>.bar-item-row{flex:1;min-width:0}
+.nv-bar-list-sort>.nv-sort-grip{height:36px}
+.nv-media-display-control{margin:0;padding:10px;border:1px solid #3b6773;border-radius:9px;min-width:0}
+.nv-media-display-control legend{padding:0 5px;color:#bbdce2;font-size:12px;font-weight:700}
+.nv-media-display-control>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.nv-media-display-control button{min-height:36px;padding:7px 8px;border:1px solid #3b6773;border-radius:7px;background:#173846;color:#c7e3e8;font-size:12px;cursor:pointer}
+.nv-media-display-control button[aria-pressed=true]{background:#205e62;border-color:#60d1c1;color:#e8fffa;box-shadow:inset 0 0 0 1px #5cc5b7}
+.nv-media-display-control button:focus-visible{outline:2px solid #80f6dd;outline-offset:2px}
+.nv-media-display-control small{display:block;margin-top:9px;color:#91b6c3;font-size:11px;line-height:1.5}
+.nv-frame-remove-marker{pointer-events:none!important}
+.nv-frame-remove-marker .nv-sphere-remove{pointer-events:auto;transform:translate(80%,-80%)}
+@media(max-width:780px){
+ .nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar .nv-toolbar-center{gap:5px}
+ .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-sortable-item{max-width:100%;width:100%}
+ .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-sortable-item>.tool{flex:1;padding:7px 5px;font-size:10px;overflow:hidden;text-overflow:ellipsis}
+ .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-auto-toolbar{padding:8px;font-size:12px}
+}

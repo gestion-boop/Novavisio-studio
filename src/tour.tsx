@@ -1,3 +1,4 @@
+import {isPopupMedia,popupMediaMarkerHtml} from './mediaDisplay';
 import {framedPhotoSource} from './photoFrame';
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
@@ -30,20 +31,20 @@ function checkedLink(raw:string):string|null {
   }catch{return null;}
 }
 function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):MarkerConfig {
-  if(h.type==='image'&&h.imageDataUrl){
+  if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
     return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
   }
   const source=h.videoDataUrl||h.videoUrl;
-  if(h.type==='video'&&source){
+  if(h.type==='video'&&source&&!isPopupMedia(h)){
     return {id:h.id,videoLayer:source,position:frameWorldCorners(h),
       autoplay:h.videoAutoplay!==false,hoverScale:false};
   }
-  const isMedia=h.type==='image'||h.type==='video';
+  const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
   const size=isMedia?responsiveFrameSize(h,height,zoom):null;
-  const w=size?.width??Math.min(80,Math.max(16,h.iconSize??28));
+  const w=size?.width??(isPopupMedia(h)?42:Math.min(80,Math.max(16,h.iconSize??28)));
   const hh=size?.height??w;
   const custom=icons.find(icon=>icon.id===h.iconId);
-  const html=h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
+  const html=isPopupMedia(h)?popupMediaMarkerHtml(h):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
     h.type==='video'?videoMarkerHtml(h,w,hh):
     custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
     '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
@@ -100,7 +101,7 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
       if(!h)return;
       if(h.type==='navigation'){if(h.target)a.navigate(h.target,h);}
       else if(h.type==='image'||(h.type==='information'&&h.imageDataUrl))a.image(h,lastPointer.current);
-      else if(h.type==='video' && h.videoOpenFullscreen!==false)a.video(h,lastPointer.current);
+      else if(h.type==='video' && (isPopupMedia(h)||h.videoOpenFullscreen!==false))a.video(h,lastPointer.current);
       else if(h.url && checkedLink(h.url))a.linked(h.title,h.url);
       else if(h.type==='information')a.info(h);
     });

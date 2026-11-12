@@ -10,7 +10,7 @@ export type FrameKey=typeof FRAME_KEYS[number];
 export type SphericalPoint={yaw:number;pitch:number};
 
 export function isFrame(h:Hotspot):boolean {
-  return h.type==='image' || h.type==='video';
+  return (h.type==='image' || h.type==='video')&&h.mediaDisplay!=='popup';
 }
 
 export function frameWorldCorners(h:Hotspot):FrameSphericalCorners {
@@ -68,6 +68,7 @@ export function editingFrameControls(h:Hotspot){
     })),
     {
       id:removeFrameMarkerId(h.id),
+      className:'nv-frame-remove-marker',
       html:'<button type="button" class="nv-sphere-remove" data-frame-id="'+h.id+'" aria-label="Supprimer ce cadre" title="Supprimer ce cadre photo ou vidéo">×</button>',
       position:corners[1],
       size:{width:30,height:30},
