@@ -1,3 +1,6 @@
+import {EmbeddedPage} from './EmbeddedPage';
+import {informationFont} from './InformationEditor';
+import {projectForSpaceExport} from './spaces';
 import {isPopupMedia,popupMediaMarkerHtml} from './mediaDisplay';
 import {framedPhotoSource} from './photoFrame';
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
@@ -59,7 +62,7 @@ type ViewerProps={
   navigate:(id:string,via?:Hotspot)=>void;
   arrival?:{sceneId:string;yaw:number;pitch:number;zoom:number}|null;
   info:(h:Hotspot)=>void;
-  linked:(title:string,url:string)=>void;
+  linked:(title:string,url:string,mode?:'embed'|'tab')=>void;
   image:(h:Hotspot,from?:ZoomOrigin|null)=>void;
   video:(h:Hotspot,from?:ZoomOrigin|null)=>void;
   onReady:(sceneId:string)=>void;
@@ -102,7 +105,7 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
       if(h.type==='navigation'){if(h.target)a.navigate(h.target,h);}
       else if(h.type==='image'||(h.type==='information'&&h.imageDataUrl))a.image(h,lastPointer.current);
       else if(h.type==='video' && (isPopupMedia(h)||h.videoOpenFullscreen!==false))a.video(h,lastPointer.current);
-      else if(h.url && checkedLink(h.url))a.linked(h.title,h.url);
+      else if(h.url && checkedLink(h.url))a.linked(h.title,h.url,h.linkMode);
       else if(h.type==='information')a.info(h);
     });
     const refreshMarkers=()=>{
@@ -184,10 +187,13 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [fromPage]=useState<StudioProject|null>(()=>{
     try{const el=document.getElementById('nv-project-data');return el?JSON.parse(el.textContent??'null'):null;}catch{return null;}
   });
-  const project=given??fromPage;
+  const sourceProject=given??fromPage;
+  const [gallerySpace,setGallerySpace]=useState<string|null>(null);
+  const chosenSpace=sourceProject?.spaces?.find(space=>space.id===gallerySpace);
+  const project=sourceProject&&chosenSpace?projectForSpaceExport(sourceProject,chosenSpace):sourceProject;
   const [sceneId,setSceneId]=useState(()=>project?.scenes[0]?.id??'');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
-  const [modal,setModal]=useState<{title:string;url?:string;text?:string}|null>(null);
+  const [modal,setModal]=useState<{title:string;url?:string;text?:string;fontFamily?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
   const [galleryId,setGalleryId]=useState<string|null>(null);
@@ -288,21 +294,22 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const move=(id:string,via?:Hotspot)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);
     setArrival(via&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:panoramaArrivalZoom(via)}:null);
     setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
-  const openLink=(title:string,url:string)=>{
+  const openLink=(title:string,url:string,mode?:'embed'|'tab')=>{
     const checked=checkedLink(url);
     if(!checked)return;
+    if(mode==='tab'&&/^https?:/.test(checked)){window.open(checked,'_blank','noopener,noreferrer');return;}
     if(/^https?:\/\//.test(checked))setModal({title,url:checked});
     else window.location.href=checked;
   };
-  const information=(h:Hotspot)=>setModal({title:h.title,text:h.text});
+  const information=(h:Hotspot)=>setModal({title:h.title,text:h.text,fontFamily:h.fontFamily});
   const act=(item:BottomBarItem)=>{
     if(item.type==='gallery'){setGalleryId(item.id);return;}
     if(item.type==='navigation'){
       move(item.target||project.scenes[0].id);
     }else if(item.url && checkedLink(item.url)){
-      openLink(item.title,item.url);
+      openLink(item.title,item.url,item.linkMode);
     }else if(item.type==='information'){
-      setModal({title:item.title,text:item.text});
+      setModal({title:item.title,text:item.text,fontFamily:item.fontFamily});
     }
   };
   const enterVr=async()=>{
@@ -358,17 +365,17 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label="Fermer" onClick={()=>setModal(null)}><X/></button></header>
-        {modal.url?<><iframe src={modal.url} title={modal.title} loading="lazy" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerPolicy="strict-origin-when-cross-origin" allow="fullscreen"/>
-          <p className="tour-embed-note">Si ce contenu ne s'affiche pas, le site externe peut empêcher son intégration.</p></>:
-          <p className="tour-dialog-text">{modal.text||'Aucune information renseignée.'}</p>}
+        {modal.url?<EmbeddedPage url={modal.url} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||'Aucune information renseignée.'}</p>}
+
       </section>
     </div>}
+    {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
     {galleryId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
       if(!item)return null;
       return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={current.id}
-        entries={galleryEntries(item,project.scenes).map(e=>({sceneId:e.sceneId,label:e.label,thumb:project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined}))}
-        onPick={id=>{move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
+        entries={galleryEntries(item,project.scenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)}))}
+        onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
     {photo?.imageDataUrl&&<ZoomImage variant="tour" frameStyle={photo.imageFrameStyle} src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
     {!showIntro&&!firstPanoramaReady&&<div className="nv-tour-startup-mask" role="status" aria-live="polite">

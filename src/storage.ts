@@ -16,6 +16,7 @@ export type Hotspot = {
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;url?:string;
   mediaDisplay?:'popup'|'inline';
+  fontFamily?:string;linkMode?:'embed'|'tab';
   imageDataUrl?:string;
   imageBounce?:boolean;
   imageFrameStyle?:ImageFrameStyle;
@@ -60,6 +61,7 @@ export type BottomBarItem = {
   type: 'navigation' | 'information' | 'lien' | 'gallery';
   gallery?: GalleryItem[];
   galleryTitle?: string;
+  gallerySpaceIds?:string[];linkMode?:'embed'|'tab';fontFamily?:string;
   target: string;
   text: string;
   url: string;
@@ -110,7 +112,7 @@ export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
 export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
 export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number};
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
-export type StudioProject = { version: 1; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[]}[] };
+export type StudioProject = { version: 1; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -245,6 +247,9 @@ export function validateProject(value:unknown):StudioProject {
       !['navigation','information','lien','gallery'].includes(item.type) ||
       (item.gallery !== undefined && (!Array.isArray(item.gallery) || item.gallery.length > 200 ||
         !item.gallery.every(g => g && typeof g.sceneId === 'string' && typeof g.label === 'string' && g.label.length <= 100))) ||
+      (item.gallerySpaceIds!==undefined&&(!Array.isArray(item.gallerySpaceIds)||item.gallerySpaceIds.length>80||item.gallerySpaceIds.some(id=>typeof id!=='string'))) ||
+      (item.linkMode!==undefined&&!['embed','tab'].includes(item.linkMode)) ||
+      (item.fontFamily!==undefined&&(typeof item.fontFamily!=='string'||item.fontFamily.length>50)) ||
       (item.galleryTitle !== undefined && (typeof item.galleryTitle !== 'string' || item.galleryTitle.length > 100)) ||
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||
@@ -286,6 +291,8 @@ export function validateProject(value:unknown):StudioProject {
         (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 16 || h.iconSize > 120)) ||
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
+        (h.fontFamily!==undefined&&(typeof h.fontFamily!=='string'||h.fontFamily.length>50)) ||
+        (h.linkMode!==undefined&&!['embed','tab'].includes(h.linkMode)) ||
         (h.mediaDisplay !== undefined && !['popup','inline'].includes(h.mediaDisplay)) ||
         (h.imageBounce !== undefined && typeof h.imageBounce !== 'boolean') ||
         (h.imageFrameStyle !== undefined && !IMAGE_FRAME_STYLES.includes(h.imageFrameStyle)) ||
@@ -317,6 +324,7 @@ export function validateProject(value:unknown):StudioProject {
   for(const space of spaces){
     if(!space||typeof space.id!=='string'||!space.id||space.id.length>100||spaceIds.has(space.id)||
        typeof space.name!=='string'||!space.name.trim()||space.name.length>100||
+       (space.coverDataUrl!==undefined&&(space.coverDataUrl.length>3_000_000||!isSafeFrameImage(space.coverDataUrl))) ||
        !Array.isArray(space.sceneIds)||space.sceneIds.length>p.scenes.length||
        new Set(space.sceneIds).size!==space.sceneIds.length||
        space.sceneIds.some((id:unknown)=>typeof id!=='string'||!sceneIds.has(id as string)))

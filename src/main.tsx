@@ -1,3 +1,7 @@
+import {InformationEditor,informationFont} from './InformationEditor';
+import {EmbeddedPage} from './EmbeddedPage';
+import {SpaceCover} from './SpaceCover';
+import './workflow.css';
 import {CreationToolbar} from './CreationToolbar';
 import {reorderItems,useGripSort} from './gripSort';
 import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisplay';
@@ -23,7 +27,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
-import {refreshActivePublication} from './share';
+import {refreshActivePublication,publishPermanent} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
@@ -86,7 +90,7 @@ type PanoramaProps = {
   onNavigate: (id:string,via?:Hotspot)=>void;
   arrival?:{sceneId:string;yaw:number;pitch:number;zoom:number}|null; // vue d'arrivée propre à la flèche utilisée
   onInfo: (hotspot:Hotspot)=>void;
-  onLink: (title:string,url:string)=>void;
+  onLink: (title:string,url:string,mode?:'embed'|'tab')=>void;
   onImage: (h:Hotspot,from?:ZoomOrigin|null)=>void;
   onVideo: (h:Hotspot,from?:ZoomOrigin|null)=>void;
   selectedId:string;
@@ -238,10 +242,10 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
         if(h.type==='navigation' && h.target) a.onNavigate(h.target,h);
         else if(h.type==='information') {
           if (h.imageDataUrl) a.onImage(h,lastPointer.current);
-          else if (h.url && safeLink(h.url)) a.onLink(h.title,h.url);
+          else if (h.url && safeLink(h.url)) a.onLink(h.title,h.url,h.linkMode);
           else a.onInfo(h);
         }
-        else if(h.type==='lien' && h.url) a.onLink(h.title,h.url);
+        else if(h.type==='lien' && h.url) a.onLink(h.title,h.url,h.linkMode);
         else if(h.type==='image') a.onImage(h,lastPointer.current);
         else if(h.type==='video' && (isPopupMedia(h)||h.videoOpenFullscreen!==false)) a.onVideo(h,lastPointer.current);
       } else {
@@ -577,6 +581,13 @@ function App(){
   const [ready,setReady]=useState(false);
   const [preparationOpen,setPreparationOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
+  const [informationEdit,setInformationEdit]=useState<{sceneId:string;pointId:string}|null>(null);
+  const [publishConfirm,setPublishConfirm]=useState(false);
+  useEffect(()=>{if(!publishConfirm)return;document.querySelector<HTMLButtonElement>('.nv-publish-warning button')?.focus();
+    const close=(event:KeyboardEvent)=>{if(event.key==='Escape')setPublishConfirm(false);
+      if(event.key==='Tab'){const buttons=[...document.querySelectorAll<HTMLButtonElement>('.nv-publish-warning button')];const first=buttons[0],last=buttons[buttons.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}}
+    };document.addEventListener('keydown',close);return ()=>document.removeEventListener('keydown',close);
+  },[publishConfirm]);
   const preparationPrompted=useRef(false);
   const [savingManually,setSavingManually]=useState(false);
   const [updateAvailable,setUpdateAvailable]=useState(false);
@@ -1006,7 +1017,7 @@ function App(){
     setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
   },true);
-  async function manualSave(){
+  async function manualSave(publishing=false){
     if(!ready||savingManually||savingRef.current)return;
     if(lock?.kind==='unreadable'||lock?.kind==='conflict'){
       setStatus('Enregistrement bloqué : vérifie le conflit ou récupère le projet');
@@ -1023,7 +1034,8 @@ function App(){
           return;
         }
         savedRef.current=snapshot;
-        // Les liens publics permanents déjà actifs suivent la disquette :
+        if(publishing){
+        // Publier actualise explicitement les liens publics actifs :
         // le projet complet et chacun des espaces possèdent leur propre
         // publication stable. Les partages temporaires restent immuables.
         let updated=0;
@@ -1036,10 +1048,10 @@ function App(){
           }))
         ];
         for(const target of targets){
-          if(!target.link)continue;
+          if(!target.link&&target.space)continue;
           try{
             const scoped=projectForSpaceExport(snapshot,target.space,true);
-            const result=await refreshActivePublication(scoped,target.link,
+            const result=await (target.space?refreshActivePublication:publishPermanent)(scoped,target.link,
               progress=>setStatus('Publication '+target.name+' · '+progress));
             if(!result)continue;
             if(target.space)writeSpaceCloudLink(target.space.id,'public',result.link);
@@ -1050,15 +1062,16 @@ function App(){
           }
         }
         if(errors.length){
-          setStatus('Sauvegardé · Publication automatique partielle/échouée : '+errors.join(' | '));
+          setStatus('Sauvegardé · Publication partielle/échouée : '+errors.join(' | '));
         }else{
           setStatus((synced?'Enregistré dans Supabase':'Enregistré localement · Cloud non synchronisé')+
             (updated?' · '+updated+' lien'+(updated>1?'s':'')+' public'+(updated>1?'s':'')+' actualisé'+(updated>1?'s':''):''));
         }
+        }else setStatus('Enregistré dans le Cloud · Cliquez sur Publier pour actualiser la visite en ligne');
       }else{
-        setStatus('Cloud déconnecté : connexion nécessaire pour enregistrer ce projet sur tous tes appareils.');
+        setStatus('Cloud déconnecté : connexion nécessaire pour enregistrer ou publier.');setCloudOpen(true);
       }
-    }finally{setSavingManually(false);}
+    }catch(error){setStatus('Échec : '+(error instanceof Error?error.message:String(error)));}finally{setSavingManually(false);}
   }
   useEffect(()=>{
     const onSaveShortcut=(event:KeyboardEvent)=>{
@@ -1146,10 +1159,11 @@ function App(){
   function changeBarStyle(update:Partial<BarStyle>) {
     setProject(p=>({...p,barStyle:{...p.barStyle,...update}}));
   }
-  function openLinkInTour(title:string,raw:string) {
+  function openLinkInTour(title:string,raw:string,mode?:'embed'|'tab') {
     const link=safeLink(raw);
     if (!link) {setStatus('Lien invalide : utilise https://, tel: ou mailto:');return;}
     setInfo(null);
+    if(mode==='tab'){launchLink(link);return;}
     if (/^https?:\/\//i.test(link)){
       let url=link;
       // Les pages Figurotta prennent en charge ?langs=fr,es,de,en,nl.
@@ -1649,6 +1663,7 @@ function App(){
     return <div className="gallery-editor">
       <label>Titre de la galerie<input value={item.galleryTitle??''} placeholder={item.title||'Panoramas'} onChange={e=>patchBar({galleryTitle:e.target.value})}/></label>
       <small className="hint-inline">Dans la visite, ce bouton ouvre une galerie : un clic sur une vignette emmène directement au panorama (raccourci). Les noms ci-dessous sont ceux affichés dans la galerie ; laisse vide pour garder le nom du panorama.</small>
+      <InspectorSection title="Visites des espaces"><p className="hint">Chaque carte ouvre la visite de l’espace sélectionné.</p>{(project.spaces??[]).map(space=><label className="toggle-row" key={space.id}><input type="checkbox" checked={item.gallerySpaceIds?.includes(space.id)??false} onChange={e=>patchBar({gallerySpaceIds:e.target.checked?[...(item.gallerySpaceIds??[]),space.id]:(item.gallerySpaceIds??[]).filter(id=>id!==space.id)})}/>{space.name} · {space.sceneIds.length} panoramas</label>)}</InspectorSection>
       <div className="section-title">PANORAMAS DANS LA GALERIE <span className="counter">{list.length}</span></div>
       {!list.length&&<small className="hint-inline">Aucun panorama sélectionné : ajoute-en ci-dessous.</small>}
       <ul className="gallery-rows">{list.map((e,i)=><li key={e.sceneId}>
@@ -1708,10 +1723,10 @@ function App(){
       const dest=item.target && visibleIds.has(item.target)?item.target:visibleScenes[0]?.id;
       if(dest)selectScene(dest);
     }else if(item.type==='information') {
-      if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url);
+      if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url,item.linkMode);
       else {setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo({id:item.id,type:'information',title:item.title,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
     }
-    else if(item.url)openLinkInTour(item.title,item.url);
+    else if(item.url)openLinkInTour(item.title,item.url,item.linkMode);
   }
   // Atelier SVG intégré : modèles vectoriels de confiance, convertis en PNG à
   // l'enregistrement pour rester compatibles avec les projets Cloud existants.
@@ -2198,10 +2213,13 @@ function App(){
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{}),
       ...(['image','video'].includes(mode)?{mediaDisplay:'popup' as const,frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameReferenceZoom:cameraRef.current.zoom,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
+      ...(mode==='lien'?{linkMode:'embed' as const}:{}),
       ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{})
     };
     patchScene(s=>({...s,hotspots:[...s.hotspots,h]}));
     setSelectedId(h.id);setPanel('points');setMode(null);
+    if(mode==='information'){setRightHidden(false);setInformationEdit({sceneId:active.id,pointId:h.id});}
+    if(mode==='lien')setRightHidden(false);
     if(mode==='image'||mode==='video'){
       setRightHidden(false);
       pendingMediaPlacement.current={sceneId:active.id,hotspotId:h.id,type:mode};
@@ -2521,7 +2539,7 @@ function App(){
           <span>{updateAvailable?'Mise à jour':'À jour'}</span>
           {updateAvailable&&<i className="nv-header-update-dot" aria-hidden="true"/>}
         </button>
-        <button type="button" className="nv-header-save" disabled={!ready||savingManually||!!lock}
+        <button type="button" className={'nv-header-save'+(project!==savedRef.current||!cloud.signedIn?' is-cloud-dirty':'')} disabled={!ready||savingManually||!!lock}
           title={!ready?'Chargement…':savingManually?'Enregistrement en cours…':
             project!==savedRef.current?'Modifications non enregistrées · Enregistrer (⌘S / Ctrl+S)':
             status.startsWith('Enregistré')?status:'Enregistrer (⌘S / Ctrl+S)'}
@@ -2530,6 +2548,7 @@ function App(){
           <span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
           {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
         </button>
+        <button type="button" className="nv-header-publish" disabled={savingManually||!ready||!!lock||!project.scenes.length} onClick={()=>setPublishConfirm(true)}>⚠ Publier</button>
         <button type="button" className="nv-header-icon-btn"
           title={studioFullscreen?'Quitter le plein écran':'Plein écran de tout NovaVisio Studio'}
           aria-label={studioFullscreen?'Quitter le plein écran du logiciel':'Plein écran du logiciel'}
@@ -2593,6 +2612,7 @@ function App(){
           <div><small>PROJET : {project.name}</small><h2>Organiser cet espace</h2></div>
           <button type="button" className="nv-space-close" onClick={()=>setSpaceManagerOpen(false)} aria-label="Fermer">✕</button>
         </div>
+        <SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>
         <label className="nv-space-name-label">Nom de l’espace
           <input aria-label="Renommer cet espace" value={currentSpace.name}
             onChange={e=>renameSpace(currentSpace.id,e.target.value)} maxLength={100}/>
@@ -2986,11 +3006,13 @@ function App(){
                       <label>Adresse / lien
                         <input type="url" placeholder="https://…" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
                       </label>
-                      <label>Texte affiché
+                      <button type="button" className="import" onClick={()=>setInformationEdit({sceneId:activeId,pointId:selected.id})}>Rédiger le texte et choisir la police</button>
+                  <label>Texte affiché
                         <textarea rows={3} value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/>
                       </label>
                     </>}
                     {selected.type==='information'&&<>
+                      <button type="button" onClick={()=>setInformationEdit({sceneId:activeId,pointId:selected.id})}>Rédiger l’information</button>
                       <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo du popup':'Importer une photo pour popup'}
                         <input type="file" accept="image/*,.heic,.heif"
                           onChange={e=>{void addFrameImage(e.target.files?.[0]);e.currentTarget.value='';}}/>
@@ -3279,8 +3301,8 @@ function App(){
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;
             return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id}
-              entries={galleryEntries(item,visibleScenes).map(e=>({sceneId:e.sceneId,label:e.label,thumb:sceneThumbs[e.sceneId]}))}
-              onPick={id=>{selectScene(id);setGalleryOpen(null);}} onClose={()=>setGalleryOpen(null)}/>;
+              entries={galleryEntries(item,visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
+              onPick={(id,spaceId)=>{if(spaceId)selectSpace(spaceId);else selectScene(id);setGalleryOpen(null);}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
           {imageZoom?.imageDataUrl && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
@@ -3291,10 +3313,7 @@ function App(){
                   <button type="button" onClick={()=>setFrame(null)} aria-label="Fermer le contenu intégré">✕</button>
                 </div>
               </div>
-              <iframe key={frame.url} title={frame.title} src={frame.url}
-                sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                referrerPolicy="strict-origin-when-cross-origin" allow="fullscreen" loading="lazy" />
-              <p className="embed-hint">Certains sites externes n'autorisent pas leur affichage dans une iframe.</p>
+              <EmbeddedPage url={frame.url} title={frame.title}/>
             </section>
           </div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
@@ -3303,7 +3322,7 @@ function App(){
               <h2>{info.title}</h2>
               <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
                 {STUDIO_LANGUAGES.filter(lang=>activeLanguages.includes(lang.code)).map(lang=><button type="button" key={lang.code} title={lang.name} aria-label={lang.name} aria-pressed={infoLanguage===lang.code} className={infoLanguage===lang.code?'is-active':''} onClick={()=>setInfoLanguage(lang.code)}>{lang.flag}</button>)}
-              </div><p className="preserve">{(infoLanguage==='fr'?info.text:info.translations?.[infoLanguage]||info.text)||'Aucune information renseignée.'}</p>
+              </div><p className="preserve" style={{fontFamily:informationFont(info.fontFamily)+', Arial, sans-serif'}}>{(infoLanguage==='fr'?info.text:info.translations?.[infoLanguage]||info.text)||'Aucune information renseignée.'}</p>
               <button className="primary" onClick={()=>setInfo(null)}>Fermer</button>
             </div>
           </div>}
@@ -3317,6 +3336,7 @@ function App(){
 
       </main>
       <aside className="right panel">
+        {currentSpace&&<SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
         <div className="nv-gallery-heading">
@@ -3418,7 +3438,7 @@ function App(){
         </div>
         </div>}
         {panel==='points' && <div className="properties">
-          {active&&nightSceneControls(active)}
+          {active&&!selected&&nightSceneControls(active)}
           {!active?<div className="hint">Importe un panorama pour commencer à créer.</div>:selected ? (
             /* ============================================================== */
             /* DIRECT ELEMENT INSPECTOR (QUAND UN ÉLÉMENT DU 360° EST CLIQUÉ) */
@@ -3546,15 +3566,17 @@ function App(){
                 </div>}
                 </>
               ) : selected.type==='lien' ? (
-                <label>Adresse (https://, tel:, mailto:)
+                <><div className="nv-action-steps">1. Lien choisi → 2. Point placé → 3. Destination</div><label>Adresse (https://, tel:, mailto:)
                   <input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
-                </label>
+                </label><label>Ouverture<select aria-label="Ouverture" value={selected.linkMode??'embed'} onChange={e=>patchPoint({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite (iframe prioritaire)</option><option value="tab">Nouvel onglet</option></select></label><button type="button" onClick={()=>selected.url&&openLinkInTour(selected.title,selected.url,selected.linkMode)}>Tester le lien</button></>
               ) : (
                 <>
+                  <button type="button" className="import" onClick={()=>setInformationEdit({sceneId:activeId,pointId:selected.id})}>Rédiger le texte et choisir la police</button>
                   <label>Texte affiché
                     <textarea rows={4} placeholder="Description ou informations..." value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/>
                   </label>
                   {selected.type==='information'&&languageTexts(selected.translations,(code,value)=>patchPoint({translations:{...selected.translations,[code]:value}}))}
+                  <InspectorSection title="Contenus complémentaires : page web et photo">
                   <label>Page web intégrée (optionnel)
                     <input type="text" placeholder="https://… menu, réservations" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
                     <small className="hint-inline">Si renseignée, la page s'ouvre directement dans la visite à la place du texte.</small>
@@ -3576,10 +3598,11 @@ function App(){
                     <button type="button" className="style-reset" onClick={()=>patchPoint({imageDataUrl:undefined})}>Supprimer la photo du popup</button>
                   </>}
                   <small className="hint-inline">Si une photo est importée, elle s’ouvre au clic sur l’icône Information dans la visite classique, avant la page web ou le texte.</small>
+                  </InspectorSection>
                 </>
               )}
 
-              {!['image','video'].includes(selected.type) && <>
+              {!['image','video'].includes(selected.type) && <InspectorSection title="Icône et apparence">
                 <div className="section-title">ICÔNE DU POINT</div>
                 {iconSetPicker({...selected,size:selected.iconSize??28},set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:Math.max(16,Math.min(80,set.size))}))}
                 {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
@@ -3589,7 +3612,7 @@ function App(){
                 <label>Taille de l'icône : {selected.iconSize??28} px
                   <input type="range" min="16" max="80" step="2" value={selected.iconSize??28} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
                 </label>
-              </>}
+              </InspectorSection>}
 
               <div className="coords-card">
                 <span>Position 360° : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</span>
@@ -3605,11 +3628,13 @@ function App(){
             /* SCENE OVERVIEW (AUCUN POINT SÉLECTIONNÉ)                        */
             /* ============================================================== */
             <div className="scene-overview">
+              <div className="nv-action-rectangles"><button type="button" onClick={saveArrivalView}>◎ Définir la vue d’arrivée</button><button type="button" onClick={()=>{setMode('navigation');setSelectedId('')}}>➜ Navigation</button><button type="button" onClick={()=>{setMode('information');setSelectedId('')}}>ⓘ Information</button><button type="button" onClick={()=>{setPanel('bar');setSelectedId('')}}>☷ Barre du bas</button><button type="button" onClick={()=>setSpaceManagerOpen(true)} disabled={!currentSpace}>▦ Modifier l’espace</button></div>
               <div className="section-title">PARAMÈTRES DU PANORAMA</div>
               <label>Nom de la scène
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
 
+              <InspectorSection title="Vue d’arrivée et cadrage">
               {viaHotspot&&viaFrom?<div className="arrival-view-card is-arrow">
                 <div className="section-title">VUE D’ARRIVÉE · PAR CETTE FLÈCHE</div>
                 <p>Tu es arrivé ici par la flèche <b>« {viaHotspot.title||'Navigation'} »</b> de <b>{viaFrom.name}</b>. Oriente la vue comme tu veux qu’elle apparaisse quand on clique sur <b>cette flèche</b>, puis enregistre. Chaque flèche qui mène à ce panorama a sa propre vue.</p>
@@ -3632,6 +3657,8 @@ function App(){
                 <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme arrivée</button>
                 {active.arrivalYaw!==undefined&&<small className="arrival-saved">✓ Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
               </div>}
+
+              </InspectorSection>
 
               <div className="section-title">
                 <span>POINTS INTERACTIFS</span>
@@ -3878,6 +3905,9 @@ function App(){
       }}
     />}
     <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase</span></footer>
+    {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}>×</button></div>}
+    {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
+    {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p><div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>Confirmer la publication</button></div></section></div>}
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
     {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}

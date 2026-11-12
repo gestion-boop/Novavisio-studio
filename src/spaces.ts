@@ -1,7 +1,7 @@
 import type {StudioProject,Scene,BottomBarItem} from './storage';
 import type {CloudLink} from './cloud';
 
-export type StudioSpace={id:string;name:string;sceneIds:string[]};
+export type StudioSpace={id:string;name:string;sceneIds:string[];coverDataUrl?:string};
 
 /**
  * Master project is immutable to space selection: a space contains REFERENCES
@@ -35,7 +35,8 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
   if(!space){
     if(!slim)return project;
     return {...project,
-      clientProfile:undefined, // never publish private customer records
+      buttonSets:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
+    clientProfile:undefined, // never publish private customer records
       icons:relevantIcons(project,project.scenes),
       audioTracks:project.audioTracks.filter(track=>project.scenes.some(scene=>scene.musicTrackId===track.id))
     };
@@ -46,12 +47,14 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     const gallery=item.gallery?.filter(entry=>ids.has(entry.sceneId));
     return {
       ...item,
+      gallerySpaceIds:[],
       target:item.target&&ids.has(item.target)?item.target:'',
       ...(gallery?{gallery}:{})
     };
   };
   return {
     ...project,
+    buttonSets:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
     clientProfile:undefined, // only Studio editors receive customer details
     name:project.name+' - '+space.name,
     scenes:scenes.map(scene=>({
