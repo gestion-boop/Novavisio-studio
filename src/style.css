@@ -4294,3 +4294,6 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 .nv-hand-denied{max-width:460px}
 .nv-hand-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
 .nv-cloud-spaces{display:flex;flex-wrap:wrap;gap:6px;grid-column:1/-1;margin-top:6px}
+
+/* Le bouton son (haut gauche du panorama) ne doit jamais flotter par-dessus le menu de navigation ouvert. */
+body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointer-events:none}
