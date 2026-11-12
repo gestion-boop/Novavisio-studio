@@ -4331,3 +4331,12 @@ body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointe
 .nv-discovery-item:hover:not(:disabled){border-color:#66d9ca;background:#ffffff18}
 .nv-discovery-item small{color:#9cc2cd}
 .nv-discovery-close{margin-left:auto;border:1px solid #426b77;background:transparent;color:#cfe;border-radius:8px;padding:6px;cursor:pointer;height:fit-content}
+
+/* Fiche client : icônes à la place des libellés */
+.nv-info-row{display:grid;grid-template-columns:42px minmax(0,1fr);gap:12px;align-items:center;font-size:14px;line-height:1.5;padding:2px 0}
+.nv-info-row.is-multi{align-items:start}
+.nv-info-ico{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:#ffffff10;border:1px solid #ffffff14}
+.nv-info-row strong{font-weight:600;color:#e8f6f8;overflow-wrap:anywhere}
+.nv-info-row a{display:inline-flex;gap:6px;align-items:center;min-width:0;overflow-wrap:anywhere;color:#8be6da;text-decoration:none;font-weight:600}
+.nv-info-row a:hover{text-decoration:underline}
+.nv-info-row.is-multi strong{font-weight:500;line-height:1.55}

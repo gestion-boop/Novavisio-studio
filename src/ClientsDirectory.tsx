@@ -1,9 +1,10 @@
 import {useEffect,useMemo,useState} from 'react';
-import {Building2,Check,ChevronRight,Cloud,Database,ExternalLink,FolderOpen,Image as ImageIcon,LoaderCircle,RefreshCw,Search,Users,X} from 'lucide-react';
+import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,Image as ImageIcon,LoaderCircle,RefreshCw,Search,Users,X} from 'lucide-react';
 import {listCloudProjects,type CloudProject} from './cloud';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
 import type {ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
+import {InfoRow} from './InfoRow';
 import {DiscoveryDetail,DiscoveryList,useWebDiscovery} from './ClientDiscovery';
 import type {ImportedClientVideo} from './novagenVideos';
 
@@ -108,13 +109,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
       !window.confirm('Tu es dans le projet « '+currentProjectName+' ». Associer les coordonnées de « '+src.name+' » à ce projet ?'))return;
    onAssociate(target);setSelectedKey(key);onClose();
  };
- const detailRow=(name:string,value:string|undefined,link?:string)=>{
-  if(!value)return null;
-  return <div className="nv-dir-info-row" key={name}>
-    <span>{name}</span>
-    {link?<a href={link} target="_blank" rel="noopener noreferrer">{value}<ExternalLink size={12}/></a>:<strong>{value}</strong>}
-  </div>;
- };
+ const detailRow=(name:string,value:string|undefined,link?:string)=><InfoRow key={name} label={name} value={value} href={link}/>;
  return <div className="nv-directory-overlay" role="presentation" onClick={onClose}>
   <section className="nv-directory-shell" role="dialog" aria-modal="true" aria-label="Répertoire central Clients"
     onClick={e=>e.stopPropagation()}>

@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {Check,Globe,Image as ImageIcon,LoaderCircle,RefreshCw,Search,X} from 'lucide-react';
 import {askNovaGen,type ScrapeResult,type Suggestion,type SuggestResult} from './ClientPanel';
 import type {ClientProfile} from './storage';
+import {InfoRow} from './InfoRow';
 
 /**
  * Recherche d'un NOUVEL établissement depuis le répertoire Clients, comme dans NovaGen :
@@ -88,7 +89,11 @@ export function DiscoveryDetail({d,onAssociate,onClose}:{d:Discovery;onAssociate
   const r=d.candidate;
   if(!r)return null;
   const f=r.fiche;
-  const row=(label:string,value?:string)=>value?<div className="nv-dir-info-row" key={label}><span>{label}</span><strong>{value}</strong></div>:null;
+  const web=(u?:string)=>{try{const x=new URL(u||'');return x.protocol==='https:'||x.protocol==='http:'?x.href:undefined;}catch{return undefined;}};
+  const row=(label:string,value?:string)=>{
+    const link=label==='Téléphone'&&value?'tel:'+value.replace(/[^+\d]/g,''):label==='E-mail'&&value?'mailto:'+value:['Site internet','Facebook','Instagram','Réservation'].includes(label)?web(value):undefined;
+    return <InfoRow key={label} label={label} value={value} href={link}/>;
+  };
   return <div className="nv-directory-detail-inner nv-discovery-detail">
     <div className="nv-directory-title-row">
       <div className="nv-directory-feature-logo">{r.logos[0]?<img src={r.logos[0]} alt={'Logo '+f.nom}/>:<Globe size={30}/>}</div>
