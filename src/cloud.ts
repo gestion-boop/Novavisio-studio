@@ -49,6 +49,7 @@ export function mediaSlots(p:StudioProject):Slot[]{
   });
   p.icons.forEach(i=>add(i,'dataUrl','icon'));
   p.audioTracks.forEach(t=>add(t,'dataUrl','audio'));
+  p.bottomBar?.forEach(b=>{if(b.galleryBackgroundImage)add(b,'galleryBackgroundImage','frame');});
   p.scenes.forEach(s=>{
     add(s,'dataUrl','panorama');add(s,'nightDataUrl','panorama');add(s,'audioDataUrl','audio');
     s.hotspots.forEach(h=>{add(h,'imageDataUrl','frame');add(h,'videoDataUrl','video');});

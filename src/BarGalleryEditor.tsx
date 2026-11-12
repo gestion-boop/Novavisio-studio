@@ -1,3 +1,4 @@
+import {useState} from 'react';
 import {galleryEntries} from './gallery';
 import type {BottomBarItem,GalleryItem,Scene,StudioProject} from './storage';
 
@@ -9,6 +10,7 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
   thumbs:Record<string,string>;tab:BarGalleryTab;onTabChange:(tab:BarGalleryTab)=>void;
   onChange:(patch:Partial<BottomBarItem>)=>void;onPreview:()=>void;
 }){
+  const [error,setError]=useState('');
   const list=galleryEntries(item,scenes);
   const used=new Set(list.map(entry=>entry.sceneId));
   const others=scenes.filter(scene=>!used.has(scene.id));
@@ -27,11 +29,24 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
     <label>Titre du panneau<input value={item.galleryTitle??''} placeholder={item.title||'Espaces et panoramas'} onChange={event=>onChange({galleryTitle:event.target.value})}/></label>
     <div className="nv-gallery-bg-picker">
       <div className="section-title">PHOTO DE FOND DU PANNEAU</div>
-      <div className="nv-gallery-bg-options" role="radiogroup" aria-label="Photo de fond du panneau">
-        <button type="button" role="radio" aria-checked={!item.galleryBackground} className={!item.galleryBackground?'is-selected':''} onClick={()=>onChange({galleryBackground:undefined})}><span className="nv-gallery-bg-none">Aucune</span></button>
-        {spaces.filter(space=>space.coverDataUrl).map(space=><button type="button" role="radio" key={'space:'+space.id} aria-checked={item.galleryBackground==='space:'+space.id} title={'Couverture de '+space.name} className={item.galleryBackground==='space:'+space.id?'is-selected':''} onClick={()=>onChange({galleryBackground:'space:'+space.id})}><img src={space.coverDataUrl} alt="" draggable={false}/><small>{space.name}</small></button>)}
-        {scenes.map(scene=><button type="button" role="radio" key={'scene:'+scene.id} aria-checked={item.galleryBackground==='scene:'+scene.id} title={scene.name} className={item.galleryBackground==='scene:'+scene.id?'is-selected':''} onClick={()=>onChange({galleryBackground:'scene:'+scene.id})}>{thumbs[scene.id]?<img src={thumbs[scene.id]} alt="" draggable={false}/>:<span className="nv-gallery-bg-none">◎</span>}<small>{scene.name}</small></button>)}
+      <div className="nv-gallery-bg-current">
+        <span className="nv-gallery-bg-preview">{item.galleryBackgroundImage?<img src={item.galleryBackgroundImage} alt="Photo de fond choisie" draggable={false}/>:<em>Aucune photo</em>}</span>
+        <div className="nv-gallery-bg-actions">
+          <label className="nv-gallery-bg-import">{item.galleryBackgroundImage?'Changer la photo':'＋ Choisir une photo'}
+            <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async event=>{
+              const file=event.target.files?.[0];event.target.value='';
+              if(!file)return;
+              try{onChange({galleryBackgroundImage:await compressBackground(file),galleryBackground:undefined});setError('');}
+              catch(e){setError(e instanceof Error?e.message:String(e));}
+            }}/></label>
+          {!!(item.galleryBackgroundImage||item.galleryBackground)&&<button type="button" onClick={()=>onChange({galleryBackgroundImage:undefined,galleryBackground:undefined})}>Retirer la photo</button>}
+        </div>
       </div>
+      {error&&<small role="alert" className="nv-gallery-bg-error">{error}</small>}
+      {spaces.some(space=>space.coverDataUrl)&&<><small className="hint-inline">Ou reprendre l’image d’un espace :</small>
+        <div className="nv-gallery-bg-options" role="radiogroup" aria-label="Image d’un espace">
+          {spaces.filter(space=>space.coverDataUrl).map(space=><button type="button" role="radio" key={'space:'+space.id} aria-checked={!item.galleryBackgroundImage&&item.galleryBackground==='space:'+space.id} title={'Couverture de '+space.name} className={!item.galleryBackgroundImage&&item.galleryBackground==='space:'+space.id?'is-selected':''} onClick={()=>onChange({galleryBackground:'space:'+space.id,galleryBackgroundImage:undefined})}><img src={space.coverDataUrl} alt="" draggable={false}/><small>{space.name}</small></button>)}
+        </div></>}
     </div>
     <p className="hint-inline">Coche les espaces à proposer dans le popup. Chaque carte ouvre la visite de cet espace. Tu peux aussi ajouter des panoramas dans le même panneau.</p>
     <div className="nv-gallery-content-tabs" role="group" aria-label="Contenu du panneau">
@@ -78,4 +93,23 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
     <button type="button" className="import" disabled={!entries.length} onClick={onPreview}>Voir le panneau ({entries.length} carte{entries.length>1?'s':''})</button>
     <small className="hint-inline">Enregistre le projet dans le Cloud pour conserver ce réglage.</small>
   </div>;
+}
+
+/** Réduit la photo choisie (1600 px max, JPEG) pour qu'elle reste légère dans le projet et dans le Cloud. */
+async function compressBackground(file:File):Promise<string>{
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Choisis une image JPG, PNG ou WebP.');
+  if(file.size>25_000_000)throw new Error('Image trop lourde (25 Mo maximum).');
+  const bitmap=await createImageBitmap(file);
+  const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  const ctx=canvas.getContext('2d');
+  if(!ctx)throw new Error('Image illisible.');
+  ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+  for(const quality of [.84,.72,.6]){
+    const url=canvas.toDataURL('image/jpeg',quality);
+    if(url.length<2_500_000)return url;
+  }
+  throw new Error('Image trop détaillée : choisis une image plus petite.');
 }

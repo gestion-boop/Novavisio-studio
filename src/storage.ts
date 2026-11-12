@@ -64,6 +64,8 @@ export type BottomBarItem = {
   galleryTitle?: string;
   /** Photo de fond du panneau d'espaces : « scene:<id> » (un panorama) ou « space:<id> » (la couverture d'un espace). */
   galleryBackground?: string;
+  /** Photo importée par l'utilisateur comme fond du panneau (image compressée) : prioritaire sur galleryBackground. */
+  galleryBackgroundImage?: string;
   gallerySpaceIds?:string[];linkMode?:'embed'|'tab';fontFamily?:string;
   target: string;
   text: string;
@@ -254,6 +256,7 @@ export function validateProject(value:unknown):StudioProject {
       (item.linkMode!==undefined&&!['embed','tab'].includes(item.linkMode)) ||
       (item.fontFamily!==undefined&&(typeof item.fontFamily!=='string'||item.fontFamily.length>50)) ||
       (item.galleryTitle !== undefined && (typeof item.galleryTitle !== 'string' || item.galleryTitle.length > 100)) ||
+      (item.galleryBackgroundImage !== undefined && (item.galleryBackgroundImage.length > 3_000_000 || !isSafeFrameImage(item.galleryBackgroundImage))) ||
       (item.galleryBackground !== undefined && (typeof item.galleryBackground !== 'string' || item.galleryBackground.length > 120)) ||
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||

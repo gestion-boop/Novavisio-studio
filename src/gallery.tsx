@@ -18,6 +18,7 @@ export function galleryEntries(item:BottomBarItem,scenes:Scene[],spaces:StudioPr
 
 /** Image de fond d'un panneau : panorama (« scene:id ») ou couverture d'un espace (« space:id »). */
 export function galleryBackgroundSrc(item:BottomBarItem,scenes:Scene[],spaces:StudioProject['spaces']=[],thumbs?:Record<string,string>):string|undefined{
+  if(item.galleryBackgroundImage)return item.galleryBackgroundImage;
   const value=item.galleryBackground;
   if(!value)return undefined;
   const [kind,id]=[value.slice(0,value.indexOf(':')),value.slice(value.indexOf(':')+1)];
