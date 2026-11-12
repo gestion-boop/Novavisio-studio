@@ -41,3 +41,11 @@ export async function proposalsFromImages(urls:string[]):Promise<SkinProposal[]>
   }
   throw Error('Aucune couleur détectable : le logo et les photos ne sont pas lisibles.');
 }
+
+/** Palettes standard proposées quand le logo n'est pas lisible. */
+export const PRESET_PROPOSALS:SkinProposal[]=[
+  {name:'Camping',style:{background:'#f0e9d8',outline:'#91816b',button:'#536e28',buttonOutline:'#859652',icon:'#fff4cf'}},
+  {name:'Océan',style:{background:'#e0eff3',outline:'#6591a5',button:'#176a91',buttonOutline:'#62a4bc',icon:'#ffffff'}},
+  {name:'Graphite',style:{background:'#28333d',outline:'#718692',button:'#15212b',buttonOutline:'#546b7a',icon:'#ffffff'}},
+  {name:'Bordeaux',style:{background:'#c2c5c6',outline:'#987974',button:'#5d131a',buttonOutline:'#4a1518',icon:'#f4d69a'}}
+];

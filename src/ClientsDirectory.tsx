@@ -1,8 +1,8 @@
 import {useEffect,useMemo,useState} from 'react';
 import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,Image as ImageIcon,LoaderCircle,RefreshCw,Search,Users,X} from 'lucide-react';
-import {listCloudProjects,type CloudProject} from './cloud';
+import {listCloudProjects,saveToCloud,type CloudProject} from './cloud';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
-import type {BarStyle,ClientProfile} from './storage';
+import {defaultBarStyle,newProject,type BarStyle,type ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
 import {InfoRow} from './InfoRow';
 import {DiscoveryDetail,DiscoveryList,useWebDiscovery} from './ClientDiscovery';
@@ -35,6 +35,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  const [totalNovaGen,setTotalNovaGen]=useState<number|null>(null);
  const [truncated,setTruncated]=useState(false);
  const [refresh,setRefresh]=useState(0);
+ const [savingClient,setSavingClient]=useState(false),[savedNotice,setSavedNotice]=useState('');
  const [detailLoading,setDetailLoading]=useState(false),[detailError,setDetailError]=useState('');
  const [detailRetry,setDetailRetry]=useState(0);
  useEffect(()=>{
@@ -77,6 +78,18 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  },[studio,remote,currentProjectName,currentProfile]);
  const visible=groups.filter(g=>norm([g.name,g.city,g.records.map(r=>r.profile.address+' '+r.profile.city).join(' ')].join(' ')).includes(norm(search)));
  const discovery=useWebDiscovery(search,visible.length===0);
+ useEffect(()=>setSavedNotice(''),[discovery.candidate]);
+ const saveClient=async(profile:ClientProfile,style?:Partial<BarStyle>)=>{
+   if(studio.some(p=>norm(p.name)===norm(profile.name))&&!window.confirm('Un projet « '+profile.name+' » existe déjà dans votre Cloud. Enregistrer ce client dans un nouveau projet quand même ?'))return;
+   setSavingClient(true);setSavedNotice('');
+   try{
+     const record={...newProject(),name:profile.name||'Nouveau client',clientProfile:profile,barStyle:{...defaultBarStyle(),...(style??{})}};
+     await saveToCloud(record,null,()=>{});
+     setSavedNotice('✓ Client « '+profile.name+' » enregistré dans votre Cloud NovaStudio : il apparaît dans la liste (Studio).');
+     setRefresh(v=>v+1);
+   }catch(e){setSavedNotice('Enregistrement impossible : '+(e instanceof Error?e.message:String(e)));}
+   finally{setSavingClient(false);}
+ };
  const selected=groups.find(g=>g.key===selectedKey)||visible[0]||groups[0];
  const selectedRecord=selected?.records.find(r=>r.id===recordId)||selected?.records[0];
  const profile=selectedRecord?.profile||
@@ -160,7 +173,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
         </div>
       </aside>
       <main className="nv-directory-detail">
-        {discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close}
+        {discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close} onSaveClient={(p,st)=>void saveClient(p,st)} saving={savingClient} notice={savedNotice}
           onSave={(profile,style)=>{
             if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
             if(norm(currentProjectName)!==norm(profile.name)&&!window.confirm('Tu es dans le projet « '+currentProjectName+' ». Enregistrer les informations de « '+profile.name+' » dans ce projet ?'))return;

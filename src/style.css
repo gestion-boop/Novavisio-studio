@@ -4369,3 +4369,7 @@ body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointe
 .nv-setup-button-list label{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #ffffff1f;border-radius:12px;background:#ffffff0a;cursor:pointer}
 .nv-setup-button-list label.is-done{opacity:.6}
 .nv-setup-button-list span{display:grid}.nv-setup-button-list small{color:#9cc2cd;overflow-wrap:anywhere}
+.nv-music-bulk{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px}
+.nv-music-bulk button{border:1px solid #426b77;border-radius:8px;background:#1d4350;color:#c4eced;padding:7px 11px;font-size:12px;cursor:pointer}
+.nv-music-bulk button:disabled{opacity:.4;cursor:default}
+.nv-discovery-notice{flex:1 1 100%;margin:0;color:#8be6da;font-size:13px}

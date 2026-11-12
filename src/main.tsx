@@ -1274,6 +1274,12 @@ function App(){
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===sceneId?
       {...sc,musicTrackId:checked?trackId:undefined,audioEnabled:checked?false:sc.audioEnabled}:sc)}));
   }
+  /** Tout intégrer / tout retirer : applique (ou retire) cette piste sur tous les panoramas, sans toucher aux autres pistes. */
+  function assignMusicAll(trackId:string,checked:boolean){
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>checked?{...sc,musicTrackId:trackId,audioEnabled:false}:
+      (sc.musicTrackId===trackId?{...sc,musicTrackId:undefined}:sc))}));
+    setStatus(checked?'Musique appliquée à tous les panoramas · Enregistre avec la disquette.':'Musique retirée de tous les panoramas.');
+  }
   function removeTrack(trackId:string){
     if(!window.confirm('Supprimer cette musique et ses affectations aux panoramas ?'))return;
     setProject(p=>({...p,
@@ -3943,7 +3949,11 @@ function App(){
               <input type="range" min="0" max="100" value={track.volume} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,volume:Number(e.target.value)}:t)}))}/>
             </label>
             <label className="toggle-row"><input type="checkbox" checked={track.loop} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,loop:e.target.checked}:t)}))}/> Lecture en boucle</label>
-            <div className="section-title">PANORAMAS À SONORISER</div>
+            <div className="section-title">PANORAMAS À SONORISER <span className="counter">{project.scenes.filter(sc=>sc.musicTrackId===track.id).length} / {project.scenes.length}</span></div>
+            <div className="nv-music-bulk">
+              <button type="button" disabled={!project.scenes.length||project.scenes.every(sc=>sc.musicTrackId===track.id)} onClick={()=>assignMusicAll(track.id,true)}>✓ Tout intégrer</button>
+              <button type="button" disabled={!project.scenes.some(sc=>sc.musicTrackId===track.id)} onClick={()=>assignMusicAll(track.id,false)}>✕ Tout retirer</button>
+            </div>
             {project.scenes.map(sc=><label className="music-scene-check" key={sc.id}>
               <input type="checkbox" checked={sc.musicTrackId===track.id} onChange={e=>assignMusic(track.id,sc.id,e.target.checked)}/>
               <span>{sc.name}</span>

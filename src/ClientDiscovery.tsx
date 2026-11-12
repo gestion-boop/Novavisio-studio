@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {Check,Globe,FilePlus2,Palette,Save,Image as ImageIcon,LoaderCircle,RefreshCw,Search,X} from 'lucide-react';
 import {askNovaGen,type ScrapeResult,type Suggestion,type SuggestResult} from './ClientPanel';
 import type {BarStyle,ClientProfile} from './storage';
-import {proposalsFromImages,type SkinProposal} from './skinPalette';
+import {proposalsFromImages,PRESET_PROPOSALS,type SkinProposal} from './skinPalette';
 import {InfoRow} from './InfoRow';
 
 /**
@@ -52,7 +52,7 @@ export function useWebDiscovery(query:string,autoSearch:boolean){
       if(!result.fiche||(!result.fiche.nom&&!result.fiche.site))throw Error('Aucune fiche exploitable pour cet établissement.');
       setCandidate(result);
       setProposals([]);setProposalError('');
-      void proposalsFromImages([...result.logos,...result.photos.slice(0,2)]).then(setProposals).catch(e=>setProposalError(e instanceof Error?e.message:String(e)));
+      void proposalsFromImages([...result.logos,...result.photos.slice(0,2)]).then(setProposals).catch(e=>{setProposals(PRESET_PROPOSALS);setProposalError((e instanceof Error?e.message:String(e))+' Voici des palettes standard à la place.');});
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setScraping('');}
   };
@@ -92,6 +92,8 @@ export function DiscoveryList({d}:{d:Discovery}){
 
 export type DiscoveryActions={
   onSave:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
+  onSaveClient:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
+  saving:boolean;notice:string;
   onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
 };
 function PalettePreview({style}:{style:SkinProposal['style']}){
@@ -99,7 +101,7 @@ function PalettePreview({style}:{style:SkinProposal['style']}){
     {[0,1,2].map(i=><i key={i} style={{background:style.button,borderColor:style.buttonOutline}}><b style={{background:style.icon}}/></i>)}
   </span>;
 }
-export function DiscoveryDetail({d,onSave,onCreateVisit,onClose}:{d:Discovery;onClose:()=>void}&DiscoveryActions){
+export function DiscoveryDetail({d,onSave,onSaveClient,saving,notice,onCreateVisit,onClose}:{d:Discovery;onClose:()=>void}&DiscoveryActions){
   const r=d.candidate;
   const [chosen,setChosen]=useState(0);
   const [photos,setPhotos]=useState<Set<string>>(new Set());
@@ -152,9 +154,11 @@ export function DiscoveryDetail({d,onSave,onCreateVisit,onClose}:{d:Discovery;on
       {r.notes.length>0&&<details className="nv-directory-muted"><summary>{r.notes.length} information(s) à vérifier</summary>{r.notes.map((n,i)=><p key={i}>{n}</p>)}</details>}
     </div>
     <div className="nv-directory-bottom-actions nv-discovery-actions-row">
-      <button type="button" className="nv-directory-associate" onClick={()=>onSave(profile(),style)}><Save size={16}/> Enregistrer dans la visite en cours</button>
+      <button type="button" className="nv-directory-associate" disabled={saving} onClick={()=>onSaveClient(profile(),style)}><Save size={16}/> {saving?'Enregistrement…':'Enregistrer'}</button>
       <button type="button" className="nv-directory-associate is-create" onClick={()=>onCreateVisit(profile(),style)}><FilePlus2 size={16}/> Créer une visite virtuelle</button>
-      <small>« Enregistrer » copie la fiche, les photos retenues et les couleurs choisies dans la visite ouverte, puis l'enregistre. « Créer une visite virtuelle » ouvre un nouveau projet déjà préparé avec ces informations. Rien n'est créé dans NovaGen.</small>
+      <button type="button" className="nv-directory-secondary-action" onClick={()=>onSave(profile(),style)}>Ajouter à la visite en cours</button>
+      {notice&&<p role="status" className="nv-discovery-notice">{notice}</p>}
+      <small>« Enregistrer » conserve ce client (fiche, photos retenues, couleurs) dans votre Cloud NovaStudio : il apparaît ensuite dans la liste. « Créer une visite virtuelle » ouvre un nouveau projet préparé pas à pas. Rien n'est créé dans NovaGen.</small>
     </div>
   </div>;
 }
