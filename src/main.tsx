@@ -2,6 +2,7 @@ import {MediaIconSelector} from './MediaIconSettings';
 import {InformationEditor,informationFont} from './InformationEditor';
 import {EmbeddedPage} from './EmbeddedPage';
 import {SpaceCover} from './SpaceCover';
+import {BarGalleryEditor,type BarGalleryTab} from './BarGalleryEditor';
 import './workflow.css';
 import {CreationToolbar} from './CreationToolbar';
 import {reorderItems,useGripSort} from './gripSort';
@@ -43,7 +44,7 @@ import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,type GalleryItem,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners} from './storage';
 import './style.css';
 import './media.css';
 
@@ -656,6 +657,7 @@ function App(){
   const cancelSpaceEditRef=useRef(false);
   const [selectedId,setSelectedId]=useState('');
   const [selectedBarId,setSelectedBarId]=useState('');
+  const [barGalleryTab,setBarGalleryTab]=useState<BarGalleryTab>('spaces');
   const [panel,setPanel]=useState<PanelTab>('points');
   // Préférence d'affichage propre à ce navigateur, jamais enregistrée dans les visites.
   const [galleryVerticalOffset,setGalleryVerticalOffset]=useState(()=>{
@@ -1135,6 +1137,11 @@ function App(){
   const nightTexture=active?.nightDataUrl??nightSource?.dataUrl;
   const nightActive=nightSceneId===activeId && !!nightTexture;
   const selectedBar=project.bottomBar.find(b=>b.id===selectedBarId) ?? null;
+  useEffect(()=>{
+    if(!selectedBarId||panel!=='bar')return;
+    const frame=requestAnimationFrame(()=>document.getElementById('nv-bar-button-settings')?.scrollIntoView({block:'start'}));
+    return ()=>cancelAnimationFrame(frame);
+  },[selectedBarId,panel]);
   const closeIcon=project.icons.find(icon=>icon.id===project.closeIconId);
   const popupThemeClass=closeIcon?' nv-custom-close':'';
   useEffect(()=>{
@@ -1653,40 +1660,10 @@ function App(){
       return {...p,bottomBar:items};
     });
   }
-  // Éditeur de la galerie de panoramas d'un bouton de la barre.
-  function galleryPanel(item:BottomBarItem){
-    const list=galleryEntries(item,project.scenes);
-    const used=new Set(list.map(e=>e.sceneId));
-    const others=project.scenes.filter(sc=>!used.has(sc.id));
-    const raw:GalleryItem[]=list.map(e=>({sceneId:e.sceneId,label:e.custom}));
-    const save=(next:GalleryItem[])=>patchBar({gallery:next});
-    const move=(i:number,d:number)=>{const next=[...raw];const j=i+d;if(j<0||j>=next.length)return;[next[i],next[j]]=[next[j],next[i]];save(next);};
-    const thumb=(id:string)=><span className="gallery-thumb">{sceneThumbs[id]?<img src={sceneThumbs[id]} alt="" draggable={false}/>:null}</span>;
-    return <div className="gallery-editor">
-      <label>Titre de la galerie<input value={item.galleryTitle??''} placeholder={item.title||'Panoramas'} onChange={e=>patchBar({galleryTitle:e.target.value})}/></label>
-      <small className="hint-inline">Dans la visite, ce bouton ouvre une galerie : un clic sur une vignette emmène directement au panorama (raccourci). Les noms ci-dessous sont ceux affichés dans la galerie ; laisse vide pour garder le nom du panorama.</small>
-      <InspectorSection title="Visites des espaces"><p className="hint">Chaque carte ouvre la visite de l’espace sélectionné.</p>{(project.spaces??[]).map(space=><label className="toggle-row" key={space.id}><input type="checkbox" checked={item.gallerySpaceIds?.includes(space.id)??false} onChange={e=>patchBar({gallerySpaceIds:e.target.checked?[...(item.gallerySpaceIds??[]),space.id]:(item.gallerySpaceIds??[]).filter(id=>id!==space.id)})}/>{space.name} · {space.sceneIds.length} panoramas</label>)}</InspectorSection>
-      <div className="section-title">PANORAMAS DANS LA GALERIE <span className="counter">{list.length}</span></div>
-      {!list.length&&<small className="hint-inline">Aucun panorama sélectionné : ajoute-en ci-dessous.</small>}
-      <ul className="gallery-rows">{list.map((e,i)=><li key={e.sceneId}>
-        {thumb(e.sceneId)}
-        <input value={e.custom} placeholder={e.sceneName} aria-label={'Nom affiché dans la galerie pour '+e.sceneName} onChange={ev=>save(raw.map((r,k)=>k===i?{...r,label:ev.target.value}:r))}/>
-        <button type="button" title="Monter" aria-label="Monter" disabled={i===0} onClick={()=>move(i,-1)}>↑</button>
-        <button type="button" title="Descendre" aria-label="Descendre" disabled={i===list.length-1} onClick={()=>move(i,1)}>↓</button>
-        <button type="button" title="Retirer de la galerie" aria-label="Retirer de la galerie" className="is-remove" onClick={()=>save(raw.filter((_,k)=>k!==i))}>✕</button>
-      </li>)}</ul>
-      {others.length>0&&<>
-        <div className="section-title">AUTRES PANORAMAS</div>
-        <ul className="gallery-rows is-others">{others.map(sc=><li key={sc.id}>
-          {thumb(sc.id)}<span className="gallery-name">{sc.name}</span>
-          <button type="button" className="gallery-add" onClick={()=>save([...raw,{sceneId:sc.id,label:''}])}>＋ Ajouter</button>
-        </li>)}</ul>
-      </>}
-      <div className="gallery-bulk">
-        {others.length>0&&<button type="button" onClick={()=>save([...raw,...others.map(sc=>({sceneId:sc.id,label:''}))])}>Tout ajouter</button>}
-        {list.length>0&&<button type="button" onClick={()=>save([])}>Tout retirer</button>}
-      </div>
-    </div>;
+  function chooseBarAction(type:BottomBarItem['type'],tab?:BarGalleryTab){
+    if(tab)setBarGalleryTab(tab);
+    // Keep existing selections and content when changing the button's action.
+    patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:{type});
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   function triggerBar(item:BottomBarItem){
@@ -3283,7 +3260,7 @@ function App(){
             if(!item)return null;
             return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id}
               entries={galleryEntries(item,visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
-              onPick={(id,spaceId)=>{if(spaceId)selectSpace(spaceId);else selectScene(id);setGalleryOpen(null);}} onClose={()=>setGalleryOpen(null)}/>;
+              onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
           {imageZoom?.imageDataUrl && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
@@ -3719,17 +3696,17 @@ function App(){
           <button className="preset-button" onClick={()=>{if(window.confirm('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
           {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
             <hr/>
-            <div className="section-title">CONFIGURER LE BOUTON</div>
+            <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
             <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
-            <label>Action<select value={selectedBar.type} onChange={e=>{
-              const t=e.target.value as BottomBarItem['type'];
-              // Première fois en « galerie » : tous les panoramas sont proposés, à toi de retirer / renommer.
-              if(t==='gallery'&&!selectedBar.gallery)patchBar({type:t,gallery:project.scenes.map(sc=>({sceneId:sc.id,label:''}))});
-              else patchBar({type:t});
-            }}>
-              <option value="navigation">Aller vers un panorama</option><option value="gallery">Galerie de panoramas (raccourcis)</option><option value="information">Afficher des informations</option><option value="lien">Ouvrir un lien / réserver / appeler</option>
-            </select></label>
-            {selectedBar.type==='gallery'?galleryPanel(selectedBar):selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+            <div className="section-title">ACTION DU BOUTON</div>
+            <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
+              <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
+              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
+              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
+              <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
+              <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
+            </div>
+            {selectedBar.type==='gallery'?<BarGalleryEditor item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>

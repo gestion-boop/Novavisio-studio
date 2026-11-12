@@ -32,7 +32,7 @@ export function PanoramaGallery({title,entries,currentId,onPick,onClose}:{title:
           <span className="nv-gallery-thumb">{e.thumb?<img src={e.thumb} alt="" loading="lazy" decoding="async" draggable={false}/>:<span className="nv-gallery-ph"/>}</span>
           <strong>{e.label}</strong>
         </button>)}</div>
-      :<p className="nv-gallery-empty">Aucun panorama dans cette galerie.</p>}
+      :<p className="nv-gallery-empty">Aucun espace ni panorama dans ce panneau.</p>}
     </section>
   </div>;
 }
