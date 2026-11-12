@@ -4317,3 +4317,17 @@ body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointe
 .nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow-main .nv-hgroup-team,.nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow-actions .nv-hgroup-project{margin-left:auto}
 .nv-footer-refresh{margin-left:10px;border:0;background:transparent;color:#7fd0d8;font:inherit;cursor:pointer;text-decoration:underline;padding:0}
 .nv-footer-refresh:disabled{opacity:.5;cursor:default}
+
+/* Répertoire Clients : recherche d'un nouvel établissement (NovaGen) */
+.nv-discovery-list{margin:10px 0 4px;padding:10px;border:1px solid #2f7d8a66;border-radius:12px;background:#10333d80;display:grid;gap:8px}
+.nv-discovery-head{display:flex;align-items:center;gap:7px;font-weight:700;color:#bfeef0;font-size:13px}.nv-discovery-head small{color:#7fb2bd;font-weight:500}
+.nv-discovery-actions{display:flex;gap:8px;flex-wrap:wrap}
+.nv-discovery-actions button{display:inline-flex;align-items:center;gap:6px;border:1px solid #4db6c4;border-radius:9px;background:#1d5864;color:#eaffff;padding:7px 10px;font-size:12px;cursor:pointer}
+.nv-discovery-actions button.is-secondary{background:transparent;border-color:#426b77;color:#b1cfda}
+.nv-discovery-actions button:disabled{opacity:.5;cursor:default}
+.nv-discovery-status{display:flex;align-items:center;gap:6px;color:#9cc2cd}
+.nv-discovery-error{margin:0;color:#ffb3bd;font-size:12px}
+.nv-discovery-item{text-align:left;display:grid;gap:2px;border:1px solid #ffffff1f;border-radius:10px;background:#ffffff0d;color:#e6f6f8;padding:8px 10px;cursor:pointer}
+.nv-discovery-item:hover:not(:disabled){border-color:#66d9ca;background:#ffffff18}
+.nv-discovery-item small{color:#9cc2cd}
+.nv-discovery-close{margin-left:auto;border:1px solid #426b77;background:transparent;color:#cfe;border-radius:8px;padding:6px;cursor:pointer;height:fit-content}

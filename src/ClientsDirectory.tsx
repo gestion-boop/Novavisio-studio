@@ -4,6 +4,7 @@ import {listCloudProjects,type CloudProject} from './cloud';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
 import type {ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
+import {DiscoveryDetail,DiscoveryList,useWebDiscovery} from './ClientDiscovery';
 import type {ImportedClientVideo} from './novagenVideos';
 
 type Group={key:string;name:string;city:string;projects:CloudProject[];records:RemoteClient[];logoUrl:string;current:boolean};
@@ -73,6 +74,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
  },[studio,remote,currentProjectName,currentProfile]);
  const visible=groups.filter(g=>norm([g.name,g.city,g.records.map(r=>r.profile.address+' '+r.profile.city).join(' ')].join(' ')).includes(norm(search)));
+ const discovery=useWebDiscovery(search,visible.length===0);
  const selected=groups.find(g=>g.key===selectedKey)||visible[0]||groups[0];
  const selectedRecord=selected?.records.find(r=>r.id===recordId)||selected?.records[0];
  const profile=selectedRecord?.profile||
@@ -150,6 +152,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               </span>
             </span><ChevronRight size={15} className="nv-dir-chevron"/>
           </button>)}
+          <DiscoveryList d={discovery}/>
           {!visible.length&&<div className="nv-directory-empty">
              <Building2 size={24}/>
              <span>{loading||moreLoading?'Chargement du répertoire…':'Aucun établissement visible dans cette recherche.'}</span>
@@ -161,7 +164,11 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
         </div>
       </aside>
       <main className="nv-directory-detail">
-        {selected?<div className="nv-directory-detail-inner">
+        {discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close} onAssociate={profile=>{
+          if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
+          if(norm(currentProjectName)!==norm(profile.name)&&!window.confirm('Tu es dans le projet « '+currentProjectName+' ». Associer les coordonnées de « '+profile.name+' » à ce projet ?'))return;
+          onAssociate(profile);onClose();
+        }}/>:selected?<div className="nv-directory-detail-inner">
           <div className="nv-directory-title-row">
             <div className="nv-directory-feature-logo">
               {selected.logoUrl?<img src={selected.logoUrl} alt={'Logo '+selected.name}/>:
@@ -241,7 +248,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
          {errorNovaGen.toLowerCase().includes('connecte')&&<button type="button" className="nv-directory-status-action" onClick={onOpenCloud}>Se connecter</button>}</p>}
     </div>}
     {truncated&&<div className="nv-directory-status">NovaGen a atteint la limite de son index (1 000 fiches). Une récupération par lots sera nécessaire pour le reste.</div>}
-    <footer className="nv-directory-foot"><span>Lecture seule · Aucune fiche d'origine modifiée</span>
+    <footer className="nv-directory-foot"><span>Lecture seule · Aucune fiche d'origine modifiée · recherche web via NovaGen</span>
       <span>{loading?<><LoaderCircle size={13}/> Connexion aux deux sources…</>:
            moreLoading?<><LoaderCircle size={13}/> Chargement des clients : {remote.length} / {totalNovaGen??'…'} fiches NovaGen</>:
            'Sources : NovaStudio Cloud et NovaGen'}</span></footer>

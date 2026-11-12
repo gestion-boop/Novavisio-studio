@@ -19,10 +19,10 @@ const fields:Array<{key:Field;label:string;placeholder?:string}>=[
   {key:'services',label:'Services'},
   {key:'description',label:'Description'}
 ];
-type Suggestion={
+export type Suggestion={
   nom:string;adresse:string;ville:string;type:string;site:string;tel:string;facebook:string;instagram:string
 };
-type ScrapeResult={
+export type ScrapeResult={
   fiche:{
     nom:string;type:string;adresse:string;ville:string;tel:string;email:string;
     site:string;facebook:string;instagram:string;booking:string;description:string;
@@ -30,7 +30,7 @@ type ScrapeResult={
   };
   photos:string[];logos:string[];notes:string[]
 };
-type SuggestResult={resultats:Suggestion[]};
+export type SuggestResult={resultats:Suggestion[]};
 export type ClientLink={label:string;url:string;kind:'link'|'info'};
 export function profileLinks(p:ClientProfile):ClientLink[]{
   const result:ClientLink[]=[];
@@ -46,7 +46,7 @@ export function profileLinks(p:ClientProfile):ClientLink[]{
   return result;
 }
 
-async function askNovaGen<T>(payload:Record<string,unknown>,signal?:AbortSignal):Promise<T>{
+export async function askNovaGen<T>(payload:Record<string,unknown>,signal?:AbortSignal):Promise<T>{
   if(!cloudConfigured)throw new Error('Le Cloud NovaStudio doit être configuré pour utiliser l’aspirateur.');
   const {data,error}=await supabase().auth.getSession();
   if(error||!data.session?.access_token)
