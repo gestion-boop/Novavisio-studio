@@ -10,12 +10,12 @@ export const packPreview=(id:string)=>{const pack=ICON_PACKS.find(p=>p.id===id);
 const glyphMap:Record<string,string>={home:'bed',images:'photo',grid:'map',phone:'phone',info:'info',utensils:'restaurant',calendar:'calendar',web:'location',arrow:'arrow',menu:'map',star:'star'};
 export async function prepareIconPack(id:string,project:StudioProject){
   const pack=ICON_PACKS.find(p=>p.id===id);if(!pack)throw Error('Collection inconnue');
-  const names=[...new Set(['arrow',...project.bottomBar.map(b=>glyphMap[b.builtinIcon??'info']??'info')])];
+  const names=[...new Set(['arrow','photo','video',...project.bottomBar.map(b=>glyphMap[b.builtinIcon??'info']??'info')])];
   const generated=await Promise.all(names.map(async name=>({id:crypto.randomUUID(),name:'Collection '+pack.name+' · '+name,dataUrl:await pngFromSvg(name,pack.design),glyph:name})));
   return (current:StudioProject):StudioProject=>{
     const icons=[...current.icons],mapping=new Map<string,string>();
     for(const item of generated){const existing=icons.find(icon=>icon.dataUrl===item.dataUrl);mapping.set(item.glyph,existing?.id??item.id);if(!existing)icons.push({id:item.id,name:item.name,dataUrl:item.dataUrl});}
-    return validateProject({...current,icons,iconPackId:id,defaultNavigationIcon:{iconId:mapping.get('arrow')!,iconSize:40},favoriteNavigationIconSet:undefined,
+    return validateProject({...current,icons,iconPackId:id,defaultPhotoIcon:{iconId:mapping.get('photo')!,iconSize:42},defaultVideoIcon:{iconId:mapping.get('video')!,iconSize:42},defaultNavigationIcon:{iconId:mapping.get('arrow')!,iconSize:40},favoriteNavigationIconSet:undefined,
       bottomBar:current.bottomBar.map(item=>({...item,iconId:mapping.get(glyphMap[item.builtinIcon??'info']??'info'),hoverIconId:undefined,pressedIconId:undefined}))});
   };
 }

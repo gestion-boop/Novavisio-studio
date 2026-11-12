@@ -1,3 +1,4 @@
+import {MediaIconDefaults} from './MediaIconSettings';
 import {ButtonImporter} from './ButtonImporter';
 import {SetupBarPreview} from './SetupBarPreview';
 import {useRef,useState,type Dispatch,type SetStateAction} from 'react';
@@ -41,9 +42,10 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
           </>}
           {step===1&&<><p>Choisis une collection pour la barre et les prochaines flèches de navigation. Les points déjà placés conservent leurs icônes.</p>
             <ButtonImporter disabled={busy} project={project} setProject={setProject} onBusyChange={setBusy}/>
-            <div className="nv-icon-pack-choices"><button type="button" disabled={busy} aria-pressed={project.iconPackId==='classic'} onClick={()=>{setProject(p=>({...p,iconPackId:'classic',defaultNavigationIcon:undefined,favoriteNavigationIconSet:undefined,bottomBar:p.bottomBar.map(b=>({...b,iconId:undefined,hoverIconId:undefined,pressedIconId:undefined}))}));setMessage('Pictogrammes classiques sélectionnés.');}}><span className="nv-classic-pack">➜</span><strong>Classiques</strong><small>Pictogrammes simples</small></button>
+            <div className="nv-icon-pack-choices"><button type="button" disabled={busy} aria-pressed={project.iconPackId==='classic'} onClick={()=>{setProject(p=>({...p,iconPackId:'classic',defaultNavigationIcon:undefined,defaultPhotoIcon:undefined,defaultVideoIcon:undefined,favoriteNavigationIconSet:undefined,bottomBar:p.bottomBar.map(b=>({...b,iconId:undefined,hoverIconId:undefined,pressedIconId:undefined}))}));setMessage('Pictogrammes classiques sélectionnés.');}}><span className="nv-classic-pack">➜</span><strong>Classiques</strong><small>Pictogrammes simples</small></button>
               {ICON_PACKS.map(pack=><button key={pack.id} type="button" disabled={busy} aria-pressed={project.iconPackId===pack.id} onClick={()=>void choosePack(pack.id)}><img src={packPreview(pack.id)} alt=""/><strong>{pack.name}</strong><small>{pack.description}</small></button>)}
             </div>
+            <MediaIconDefaults project={project} setProject={setProject}/>
             {project.icons.length>0&&<label>Ou une icône de ma bibliothèque pour les prochaines flèches<select aria-label="Icône par défaut des flèches" value={project.defaultNavigationIcon?.iconId??''} onChange={e=>{const id=e.target.value;setProject(p=>({...p,defaultNavigationIcon:id?{iconId:id,iconSize:40}:undefined,iconPackId:undefined}));}}><option value="">Choisir une icône…</option>{project.icons.map(icon=><option key={icon.id} value={icon.id}>{icon.name}</option>)}</select></label>}
           </>}
           {step===2&&<><p>Règle les couleurs et les dimensions de la barre inférieure. Tu pourras les ajuster dans « Barre du bas ».</p>

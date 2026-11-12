@@ -1,8 +1,11 @@
-import type {Hotspot} from './storage';
+import {iconStateHtml} from './media';
+import type {Hotspot,CustomIcon} from './storage';
 import {escapeAttribute} from './imageFrame';
 
 export const isPopupMedia=(h:Hotspot)=>(h.type==='image'||h.type==='video')&&h.mediaDisplay==='popup';
-export function popupMediaMarkerHtml(h:Hotspot){
+export function popupMediaMarkerHtml(h:Hotspot,icons:CustomIcon[]=[]){
+  const custom=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
+  if(custom)return '<span class="nv-media-popup-custom" aria-label="'+escapeAttribute(h.title)+'">'+custom+'</span>';
   return '<span class="nv-media-popup-marker" aria-label="'+escapeAttribute(h.title)+'">'+(h.type==='video'?'▶':'▣')+'</span>';
 }
 export function MediaDisplayControl({hotspot,onChange}:{hotspot:Hotspot;onChange:(patch:Partial<Hotspot>)=>void}){

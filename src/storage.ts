@@ -112,7 +112,7 @@ export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
 export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
 export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number};
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
-export type StudioProject = { version: 1; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+export type StudioProject = { version: 1; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -335,6 +335,9 @@ export function validateProject(value:unknown):StudioProject {
   if(!Array.isArray(languages)||!languages.length||languages.length>5||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
   if(p.preparationComplete!==undefined && typeof p.preparationComplete!=='boolean')throw new Error('Préparation de projet invalide');
   if(p.defaultMusicTrackId!==undefined&&!audioTracks.some(t=>t.id===p.defaultMusicTrackId))throw new Error('Musique par défaut introuvable');
+  for(const media of [p.defaultPhotoIcon,p.defaultVideoIcon]){
+    if(media&&(typeof media!=='object'||!icons.some(i=>i.id===media.iconId)||[media.hoverIconId,media.pressedIconId].some(id=>id!==undefined&&!icons.some(i=>i.id===id))||!Number.isFinite(media.iconSize)||media.iconSize<16||media.iconSize>80))throw new Error('Icône de média par défaut invalide');
+  }
   const nav=p.defaultNavigationIcon;
   if(nav && (typeof nav!=='object'||!icons.some(i=>i.id===nav.iconId)||[nav.hoverIconId,nav.pressedIconId].some(id=>id!==undefined&&!icons.some(i=>i.id===id))||!Number.isFinite(nav.iconSize)||nav.iconSize<16||nav.iconSize>80))throw new Error('Icône de navigation par défaut invalide');
   if(p.iconPackId!==undefined&&(typeof p.iconPackId!=='string'||p.iconPackId.length>100))throw new Error('Collection d’icônes invalide');

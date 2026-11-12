@@ -1,3 +1,4 @@
+import {MediaIconSelector} from './MediaIconSettings';
 import {InformationEditor,informationFont} from './InformationEditor';
 import {EmbeddedPage} from './EmbeddedPage';
 import {SpaceCover} from './SpaceCover';
@@ -111,13 +112,13 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
       autoplay:h.videoAutoplay!==false,hoverScale:false};
   }
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
-  const sz=isPopupMedia(h)?42:Math.max(16,Math.min(80,h.iconSize??28));
+  const sz=isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.max(16,Math.min(80,h.iconSize??28));
   const scaled=isMedia?responsiveFrameSize(h,viewerHeight,zoom):null;
   const width=scaled?.width??sz;
   const height=scaled?.height??sz;
   const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
-  const content=isPopupMedia(h)?popupMediaMarkerHtml(h):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
+  const content=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
     h.type==='video'?videoMarkerHtml(h,width,height):
     iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
@@ -1687,31 +1688,6 @@ function App(){
     </div>;
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
-  function setProjectLanguage(code:StudioLanguage,enabled:boolean){
-    setProject(p=>{
-      const current=p.languages??(p.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr' as StudioLanguage]);
-      const next=enabled?STUDIO_LANGUAGES.map(lang=>lang.code).filter(lang=>lang===code||current.includes(lang)) :current.filter(lang=>lang!==code);
-      return next.length?{...p,languages:next}:p;
-    });
-  }
-  function projectLanguageEditor(){
-    return <InspectorSection title="Langues du projet"><div className="nv-project-language-settings">
-      <p className="hint">Choisis les langues proposées dans les points Information. Ce réglage est enregistré avec le projet Cloud.</p>
-      <div className="nv-project-language-options">{STUDIO_LANGUAGES.map(lang=><label key={lang.code} className="nv-project-language-option">
-        <input type="checkbox" checked={activeLanguages.includes(lang.code)} onChange={e=>setProjectLanguage(lang.code,e.target.checked)}/>
-        <span aria-hidden="true">{lang.flag}</span><strong>{lang.name}</strong>
-      </label>)}</div>
-      <small>Les langues des pages externes intégrées restent configurées sur leur site d'origine.</small>
-    </div></InspectorSection>;
-  }
-  function languageTexts(texts:Partial<Record<'en'|'es'|'de'|'nl',string>>|undefined,onChange:(code:'en'|'es'|'de'|'nl',value:string)=>void){
-    return STUDIO_LANGUAGES.filter(lang=>lang.code!=='fr'&&activeLanguages.includes(lang.code)).map(lang=>{
-      const code=lang.code as 'en'|'es'|'de'|'nl';
-      return <label key={code}>{lang.flag} {lang.name} — texte traduit
-        <textarea rows={3} value={texts?.[code]??''} placeholder={'Texte '+lang.name} onChange={e=>onChange(code,e.target.value)}/>
-      </label>;
-    });
-  }
   function triggerBar(item:BottomBarItem){
     if(!preview){
       setSelectedBarId(current=>current===item.id?'':item.id);setPanel('bar');setSelectedId('');
@@ -1942,6 +1918,7 @@ function App(){
     if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
     setProject(p=>({...p,
       icons:p.icons.filter(i=>i.id!==id),
+      ...Object.fromEntries((['defaultPhotoIcon','defaultVideoIcon'] as const).map(key=>{const v=p[key];return [key,!v||v.iconId===id?undefined:{...v,hoverIconId:v.hoverIconId===id?undefined:v.hoverIconId,pressedIconId:v.pressedIconId===id?undefined:v.pressedIconId}]})),
       buttonSets:p.buttonSets?.filter(set=>set.iconId!==id).map(set=>({...set,hoverIconId:set.hoverIconId===id?undefined:set.hoverIconId,pressedIconId:set.pressedIconId===id?undefined:set.pressedIconId})),
       defaultNavigationIcon:p.defaultNavigationIcon?.iconId===id?undefined:p.defaultNavigationIcon?{...p.defaultNavigationIcon,hoverIconId:p.defaultNavigationIcon.hoverIconId===id?undefined:p.defaultNavigationIcon.hoverIconId,pressedIconId:p.defaultNavigationIcon.pressedIconId===id?undefined:p.defaultNavigationIcon.pressedIconId}:undefined,
       closeIconId:p.closeIconId===id?undefined:p.closeIconId,
@@ -2206,7 +2183,7 @@ function App(){
   }
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
-    const favorite=mode==='navigation'?defaultNavigationIconSet():null;
+    const favorite=mode==='navigation'?defaultNavigationIconSet():mode==='image'?project.defaultPhotoIcon:mode==='video'?project.defaultVideoIcon:null;
     const h:Hotspot={
       id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Photo':mode==='video'?'Vidéo':'Informations',
       text:'',target:'',yaw,pitch,
@@ -2563,7 +2540,7 @@ function App(){
       </div>
     </header>
     <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen}>
-      
+
       <div className="nv-space-tab-scroll" role="tablist" aria-label="Espaces du projet">
         <button type="button" role="tab" aria-selected={!currentSpace}
           className={'nv-space-tab'+(!currentSpace?' is-active':'')}
@@ -2754,6 +2731,7 @@ function App(){
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
+          {rightHidden&&!preview&&<button type="button" className="nv-inspector-reopen" aria-label="Ouvrir le panneau latéral" onClick={()=>setRightHidden(false)}><ChevronLeft size={17}/> Réglages</button>}
           {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={newPoint} onPick={id=>{
               setSelectedId(id);setSelectedBarId('');setPanel('points');setMode(null);
               const marker=active?.hotspots.find(h=>h.id===id);
@@ -3031,6 +3009,7 @@ function App(){
                     </>}
                     {selected.type==='image'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                       <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                       <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo':'Ajouter une photo'}
                         <input type="file" accept="image/*,.heic,.heif"
@@ -3048,6 +3027,7 @@ function App(){
                     </>}
                     {selected.type==='video'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                       <label>URL de la vidéo
                         <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''}
                           onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
@@ -3282,11 +3262,11 @@ function App(){
             </div>
           )}
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
-          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" data-sort-scope="visit-bar" style={barCss}>
+          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-sort-item">{!preview&&barSort.grip(item.id,item.title)}<button type="button" style={icon?{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties:undefined} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+              return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={icon?{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties:undefined} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button></div></div>;
@@ -3336,6 +3316,7 @@ function App(){
 
       </main>
       <aside className="right panel">
+        <div className="nv-inspector-top"><strong>Réglages</strong><button type="button" onClick={()=>setRightHidden(true)} aria-label="Replier le panneau latéral" title="Replier le panneau latéral"><ChevronRight size={18}/></button></div>
         {currentSpace&&<SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
@@ -3482,6 +3463,7 @@ function App(){
 
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                 <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
                   onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
@@ -3511,6 +3493,7 @@ function App(){
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
                 <small className="hint-inline">22 Mo max en local, ou renseigne une URL HTTPS directe :</small>
                 <label>Ou URL HTTPS de la vidéo
@@ -3575,7 +3558,7 @@ function App(){
                   <label>Texte affiché
                     <textarea rows={4} placeholder="Description ou informations..." value={selected.text} onChange={e=>patchPoint({text:e.target.value})}/>
                   </label>
-                  {selected.type==='information'&&languageTexts(selected.translations,(code,value)=>patchPoint({translations:{...selected.translations,[code]:value}}))}
+
                   <InspectorSection title="Contenus complémentaires : page web et photo">
                   <label>Page web intégrée (optionnel)
                     <input type="text" placeholder="https://… menu, réservations" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
@@ -3708,7 +3691,7 @@ function App(){
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
           <InspectorSection title="Dimensions de la barre"><BarDimensions style={project.barStyle} onChange={changeBarStyle}/></InspectorSection>
-          {projectLanguageEditor()}
+
           <InspectorSection title="Couleurs et contours"><div className="style-settings">
             <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
             <div className="style-colors">
@@ -3746,7 +3729,7 @@ function App(){
               <option value="navigation">Aller vers un panorama</option><option value="gallery">Galerie de panoramas (raccourcis)</option><option value="information">Afficher des informations</option><option value="lien">Ouvrir un lien / réserver / appeler</option>
             </select></label>
             {selectedBar.type==='gallery'?galleryPanel(selectedBar):selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
-            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>{languageTexts(selectedBar.translations,(code,value)=>patchBar({translations:{...selectedBar.translations,[code]:value}}))}
+            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}

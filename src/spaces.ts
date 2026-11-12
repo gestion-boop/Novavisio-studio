@@ -35,7 +35,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
   if(!space){
     if(!slim)return project;
     return {...project,
-      buttonSets:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
+      buttonSets:undefined,defaultPhotoIcon:undefined,defaultVideoIcon:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
     clientProfile:undefined, // never publish private customer records
       icons:relevantIcons(project,project.scenes),
       audioTracks:project.audioTracks.filter(track=>project.scenes.some(scene=>scene.musicTrackId===track.id))
@@ -54,7 +54,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
   };
   return {
     ...project,
-    buttonSets:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
+    buttonSets:undefined,defaultPhotoIcon:undefined,defaultVideoIcon:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
     clientProfile:undefined, // only Studio editors receive customer details
     name:project.name+' - '+space.name,
     scenes:scenes.map(scene=>({

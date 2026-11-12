@@ -44,10 +44,10 @@ function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):Ma
   }
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
   const size=isMedia?responsiveFrameSize(h,height,zoom):null;
-  const w=size?.width??(isPopupMedia(h)?42:Math.min(80,Math.max(16,h.iconSize??28)));
+  const w=size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28)));
   const hh=size?.height??w;
   const custom=icons.find(icon=>icon.id===h.iconId);
-  const html=isPopupMedia(h)?popupMediaMarkerHtml(h):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
+  const html=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
     h.type==='video'?videoMarkerHtml(h,w,hh):
     custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
     '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
