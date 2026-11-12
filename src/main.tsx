@@ -3994,6 +3994,8 @@ function App(){
       canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
       onClose={()=>setClientOpen(false)}
       onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
+      currentStyle={project.barStyle}
+      onUpdateCurrent={(profile,style)=>setProject(p=>({...p,...(profile?{clientProfile:profile}:{}),...(style?{barStyle:{...p.barStyle,...style}}:{})}))}
       onSaveDiscovered={(clientProfile,style)=>{
         setProject(p=>({...p,clientProfile,...(style?{barStyle:{...p.barStyle,...style}}:{})}));
         setPanel('client');pendingClientSaveRef.current=true;

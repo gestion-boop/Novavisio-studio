@@ -5,6 +5,7 @@ import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDi
 import {defaultBarStyle,newProject,type BarStyle,type ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
 import {InfoRow} from './InfoRow';
+import {ClientMediaEditor,type Palette} from './ClientMediaEditor';
 import {DiscoveryDetail,DiscoveryList,useWebDiscovery} from './ClientDiscovery';
 import type {ImportedClientVideo} from './novagenVideos';
 
@@ -17,7 +18,8 @@ const safeRemoteUrl=(s:string)=>{
 };
 const blankProfile:ClientProfile={novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''};
 
-export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit}:{
+export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit,currentStyle,onUpdateCurrent}:{
+ currentStyle?:Palette;onUpdateCurrent?:(profile:ClientProfile|undefined,style?:Palette)=>void;
  currentHasProject?:boolean;onSaveDiscovered:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
  currentProjectName:string;currentProfile?:ClientProfile;
  canPlaceVideo:boolean;onPlaceVideo:(video:ImportedClientVideo)=>void;
@@ -234,6 +236,12 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
                 <Cloud size={15}/> Ouvrir les projets dans le Cloud
               </button>
             </section>
+            {selected.current&&currentProfile&&onUpdateCurrent&&<section className="nv-directory-edit-section">
+              <div className="nv-directory-section-head"><Database size={16}/> Modifier le logo, les photos et les couleurs</div>
+              <ClientMediaEditor key={currentProfile.name} profile={currentProfile} onProfile={p=>onUpdateCurrent(p)} style={currentStyle} onStyle={st=>onUpdateCurrent(undefined,st)}/>
+              <p className="nv-directory-muted">Les changements s'appliquent à la visite en cours. Cliquez ensuite sur « Enregistrer » (disquette) pour les conserver.</p>
+            </section>}
+            {!selected.current&&selected.projects.length>0&&<p className="nv-directory-muted">Pour modifier le logo, les photos ou les couleurs de ce client, ouvrez d'abord son projet depuis le Cloud.</p>}
             {(selected.logoUrl||!!selectedRecord?.photoUrls.length)&&<section>
               <div className="nv-directory-section-head"><ImageIcon size={16}/> Médias NovaGen</div>
               <div className="nv-directory-photo-strip">

@@ -1,8 +1,9 @@
 import {useEffect,useRef,useState} from 'react';
-import {Check,Globe,FilePlus2,Palette,Save,Image as ImageIcon,LoaderCircle,RefreshCw,Search,X} from 'lucide-react';
+import {Globe,FilePlus2,Save,LoaderCircle,RefreshCw,Search,X} from 'lucide-react';
 import {askNovaGen,type ScrapeResult,type Suggestion,type SuggestResult} from './ClientPanel';
 import type {BarStyle,ClientProfile} from './storage';
 import {proposalsFromImages,PRESET_PROPOSALS,type SkinProposal} from './skinPalette';
+import {ClientMediaEditor,type Palette} from './ClientMediaEditor';
 import {InfoRow} from './InfoRow';
 
 /**
@@ -96,26 +97,21 @@ export type DiscoveryActions={
   saving:boolean;notice:string;
   onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
 };
-function PalettePreview({style}:{style:SkinProposal['style']}){
-  return <span className="nv-skin-preview" style={{background:style.background,borderColor:style.outline}}>
-    {[0,1,2].map(i=><i key={i} style={{background:style.button,borderColor:style.buttonOutline}}><b style={{background:style.icon}}/></i>)}
-  </span>;
-}
 export function DiscoveryDetail({d,onSave,onSaveClient,saving,notice,onCreateVisit,onClose}:{d:Discovery;onClose:()=>void}&DiscoveryActions){
   const r=d.candidate;
-  const [chosen,setChosen]=useState(0);
-  const [photos,setPhotos]=useState<Set<string>>(new Set());
-  useEffect(()=>{setChosen(0);setPhotos(new Set((r?.photos||[]).slice(0,12)));},[r]);
-  if(!r)return null;
+  const [draft,setDraft]=useState<ClientProfile|null>(null);
+  const [style,setStyle]=useState<Palette|undefined>(undefined);
+  useEffect(()=>{setDraft(r?profileFromScrape(r):null);setStyle(undefined);},[r]);
+  // La première palette proposée est choisie d'office, tant que l'utilisateur n'a rien changé.
+  useEffect(()=>{if(d.proposals.length)setStyle(prev=>prev??d.proposals[0].style);},[d.proposals]);
+  if(!r||!draft)return null;
   const f=r.fiche;
   const web=(u?:string)=>{try{const x=new URL(u||'');return x.protocol==='https:'||x.protocol==='http:'?x.href:undefined;}catch{return undefined;}};
   const row=(label:string,value?:string)=>{
     const link=label==='Téléphone'&&value?'tel:'+value.replace(/[^+\d]/g,''):label==='E-mail'&&value?'mailto:'+value:['Site internet','Facebook','Instagram','Réservation'].includes(label)?web(value):undefined;
     return <InfoRow key={label} label={label} value={value} href={link}/>;
   };
-  const style=d.proposals[chosen]?.style;
-  const profile=()=>profileFromScrape(r,[...photos]);
-  const togglePhoto=(src:string)=>setPhotos(prev=>{const next=new Set(prev);if(next.has(src))next.delete(src);else next.add(src);return next;});
+  const profile=()=>draft;
   return <div className="nv-directory-detail-inner nv-discovery-detail">
     <div className="nv-directory-title-row">
       <div className="nv-directory-feature-logo">{r.logos[0]?<img src={r.logos[0]} alt={'Logo '+f.nom}/>:<Globe size={30}/>}</div>
@@ -130,27 +126,7 @@ export function DiscoveryDetail({d,onSave,onSaveClient,saving,notice,onCreateVis
         {row('Horaires',(f.horaires||[]).filter(Boolean).join(' · '))}{row('Services',(f.services||[]).filter(Boolean).join(', '))}
         {f.description&&<p className="nv-directory-description">{f.description}</p>}
       </section>
-      <section>
-        <div className="nv-directory-section-head"><Palette size={16}/> Couleurs proposées pour le skin de la barre</div>
-        {!d.proposals.length&&!d.proposalError&&<p className="nv-directory-muted"><LoaderCircle size={13}/> Analyse des couleurs du logo…</p>}
-        {d.proposalError&&<p className="nv-directory-muted">{d.proposalError} Les couleurs actuelles du projet seront conservées.</p>}
-        {d.proposals.length>0&&<div className="nv-skin-choices" role="radiogroup" aria-label="Couleurs du skin">
-          {d.proposals.map((p,i)=><button type="button" key={p.name} role="radio" aria-checked={chosen===i} className={chosen===i?'is-selected':''} onClick={()=>setChosen(i)}>
-            <PalettePreview style={p.style}/><span>{p.name}</span>
-            <span className="nv-skin-dots">{[p.style.button,p.style.buttonOutline,p.style.background].map((c,k)=><em key={k} style={{background:c}}/>)}</span>
-          </button>)}
-        </div>}
-      </section>
-      {(r.photos.length>0||r.logos.length>0)&&<section>
-        <div className="nv-directory-section-head"><ImageIcon size={16}/> Photos trouvées ({photos.size} / {r.photos.length} retenues)</div>
-        <div className="nv-discovery-photos">
-          {r.logos.slice(0,2).map((src,i)=><img key={'l'+i} className="is-logo" src={src} alt="Logo trouvé" loading="lazy"/>)}
-          {r.photos.slice(0,24).map((src,i)=><button type="button" key={src+i} className={photos.has(src)?'is-on':''} onClick={()=>togglePhoto(src)} aria-pressed={photos.has(src)} title={photos.has(src)?'Retirer cette photo':'Retenir cette photo'}>
-            <img src={src} alt={'Photo trouvée '+(i+1)} loading="lazy"/><i>{photos.has(src)?<Check size={13}/>:null}</i>
-          </button>)}
-        </div>
-        <p className="nv-directory-muted">Cliquez sur une photo pour la retenir ou l'écarter. Conservées comme références dans la fiche, pas copiées.</p>
-      </section>}
+      <ClientMediaEditor profile={draft} onProfile={setDraft} initialPool={[...r.logos,...r.photos]} style={style} onStyle={setStyle} proposals={d.proposals} proposalNote={d.proposalError}/>
       {r.notes.length>0&&<details className="nv-directory-muted"><summary>{r.notes.length} information(s) à vérifier</summary>{r.notes.map((n,i)=><p key={i}>{n}</p>)}</details>}
     </div>
     <div className="nv-directory-bottom-actions nv-discovery-actions-row">
