@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {cloudConfigured,supabase,signOut,listCloudProjects,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision} from './cloud';
+import {cloudConfigured,supabase,signOut,listCloudProjects,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 
@@ -7,7 +7,7 @@ type Props={
   project:StudioProject;
   onClose:()=>void;
   hasUnsavedChanges:boolean;
-  onOpen:(project:StudioProject,link:CloudLink)=>void;
+  onOpen:(project:StudioProject,link:CloudLink,spaceId?:string)=>void;
   onStatus:(message:string)=>void;
   autoEnabled:boolean;
   onAutoChange:(on:boolean)=>void;
@@ -22,9 +22,10 @@ export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,au
   const [historyFor,setHistoryFor]=useState<string|null>(null);
   const [revisions,setRevisions]=useState<CloudRevision[]>([]);
   const [link,setLink]=useState<CloudLink|null>(readLink());
+  const [spaces,setSpaces]=useState<CloudSpace[]>([]);
 
   async function refresh(){
-    try{setItems(await listCloudProjects());setError('');}
+    try{setItems(await listCloudProjects());setError('');setSpaces(await listCloudSpaces().catch(()=>[]));}
     catch(e){setError(e instanceof Error?e.message:String(e));}
   }
   useEffect(()=>{
@@ -52,11 +53,11 @@ export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,au
     onStatus('Visite enregistrée dans le cloud (révision '+next.revision+')');
     await refresh();
   });
-  const open=(item:CloudProject)=>run('Ouverture…',async()=>{
+  const open=(item:CloudProject,spaceId?:string)=>run('Ouverture…',async()=>{
     if(hasUnsavedChanges&&!window.confirm('Des modifications du projet actuel ne sont pas encore enregistrées. Ouvrir « '+item.name+' » sans sauvegarder ces modifications ?\n\nClique sur Annuler pour utiliser la disquette avant de changer de projet.'))return;
     const loaded=await openCloudProject(item.id,setBusy);
     writeLink(loaded.link);setLink(loaded.link);
-    onOpen(loaded.project,loaded.link);
+    onOpen(loaded.project,loaded.link,spaceId);
     onStatus('Visite cloud ouverte (révision '+loaded.link.revision+')');
     onClose();
   });
@@ -98,6 +99,11 @@ export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,au
           <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
           {item.revision>0&&<button className="quiet" disabled={!!busy} onClick={()=>void showHistory(item)}>{historyFor===item.id?'Masquer':'Sauvegardes'}</button>}
         </div>
+        {spaces.filter(sp=>sp.project_id===item.id).length>0&&<div className="nv-cloud-spaces">
+          {spaces.filter(sp=>sp.project_id===item.id).map(sp=><button type="button" key={sp.space_id} className="quiet" disabled={!!busy} onClick={()=>void open(item,sp.space_id)}>
+            ▦ {sp.name} <small>({sp.panorama_count} panoramas)</small>
+          </button>)}
+        </div>}
         {historyFor===item.id&&<div className="nv-cloud-history">
           {revisions.map(rev=><button type="button" key={rev.revision} disabled={!!busy} onClick={()=>void openRevision(item,rev.revision)}>
             Révision {rev.revision} · {new Date(rev.created_at).toLocaleString('fr-FR')} · Restaurer

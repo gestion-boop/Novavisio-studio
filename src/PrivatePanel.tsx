@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {addMember,cloudConfigured,createCollaboratorAccount,listMembers,readLink,removeMember,saveToCloud,supabase,type Member} from './cloud';
+import {addMember,getWriteState,setWriteHolder,cloudConfigured,createCollaboratorAccount,listMembers,readLink,removeMember,saveToCloud,supabase,type Member} from './cloud';
 import type {SyncState} from './cloudSync';
 import {studioUrl} from './share';
 import {LoginBox} from './LoginBox';
@@ -28,6 +28,8 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
   const [members,setMembers]=useState<Member[]>([]);
   const [outcome,setOutcome]=useState<Outcome|null>(null);
   const [copied,setCopied]=useState(false);
+  const [includeSpaces,setIncludeSpaces]=useState(true);   // accès direct aux espaces dans le Cloud de la personne
+  const [giveHand,setGiveHand]=useState(false);              // lui donner aussi la main pour enregistrer
   const [includePw,setIncludePw]=useState(false); // compte créé à la main dans Supabase : le mot de passe saisi ici est celui du compte
   const [projectId,setProjectId]=useState<string|null>((space?readSpaceCloudLink(space.id,'private'):readLink())?.projectId??null);
 
@@ -88,8 +90,13 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
       setProjectId(link.projectId);
       // 2) autoriser l'adresse, puis créer le compte (e-mail + mot de passe)
       setBusy('Création de l’accès…');
-      await addMember(link.projectId,clean);
+      await addMember(link.projectId,clean,includeSpaces);
       const result=await createCollaboratorAccount(clean,password);
+      if(giveHand&&!space){
+        setBusy('Transmission de la main pour enregistrer…');
+        const state=await getWriteState(link.projectId);
+        if(state)await setWriteHolder(link.projectId,clean,state.revision);
+      }
       setOutcome({email:clean,password,result});
       onStatus('Accès privé créé pour '+clean);
       setEmail('');setPassword(generatePassword());
@@ -118,7 +125,7 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
         :syncState.kind==='saving'||syncState.kind==='pending'?'☁ Envoi de ta visite dans le cloud en cours…'
         :syncState.kind==='error'?'☁ Envoi impossible pour le moment : '+syncState.message
         :'☁ Ta visite sera envoyée dans le cloud au moment de créer l’accès.'}</div>
-      <div className="private-rule"><b>Qui sauvegarde ?</b> Chaque personne doit cliquer sur la disquette « Enregistrer » pour sauvegarder. L’envoi manuel conserve l’historique des versions. Évitez d’éditer la même scène simultanément.</div>
+      <div className="private-rule"><b>Qui sauvegarde ?</b> Une seule personne à la fois a « la main » pour enregistrer (indicateur « La main » en haut) : le propriétaire la transmet ou la reprend d’un clic. L’autre peut regarder et travailler, et reçoit un message s’il essaie d’enregistrer. L’historique des versions est conservé.</div>
       <form className="login-form" onSubmit={e=>{e.preventDefault();void invite();}}>
         <label>Adresse e-mail de la personne<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="prenom@exemple.fr" autoComplete="off" required/></label>
         <label>Mot de passe à lui donner (8 caractères minimum)
@@ -128,6 +135,8 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
             <button type="button" className="quiet" onClick={()=>{setPassword(generatePassword());setShowPassword(true);}}>Générer</button>
           </span>
         </label>
+        {!space&&<label className="toggle-row"><input type="checkbox" checked={includeSpaces} onChange={e=>setIncludeSpaces(e.target.checked)}/> Partager aussi tous les espaces liés au projet (accès directs dans son Cloud)</label>}
+        {!space&&<label className="toggle-row"><input type="checkbox" checked={giveHand} onChange={e=>setGiveHand(e.target.checked)}/> Donner aussi la main pour enregistrer (vous ne pourrez plus enregistrer tant que vous ne l'avez pas reprise)</label>}
         <button className="primary" type="submit" disabled={!!busy||!email.includes('@')||password.length<8}>Créer l’accès privé</button>
       </form>
       {outcome&&<div className="share-result">

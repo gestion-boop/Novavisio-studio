@@ -91,3 +91,10 @@ Non inclus : cadres photo/vidéo, fenêtres d'information sur les points, musiqu
 
 ## Écran partagé (travail à deux en direct)
 Aucune migration. Bouton « Écran partagé » dans l'en-tête : les deux personnes ouvrent le même projet Cloud puis cliquent chacune dessus. Souris de l'autre visible (couleur + prénom), pastille à chaque clic, « Prendre / Donner la main » : celui qui a la main fait suivre le panorama et l'espace affichés (suivi désactivable). Passe par Supabase Realtime (canal `nvlive:<id du projet>`) ; seules des positions de souris et l'identifiant du panorama transitent, jamais le contenu du projet.
+
+## « La main » pour enregistrer + espaces partagés
+Déjà appliqué dans Supabase (migrations `20261112155310` et `20261112160716`) ; copie lisible dans `supabase/migrations/20261112155310_nvstudio_write_control_spaces.sql`.
+- Pastille « La main : … » en haut de l'éditeur : qui peut enregistrer. Le propriétaire (ou celui qui a la main) la transmet ; le propriétaire la reprend ou la libère.
+- Celui qui n'a pas la main voit une fenêtre s'il essaie d'enregistrer ; ses modifications restent sur son appareil. Le contrôle est fait côté Cloud (impossible à contourner avec une ancienne fenêtre).
+- Formulaire « Lien privé » : cases « Partager aussi tous les espaces liés au projet » et « Donner aussi la main pour enregistrer ».
+- Panneau Cloud : les espaces partagés apparaissent sous la visite et s'ouvrent directement.

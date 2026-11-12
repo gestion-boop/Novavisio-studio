@@ -4277,3 +4277,20 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 .nv-live-bar .nv-live-quit{border-color:#835461;background:#48232b;color:#ffcad2}
 .nv-live-follow{display:inline-flex;align-items:center;gap:5px}
 .nv-live-error{color:#ffb3bd}
+
+/* « La main » pour enregistrer (visites partagées dans le Cloud) */
+.nv-hand{position:relative;display:inline-block}
+.nv-hand-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #426b77;border-radius:9px;background:#1d4350;color:#c4eced;padding:8px 12px;font-size:13px;cursor:pointer}
+.nv-hand-chip.is-mine{background:#1f7a5a;border-color:#6fe0b4;color:#fff}
+.nv-hand-chip.is-other{background:#7a4a14;border-color:#f2b266;color:#fff}
+.nv-hand-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:99980;width:340px;max-width:calc(100vw - 24px);padding:14px;border-radius:14px;background:#102a33;color:#e6f6f8;border:1px solid #426b77;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:13px}
+.nv-hand-pop p{margin:8px 0;color:#b1cfda;line-height:1.4}
+.nv-hand-head{display:flex;justify-content:space-between;align-items:center}
+.nv-hand-pop ul{list-style:none;margin:10px 0;padding:0;display:grid;gap:8px}
+.nv-hand-pop li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border-radius:10px;background:#ffffff10}
+.nv-hand-pop li span{display:grid;min-width:0}.nv-hand-pop li small{color:#9cc2cd;overflow:hidden;text-overflow:ellipsis}
+.nv-hand-pop button{border:1px solid #6fb6c5;border-radius:8px;background:#1d4350;color:#e6f6f8;padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap}
+.nv-hand-overlay{z-index:99999}
+.nv-hand-denied{max-width:460px}
+.nv-hand-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+.nv-cloud-spaces{display:flex;flex-wrap:wrap;gap:6px;grid-column:1/-1;margin-top:6px}

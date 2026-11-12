@@ -176,6 +176,24 @@ async function uploadMedia(snapshot:StudioProject,projectId:string,uid:string,on
   }
 }
 
+/** Quelqu'un d'autre a la main sur l'enregistrement de cette visite (contrôle fait côté Cloud, impossible à contourner). */
+export class WriteControlError extends Error{
+  holderEmail:string|null;
+  constructor(holderEmail:string|null){
+    super((holderEmail?holderEmail+' a la main':'Une autre personne a la main')+' sur l’enregistrement de cette visite. Demande-lui de te la transmettre. Tes modifications restent sur cet appareil.');
+    this.name='WriteControlError';this.holderEmail=holderEmail;
+  }
+}
+type PgErr={message:string;details?:string|null};
+/** Si l'erreur vient du contrôle de la main, prévient l'interface (fenêtre d'information) et renvoie l'erreur à lancer. */
+function writeDenied(error:PgErr):WriteControlError|null{
+  if(!/write_control_denied/.test(error.message))return null;
+  let holder:string|null=null;
+  try{holder=(JSON.parse(error.details??'null') as {holderEmail?:string}|null)?.holderEmail??null;}catch{/* détail absent */}
+  const err=new WriteControlError(holder);
+  try{window.dispatchEvent(new CustomEvent('nv-write-denied',{detail:{holderEmail:holder}}));}catch{/* hors navigateur */}
+  return err;
+}
 export class CloudConflictError extends Error{
   cloudVersion:number;
   constructor(cloudVersion:number){super('Cette visite a été modifiée ailleurs dans le cloud.');this.name='CloudConflictError';this.cloudVersion=cloudVersion;}
@@ -206,7 +224,7 @@ export async function saveToCloud(project:StudioProject,link:CloudLink|null,onPr
   onProgress('Enregistrement de la révision…');
   const revision=base+1;
   const {error}=await db.from('nvstudio_revisions').insert({project_id:projectId,revision,name:project.name.slice(0,200)||'Visite',snapshot});
-  if(error)throw new Error('Révision refusée (rien n’a été écrasé) : '+error.message);
+  if(error){const denied=writeDenied(error);if(denied)throw denied;throw new Error('Révision refusée (rien n’a été écrasé) : '+error.message);}
   return {...(link??{}),projectId:projectId!,revision};   // conserve la version de la copie de travail déjà connue
 }
 export async function cloudLatestRevision(projectId:string):Promise<number>{return latestRevision(projectId);}
@@ -263,6 +281,7 @@ export async function saveWorking(project:StudioProject,link:CloudLink|null,onPr
     ({data,error}=await db.rpc('nvstudio_save_working',args));
   }
   if(error){
+    const denied=writeDenied(error);if(denied)throw denied;
     if(/conflict/.test(error.message)){
       const meta=await fetchWorkingMeta(projectId);
       throw new CloudConflictError(meta.version);
@@ -352,6 +371,9 @@ export async function loadFromCloud(projectId:string,onProgress:(msg:string)=>vo
 /* ---------- Travail à plusieurs (« lien privé ») ---------- */
 export type Member={email:string;created_at:string};
 const collabFriendly=(m:string)=>
+  /write_control_not_manager/.test(m)?'Seul le propriétaire, ou la personne qui a la main, peut la transmettre.':
+  /write_control_conflict/.test(m)?'La main vient de changer ailleurs. Réessaie.':
+  /write_control_not_participant/.test(m)?'Cette personne n’a pas accès à la visite : invite-la d’abord.':
   /not_owner/.test(m)?'Seul le propriétaire de la visite peut gérer les accès.':
   /invalid_email/.test(m)?'Adresse e-mail non valide.':
   /nvstudio_add_member|nvstudio_remove_member|nvstudio_members|schema cache|Could not find the function|does not exist/i.test(m)?
@@ -361,9 +383,37 @@ export async function listMembers(projectId:string):Promise<Member[]>{
   if(error)throw new Error(collabFriendly(error.message));
   return (data??[]) as Member[];
 }
-export async function addMember(projectId:string,email:string){
-  const {error}=await supabase().rpc('nvstudio_add_member',{p_project:projectId,p_email:email});
+export async function addMember(projectId:string,email:string,includeSpaces=true){
+  let {error}=await supabase().rpc('nvstudio_invite_member',{p_project:projectId,p_email:email,p_include_spaces:includeSpaces});
+  if(error&&/nvstudio_invite_member|Could not find the function|schema cache/i.test(error.message)){
+    ({error}=await supabase().rpc('nvstudio_add_member',{p_project:projectId,p_email:email}));
+  }
   if(error)throw new Error(collabFriendly(error.message));
+}
+/** Qui a la main pour enregistrer ? (contrôle côté Cloud : voir nvstudio_write_control) */
+export type WriteState={projectId:string;holderEmail:string|null;revision:number;ownerEmail:string;myEmail:string;isOwner:boolean;canWrite:boolean;canManage:boolean;participants:{email:string;owner:boolean}[]};
+export async function getWriteState(projectId:string):Promise<WriteState|null>{
+  const {data,error}=await supabase().rpc('nvstudio_write_state',{p_project:projectId});
+  if(error){
+    if(/Could not find the function|schema cache|does not exist/i.test(error.message))return null; // contrôle non installé : tout le monde peut enregistrer
+    throw new Error(collabFriendly(error.message));
+  }
+  return data as WriteState;
+}
+/** email = nouvelle personne qui a la main ; null = personne en particulier (réservé au propriétaire). */
+export async function setWriteHolder(projectId:string,email:string|null,expectedRevision:number):Promise<WriteState>{
+  const {data,error}=await supabase().rpc('nvstudio_set_write_holder',{p_project:projectId,p_email:email,p_expected:expectedRevision});
+  if(error)throw new Error(collabFriendly(error.message));
+  return data as WriteState;
+}
+export type CloudSpace={project_id:string;space_id:string;name:string;panorama_count:number};
+export async function listCloudSpaces():Promise<CloudSpace[]>{
+  const {data,error}=await supabase().rpc('nvstudio_project_spaces');
+  if(error){
+    if(/Could not find the function|schema cache|does not exist/i.test(error.message))return [];
+    throw new Error(error.message);
+  }
+  return (data??[]) as CloudSpace[];
 }
 export async function removeMember(projectId:string,email:string){
   const {error}=await supabase().rpc('nvstudio_remove_member',{p_project:projectId,p_email:email});
