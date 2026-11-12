@@ -4315,3 +4315,5 @@ body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointe
 @media(max-width:700px){.nv-topbar-v2 .nv-hgroup-label{display:none}.nv-topbar-v2 .nv-hrow-main .nv-hgroup-team,.nv-topbar-v2 .nv-hrow-actions .nv-hgroup-project{margin-left:0}}
 .nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow>*{order:0}
 .nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow-main .nv-hgroup-team,.nv-studio-pro .topbar.nv-topbar-v2 .nv-hrow-actions .nv-hgroup-project{margin-left:auto}
+.nv-footer-refresh{margin-left:10px;border:0;background:transparent;color:#7fd0d8;font:inherit;cursor:pointer;text-decoration:underline;padding:0}
+.nv-footer-refresh:disabled{opacity:.5;cursor:default}

@@ -2568,16 +2568,12 @@ function App(){
       <div className="nv-hrow nv-hrow-actions">
       <div className="top-actions nv-hgroup nv-hgroup-file" role="group" aria-label="Fichier et publication">
         <span className="nv-hgroup-label">Fichier</span>
-        <button type="button"
-          className={'nv-header-update'+(updateAvailable?' is-available':'')}
-          onClick={reloadToLatestVersion}
-          disabled={savingManually}
-          title={updateAvailable?'Nouvelle version disponible : cliquer pour actualiser':'Actualiser NovaStudio'}
-          aria-label={updateAvailable?'Nouvelle mise à jour disponible : actualiser NovaStudio':'Actualiser NovaStudio'}>
-          <RefreshCw size={16} aria-hidden="true"/>
-          <span>{updateAvailable?'Mise à jour':'À jour'}</span>
-          {updateAvailable&&<i className="nv-header-update-dot" aria-hidden="true"/>}
-        </button>
+        {updateAvailable&&<button type="button" className="nv-header-update is-available"
+          onClick={reloadToLatestVersion} disabled={savingManually}
+          title="Une nouvelle version de NovaStudio est disponible : cliquer pour la charger (pensez à enregistrer avant)"
+          aria-label="Nouvelle version de NovaStudio disponible : actualiser">
+          <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
+        </button>}
         <button type="button" className={'nv-header-save'+(project!==savedRef.current||!cloud.signedIn?' is-cloud-dirty':'')} disabled={!ready||savingManually||!!lock}
           title={!ready?'Chargement…':savingManually?'Enregistrement en cours…':
             project!==savedRef.current?'Modifications non enregistrées · Enregistrer (⌘S / Ctrl+S)':
@@ -2588,12 +2584,6 @@ function App(){
           {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
         </button>
         <button type="button" className="nv-header-publish" disabled={savingManually||!ready||!!lock||!project.scenes.length} onClick={()=>setPublishConfirm(true)}>⚠ Publier</button>
-        <button type="button" className="nv-header-icon-btn"
-          title={studioFullscreen?'Quitter le plein écran':'Plein écran de tout NovaVisio Studio'}
-          aria-label={studioFullscreen?'Quitter le plein écran du logiciel':'Plein écran du logiciel'}
-          aria-pressed={studioFullscreen} onClick={()=>void toggleStudioFullscreen()}>
-          {studioFullscreen?<Minimize2 size={18}/>:<Maximize2 size={18}/>}
-        </button>
         <button type="button" className="primary nv-header-export" disabled={exporting||!visibleScenes.length}
           title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
           onClick={()=>void exportTour()}>
@@ -3715,13 +3705,13 @@ function App(){
             /* SCENE OVERVIEW (AUCUN POINT SÉLECTIONNÉ)                        */
             /* ============================================================== */
             <div className="scene-overview">
-              <div className="nv-action-rectangles"><button type="button" onClick={saveArrivalView}>◎ Définir la vue d’arrivée</button><button type="button" onClick={()=>{setMode('navigation');setSelectedId('')}}>➜ Navigation</button><button type="button" onClick={()=>{setMode('information');setSelectedId('')}}>ⓘ Information</button><button type="button" onClick={()=>{setPanel('bar');setSelectedId('')}}>☷ Barre du bas</button><button type="button" onClick={()=>setSpaceManagerOpen(true)} disabled={!currentSpace}>▦ Modifier l’espace</button></div>
+              <div className="nv-action-rectangles"><button type="button" onClick={()=>{setMode('navigation');setSelectedId('')}}>➜ Navigation</button><button type="button" onClick={()=>{setMode('information');setSelectedId('')}}>ⓘ Information</button><button type="button" onClick={()=>{setPanel('bar');setSelectedId('')}}>☷ Barre du bas</button><button type="button" onClick={()=>setSpaceManagerOpen(true)} disabled={!currentSpace}>▦ Modifier l’espace</button></div>
               <div className="section-title">PARAMÈTRES DU PANORAMA</div>
               <label>Nom de la scène
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
 
-              <InspectorSection title="Vue d’arrivée et cadrage">
+              <InspectorSection title="Vue d’arrivée et cadrage" initiallyOpen>
               {viaHotspot&&viaFrom?<div className="arrival-view-card is-arrow">
                 <div className="section-title">VUE D’ARRIVÉE · PAR CETTE FLÈCHE</div>
                 <p>Tu es arrivé ici par la flèche <b>« {viaHotspot.title||'Navigation'} »</b> de <b>{viaFrom.name}</b>. Oriente la vue comme tu veux qu’elle apparaisse quand on clique sur <b>cette flèche</b>, puis enregistre. Chaque flèche qui mène à ce panorama a sa propre vue.</p>
@@ -3992,7 +3982,7 @@ function App(){
         setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
       }}
     />}
-    <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase</span></footer>
+    <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
     {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}>×</button></div>}
     {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p><div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>Confirmer la publication</button></div></section></div>}

@@ -3,8 +3,8 @@ import {useCallback,useEffect,useMemo,useRef,useState,type ReactNode} from 'reac
 /**
  * « Écran partagé » : deux personnes ouvrent le même projet Cloud et se voient travailler en direct.
  *  - la souris de chacun est visible chez l'autre (couleur et prénom différents) + un rond à chaque clic ;
- *  - une seule personne « a la main » : le panorama / l'espace qu'elle ouvre s'affiche aussi chez l'autre (suivi, désactivable) ;
- *  - la main se donne ou se prend d'un clic.
+ *  - un seul « pilote » à la fois : le panorama / l'espace qu'il ouvre s'affiche aussi chez l'autre (suivi, désactivable) ;
+ *  - le pilotage se passe ou se prend d'un clic.
  * Ce sont uniquement des positions de souris et l'identifiant du panorama affiché : aucune donnée du projet ne transite, et
  * personne ne peut agir à la place de l'autre. Canal Supabase Realtime nommé d'après l'identifiant (secret) du projet.
  */
@@ -76,13 +76,13 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
       t.on('state',p=>{
         if(p.id===leaderRef.current&&followRef.current&&p.sceneId)remoteRef.current({sceneId:p.sceneId,spaceId:p.spaceId??null});
       });
-      t.on('hello',()=>{ // un nouvel arrivant demande qui a la main
+      t.on('hello',()=>{ // un nouvel arrivant demande qui pilote
         if(leaderRef.current===selfId)t.send('hand',{id:selfId});
       });
       t.join({id:selfId,label,joinedAt:joinedAt.current},list=>{
         const sorted=[...list].sort((a,b)=>a.joinedAt-b.joinedAt||a.id.localeCompare(b.id));
         setPeers(old=>sorted.map((m,i)=>({...m,color:COLORS[i%COLORS.length],cursor:old.find(o=>o.id===m.id)?.cursor,pulse:old.find(o=>o.id===m.id)?.pulse})));
-        // Un départ libère la main.
+        // Un départ libère le pilotage.
         setLeaderId(cur=>cur&&!sorted.some(m=>m.id===cur)?null:cur);
       });
       t.send('hello',{id:selfId});
@@ -106,7 +106,7 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
     return ()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerdown',click,true);};
   },[enabled,projectId,selfId]);
 
-  // Celui qui a la main diffuse le panorama / l'espace affiché.
+  // Le pilote diffuse le panorama / l'espace affiché.
   useEffect(()=>{
     if(!enabled||leaderId!==selfId)return;
     transport.current?.send('state',{id:selfId,...opts.state});
@@ -144,7 +144,7 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
         return <div key={p.id}>
           {show&&<div className="nv-live-cursor" style={{left:c.x*100+'%',top:c.y*100+'%'}}>
             <Arrow color={p.color} big={live.leaderId===p.id}/>
-            <span style={{background:p.color}}>{fmtName(p)}{live.leaderId===p.id?' · a la main':''}</span>
+            <span style={{background:p.color}}>{fmtName(p)}{live.leaderId===p.id?' · pilote':''}</span>
           </div>}
           {p.pulse&&now-p.pulse.t<700&&<span key={p.pulse.t} className="nv-live-pulse" style={{left:p.pulse.x*100+'%',top:p.pulse.y*100+'%',borderColor:p.color}}/>}
         </div>;
@@ -156,10 +156,10 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
       {others.length===0?<span>· En attente de l'autre personne… (elle doit cliquer aussi sur « Écran partagé »)</span>:
         <span>· avec {others.map(p=><i key={p.id} style={{color:p.color}}>{fmtName(p)}</i>).reduce<ReactNode[]>((a,x,i)=>i?[...a,', ',x]:[x],[])}</span>}
       {others.length>0&&(iHaveHand?
-        <><span className="nv-live-chip is-hand">Vous avez la main</span><button type="button" onClick={live.release}>Donner la main</button></>:
-        <>{leader?<span className="nv-live-chip">{fmtName(leader)} a la main</span>:<span className="nv-live-chip">Personne n'a la main</span>}
+        <><span className="nv-live-chip is-hand">Vous êtes le pilote</span><button type="button" onClick={live.release}>Passer le pilotage</button></>:
+        <>{leader?<span className="nv-live-chip">{fmtName(leader)} est le pilote</span>:<span className="nv-live-chip">Aucun pilote pour l'instant</span>}
           {leader&&<label className="nv-live-follow"><input type="checkbox" checked={live.follow} onChange={e=>live.setFollow(e.target.checked)}/> Suivre</label>}
-          <button type="button" onClick={live.take}>Prendre la main</button></>)}
+          <button type="button" onClick={live.take}>Piloter</button></>)}
       {live.error&&<span className="nv-live-error">{live.error}</span>}
       <button type="button" className="nv-live-quit" onClick={onClose}>Quitter</button>
     </div>
