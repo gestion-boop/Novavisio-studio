@@ -275,7 +275,9 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     '--nv-icon-color':theme.icon,
     '--nv-bar-border-width':theme.outlineWidth+'px',
     '--nv-button-border-width':theme.buttonOutlineWidth+'px',
-    '--nv-bar-roundness':theme.roundness+'px'
+    '--nv-bar-roundness':theme.roundness+'px',
+    '--nv-bar-width':theme.width?theme.width+'px':'max-content',
+    '--nv-bar-height':(theme.height??82)+'px'
   } as CSSProperties;
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const current=project.scenes.find(s=>s.id===sceneId)??project.scenes[0];

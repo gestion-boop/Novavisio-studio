@@ -43,6 +43,8 @@ export type BarStyle = {
   outlineWidth: number;
   buttonOutlineWidth: number;
   roundness: number;
+  width?: number;
+  height?: number;
 };
 export const defaultBarStyle = ():BarStyle => ({
   background:'#c2c5c6', outline:'#987974',button:'#5d131a',
@@ -105,7 +107,8 @@ export type ClientProfile = {novagenId:string;name:string;category:string;addres
 export const emptyClientProfile=():ClientProfile=>({novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''});
 export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
 export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
-export type StudioProject = { version: 1; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[]}[] };
+export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number};
+export type StudioProject = { version: 1; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[]}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -222,7 +225,9 @@ export function validateProject(value:unknown):StudioProject {
       !isColor(barStyle.button) || !isColor(barStyle.buttonOutline) || !isColor(barStyle.icon) || !isColor(barStyle.dayNightColor) ||
       !Number.isInteger(barStyle.outlineWidth) || barStyle.outlineWidth < 0 || barStyle.outlineWidth > 8 ||
       !Number.isInteger(barStyle.buttonOutlineWidth) || barStyle.buttonOutlineWidth < 0 || barStyle.buttonOutlineWidth > 8 ||
-      !Number.isInteger(barStyle.roundness) || barStyle.roundness < 0 || barStyle.roundness > 60) {
+      !Number.isInteger(barStyle.roundness) || barStyle.roundness < 0 || barStyle.roundness > 60 ||
+      (barStyle.width!==undefined && (!Number.isInteger(barStyle.width)||barStyle.width<0||barStyle.width>1400)) ||
+      (barStyle.height!==undefined && (!Number.isInteger(barStyle.height)||barStyle.height<56||barStyle.height>160))) {
     throw new Error('Style de la barre non valide');
   }
   const introUrl = p.introUrl ?? '';
@@ -317,6 +322,11 @@ export function validateProject(value:unknown):StudioProject {
   }
   const languages=p.languages===undefined?(p.name?.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(l=>l.code):['fr' as StudioLanguage]):p.languages;
   if(!Array.isArray(languages)||!languages.length||languages.length>5||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
+  if(p.preparationComplete!==undefined && typeof p.preparationComplete!=='boolean')throw new Error('Préparation de projet invalide');
+  if(p.defaultMusicTrackId!==undefined&&!audioTracks.some(t=>t.id===p.defaultMusicTrackId))throw new Error('Musique par défaut introuvable');
+  const nav=p.defaultNavigationIcon;
+  if(nav && (typeof nav!=='object'||!icons.some(i=>i.id===nav.iconId)||[nav.hoverIconId,nav.pressedIconId].some(id=>id!==undefined&&!icons.some(i=>i.id===id))||!Number.isFinite(nav.iconSize)||nav.iconSize<16||nav.iconSize>80))throw new Error('Icône de navigation par défaut invalide');
+  if(p.iconPackId!==undefined&&(typeof p.iconPackId!=='string'||p.iconPackId.length>100))throw new Error('Collection d’icônes invalide');
   const hiddenIconSets = Array.isArray(p.hiddenIconSets) ? p.hiddenIconSets.filter(k => typeof k === 'string' && k.length < 600).slice(0, 300) : undefined;
   const hiddenAvailableIcons=Array.isArray(p.hiddenAvailableIcons)?p.hiddenAvailableIcons.filter(id=>typeof id==='string'&&icons.some(icon=>icon.id===id)).slice(0,300):undefined;
   const favoriteNavigationIconSet=typeof p.favoriteNavigationIconSet==='string'&&p.favoriteNavigationIconSet.length<600?p.favoriteNavigationIconSet:undefined;

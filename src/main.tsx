@@ -1,3 +1,7 @@
+import {ProjectPreparation} from './ProjectPreparation';
+import {SkinLibrary} from './SkinLibrary';
+import {BarDimensions,InspectorSection} from './PreparationControls';
+import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
 
@@ -567,6 +571,9 @@ function App(){
   const [svgGenerating,setSvgGenerating]=useState(false);
   const svgLogoInput=useRef<HTMLInputElement>(null);
   const [ready,setReady]=useState(false);
+  const [preparationOpen,setPreparationOpen]=useState(false);
+  const [skinsOpen,setSkinsOpen]=useState(false);
+  const preparationPrompted=useRef(false);
   const [savingManually,setSavingManually]=useState(false);
   const [updateAvailable,setUpdateAvailable]=useState(false);
   const updateReloadApproved=useRef(false);
@@ -1099,6 +1106,12 @@ function App(){
   const selectedBar=project.bottomBar.find(b=>b.id===selectedBarId) ?? null;
   const closeIcon=project.icons.find(icon=>icon.id===project.closeIconId);
   const popupThemeClass=closeIcon?' nv-custom-close':'';
+  useEffect(()=>{
+    if(ready&&!lock&&!preparationPrompted.current){
+      preparationPrompted.current=true;
+      if(!project.preparationComplete)setPreparationOpen(true);
+    }
+  },[ready,lock,project.preparationComplete]);
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-bar-bg':project.barStyle.background,
@@ -1109,7 +1122,9 @@ function App(){
     '--nv-icon-color':project.barStyle.icon,
     '--nv-bar-border-width':project.barStyle.outlineWidth+'px',
     '--nv-button-border-width':project.barStyle.buttonOutlineWidth+'px',
-    '--nv-bar-roundness':project.barStyle.roundness+'px'
+    '--nv-bar-roundness':project.barStyle.roundness+'px',
+    '--nv-bar-width':project.barStyle.width?project.barStyle.width+'px':'max-content',
+    '--nv-bar-height':(project.barStyle.height??82)+'px'
   } as CSSProperties;
   function changeBarStyle(update:Partial<BarStyle>) {
     setProject(p=>({...p,barStyle:{...p.barStyle,...update}}));
@@ -1181,6 +1196,7 @@ function App(){
     if(!window.confirm('Supprimer cette musique et ses affectations aux panoramas ?'))return;
     setProject(p=>({...p,
       audioTracks:p.audioTracks.filter(track=>track.id!==trackId),
+      defaultMusicTrackId:p.defaultMusicTrackId===trackId?undefined:p.defaultMusicTrackId,
       scenes:p.scenes.map(sc=>sc.musicTrackId===trackId?{...sc,musicTrackId:undefined}:sc)
     }));
   }
@@ -1256,6 +1272,8 @@ function App(){
   // Réutiliser le jeu Navigation réellement employé par le projet.
   // Ainsi Figurotta reprend ses trois PNG et sa taille 50px.
   function defaultNavigationIconSet(){
+    if(project.defaultNavigationIcon&&project.icons.some(icon=>icon.id===project.defaultNavigationIcon!.iconId))return project.defaultNavigationIcon;
+    if(project.iconPackId==='classic')return null;
     const valid=new Set(project.icons.map(icon=>icon.id));
     const counts=new Map<string,{iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number;count:number}>();
     for(const scene of project.scenes)for(const point of scene.hotspots){
@@ -1393,8 +1411,7 @@ function App(){
   function nightSceneControls(scene:Scene){
     const source=project.scenes.find(other=>other.id===scene.nightSourceSceneId);
     const configured=!!(scene.nightDataUrl||source);
-    return <div className="nv-night-settings">
-      <div className="section-title">MODE JOUR / NUIT</div>
+    return <InspectorSection title="Mode jour / nuit"><div className="nv-night-settings">
       <p className="hint">Associe un panorama de nuit au panorama actuel. Les deux vues gardent les mêmes points et un fondu assure la transition.</p>
       <div className="nv-night-dropzone" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importNightPanorama(e.dataTransfer.files[0]);}}>
         <button type="button" className="import" onClick={()=>nightInput.current?.click()}>
@@ -1431,7 +1448,7 @@ function App(){
         }}>Retirer la version nuit</button>
       </>}
       <small className="hint-inline">Pour un fondu parfaitement aligné, utilise deux photos prises depuis le même point et orientées de la même façon.</small>
-    </div>;
+    </div></InspectorSection>;
   }
   function saveArrivalView(){
     if(!active)return;
@@ -1645,15 +1662,14 @@ function App(){
     });
   }
   function projectLanguageEditor(){
-    return <div className="nv-project-language-settings">
-      <div className="section-title">LANGUES DU PROJET</div>
+    return <InspectorSection title="Langues du projet"><div className="nv-project-language-settings">
       <p className="hint">Choisis les langues proposées dans les points Information. Ce réglage est enregistré avec le projet Cloud.</p>
       <div className="nv-project-language-options">{STUDIO_LANGUAGES.map(lang=><label key={lang.code} className="nv-project-language-option">
         <input type="checkbox" checked={activeLanguages.includes(lang.code)} onChange={e=>setProjectLanguage(lang.code,e.target.checked)}/>
         <span aria-hidden="true">{lang.flag}</span><strong>{lang.name}</strong>
       </label>)}</div>
       <small>Les langues des pages externes intégrées restent configurées sur leur site d'origine.</small>
-    </div>;
+    </div></InspectorSection>;
   }
   function languageTexts(texts:Partial<Record<'en'|'es'|'de'|'nl',string>>|undefined,onChange:(code:'en'|'es'|'de'|'nl',value:string)=>void){
     return STUDIO_LANGUAGES.filter(lang=>lang.code!=='fr'&&activeLanguages.includes(lang.code)).map(lang=>{
@@ -1665,7 +1681,7 @@ function App(){
   }
   function triggerBar(item:BottomBarItem){
     if(!preview){
-      setSelectedBarId(item.id);setPanel('bar');setSelectedId('');
+      setSelectedBarId(current=>current===item.id?'':item.id);setPanel('bar');setSelectedId('');
       if(creationFullscreen){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
       return;
     }
@@ -1893,6 +1909,7 @@ function App(){
     if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
     setProject(p=>({...p,
       icons:p.icons.filter(i=>i.id!==id),
+      defaultNavigationIcon:p.defaultNavigationIcon?.iconId===id?undefined:p.defaultNavigationIcon?{...p.defaultNavigationIcon,hoverIconId:p.defaultNavigationIcon.hoverIconId===id?undefined:p.defaultNavigationIcon.hoverIconId,pressedIconId:p.defaultNavigationIcon.pressedIconId===id?undefined:p.defaultNavigationIcon.pressedIconId}:undefined,
       closeIconId:p.closeIconId===id?undefined:p.closeIconId,
       soundOnIconId:p.soundOnIconId===id?undefined:p.soundOnIconId,
       soundOnHoverIconId:p.soundOnHoverIconId===id?undefined:p.soundOnHoverIconId,
@@ -1926,6 +1943,7 @@ function App(){
       map.set(key,entry);
     };
     project.bottomBar.forEach(b=>add('Barre : '+b.title,barIconSize(b),b.iconId,b.hoverIconId,b.pressedIconId));
+    if(project.defaultNavigationIcon){const nav=project.defaultNavigationIcon;add('Flèche par défaut',nav.iconSize,nav.iconId,nav.hoverIconId,nav.pressedIconId);}
     add('Fermeture des popups',42,project.closeIconId);
     project.scenes.forEach(sc=>sc.hotspots.forEach(h=>{
       if(h.type!=='image'&&h.type!=='video')add(sc.name+' : '+h.title,h.iconSize??28,h.iconId,h.hoverIconId,h.pressedIconId);
@@ -1933,7 +1951,11 @@ function App(){
     return [...map.values()];
   }
   // Jeux visibles : ceux que l'utilisateur n'a pas retirés de la liste.
-  function setNavigationIconFavorite(key:string){setProject(p=>({...p,favoriteNavigationIconSet:p.favoriteNavigationIconSet===key?undefined:key}));}
+  function setNavigationIconFavorite(key:string){
+    const chosen=allIconSets().find(set=>set.key===key);
+    setProject(p=>({...p,favoriteNavigationIconSet:p.favoriteNavigationIconSet===key?undefined:key,
+      defaultNavigationIcon:p.favoriteNavigationIconSet===key||!chosen?undefined:{iconId:chosen.iconId,hoverIconId:chosen.hoverIconId,pressedIconId:chosen.pressedIconId,iconSize:Math.max(16,Math.min(80,chosen.size))}}));
+  }
   function collectIconSets():IconSet[]{
     const hidden=new Set(project.hiddenIconSets??[]);
     return allIconSets().filter(set=>!hidden.has(set.key));
@@ -2137,7 +2159,7 @@ function App(){
       } catch { setStatus('Erreur de lecture : '+file.name); }
     }
     if(next.length){
-      setProject(p=>({...p,scenes:[...p.scenes,...next],
+      setProject(p=>({...p,scenes:[...p.scenes,...next.map(scene=>({...scene,musicTrackId:p.defaultMusicTrackId}))],
         spaces:activeSpaceId?(p.spaces??[]).map(space=>space.id===activeSpaceId?{
           ...space,sceneIds:[...space.sceneIds,...next.map(scene=>scene.id)]
         }:space):p.spaces
@@ -2257,7 +2279,7 @@ function App(){
       if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
       setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
       cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
-      setStatus('Projet importé');
+      setStatus('Projet importé');setPreparationOpen(!imported.preparationComplete);
     }catch(e){window.alert('Impossible d’ouvrir ce projet : '+String(e));}
     finally {if(projectInput.current)projectInput.current.value='';}
   }
@@ -2272,12 +2294,12 @@ function App(){
     if(!window.confirm('Repartir d’un projet vide REMPLACE définitivement le projet enregistré dans ce navigateur. As-tu téléchargé les données brutes ?'))return;
     baseRef.current=(rawStoredRef.current as {updatedAt?:string}|null)?.updatedAt??null;
     const fresh=newProject();
-    setProject(fresh);setActiveId('');setSelectedId('');setLock(null);
+    setProject(fresh);setActiveId('');setSelectedId('');setLock(null);setPreparationOpen(true);
     void persist(fresh,true);
   }
   function startFresh(){
     if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
-    setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);
+    setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
     cloud.unlink();
   }
   function addClientLink(item:ClientLink){
@@ -2320,6 +2342,8 @@ function App(){
           <div className="nv-navigation-drawer-header"><strong>Navigation</strong>
             <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu">×</button>
           </div>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setPreparationOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Sparkles size={17}/> Préparer le projet</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
             <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
           </button>
@@ -3090,6 +3114,7 @@ function App(){
                         onChange={e=>patchBar({iconSize:Number(e.target.value)})}/>
                     </label>
                   </div>}
+                  <InspectorSection title="Dimensions de la barre"><BarDimensions style={project.barStyle} onChange={changeBarStyle}/></InspectorSection>
                   <div className="nv-quick-section-title">Apparence de la barre</div>
                   <div className="nv-quick-colors">
                     {([
@@ -3644,9 +3669,9 @@ function App(){
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
+          <InspectorSection title="Dimensions de la barre"><BarDimensions style={project.barStyle} onChange={changeBarStyle}/></InspectorSection>
           {projectLanguageEditor()}
-          <div className="style-settings">
-            <div className="section-title">COULEURS ET CONTOURS</div>
+          <InspectorSection title="Couleurs et contours"><div className="style-settings">
             <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
             <div className="style-colors">
               {barColorFields.map(field=><label className="style-color-field" key={field.key}>
@@ -3662,13 +3687,15 @@ function App(){
               <input type="range" min="0" max="60" step="1" value={project.barStyle.roundness} onChange={e=>changeBarStyle({roundness:Number(e.target.value)})}/></label>
             <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
           </div>
-          <div className="bar-items-list">{project.bottomBar.map(item=><button key={item.id} className={'bar-item-row '+(selectedBarId===item.id?'current':'')} onClick={()=>setSelectedBarId(item.id)}>
+          </InspectorSection>
+          <InspectorSection title="Boutons et actions" initiallyOpen>
+          <div className="bar-items-list">{project.bottomBar.map(item=><button key={item.id} className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
             <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
             <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
           </button>)}</div>
           <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
           <button className="preset-button" onClick={()=>{if(window.confirm('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
-          {selectedBar && <>
+          {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
             <hr/>
             <div className="section-title">CONFIGURER LE BOUTON</div>
             <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
@@ -3685,7 +3712,7 @@ function App(){
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
-            <div className="section-title">MES PNG — NORMAL, SURVOL, CLIC</div>
+            <InspectorSection title="Icônes : normal, survol, clic">
             {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size}))}
             {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id}),'Icône par défaut')}
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
@@ -3694,11 +3721,16 @@ function App(){
             {!selectedBar.iconId && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
               {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
             </select></label>}
+            </InspectorSection>
+            <InspectorSection title="Taille et position">
             <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
             <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>({...b,iconSize:size}))}));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
             <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
+            </InspectorSection>
             <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
-          </>}
+          </InspectorSection>}
+          </InspectorSection>
+          <button type="button" className="import" onClick={()=>setSkinsOpen(true)}>Enregistrer ou appliquer un skin</button>
         </div>}
         {panel==='elements' && <div className="properties">
           <div className="section-title">ÉLÉMENTS DE CE PANORAMA</div>
@@ -3761,7 +3793,7 @@ function App(){
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='music' && <div className="properties">
-          <div className="section-title">BOUTONS SON DE LA VISITE</div>
+          <InspectorSection title="Boutons son de la visite">
           <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
           <div className="section-title">SON ACTIVÉ — 3 ICÔNES</div>
           {iconStateEditor('audio-on-normal','Son activé · Normal',project.soundOnIconId,
@@ -3777,10 +3809,11 @@ function App(){
             id=>setProject(p=>({...p,soundOffHoverIconId:id})),'🔇')}
           {iconStateEditor('audio-off-pressed','Son coupé · Clic',project.soundOffPressedIconId,
             id=>setProject(p=>({...p,soundOffPressedIconId:id})),'🔇')}
+          </InspectorSection>
           <div className="section-title">BIBLIOTHÈQUE MUSICALE <span className="counter">{project.audioTracks?.length??0}</span></div>
           <p className="hint">Attribue une piste à plusieurs panoramas : elle joue en continu, en boucle, sans recommencer lors du passage d’une scène à l’autre. Choisis une autre piste là où tu souhaites changer d’ambiance.</p>
           <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une piste MP3, WAV, OGG</button>
-          {(project.audioTracks??[]).map(track=><div className="music-track-card" key={track.id}>
+          {(project.audioTracks??[]).map(track=><InspectorSection title={track.name} key={track.id}>
             <div className="music-track-title"><strong>{track.name}</strong><button type="button" onClick={()=>removeTrack(track.id)} title="Supprimer cette piste">✕</button></div>
             <label>Nom<input value={track.name} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,name:e.target.value}:t)}))}/></label>
             <label>Volume : {track.volume} %
@@ -3792,11 +3825,11 @@ function App(){
               <input type="checkbox" checked={sc.musicTrackId===track.id} onChange={e=>assignMusic(track.id,sc.id,e.target.checked)}/>
               <span>{sc.name}</span>
             </label>)}
-          </div>)}
+          </InspectorSection>)}
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties">
-          <div className="section-title">CROIX DE FERMETURE — TOUTES LES FENÊTRES</div>
+          <InspectorSection title="Croix de fermeture des fenêtres">
           <p className="hint">Une seule icône pour fermer les photos, vidéos, informations et popups de tous les panoramas. Le changement s’applique à l’ensemble de cette visite, y compris à l’export.</p>
           <div className="nv-close-current">
             <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
@@ -3806,6 +3839,7 @@ function App(){
             id=>setProject(p=>({...p,closeIconId:id})),'✕')}
           {closeIcon&&<button type="button" className="tool" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG dans toute la bibliothèque</button>}
           <p className="hint">Après avoir choisi la croix, clique sur « Enregistrer » en haut de NovaStudio. Les autres icônes de navigation ne sont pas modifiées.</p>
+          </InspectorSection>
           {svgIconWorkshop()}
           <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
           <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
@@ -3833,6 +3867,9 @@ function App(){
       }}
     />}
     <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase</span></footer>
+    {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
+      onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
+    {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
@@ -3847,7 +3884,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setPreparationOpen(!up.preparationComplete);setActiveId(up.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>

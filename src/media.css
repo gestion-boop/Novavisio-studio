@@ -1,5 +1,19 @@
 
 /* Shared between the Studio editor and the exported HTML visitor. */
+.nv-studio-pro .visitor-bottom-bar,.tour-app .tour-bottom-bar{
+  box-sizing:border-box;width:var(--nv-bar-width,max-content);max-width:calc(100% - 24px);
+  height:var(--nv-bar-height,82px);min-height:var(--nv-bar-height,82px);
+  align-items:center;justify-content:space-evenly;gap:12px;padding:6px 14px;
+}
+.visitor-bottom-bar .visitor-bar-button,.tour-bottom-bar .tour-bar-button{
+  --nv-bar-size:min(var(--nv-bar-btn,58px),calc(var(--nv-bar-height,82px) - 16px),17vw);
+  box-sizing:border-box;flex:0 0 var(--nv-bar-size);width:var(--nv-bar-size);height:var(--nv-bar-size);
+  min-width:var(--nv-bar-size);max-width:var(--nv-bar-size);min-height:var(--nv-bar-size);padding:0;
+}
+.visitor-bottom-bar .visitor-bar-button.has-custom-png,.tour-bottom-bar .tour-bar-button.has-custom-png{
+  --nv-bar-size:min(var(--nv-bar-btn,48px),calc(var(--nv-bar-height,82px) - 16px),17vw);
+}
+.visitor-bottom-bar .visitor-bar-icon svg,.tour-bottom-bar .tour-bar-icon svg{max-width:calc(var(--nv-bar-size) - 12px);max-height:calc(var(--nv-bar-size) - 12px)}
 .nv-photo-frame-picker{min-width:0;margin:10px 0;padding:10px;border:1px solid #365b69;border-radius:10px}
 .nv-photo-frame-picker legend{padding:0 5px;color:#d8edf1;font-size:12px;font-weight:700}
 .nv-photo-frame-picker>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
