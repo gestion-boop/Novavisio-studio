@@ -2,7 +2,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,Image as ImageIcon,LoaderCircle,RefreshCw,Search,Users,X} from 'lucide-react';
 import {listCloudProjects,type CloudProject} from './cloud';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
-import type {ClientProfile} from './storage';
+import type {BarStyle,ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
 import {InfoRow} from './InfoRow';
 import {DiscoveryDetail,DiscoveryList,useWebDiscovery} from './ClientDiscovery';
@@ -17,7 +17,8 @@ const safeRemoteUrl=(s:string)=>{
 };
 const blankProfile:ClientProfile={novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''};
 
-export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo}:{
+export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit}:{
+ currentHasProject?:boolean;onSaveDiscovered:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
  currentProjectName:string;currentProfile?:ClientProfile;
  canPlaceVideo:boolean;onPlaceVideo:(video:ImportedClientVideo)=>void;
  onClose:()=>void;onAssociate:(profile:ClientProfile)=>void;onOpenCloud:()=>void
@@ -159,11 +160,14 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
         </div>
       </aside>
       <main className="nv-directory-detail">
-        {discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close} onAssociate={profile=>{
-          if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
-          if(norm(currentProjectName)!==norm(profile.name)&&!window.confirm('Tu es dans le projet « '+currentProjectName+' ». Associer les coordonnées de « '+profile.name+' » à ce projet ?'))return;
-          onAssociate(profile);onClose();
-        }}/>:selected?<div className="nv-directory-detail-inner">
+        {discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close}
+          onSave={(profile,style)=>{
+            if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
+            if(norm(currentProjectName)!==norm(profile.name)&&!window.confirm('Tu es dans le projet « '+currentProjectName+' ». Enregistrer les informations de « '+profile.name+' » dans ce projet ?'))return;
+            onSaveDiscovered(profile,style);onClose();
+          }}
+          onCreateVisit={(profile,style)=>{onCreateVisit(profile,style);onClose();}}
+        />:selected?<div className="nv-directory-detail-inner">
           <div className="nv-directory-title-row">
             <div className="nv-directory-feature-logo">
               {selected.logoUrl?<img src={selected.logoUrl} alt={'Logo '+selected.name}/>:

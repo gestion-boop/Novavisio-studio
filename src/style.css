@@ -4340,3 +4340,21 @@ body:has(.nv-navigation-drawer.is-open) .nv-audio-layer{visibility:hidden;pointe
 .nv-info-row a{display:inline-flex;gap:6px;align-items:center;min-width:0;overflow-wrap:anywhere;color:#8be6da;text-decoration:none;font-weight:600}
 .nv-info-row a:hover{text-decoration:underline}
 .nv-info-row.is-multi strong{font-weight:500;line-height:1.55}
+
+/* Recherche web : couleurs proposées, photos retenues, boutons d'action */
+.nv-skin-choices{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.nv-skin-choices button{display:grid;gap:7px;justify-items:start;text-align:left;padding:10px;border:1px solid #ffffff1f;border-radius:12px;background:#ffffff0a;color:#e6f6f8;cursor:pointer;font-size:12px}
+.nv-skin-choices button.is-selected{border-color:#66d9ca;background:#1f7a5a33;box-shadow:0 0 0 1px #66d9ca}
+.nv-skin-preview{display:inline-flex;gap:7px;padding:7px 10px;border:2px solid;border-radius:999px}
+.nv-skin-preview i{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;border:2px solid}
+.nv-skin-preview b{width:9px;height:9px;border-radius:50%}
+.nv-skin-dots{display:flex;gap:4px}.nv-skin-dots em{width:14px;height:14px;border-radius:50%;border:1px solid #ffffff44}
+.nv-discovery-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.nv-discovery-photos img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block}
+.nv-discovery-photos img.is-logo{object-fit:contain;background:#fff;padding:6px}
+.nv-discovery-photos button{position:relative;padding:0;border:2px solid transparent;border-radius:12px;background:none;cursor:pointer;opacity:.5}
+.nv-discovery-photos button.is-on{border-color:#66d9ca;opacity:1}
+.nv-discovery-photos button i{position:absolute;right:6px;top:6px;width:20px;height:20px;border-radius:50%;background:#1f7a5a;color:#fff;display:grid;place-items:center}
+.nv-discovery-actions-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.nv-discovery-actions-row small{flex:1 1 100%}
+.nv-directory-associate.is-create{background:#2f80ed;border-color:#7fb4ff}

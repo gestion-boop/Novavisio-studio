@@ -522,6 +522,7 @@ function App(){
   // Écran partagé (présence en direct à deux sur le même projet Cloud)
   const [liveProjectId,setLiveProjectId]=useState<string|null>(null);
   const [liveLabel,setLiveLabel]=useState('');
+  const pendingClientSaveRef=useRef(false);
   useEffect(()=>{
     // Garder le tiroir monté pour l'animation, tout en excluant ses commandes
     // du clavier et du focus lorsqu'il est refermé.
@@ -2258,6 +2259,13 @@ function App(){
       setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);
     }
   }
+  // « Enregistrer » depuis le répertoire Clients : on attend que la fiche soit bien dans le projet, puis on enregistre.
+  useEffect(()=>{
+    if(!pendingClientSaveRef.current)return;
+    pendingClientSaveRef.current=false;
+    void manualSave();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[project.clientProfile]);
   function selectSpace(spaceId:string|null){
     const space=spaceId?(project.spaces??[]).find(item=>item.id===spaceId):null;
     if(spaceId&&!space)return;
@@ -3976,6 +3984,18 @@ function App(){
       canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
       onClose={()=>setClientOpen(false)}
       onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
+      onSaveDiscovered={(clientProfile,style)=>{
+        setProject(p=>({...p,clientProfile,...(style?{barStyle:{...p.barStyle,...style}}:{})}));
+        setPanel('client');pendingClientSaveRef.current=true;
+        setStatus('Client « '+clientProfile.name+' » enregistré dans la visite…');
+      }}
+      onCreateVisit={(clientProfile,style)=>{
+        if((project.scenes.length||projectRef.current!==savedRef.current)&&!window.confirm('Créer une nouvelle visite pour « '+clientProfile.name+' » ? Pense à enregistrer ou exporter le projet actuel avant.'))return;
+        setActiveSpaceId(null);setSpaceManagerOpen(false);
+        const fresh={...newProject(),name:clientProfile.name||'Nouvelle visite',clientProfile,barStyle:{...defaultBarStyle(),...(style??{})}};
+        setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
+        cloud.unlink();setStatus('Nouvelle visite créée pour « '+clientProfile.name+' » : ajoute maintenant tes panoramas.');
+      }}
       onAssociate={clientProfile=>{
         setProject(p=>({...p,clientProfile}));
         setPanel('client');
