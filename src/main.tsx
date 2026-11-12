@@ -3705,7 +3705,7 @@ function App(){
             /* SCENE OVERVIEW (AUCUN POINT SÉLECTIONNÉ)                        */
             /* ============================================================== */
             <div className="scene-overview">
-              <div className="nv-action-rectangles"><button type="button" onClick={()=>{setMode('navigation');setSelectedId('')}}>➜ Navigation</button><button type="button" onClick={()=>{setMode('information');setSelectedId('')}}>ⓘ Information</button><button type="button" onClick={()=>{setPanel('bar');setSelectedId('')}}>☷ Barre du bas</button><button type="button" onClick={()=>setSpaceManagerOpen(true)} disabled={!currentSpace}>▦ Modifier l’espace</button></div>
+              {currentSpace&&<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>}
               <div className="section-title">PARAMÈTRES DU PANORAMA</div>
               <label>Nom de la scène
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
