@@ -1,7 +1,7 @@
 import {useEffect,useLayoutEffect,useRef,useState,type RefObject} from 'react';
 import {Play,Volume2,VolumeX,X} from 'lucide-react';
 import {perspectiveMatrix,escapeAttribute} from './imageFrame';
-import {defaultFrameCorners,type CustomIcon,type Hotspot,type Scene} from './storage';
+import {defaultFrameCorners,type CustomIcon,type Hotspot,type ImageFrameStyle,type Scene} from './storage';
 
 export const iconById=(icons:CustomIcon[],id?:string)=>icons.find(icon=>icon.id===id)?.dataUrl;
 
@@ -100,15 +100,15 @@ export function useZoomTransition(origin:ZoomOrigin|null|undefined,enabled:boole
     bodyClass:enabled?(closing?' nv-zoom-out':' nv-zoom-in'):''};
 }
 
-export function ZoomImage({src,alt,origin,animate,variant,onClose}:{src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}){
+export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',onClose}:{frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}){
   const z=useZoomTransition(origin,animate,onClose);
   if(variant==='tour')return <div ref={z.overlay} className={'tour-image-viewer'+z.overlayClass} onClick={z.requestClose}>
     <button className="tour-close-image" onClick={z.requestClose} type="button" aria-label="Fermer"><X/></button>
-    <img ref={z.body} className={z.bodyClass.trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
+    <img ref={z.body} className={('nv-photo-frame nv-photo-frame-'+frameStyle+z.bodyClass).trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
   </div>;
   return <div ref={z.overlay} className={'image-lightbox'+z.overlayClass} onClick={z.requestClose}>
     <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={z.requestClose}>✕</button>
-    <img ref={z.body} className={z.bodyClass.trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
+    <img ref={z.body} className={('nv-photo-frame nv-photo-frame-'+frameStyle+z.bodyClass).trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
   </div>;
 }
 

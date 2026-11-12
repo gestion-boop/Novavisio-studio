@@ -7,6 +7,8 @@ export type FrameSphericalCorners=[
 export const defaultFrameCorners = ():FrameCorners => ({
   tl:{x:7,y:7},tr:{x:93,y:7},br:{x:93,y:93},bl:{x:7,y:93}
 });
+export const IMAGE_FRAME_STYLES = ['none','white','black','wood','gold','rounded'] as const;
+export type ImageFrameStyle = typeof IMAGE_FRAME_STYLES[number];
 export type Hotspot = {
   id:string;
   type:'navigation'|'information'|'lien'|'image'|'video';
@@ -15,6 +17,7 @@ export type Hotspot = {
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;url?:string;
   imageDataUrl?:string;
   imageBounce?:boolean;
+  imageFrameStyle?:ImageFrameStyle;
   videoDataUrl?:string;videoUrl?:string;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
   frameWidth?:number;frameHeight?:number;
   frameReferenceHeight?:number;
@@ -277,6 +280,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
         (h.imageBounce !== undefined && typeof h.imageBounce !== 'boolean') ||
+        (h.imageFrameStyle !== undefined && !IMAGE_FRAME_STYLES.includes(h.imageFrameStyle)) ||
         (h.videoDataUrl !== undefined && (h.videoDataUrl.length > 42_000_000 || !isSafeVideoData(h.videoDataUrl))) ||
         (h.videoUrl !== undefined && h.videoUrl !== '' && !isSafeMediaUrl(h.videoUrl)) ||
         (h.videoAutoplay !== undefined && typeof h.videoAutoplay !== 'boolean') ||

@@ -4206,3 +4206,51 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   .nv-studio-pro .nv-space-strip.nv-space-drawer,
   .nv-studio-pro .nv-header-spaces-trigger{transition:none!important}
 }
+
+/* Proportions communes de l'en-tête, indépendantes de la largeur du projet. */
+.nv-studio-pro .topbar{
+  height:auto;min-height:64px;padding:10px 16px;
+  justify-content:flex-start;flex-wrap:wrap;gap:10px;
+}
+.nv-studio-pro .topbar>.nv-top-left{flex:0 0 auto;width:auto;order:0}
+.nv-studio-pro .topbar>.nv-top-center{
+  flex:0 1 auto;order:0;gap:10px;margin-right:auto;flex-wrap:nowrap;
+}
+.nv-studio-pro .nv-top-center .project-name{
+  flex:0 1 240px;width:240px;max-width:240px;min-width:140px;
+  height:40px;border:0;box-shadow:none;background:transparent;
+}
+.nv-studio-pro .nv-top-center .project-name-wrapper{
+  height:100%;min-width:0;box-sizing:border-box;padding:0 10px;
+}
+.nv-studio-pro .nv-top-center .project-name input{font-size:12px;text-overflow:ellipsis}
+.nv-studio-pro .topbar .mode-switch-group{box-sizing:border-box;height:40px;padding:3px;gap:3px}
+.nv-studio-pro .topbar .mode-btn{min-height:32px;height:32px;padding:0 10px;font-size:12px;border-radius:7px}
+.nv-studio-pro .topbar .nv-header-burger,
+.nv-studio-pro .topbar .nv-header-spaces-trigger,
+.nv-studio-pro .topbar .nv-header-tools-trigger,
+.nv-studio-pro .topbar .top-actions>button{
+  box-sizing:border-box;height:40px;min-height:40px;padding:0 12px;
+  gap:8px;font-size:12px;font-weight:700;border-radius:9px;
+}
+.nv-studio-pro .topbar>.nv-header-tool-picker{order:0;flex:0 0 auto}
+.nv-studio-pro .topbar .nv-header-tools-trigger{min-width:0;max-width:200px}
+.nv-studio-pro .topbar>.top-actions{order:0;gap:8px;margin-left:0;width:auto;flex:0 0 auto}
+.nv-studio-pro .topbar .nv-header-icon-btn{width:40px;padding:0}
+.nv-studio-pro .topbar button>svg{flex-shrink:0}
+@media(max-width:1100px){
+  .nv-studio-pro .topbar>.nv-top-center{flex:1 1 320px}
+  .nv-studio-pro .nv-top-center .project-name{flex:1 1 180px;max-width:240px}
+  .nv-studio-pro .topbar>.top-actions{margin-left:auto}
+}
+@media(max-width:600px){
+  .nv-studio-pro .topbar{padding:8px;gap:8px}
+  .nv-studio-pro .topbar>.nv-top-center{flex:1 1 calc(100% - 58px);gap:8px}
+  .nv-studio-pro .nv-top-center .project-name{min-width:0}
+  .nv-studio-pro .topbar .mode-btn{padding:0 7px}
+  .nv-studio-pro .topbar>.nv-header-tool-picker{flex:1 1 150px}
+  .nv-studio-pro .topbar .nv-header-tools-trigger{width:100%;max-width:none}
+  .nv-studio-pro .topbar>.top-actions{flex:1 1 100%;justify-content:flex-end}
+  .nv-studio-pro .topbar .top-actions>button{padding:0 9px}
+  .nv-studio-pro .topbar .top-actions>.nv-header-icon-btn{padding:0}
+}

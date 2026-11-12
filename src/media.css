@@ -1,5 +1,23 @@
 
 /* Shared between the Studio editor and the exported HTML visitor. */
+.nv-photo-frame-picker{min-width:0;margin:10px 0;padding:10px;border:1px solid #365b69;border-radius:10px}
+.nv-photo-frame-picker legend{padding:0 5px;color:#d8edf1;font-size:12px;font-weight:700}
+.nv-photo-frame-picker>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.nv-photo-frame-picker button{display:flex;flex-direction:column;align-items:center;gap:7px;padding:9px 4px;min-width:0;border:1px solid #365b69;border-radius:8px;background:#122e3c;color:#d6e9ed;font-size:11px;cursor:pointer}
+.nv-photo-frame-picker button:hover{background:#20505a}
+.nv-photo-frame-picker button[aria-pressed="true"]{border-color:#60d7ce;background:#1b5359;box-shadow:inset 0 0 0 1px #60d7ce}
+.nv-photo-frame-picker button:focus-visible{outline:2px solid #9cfff2;outline-offset:2px}
+.nv-photo-frame-picker small{display:block;margin-top:9px;color:#9ebbc6;font-size:10px;line-height:1.5}
+.nv-photo-frame-swatch{box-sizing:border-box;display:block;width:46px;height:32px;background:linear-gradient(150deg,#78b9d2 50%,#4c7959 51%);border:0 solid transparent}
+.nv-photo-frame-white{border:clamp(5px,1vw,12px) solid #f5f2eb}
+.nv-photo-frame-black{border:clamp(5px,1vw,12px) solid #22252a}
+.nv-photo-frame-wood{border:clamp(7px,1.2vw,15px) ridge #91613c}
+.nv-photo-frame-gold{border:clamp(7px,1.2vw,15px) ridge #c8a451}
+.nv-photo-frame-rounded{border:clamp(5px,1vw,12px) solid #f5f2eb;border-radius:22px}
+.nv-photo-frame-swatch[class]{border-width:4px}
+.nv-photo-frame-swatch.nv-photo-frame-none{border-width:0}
+.nv-photo-frame-swatch.nv-photo-frame-rounded{border-radius:9px}
+.image-lightbox img.nv-photo-frame,.tour-image-viewer img.nv-photo-frame{box-sizing:border-box;max-width:100%;max-height:calc(100% - 24px);object-fit:contain}
 .nv-icon-states{width:100%;height:100%;position:relative;display:block;overflow:visible;background:transparent!important;border:0!important;box-shadow:none!important;}
 .nv-icon-states img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;pointer-events:none;filter:none!important;transition:opacity .13s ease;}
 .nv-icon-states .nv-state-hover,.nv-icon-states .nv-state-press{opacity:0;}

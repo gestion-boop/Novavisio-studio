@@ -1,3 +1,4 @@
+import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
 
 import {useEffect, useRef, useState, type CSSProperties} from 'react';
@@ -90,7 +91,7 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
   // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
   if(h.type==='image'&&h.imageDataUrl){
-    return {id:h.id,imageLayer:h.imageDataUrl,position:frameWorldCorners(h),hoverScale:false};
+    return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
   }
   const videoSource=h.videoDataUrl||h.videoUrl;
   if(h.type==='video'&&videoSource){
@@ -2945,6 +2946,7 @@ function App(){
                           onChange={e=>{void addFrameImage(e.target.files?.[0]);e.currentTarget.value='';}}/>
                       </label>
                       {selected.imageDataUrl&&<>
+                        <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                         <img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo du popup"/>
                         <label className="nv-quick-check"><input type="checkbox" checked={selected.fadeOnClick!==false}
                           onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Animation de fondu au clic</label>
@@ -2956,6 +2958,7 @@ function App(){
                       <p className="nv-quick-hint">Dans la visite classique, un clic sur l’icône Information ouvre cette photo en grand.</p>
                     </>}
                     {selected.type==='image'&&<>
+                      <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                       <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo':'Ajouter une photo'}
                         <input type="file" accept="image/*,.heic,.heif"
                           onChange={e=>{void addFrameImage(e.target.files?.[0]);e.currentTarget.value='';}}/>
@@ -3226,7 +3229,7 @@ function App(){
               entries={galleryEntries(item,visibleScenes).map(e=>({sceneId:e.sceneId,label:e.label,thumb:sceneThumbs[e.sceneId]}))}
               onPick={id=>{selectScene(id);setGalleryOpen(null);}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
-          {imageZoom?.imageDataUrl && <ZoomImage variant="studio" src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
+          {imageZoom?.imageDataUrl && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
             <section className="embed-shell" aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
               <div className="embed-header">
@@ -3428,6 +3431,7 @@ function App(){
               </div>
 
               {selected.type==='image' ? <>
+                <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                 <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
                   onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
                   onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
@@ -3529,6 +3533,7 @@ function App(){
                   </label>
                   {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
                   {selected.imageDataUrl&&<>
+                    <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                     <img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo du popup"/>
                     <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick!==false} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Popup avec fondu au clic</label>
                     <button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}><Eye size={15}/> Tester le popup photo</button>

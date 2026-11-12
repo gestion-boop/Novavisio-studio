@@ -1,3 +1,4 @@
+import {framedPhotoSource} from './photoFrame';
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
@@ -30,7 +31,7 @@ function checkedLink(raw:string):string|null {
 }
 function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):MarkerConfig {
   if(h.type==='image'&&h.imageDataUrl){
-    return {id:h.id,imageLayer:h.imageDataUrl,position:frameWorldCorners(h),hoverScale:false};
+    return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
   }
   const source=h.videoDataUrl||h.videoUrl;
   if(h.type==='video'&&source){
@@ -366,7 +367,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         entries={galleryEntries(item,project.scenes).map(e=>({sceneId:e.sceneId,label:e.label,thumb:project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined}))}
         onPick={id=>{move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
-    {photo?.imageDataUrl&&<ZoomImage variant="tour" src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
+    {photo?.imageDataUrl&&<ZoomImage variant="tour" frameStyle={photo.imageFrameStyle} src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
     {!showIntro&&!firstPanoramaReady&&<div className="nv-tour-startup-mask" role="status" aria-live="polite">
       <div className="nv-tour-startup-spinner" aria-hidden="true"/>
       <span>Préparation de votre visite immersive…</span>
