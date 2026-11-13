@@ -2,17 +2,20 @@ import {useEffect,useState,type Dispatch,type SetStateAction} from 'react';
 import type {StudioProject} from './storage';
 import {applySkin,captureSkin,deleteSkin,exportSkin,listSkins,storeSkin,validateSkin,type Skin} from './skins';
 import {PreparationDialog} from './PreparationControls';
+import {SkinCreator} from './SkinCreator';
 
 type Props={project:StudioProject;setProject:Dispatch<SetStateAction<StudioProject>>;onApplied?:()=>void};
 export function SkinChoices({project,setProject,onApplied}:Props){
   const [skins,setSkins]=useState<Skin[]>([]),[name,setName]=useState('Skin '+project.name.slice(0,65));
-  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+  const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[creating,setCreating]=useState(false);
   const refresh=async()=>setSkins(await listSkins());
   useEffect(()=>{void refresh().catch(()=>setMessage('La bibliothèque locale est indisponible. Tu peux exporter ton skin en fichier.'));},[]);
   async function run(action:()=>Promise<void>,success:string){setBusy(true);setMessage('');try{await action();await refresh();setMessage(success);}catch(error){setMessage(error instanceof Error?error.message:'Action impossible');}finally{setBusy(false);}}
   const current=()=>captureSkin(project,name);
   return <div className="nv-skin-library">
     <p className="nv-setup-note">Un skin conserve les couleurs, les dimensions, les langues et les icônes. Les liens, les textes, les panoramas et la musique du projet restent en place.</p>
+    <button type="button" className="nv-skin-new" onClick={()=>setCreating(true)}>＋ Création de skin</button>
+    {creating&&<SkinCreator project={project} onClose={()=>setCreating(false)} onSave={async skin=>{await storeSkin(skin);await refresh();setMessage('Skin « '+skin.name+' » créé : tu peux le choisir à la création de n’importe quel projet.');}}/>}
     <div className="nv-skin-create"><label>Nom du skin<input maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></label>
       <button type="button" disabled={busy||!name.trim()} onClick={()=>void run(async()=>{await storeSkin(current());},'Skin enregistré dans ce navigateur.')}>Enregistrer ce skin</button>
       <button type="button" disabled={busy||!name.trim()} onClick={()=>{try{exportSkin(current());}catch(e){setMessage(String(e));}}}>Exporter le style actuel</button>

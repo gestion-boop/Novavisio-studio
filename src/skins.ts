@@ -4,7 +4,7 @@ const globalIcons=['closeIconId','soundOnIconId','soundOnHoverIconId','soundOnPr
 export type Skin={version:1;id:string;name:string;updatedAt:string;appearance:StudioProject};
 
 export function captureSkin(project:StudioProject,name:string,id:string=crypto.randomUUID()):Skin {
-  const appearances=project.bottomBar.map(item=>({id:item.id,title:item.title,type:'information' as const,text:'',url:'',target:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize}));
+  const appearances=project.bottomBar.map(item=>({id:item.id,title:item.title,type:item.type,...(item.type==='gallery'?{gallery:[]}:{}),text:'',url:'',target:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize}));
   const nav=project.defaultNavigationIcon??(project.iconPackId==='classic'?undefined:inferNavigation(project));
   const used=new Set<string>();
   for(const item of [...appearances,...(nav?[nav]:[]),...(project.buttonSets??[]),...[project.defaultPhotoIcon,project.defaultVideoIcon].filter((v):v is NonNullable<typeof v>=>!!v)])for(const key of ['iconId','hoverIconId','pressedIconId'] as const){if(item[key])used.add(item[key]!);}
@@ -33,7 +33,7 @@ export function validateSkin(value:unknown):Skin {
   const source=skin.appearance;
   if(!source||!Array.isArray(source.icons)||!Array.isArray(source.bottomBar))throw Error('Présentation du skin invalide');
   const appearance=validateProject({...newProject(),name:'Skin',icons:source.icons,barStyle:source.barStyle,
-    bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:'information',target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
+    bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery'] as const).includes(item.type)?item.type:'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
     defaultPhotoIcon:source.defaultPhotoIcon,defaultVideoIcon:source.defaultVideoIcon,languages:source.languages,buttonSets:source.buttonSets,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
     ...Object.fromEntries(globalIcons.map(key=>[key,source[key]]))});
   return {version:1,id:skin.id,name:skin.name.trim(),updatedAt:typeof skin.updatedAt==='string'?skin.updatedAt:new Date().toISOString(),appearance};
@@ -48,7 +48,13 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
     ids.set(icon.id,id);if(!same)icons.push({...icon,id});
   }
   const remap=(id?:string)=>id?ids.get(id):undefined;
-  const bottomBar=project.bottomBar.map((item,index)=>{
+  // Projet sans boutons (nouveau projet) : le skin apporte ses boutons avec leur signification (accueil, galerie, appel…).
+  const slots=project.bottomBar.length===0?source.bottomBar.map(v=>({
+    id:crypto.randomUUID(),title:v.title,type:v.type,target:'',text:'',url:'',builtinIcon:v.builtinIcon,
+    ...(v.type==='gallery'?{gallery:[]}:{}),
+    iconId:remap(v.iconId),hoverIconId:remap(v.hoverIconId),pressedIconId:remap(v.pressedIconId),iconSize:v.iconSize
+  } as BottomBarItem)):null;
+  const bottomBar=slots??project.bottomBar.map((item,index)=>{
     const visual=source.bottomBar.find(b=>b.title===item.title)??source.bottomBar.find(b=>b.builtinIcon&&b.builtinIcon===item.builtinIcon)??source.bottomBar[index];
     if(!visual)return item;
     return {...item,...Object.fromEntries(['iconId','hoverIconId','pressedIconId'].map(key=>[key,remap(visual[key as keyof BottomBarItem] as string|undefined)])),iconSize:visual.iconSize,builtinIcon:visual.builtinIcon};
