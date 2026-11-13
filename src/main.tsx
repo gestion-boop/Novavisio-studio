@@ -638,6 +638,7 @@ function App(){
   const preparationPrompted=useRef(false);
   const [savingManually,setSavingManually]=useState(false);
   const [updateAvailable,setUpdateAvailable]=useState(false);
+  const [updateSnoozeUntil,setUpdateSnoozeUntil]=useState(0);   // « Plus tard » : la bannière revient après quelques minutes
   const updateReloadApproved=useRef(false);
   // Ne jamais recharger automatiquement : les projets Cloud sont sauvegardés
   // volontairement à la disquette. La détection est uniquement informative.
@@ -665,7 +666,10 @@ function App(){
       finally{checking=false;}
     };
     void checkUpdate();
-    const interval=window.setInterval(()=>void checkUpdate(),60_000);
+    const interval=window.setInterval(()=>void checkUpdate(),30_000);
+    // Fichier de l'ancienne version supprimé après un déploiement : la mise à jour est alors nécessaire.
+    const onPreloadError=()=>setUpdateAvailable(true);
+    window.addEventListener('vite:preloadError',onPreloadError);
     const onFocus=()=>{void checkUpdate();};
     const onVisibility=()=>{if(document.visibilityState==='visible')void checkUpdate();};
     window.addEventListener('focus',onFocus);
@@ -676,6 +680,7 @@ function App(){
       window.removeEventListener('focus',onFocus);
       window.removeEventListener('online',onFocus);
       document.removeEventListener('visibilitychange',onVisibility);
+      window.removeEventListener('vite:preloadError',onPreloadError);
     };
   },[]);
   function reloadToLatestVersion(){
@@ -3040,6 +3045,11 @@ function App(){
     {!creationFullscreen&&mediaPickerEl()}
     {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
     <ShotInbox shots={liveInvite.shots} onDismiss={liveInvite.dismissShot} onReply={shot=>{liveInvite.dismissShot(shot.id);setShotImage({image:shot.image,defaultTo:shot.fromEmail});}}/>
+    {updateAvailable&&Date.now()>=updateSnoozeUntil&&<div className="nv-update-banner" role="alert">
+      <span className="nv-update-text"><b>Nouvelle version de NovaStudio disponible</b><small>{ready&&projectRef.current!==savedRef.current?'Enregistre ton travail avec la disquette, puis actualise.':'Actualise pour profiter des dernières nouveautés.'}</small></span>
+      <button type="button" className="is-go" onClick={reloadToLatestVersion} disabled={savingManually}><RefreshCw size={16}/> Actualiser maintenant</button>
+      <button type="button" onClick={()=>setUpdateSnoozeUntil(Date.now()+10*60_000)}>Plus tard</button>
+    </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>setLiveDialogOpen(false)}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
     {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)} onOpenCloud={()=>setCloudOpen(true)}/>}

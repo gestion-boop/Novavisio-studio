@@ -4891,3 +4891,11 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-media-tile-del{position:absolute;top:12px;right:12px;width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:8px;background:#0b1b24cc;color:#cfe3e8;cursor:pointer;opacity:0;transition:opacity .15s}
 .nv-media-tile:hover .nv-media-tile-del,.nv-media-tile-del:focus-visible{opacity:1}.nv-media-tile-del:hover{background:#7b2a35;color:#fff}
 @media(max-width:820px){.nv-media-tile-del{opacity:1}}
+
+/* Nouvelle version disponible : bannière bien visible pour tous les utilisateurs */
+.nv-update-banner{position:fixed;top:76px;left:50%;transform:translateX(-50%);z-index:100060;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:min(640px,calc(100vw - 20px));padding:12px 16px;border-radius:16px;background:#0d2a33;border:2px solid #4bebde;box-shadow:0 14px 44px #000b;color:#fff;font:14px/1.35 system-ui,sans-serif;animation:nvUpdatePop .45s ease-out}
+.nv-update-text{display:flex;flex-direction:column;gap:2px}.nv-update-text small{color:#cfe3e8;font-size:12px}
+.nv-update-banner button{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 16px;border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;font:700 14px system-ui,sans-serif;cursor:pointer}
+.nv-update-banner .is-go{background:#c9650f;border-color:#e8873a;color:#fff}
+.nv-update-banner button:hover:not(:disabled){filter:brightness(1.12)}.nv-update-banner button:active:not(:disabled){transform:scale(.96)}
+@keyframes nvUpdatePop{0%{opacity:0;transform:translate(-50%,-14px)}100%{opacity:1;transform:translate(-50%,0)}}
