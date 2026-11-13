@@ -668,23 +668,6 @@ function App(){
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
-  const live=useLiveSession({
-    projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
-    state:{sceneId:activeId,spaceId:activeSpaceId},
-    getView:()=>cameraRef.current.sceneId?cameraRef.current:null,
-    onRemoteView:v=>{
-      // Même panorama seulement : on reproduit l'orientation et le zoom de l'autre personne.
-      if(cameraRef.current.sceneId!==v.sceneId)return;
-      setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true});
-    },
-    onRemoteState:remote=>{
-      const current=projectRef.current;
-      const space=remote.spaceId?(current.spaces??[]).find(sp=>sp.id===remote.spaceId):null;
-      if(remote.spaceId&&!space)return;                 // espace pas (encore) présent dans ma copie
-      if(!current.scenes.some(sc=>sc.id===remote.sceneId))return;
-      setActiveSpaceId(space?.id??null);setActiveId(remote.sceneId);setSelectedId('');
-    }
-  });
   async function toggleLive(){
     if(liveProjectId){setLiveProjectId(null);return;}
     const link=readLink();
@@ -798,6 +781,48 @@ function App(){
   const nextArrivalRef=useRef<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const scenesRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!preview)setGalleryOpen(null);},[preview]);
+  // Fenêtres et panneaux ouverts : envoyés à l'autre personne pour qu'elle voie les mêmes écrans s'ouvrir.
+  const liveUi=JSON.stringify({
+    pv:preview,g:galleryOpen,b:selectedBarId,s:selectedId,p:panel,
+    i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
+  });
+  const live=useLiveSession({
+    projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
+    state:{sceneId:activeId,spaceId:activeSpaceId},
+    getView:()=>cameraRef.current.sceneId?cameraRef.current:null,
+    ui:liveUi,
+    onRemoteUi:raw=>applyRemoteUi(raw),
+    onRemoteView:v=>{
+      // Même panorama seulement : on reproduit l'orientation et le zoom de l'autre personne.
+      if(cameraRef.current.sceneId!==v.sceneId)return;
+      setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true});
+    },
+    onRemoteState:remote=>{
+      const current=projectRef.current;
+      const space=remote.spaceId?(current.spaces??[]).find(sp=>sp.id===remote.spaceId):null;
+      if(remote.spaceId&&!space)return;                 // espace pas (encore) présent dans ma copie
+      if(!current.scenes.some(sc=>sc.id===remote.sceneId))return;
+      setActiveSpaceId(space?.id??null);setActiveId(remote.sceneId);setSelectedId('');
+    }
+  });
+  function applyRemoteUi(raw:string){
+    let u:{pv?:boolean;g?:string|null;b?:string;s?:string;p?:PanelTab;i?:string|null;f?:{t:string;u:string}|null;im?:string|null;vi?:string|null};
+    try{u=JSON.parse(raw);}catch{return;}
+    const current=projectRef.current;
+    const findHotspot=(id:string|null|undefined)=>id?current.scenes.flatMap(sc=>sc.hotspots).find(h=>h.id===id)??null:null;
+    setPreview(!!u.pv);
+    setGalleryOpen(u.pv&&u.g&&current.bottomBar.some(b=>b.id===u.g)?u.g:null);
+    setSelectedBarId(u.b&&current.bottomBar.some(b=>b.id===u.b)?u.b:'');
+    if(u.p&&['points','panoramas','bar','general'].includes(u.p as string))setPanel(u.p);
+    // Fenêtre d'information : soit un bouton de la barre du bas, soit un point du panorama (toujours relus dans MA copie du projet).
+    const bar=u.i?current.bottomBar.find(b=>b.id===u.i):null;
+    if(bar)setInfo({id:bar.id,type:'information',title:bar.title,text:bar.text,translations:bar.translations,target:'',yaw:0,pitch:0});
+    else setInfo(findHotspot(u.i));
+    const safe=u.f?safeLink(u.f.u):null;
+    setFrame(u.f&&safe&&/^https:\/\//i.test(safe)?{title:String(u.f.t).slice(0,120),url:safe}:null);
+    setImageZoom(findHotspot(u.im));
+    setVideoZoom(findHotspot(u.vi));
+  }
   const suppressClick=useRef(false);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const [creationFullscreen,setCreationFullscreen]=useState(false);
@@ -860,6 +885,28 @@ function App(){
     {key:'music',label:'Musique'},
     {key:'client',label:'Clients'}
   ];
+  // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
+  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','music','client'];
+  const [toolOrder,setToolOrder]=useState<string[]>(()=>{
+    try{
+      const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
+      const known=Array.isArray(saved)?saved.filter((k):k is string=>typeof k==='string'&&TOOL_KEYS.includes(k)):[];
+      return [...new Set([...known,...TOOL_KEYS])];
+    }catch{return TOOL_KEYS;}
+  });
+  const toolSort=useGripSort('tools-popup',toolOrder,(from,to)=>setToolOrder(order=>{
+    const next=reorderItems(order,from,to,key=>key);
+    try{localStorage.setItem('nvstudio-tools-order',JSON.stringify(next));}catch{/* ordre non mémorisé */}
+    return next;
+  }));
+  function toolMeta(key:string):{label:string;glyph:string;active:boolean;badge?:number;run:()=>void}|null{
+    if(key==='spaces')return {label:'Espaces',glyph:'≋',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
+      run:()=>{setToolsMenuOpen(false);setSpacesDrawerOpen(open=>!open);}};
+    const option=toolOptions.find(item=>item.key===key);
+    if(!option)return null;
+    const glyphs:Record<string,string>={panoramas:'▦',points:'◎',bar:'▭',icons:'★',intro:'▶',elements:'✚',music:'♫',client:'☺'};
+    return {label:option.label,glyph:glyphs[key]??'•',active:!rightHidden&&panel===key,run:()=>toggleToolPanel(key as PanelTab)};
+  }
   function toggleToolPanel(next:PanelTab){
     setToolsMenuOpen(false);
     if(!rightHidden&&panel===next){setRightHidden(true);return;}
@@ -2493,8 +2540,8 @@ function App(){
     (rightHidden?' nv-studio-hide-right':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
-    <header className="topbar nv-topbar-v2">
-      <div className="nv-hrow nv-hrow-main">
+    <header className="topbar nv-topbar-v3">
+      <div className="nv-v3-left">
       <div className="nv-top-left">
         <button type="button" className={'nv-header-burger'+(navigationDrawerOpen?' is-open':'')}
           aria-label="Ouvrir le menu de navigation" aria-expanded={navigationDrawerOpen}
@@ -2614,14 +2661,13 @@ function App(){
           </div>
         </nav>
       </div>
-      <div className="nv-top-center">
-        <div className="project-name">
-          <div className="project-name-wrapper">
-            <Edit3 size={14} className="project-edit-icon"/>
-            <input aria-label="Nom du projet" value={project.name}
-              onChange={event=>setProject(current=>({...current,name:event.target.value}))}/>
-          </div>
-        </div>
+      <label className="nv-v3-name" title="Nom du projet">
+        <Edit3 size={14} aria-hidden="true"/>
+        <input aria-label="Nom du projet" value={project.name}
+          onChange={event=>setProject(current=>({...current,name:event.target.value}))}/>
+      </label>
+      </div>
+      <div className="nv-v3-center">
         <div className="mode-switch-group" role="group" aria-label="Mode de l'éditeur">
           <button type="button" className={'mode-btn '+(!preview?'is-active':'')}
             aria-pressed={!preview}
@@ -2638,66 +2684,71 @@ function App(){
           </button>
         </div>
       </div>
-      <div className="nv-hgroup nv-hgroup-team" role="group" aria-label="Travail à plusieurs">
-        <span className="nv-hgroup-label">Équipe</span>
-      <WriteHand onStatus={setStatus}/>
-      <button type="button" className={'nv-header-live'+(liveProjectId?' is-on':'')} onClick={()=>void toggleLive()}
-        title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
-        <Users size={16}/><span>Écran partagé</span>
-      </button>
-      </div>
-      </div>
-      <div className="nv-hrow nv-hrow-actions">
-      <div className="top-actions nv-hgroup nv-hgroup-file" role="group" aria-label="Fichier et publication">
-        <span className="nv-hgroup-label">Fichier</span>
+      <div className="nv-v3-right">
         {updateAvailable&&<button type="button" className="nv-header-update is-available"
           onClick={reloadToLatestVersion} disabled={savingManually}
           title="Une nouvelle version de NovaStudio est disponible : cliquer pour la charger (pensez à enregistrer avant)"
           aria-label="Nouvelle version de NovaStudio disponible : actualiser">
           <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
         </button>}
-        <button type="button" className={'nv-header-save'+(project!==savedRef.current||!cloud.signedIn?' is-cloud-dirty':'')} disabled={!ready||savingManually||!!lock}
-          title={!ready?'Chargement…':savingManually?'Enregistrement en cours…':
-            project!==savedRef.current?'Modifications non enregistrées · Enregistrer (⌘S / Ctrl+S)':
-            status.startsWith('Enregistré')?status:'Enregistrer (⌘S / Ctrl+S)'}
-          onClick={()=>void manualSave()} aria-label="Enregistrer le projet maintenant">
-          <Save size={18}/>
-          <span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
-          {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+        <div className="nv-header-tool-picker nv-v3-tools" ref={toolsMenuRef}>
+          <button type="button" className={'nv-v3-icon-btn'+(toolsMenuOpen?' is-open':'')}
+            aria-label="Outils, enregistrer, exporter" title="Outils d’édition · Enregistrer · Publier · Exporter"
+            aria-haspopup="dialog" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
+            onClick={()=>setToolsMenuOpen(open=>!open)}>
+            <LayoutGrid size={22}/>
+            {project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+          </button>
+          {toolsMenuOpen&&<div id="nv-header-tools-options" className="nv-tools-popup" role="dialog" aria-label="Outils d’édition">
+            <div className="nv-tools-popup-head"><strong>Outils</strong><small>Glisse la poignée pour les ranger dans l’ordre voulu</small></div>
+            <div className="nv-tools-list" data-sort-scope="tools-popup">
+              {toolOrder.map(key=>{
+                const meta=toolMeta(key);
+                if(!meta)return null;
+                const ip=toolSort.itemProps(key);
+                return <div key={key} data-sort-id={key} className={ip.className+' nv-tool-row'+(meta.active?' is-active':'')}>
+                  {toolSort.grip(key,meta.label)}
+                  <button type="button" className="nv-tool-row-main" aria-pressed={meta.active} onClick={meta.run}>
+                    <span className="nv-tool-glyph" aria-hidden="true">{meta.glyph}</span>
+                    <span className="nv-tool-label">{meta.label}</span>
+                    {meta.badge!==undefined&&<small>{meta.badge}</small>}
+                    {meta.active&&<span className="nv-tool-check" aria-hidden="true">✓</span>}
+                  </button>
+                </div>;
+              })}
+            </div>
+            <div className="nv-tools-section">Fichier</div>
+            <div className="nv-tools-file">
+              <button type="button" className={'nv-tools-save'+(project!==savedRef.current?' is-dirty':'')}
+                disabled={!ready||savingManually||!!lock} onClick={()=>{setToolsMenuOpen(false);void manualSave();}}
+                title="Enregistrer (⌘S / Ctrl+S)">
+                <Save size={17}/><span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
+                {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+              </button>
+              <button type="button" disabled={savingManually||!ready||!!lock||!project.scenes.length}
+                onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}}>⚠ <span>Publier</span></button>
+              <button type="button" disabled={exporting||!visibleScenes.length}
+                title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
+                onClick={()=>{setToolsMenuOpen(false);void exportTour();}}>
+                <Download size={16}/><span>{exporting?'Export…':'Exporter'}</span>
+              </button>
+            </div>
+            <div className="nv-tools-section">Travailler à plusieurs</div>
+            <div className="nv-tools-team">
+              <WriteHand onStatus={setStatus}/>
+              <button type="button" className={'nv-header-live'+(liveProjectId?' is-on':'')} onClick={()=>{setToolsMenuOpen(false);void toggleLive();}}
+                title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
+                <Users size={16}/><span>Écran partagé</span>
+              </button>
+            </div>
+          </div>}
+        </div>
+        <button type="button" className={'nv-v3-icon-btn'+(!rightHidden?' is-open':'')}
+          aria-label={rightHidden?'Afficher le panneau de droite':'Masquer le panneau de droite'}
+          title={rightHidden?'Afficher le panneau de droite':'Masquer le panneau de droite'}
+          aria-pressed={!rightHidden} onClick={()=>setRightHidden(value=>!value)}>
+          <Menu size={22}/>
         </button>
-        <button type="button" className="nv-header-publish" disabled={savingManually||!ready||!!lock||!project.scenes.length} onClick={()=>setPublishConfirm(true)}>⚠ Publier</button>
-        <button type="button" className="primary nv-header-export" disabled={exporting||!visibleScenes.length}
-          title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
-          onClick={()=>void exportTour()}>
-          <Download size={15}/>{exporting?'Export…':'Exporter'}
-        </button>
-      </div>
-      <div className="nv-hgroup nv-hgroup-project" role="group" aria-label="Organisation du projet">
-        <span className="nv-hgroup-label">Projet</span>
-      <button type="button" className={'nv-header-spaces-trigger'+(spacesDrawerOpen?' is-open':'')}
-        aria-expanded={spacesDrawerOpen} aria-controls="nv-workspace-spaces"
-        title={spacesDrawerOpen?'Masquer les espaces pour agrandir le panorama':'Afficher les espaces du projet'}
-        onClick={()=>setSpacesDrawerOpen(open=>!open)}>
-        <Layers size={17}/><span>Espaces</span>
-        <small>{(project.spaces?.length??0)+1}</small>
-        <ChevronDown size={15} className={spacesDrawerOpen?'is-open':''}/>
-      </button>
-      <div className="nv-header-tool-picker" ref={toolsMenuRef}>
-        <button type="button" className={'nv-header-tools-trigger'+(toolsMenuOpen?' is-open':'')}
-          aria-haspopup="menu" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
-          onClick={()=>setToolsMenuOpen(open=>!open)}>
-          <LayoutGrid size={17}/><span>{rightHidden?'Outils d’édition':toolOptions.find(item=>item.key===panel)?.label??'Outils d’édition'}</span>
-          <ChevronDown size={15}/>
-        </button>
-        {toolsMenuOpen&&<div id="nv-header-tools-options" className="nv-header-tools-options" role="menu" aria-label="Outils d’édition">
-          {toolOptions.map(item=><button type="button" role="menuitemcheckbox" aria-checked={!rightHidden&&panel===item.key}
-            key={item.key} className={!rightHidden&&panel===item.key?'is-active':''}
-            onClick={()=>toggleToolPanel(item.key)}>
-            <span>{item.label}</span>{!rightHidden&&panel===item.key&&<span aria-hidden="true">✓</span>}
-          </button>)}
-        </div>}
-      </div>
-      </div>
       </div>
     </header>
     <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen}>

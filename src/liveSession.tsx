@@ -45,7 +45,7 @@ function makeTransport(projectId:string,selfId:string):Promise<LiveTransport>{
   return custom?Promise.resolve(custom(projectId,selfId)):supabaseTransport(projectId,selfId);
 }
 
-export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label:string;state:LiveState;onRemoteState:(s:LiveState)=>void;getView:()=>LiveView|null;onRemoteView:(v:LiveView)=>void}){
+export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label:string;state:LiveState;onRemoteState:(s:LiveState)=>void;getView:()=>LiveView|null;onRemoteView:(v:LiveView)=>void;ui:string;onRemoteUi:(raw:string)=>void}){
   const selfId=useMemo(()=>Math.random().toString(36).slice(2,10),[]);
   const joinedAt=useRef(Date.now());
   const [peers,setPeers]=useState<LivePeer[]>([]);
@@ -59,6 +59,8 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
   const remoteRef=useRef(opts.onRemoteState);remoteRef.current=opts.onRemoteState;
   const getViewRef=useRef(opts.getView);getViewRef.current=opts.getView;
   const remoteViewRef=useRef(opts.onRemoteView);remoteViewRef.current=opts.onRemoteView;
+  const uiRef=useRef(opts.ui);uiRef.current=opts.ui;
+  const remoteUiRef=useRef(opts.onRemoteUi);remoteUiRef.current=opts.onRemoteUi;
   const lastInput=useRef(0);                 // dernière action de l'utilisateur (clic, molette, clavier) hors barre de partage
   const [lastAction,setLastAction]=useState('');
   const {projectId,enabled,label}=opts;
@@ -84,8 +86,11 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
       t.on('view',p=>{
         if(p.id===leaderRef.current&&followRef.current&&typeof p.yaw==='number')remoteViewRef.current({sceneId:p.sceneId,yaw:p.yaw,pitch:p.pitch,zoom:p.zoom});
       });
+      t.on('ui',p=>{ // panneaux ouverts (barre du bas, galerie, fenêtres d'information…)
+        if(p.id===leaderRef.current&&followRef.current&&typeof p.ui==='string')remoteUiRef.current(p.ui);
+      });
       t.on('hello',()=>{ // un nouvel arrivant demande qui pilote
-        if(leaderRef.current===selfId)t.send('hand',{id:selfId});
+        if(leaderRef.current===selfId){t.send('hand',{id:selfId});t.send('state',{id:selfId,...stateRef.current});t.send('ui',{id:selfId,ui:uiRef.current});}
       });
       t.join({id:selfId,label,joinedAt:joinedAt.current},list=>{
         const sorted=[...list].sort((a,b)=>a.joinedAt-b.joinedAt||a.id.localeCompare(b.id));
@@ -134,6 +139,12 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
     transport.current?.send('state',{id:selfId,...opts.state});
     setLastAction('');
   },[enabled,projectId,selfId,opts.state.sceneId,opts.state.spaceId]);
+  // Panneaux et fenêtres ouverts (barre du bas, galerie, information, aperçu…).
+  useEffect(()=>{
+    if(!enabled||!projectId)return;
+    if(leaderRef.current!==selfId){if(!acting())return;becomeLeader();}
+    transport.current?.send('ui',{id:selfId,ui:opts.ui});
+  },[enabled,projectId,selfId,opts.ui]);
   // Orientation et zoom de la vue : envoyés dès qu'ils changent sous la main de l'utilisateur.
   useEffect(()=>{
     if(!enabled||!projectId)return;
@@ -172,6 +183,7 @@ function Arrow({color,big}:{color:string;big:boolean}){
 
 export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSession>;onClose:()=>void}){
   const [now,setNow]=useState(Date.now());
+  const [open,setOpen]=useState(false);
   useEffect(()=>{const i=window.setInterval(()=>setNow(Date.now()),400);return ()=>window.clearInterval(i);},[]);
   const others=live.peers.filter(p=>p.id!==live.selfId);
   const me=live.peers.find(p=>p.id===live.selfId);
@@ -191,18 +203,20 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
         </div>;
       })}
     </div>
-    <div className="nv-live-bar" role="status">
-      <span className="nv-live-dot" style={{background:me?.color??'#2f80ed'}}/>
-      <b>Écran partagé</b>
-      {others.length===0?<span>· En attente de l'autre personne… (elle doit cliquer aussi sur « Écran partagé »)</span>:
-        <span>· avec {others.map(p=><i key={p.id} style={{color:p.color}}>{fmtName(p)}</i>).reduce<ReactNode[]>((a,x,i)=>i?[...a,', ',x]:[x],[])}</span>}
-      {others.length>0&&(iHaveHand?
-        <><span className="nv-live-chip is-hand">Vous êtes le pilote</span><button type="button" onClick={live.release}>Passer le pilotage</button></>:
-        <>{leader?<span className="nv-live-chip">{fmtName(leader)} est le pilote</span>:<span className="nv-live-chip">Aucun pilote pour l'instant</span>}
-          {leader&&<label className="nv-live-follow"><input type="checkbox" checked={live.follow} onChange={e=>live.setFollow(e.target.checked)}/> Suivre</label>}
-          <button type="button" onClick={live.take}>Piloter</button></>)}
-      {live.error&&<span className="nv-live-error">{live.error}</span>}
-      <button type="button" className="nv-live-quit" onClick={onClose}>Quitter</button>
+    <div className={'nv-live-bar'+(open?' is-open':'')+(iHaveHand?' is-pilot':'')} role="status">
+      <button type="button" className="nv-live-pill" onClick={()=>{if(others.length===0)setOpen(o=>!o);else if(iHaveHand)live.release();else live.take();}}
+        title={others.length===0?'En attente de l’autre personne':iHaveHand?'Cliquer pour passer le pilotage':'Cliquer pour prendre le pilotage'}>
+        <span className="nv-live-dot" style={{background:me?.color??'#2f80ed'}}/>
+        {others.length===0?'En attente de l’autre personne…':iHaveHand?'Vous êtes pilote':'Vous n’êtes pas pilote'}
+      </button>
+      <button type="button" className="nv-live-more" aria-expanded={open} aria-label="Détails de l’écran partagé" onClick={()=>setOpen(o=>!o)}>{open?'▴':'▾'}</button>
+      {open&&<div className="nv-live-details">
+        <span>Avec {others.length?others.map(p=><i key={p.id} style={{color:p.color}}>{fmtName(p)}</i>).reduce<ReactNode[]>((a,x,i)=>i?[...a,', ',x]:[x],[]):'personne pour l’instant (l’autre doit aussi cliquer sur « Écran partagé »)'}</span>
+        {others.length>0&&!iHaveHand&&<span className="nv-live-chip">{leader?fmtName(leader)+' pilote':'Aucun pilote'}</span>}
+        {others.length>0&&!iHaveHand&&leader&&<label className="nv-live-follow"><input type="checkbox" checked={live.follow} onChange={e=>live.setFollow(e.target.checked)}/> Suivre</label>}
+        {live.error&&<span className="nv-live-error">{live.error}</span>}
+        <button type="button" className="nv-live-quit" onClick={onClose}>Quitter</button>
+      </div>}
     </div>
   </>;
 }
