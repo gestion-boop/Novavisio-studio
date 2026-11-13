@@ -1,4 +1,4 @@
-import {useEffect,useState,type CSSProperties,type ReactNode} from 'react';
+import {useEffect,type CSSProperties,type ReactNode} from 'react';
 import {ChevronLeft} from 'lucide-react';
 
 /**
@@ -10,9 +10,9 @@ export type HubSection={
   content?:ReactNode;          // contenu affiché quand on ouvre la tuile
   onClick?:()=>void;           // ou action directe (ex. ouvrir une fenêtre)
 };
-export function SectionHub({sections,intro,forceOpen}:{sections:HubSection[];intro?:ReactNode;forceOpen?:string|null}){
-  const [open,setOpen]=useState<string|null>(null);
-  useEffect(()=>{if(forceOpen)setOpen(forceOpen);},[forceOpen]);
+export function SectionHub({sections,intro,forceOpen,open,onOpenChange}:{id:string;sections:HubSection[];intro?:ReactNode;forceOpen?:string|null;open:string|null;onOpenChange:(key:string|null)=>void}){
+  const setOpen=onOpenChange;
+  useEffect(()=>{if(forceOpen)onOpenChange(forceOpen);},[forceOpen]);
   const current=open?sections.find(section=>section.key===open&&section.content!==undefined):undefined;
   if(current){
     return <div className="nv-hub-detail">

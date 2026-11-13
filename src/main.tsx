@@ -822,49 +822,6 @@ function App(){
   const nextArrivalRef=useRef<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const scenesRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!preview)setGalleryOpen(null);},[preview]);
-  // Fenêtres et panneaux ouverts : envoyés à l'autre personne pour qu'elle voie les mêmes écrans s'ouvrir.
-  const liveUi=JSON.stringify({
-    pv:preview,g:galleryOpen,b:selectedBarId,s:selectedId,p:panel,
-    i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
-  });
-  const liveInvite=useLiveInvites(inviteIdentity,!liveProjectId);
-  const live=useLiveSession({
-    projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
-    state:{sceneId:activeId,spaceId:activeSpaceId},
-    getView:()=>cameraRef.current.sceneId?cameraRef.current:null,
-    ui:liveUi,
-    onRemoteUi:raw=>applyRemoteUi(raw),
-    onRemoteView:v=>{
-      // Même panorama seulement : on reproduit l'orientation et le zoom de l'autre personne.
-      if(cameraRef.current.sceneId!==v.sceneId)return;
-      setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true});
-    },
-    onRemoteState:remote=>{
-      const current=projectRef.current;
-      const space=remote.spaceId?(current.spaces??[]).find(sp=>sp.id===remote.spaceId):null;
-      if(remote.spaceId&&!space)return;                 // espace pas (encore) présent dans ma copie
-      if(!current.scenes.some(sc=>sc.id===remote.sceneId))return;
-      setActiveSpaceId(space?.id??null);setActiveId(remote.sceneId);setSelectedId('');
-    }
-  });
-  function applyRemoteUi(raw:string){
-    let u:{pv?:boolean;g?:string|null;b?:string;s?:string;p?:PanelTab;i?:string|null;f?:{t:string;u:string}|null;im?:string|null;vi?:string|null};
-    try{u=JSON.parse(raw);}catch{return;}
-    const current=projectRef.current;
-    const findHotspot=(id:string|null|undefined)=>id?current.scenes.flatMap(sc=>sc.hotspots).find(h=>h.id===id)??null:null;
-    setPreview(!!u.pv);
-    setGalleryOpen(u.pv&&u.g&&current.bottomBar.some(b=>b.id===u.g)?u.g:null);
-    setSelectedBarId(u.b&&current.bottomBar.some(b=>b.id===u.b)?u.b:'');
-    if(u.p&&['points','panoramas','bar','general'].includes(u.p as string))setPanel(u.p);
-    // Fenêtre d'information : soit un bouton de la barre du bas, soit un point du panorama (toujours relus dans MA copie du projet).
-    const bar=u.i?current.bottomBar.find(b=>b.id===u.i):null;
-    if(bar)setInfo({id:bar.id,type:'information',title:bar.title,text:bar.text,translations:bar.translations,target:'',yaw:0,pitch:0});
-    else setInfo(findHotspot(u.i));
-    const safe=u.f?safeLink(u.f.u):null;
-    setFrame(u.f&&safe&&/^https:\/\//i.test(safe)?{title:String(u.f.t).slice(0,120),url:safe}:null);
-    setImageZoom(findHotspot(u.im));
-    setVideoZoom(findHotspot(u.vi));
-  }
   const suppressClick=useRef(false);
   const viewAreaRef=useRef<HTMLDivElement>(null);
   const [creationFullscreen,setCreationFullscreen]=useState(false);
@@ -918,6 +875,59 @@ function App(){
   const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
   const [notesOpen,setNotesOpen]=useState(false);
   const [dragTool,setDragTool]=useState<string|null>(null);
+  const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
+  // Fenêtres et panneaux ouverts : envoyés à l'autre personne pour qu'elle voie les mêmes écrans s'ouvrir.
+  const liveUi=JSON.stringify({
+    pv:preview,g:galleryOpen,b:selectedBarId,s:selectedId,p:panel,
+    tm:toolsMenuOpen,rh:rightHidden,sp:spacesDrawerOpen,nd:navigationDrawerOpen,hub:hubOpen,sk:skinsOpen,cl:clientOpen,
+    i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
+  });
+  const liveInvite=useLiveInvites(inviteIdentity,!liveProjectId);
+  const live=useLiveSession({
+    projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
+    state:{sceneId:activeId,spaceId:activeSpaceId},
+    getView:()=>cameraRef.current.sceneId?cameraRef.current:null,
+    ui:liveUi,
+    onRemoteUi:raw=>applyRemoteUi(raw),
+    onRemoteView:v=>{
+      // Même panorama seulement : on reproduit l'orientation et le zoom de l'autre personne.
+      if(cameraRef.current.sceneId!==v.sceneId)return;
+      setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true});
+    },
+    onRemoteState:remote=>{
+      const current=projectRef.current;
+      const space=remote.spaceId?(current.spaces??[]).find(sp=>sp.id===remote.spaceId):null;
+      if(remote.spaceId&&!space)return;                 // espace pas (encore) présent dans ma copie
+      if(!current.scenes.some(sc=>sc.id===remote.sceneId))return;
+      setActiveSpaceId(space?.id??null);setActiveId(remote.sceneId);setSelectedId('');
+    }
+  });
+  function applyRemoteUi(raw:string){
+    let u:{tm?:boolean;rh?:boolean;sp?:boolean;nd?:boolean;hub?:Record<string,string|null>;sk?:boolean;cl?:boolean;pv?:boolean;g?:string|null;b?:string;s?:string;p?:PanelTab;i?:string|null;f?:{t:string;u:string}|null;im?:string|null;vi?:string|null};
+    try{u=JSON.parse(raw);}catch{return;}
+    const current=projectRef.current;
+    const findHotspot=(id:string|null|undefined)=>id?current.scenes.flatMap(sc=>sc.hotspots).find(h=>h.id===id)??null:null;
+    // Tout l'écran de l'autre : rideau des outils, feuille de réglages, rubriques ouvertes, menus…
+    if(typeof u.tm==='boolean')setToolsMenuOpen(u.tm);
+    if(typeof u.rh==='boolean')setRightHidden(u.rh);
+    if(typeof u.sp==='boolean')setSpacesDrawerOpen(u.sp);
+    if(typeof u.nd==='boolean')setNavigationDrawerOpen(u.nd);
+    if(u.hub&&typeof u.hub==='object')setHubOpen(Object.fromEntries(Object.entries(u.hub).filter(([,v])=>v===null||typeof v==='string').map(([k,v])=>[k,v as string|null])));
+    if(typeof u.sk==='boolean')setSkinsOpen(u.sk);
+    if(typeof u.cl==='boolean')setClientOpen(u.cl);
+    setPreview(!!u.pv);
+    setGalleryOpen(u.pv&&u.g&&current.bottomBar.some(b=>b.id===u.g)?u.g:null);
+    setSelectedBarId(u.b&&current.bottomBar.some(b=>b.id===u.b)?u.b:'');
+    if(u.p&&['points','panoramas','bar','general'].includes(u.p as string))setPanel(u.p);
+    // Fenêtre d'information : soit un bouton de la barre du bas, soit un point du panorama (toujours relus dans MA copie du projet).
+    const bar=u.i?current.bottomBar.find(b=>b.id===u.i):null;
+    if(bar)setInfo({id:bar.id,type:'information',title:bar.title,text:bar.text,translations:bar.translations,target:'',yaw:0,pitch:0});
+    else setInfo(findHotspot(u.i));
+    const safe=u.f?safeLink(u.f.u):null;
+    setFrame(u.f&&safe&&/^https:\/\//i.test(safe)?{title:String(u.f.t).slice(0,120),url:safe}:null);
+    setImageZoom(findHotspot(u.im));
+    setVideoZoom(findHotspot(u.vi));
+  }
   const toolsMenuRef=useRef<HTMLDivElement>(null);
   const fsToolsRef=useRef<HTMLDivElement>(null);
   const toolOptions:Array<{key:PanelTab;label:string}>=[
@@ -2957,7 +2967,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>setLiveDialogOpen(false)}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([]);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)}/>}
+    {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)} onOpenCloud={()=>setCloudOpen(true)}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
       const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
@@ -3964,7 +3974,7 @@ function App(){
             /* ============================================================== */
             <div className="scene-overview">
               {currentSpace&&<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>}
-              <SectionHub
+              <SectionHub id="scene" open={hubOpen.scene??null} onOpenChange={k=>setHubOpen(h=>({...h,scene:k}))}
                 intro={currentSpace?<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>:null}
                 sections={[
                   {key:'name',title:'Nom du panorama',hint:active.name,icon:<Pencil size={26}/>,tone:'#4f7cff',content:<>
@@ -4052,7 +4062,7 @@ function App(){
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
-          <SectionHub forceOpen={selectedBarId?'buttons':null} sections={[
+          <SectionHub id="bar" open={hubOpen.bar??null} onOpenChange={k=>setHubOpen(h=>({...h,bar:k}))} forceOpen={selectedBarId?'buttons':null} sections={[
             {key:'buttons',title:'Boutons et actions',badge:project.bottomBar.length,hint:'Ajouter, modifier, ordonner',icon:<PanelBottom size={26}/>,tone:'#a468f0',content:<>
 
           <div className="bar-items-list" data-sort-scope="visit-bar">{project.bottomBar.map(item=><div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-list-sort">{barSort.grip(item.id,item.title)}<button className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>

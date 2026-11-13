@@ -19,7 +19,7 @@ function localRead(key:string):Note[]{
 }
 function localWrite(key:string,notes:Note[]){try{localStorage.setItem(key,JSON.stringify(notes));}catch{/* stockage indisponible */}}
 
-export function NotesPanel({projectName,onClose}:{projectName:string;onClose:()=>void}){
+export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string;onClose:()=>void;onOpenCloud?:()=>void}){
   const [mode,setMode]=useState<Mode|null>(null);
   const [notes,setNotes]=useState<Note[]>([]);
   const [draft,setDraft]=useState('');
@@ -106,7 +106,7 @@ export function NotesPanel({projectName,onClose}:{projectName:string;onClose:()=
     <section className="nv-notes" role="dialog" aria-modal="true" aria-label="Notes du projet">
       <header><div><strong>Notes</strong><small>{projectName||'Projet'} · attachées à ce projet</small></div>
         <button type="button" onClick={onClose} aria-label="Fermer les notes"><X size={20}/></button></header>
-      {mode?.kind==='local'&&<p className="nv-notes-info">{mode.reason}</p>}
+      {mode?.kind==='local'&&<div className="nv-notes-info"><p>{mode.reason}</p>{onOpenCloud&&<button type="button" className="nv-notes-cloud" onClick={()=>{onClose();onOpenCloud();}}>Ouvrir le Cloud (connexion et projets)</button>}</div>}
       <div className="nv-notes-composer">
         <textarea value={draft} maxLength={4000} rows={3} placeholder="Écris une note pour ce projet…" aria-label="Nouvelle note"
           onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter')void add();}}/>

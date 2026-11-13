@@ -12,7 +12,7 @@ export type LiveState={sceneId:string;spaceId:string|null};
 export type LiveView={sceneId:string;yaw:number;pitch:number;zoom:number};
 type Meta={id:string;label:string;joinedAt:number};
 type Cursor={x:number;y:number;t:number};
-export type LivePeer=Meta&{color:string;cursor?:Cursor;pulse?:{x:number;y:number;t:number}};
+export type LivePeer=Meta&{color:string;cursor?:Cursor;pulse?:{x:number;y:number;t:number;label?:string}};
 
 /** Transport minimal, remplaçable (Supabase Realtime en production). */
 export type LiveTransport={
@@ -76,9 +76,9 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
         setPeers(list=>list.map(x=>x.id===p.id?{...x,cursor:{x:p.x,y:p.y,t:Date.now()}}:x));
       });
       t.on('click',p=>{
-        setPeers(list=>list.map(x=>x.id===p.id?{...x,cursor:{x:p.x,y:p.y,t:Date.now()},pulse:{x:p.x,y:p.y,t:Date.now()}}:x));
+        setPeers(list=>list.map(x=>x.id===p.id?{...x,cursor:{x:p.x,y:p.y,t:Date.now()},pulse:{x:p.x,y:p.y,t:Date.now(),label:typeof p.label==='string'?p.label.slice(0,60):undefined}}:x));
       });
-      t.on('hand',p=>{setLeaderId(p.id);});
+      t.on('hand',p=>{leaderRef.current=p.id;setLeaderId(p.id);}); // la référence est mise à jour tout de suite : le message suivant n'est pas ignoré
       t.on('release',p=>{setLeaderId(cur=>cur===p.id?null:cur);});
       t.on('state',p=>{
         if(p.id===leaderRef.current&&followRef.current&&p.sceneId)remoteRef.current({sceneId:p.sceneId,spaceId:p.spaceId??null});
@@ -115,7 +115,14 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
     };
     const inBar=(e:Event)=>e.target instanceof Element&&!!e.target.closest('.nv-live-bar');
     const mark=(e:Event)=>{if(!inBar(e))lastInput.current=Date.now();};
-    const click=(e:PointerEvent)=>{mark(e);transport.current?.send('click',{id:selfId,...norm(e)});};
+    // Texte de l'élément cliqué (bouton, onglet, tuile…) : l'autre personne voit sur quoi on appuie.
+    const labelOf=(e:Event)=>{
+      const el=e.target instanceof Element?e.target.closest('button,[role=tab],[role=menuitem],a,label,summary,select,input'):null;
+      if(!el)return undefined;
+      const text=(el.getAttribute('aria-label')||el.getAttribute('title')||(el as HTMLElement).innerText||'').replace(/\s+/g,' ').trim();
+      return text?text.slice(0,50):undefined;
+    };
+    const click=(e:PointerEvent)=>{mark(e);transport.current?.send('click',{id:selfId,...norm(e),label:labelOf(e)});};
     window.addEventListener('pointermove',move,{passive:true});
     window.addEventListener('pointerdown',click,{passive:true,capture:true});
     window.addEventListener('wheel',mark,{passive:true,capture:true});
@@ -184,6 +191,19 @@ function Arrow({color,big}:{color:string;big:boolean}){
 export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSession>;onClose:()=>void}){
   const [now,setNow]=useState(Date.now());
   const [open,setOpen]=useState(false);
+  const [banner,setBanner]=useState('');
+  const prevLeader=useRef<string|null|undefined>(undefined);
+  useEffect(()=>{
+    // Annonce claire à chaque changement de pilote (sans le répéter au démarrage).
+    const first=prevLeader.current===undefined;
+    const before=prevLeader.current;prevLeader.current=live.leaderId;
+    if(first||before===live.leaderId)return;
+    const who=live.peers.find(x=>x.id===live.leaderId);
+    setBanner(live.leaderId===live.selfId?'Vous êtes maintenant pilote : l’autre personne voit ce que vous faites.'
+      :who?(who.label||'L’autre personne')+' est maintenant pilote : vous voyez son écran.':'Plus de pilote pour l’instant.');
+    const t=window.setTimeout(()=>setBanner(''),4500);
+    return ()=>window.clearTimeout(t);
+  },[live.leaderId]);
   useEffect(()=>{const i=window.setInterval(()=>setNow(Date.now()),400);return ()=>window.clearInterval(i);},[]);
   const others=live.peers.filter(p=>p.id!==live.selfId);
   const me=live.peers.find(p=>p.id===live.selfId);
@@ -199,23 +219,33 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
             <Arrow color={p.color} big={live.leaderId===p.id}/>
             <span style={{background:p.color}}>{fmtName(p)}{live.leaderId===p.id?' · pilote':''}</span>
           </div>}
+          {p.pulse&&p.pulse.label&&now-p.pulse.t<2200&&<span className="nv-live-click-label" style={{left:p.pulse.x*100+'%',top:p.pulse.y*100+'%',background:p.color}}>{fmtName(p)} clique : « {p.pulse.label} »</span>}
           {p.pulse&&now-p.pulse.t<700&&<span key={p.pulse.t} className="nv-live-pulse" style={{left:p.pulse.x*100+'%',top:p.pulse.y*100+'%',borderColor:p.color}}/>}
         </div>;
       })}
     </div>
-    <div className={'nv-live-bar'+(open?' is-open':'')+(iHaveHand?' is-pilot':'')} role="status">
-      <button type="button" className="nv-live-pill" onClick={()=>{if(others.length===0)setOpen(o=>!o);else if(iHaveHand)live.release();else live.take();}}
-        title={others.length===0?'En attente de l’autre personne':iHaveHand?'Cliquer pour passer le pilotage':'Cliquer pour prendre le pilotage'}>
+    {banner&&<div className="nv-live-banner" role="status"><span>{banner}</span><button type="button" onClick={()=>setBanner('')} aria-label="Fermer le message">✕</button></div>}
+    <div className={'nv-live-bar'+(open?' is-open':'')+(iHaveHand?' is-pilot':leader?' is-follower':'')} role="status">
+      <button type="button" className="nv-live-pill" onClick={()=>setOpen(o=>!o)}
+        title="Voir les détails de l’écran partagé">
         <span className="nv-live-dot" style={{background:me?.color??'#2f80ed'}}/>
-        {others.length===0?'En attente de l’autre personne…':iHaveHand?'Vous êtes pilote':'Vous n’êtes pas pilote'}
+        {others.length===0?'En attente de l’autre personne…':iHaveHand?<><b>VOUS ÊTES PILOTE</b><small>{others.map(fmtName).join(', ')} vous suit</small></>
+          :leader?<><b>{fmtName(leader).toUpperCase()} EST PILOTE</b><small>{live.follow?'vous suivez son écran':'suivi désactivé'}</small></>
+          :<><b>AUCUN PILOTE</b><small>agis pour le devenir</small></>}
       </button>
       <button type="button" className="nv-live-more" aria-expanded={open} aria-label="Détails de l’écran partagé" onClick={()=>setOpen(o=>!o)}>{open?'▴':'▾'}</button>
       {open&&<div className="nv-live-details">
-        <span>Avec {others.length?others.map(p=><i key={p.id} style={{color:p.color}}>{fmtName(p)}</i>).reduce<ReactNode[]>((a,x,i)=>i?[...a,', ',x]:[x],[]):'personne pour l’instant (l’autre doit aussi cliquer sur « Écran partagé »)'}</span>
-        {others.length>0&&!iHaveHand&&<span className="nv-live-chip">{leader?fmtName(leader)+' pilote':'Aucun pilote'}</span>}
-        {others.length>0&&!iHaveHand&&leader&&<label className="nv-live-follow"><input type="checkbox" checked={live.follow} onChange={e=>live.setFollow(e.target.checked)}/> Suivre</label>}
+        <div className="nv-live-details-head"><b>Écran partagé</b><button type="button" className="nv-live-close" onClick={()=>setOpen(false)} aria-label="Fermer cette fenêtre">✕</button></div>
+        <p className="nv-live-explain">{iHaveHand?'Tu es le pilote : l’autre personne voit ton écran (panorama, onglets, réglages). Pour lui laisser la main, clique sur « Passer le pilotage ».'
+          :leader?fmtName(leader)+' est le pilote : tu vois son écran. Décoche « Suivre » pour travailler de ton côté, ou prends le pilotage.'
+          :'Personne ne pilote. La première personne qui agit devient pilote.'}</p>
+        <span>Avec {others.length?others.map(p=><i key={p.id} style={{color:p.color}}>{fmtName(p)}</i>).reduce<ReactNode[]>((a,x,i)=>i?[...a,', ',x]:[x],[]):'personne pour l’instant (l’autre doit accepter l’invitation ou cliquer sur « Écran partagé »)'}</span>
+        <div className="nv-live-actions">
+          {others.length>0&&(iHaveHand?<button type="button" onClick={live.release}>Passer le pilotage</button>:<button type="button" onClick={live.take}>Prendre le pilotage</button>)}
+          {others.length>0&&!iHaveHand&&leader&&<label className="nv-live-follow"><input type="checkbox" checked={live.follow} onChange={e=>live.setFollow(e.target.checked)}/> Suivre son écran</label>}
+          <button type="button" className="nv-live-quit" onClick={onClose}>Quitter le partage</button>
+        </div>
         {live.error&&<span className="nv-live-error">{live.error}</span>}
-        <button type="button" className="nv-live-quit" onClick={onClose}>Quitter</button>
       </div>}
     </div>
   </>;
