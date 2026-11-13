@@ -16,7 +16,7 @@ import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
 
-import {useEffect, useRef, useState, type CSSProperties} from 'react';
+import {useEffect, useRef, useState, type CSSProperties,type ReactNode} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
@@ -39,7 +39,8 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload} from 'lucide-react';
+import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
@@ -874,6 +875,8 @@ function App(){
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [quickLinkMode,setQuickLinkMode]=useState(true);
   const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
+  const [notesOpen,setNotesOpen]=useState(false);
+  const [dragTool,setDragTool]=useState<string|null>(null);
   const toolsMenuRef=useRef<HTMLDivElement>(null);
   const toolOptions:Array<{key:PanelTab;label:string}>=[
     {key:'panoramas',label:'Panoramas'},
@@ -886,7 +889,7 @@ function App(){
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','music','client'];
+  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','music','client','notes'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
@@ -894,18 +897,23 @@ function App(){
       return [...new Set([...known,...TOOL_KEYS])];
     }catch{return TOOL_KEYS;}
   });
-  const toolSort=useGripSort('tools-popup',toolOrder,(from,to)=>setToolOrder(order=>{
-    const next=reorderItems(order,from,to,key=>key);
-    try{localStorage.setItem('nvstudio-tools-order',JSON.stringify(next));}catch{/* ordre non mémorisé */}
-    return next;
-  }));
-  function toolMeta(key:string):{label:string;glyph:string;active:boolean;badge?:number;run:()=>void}|null{
-    if(key==='spaces')return {label:'Espaces',glyph:'≋',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
+  const saveToolOrder=(order:string[])=>{try{localStorage.setItem('nvstudio-tools-order',JSON.stringify(order));}catch{/* ordre non mémorisé */}};
+  // Glisser-déposer des tuiles (ordinateur uniquement : pas de déplacement sur mobile / écran tactile).
+  const canDragTools=typeof window!=='undefined'&&!window.matchMedia('(max-width:820px),(pointer:coarse)').matches;
+  function toolMeta(key:string):{label:string;icon:ReactNode;tone:string;active:boolean;badge?:number;run:()=>void}|null{
+    const ic=22;
+    if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{setToolsMenuOpen(false);setSpacesDrawerOpen(open=>!open);}};
+    if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{setToolsMenuOpen(false);setNotesOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);
     if(!option)return null;
-    const glyphs:Record<string,string>={panoramas:'▦',points:'◎',bar:'▭',icons:'★',intro:'▶',elements:'✚',music:'♫',client:'☺'};
-    return {label:option.label,glyph:glyphs[key]??'•',active:!rightHidden&&panel===key,run:()=>toggleToolPanel(key as PanelTab)};
+    const look:Record<string,{icon:ReactNode;tone:string}>={
+      panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
+      icons:{icon:<Star size={ic}/>,tone:'#f0b429'},intro:{icon:<Play size={ic}/>,tone:'#ef5b7b'},elements:{icon:<Plus size={ic}/>,tone:'#2bb3d6'},
+      music:{icon:<Music size={ic}/>,tone:'#ff6fa8'},client:{icon:<Smile size={ic}/>,tone:'#7f8cff'}
+    };
+    const l=look[key]??{icon:<Layers size={ic}/>,tone:'#4f7cff'};
+    return {label:option.label,icon:l.icon,tone:l.tone,active:!rightHidden&&panel===key,run:()=>toggleToolPanel(key as PanelTab)};
   }
   function toggleToolPanel(next:PanelTab){
     setToolsMenuOpen(false);
@@ -2692,51 +2700,50 @@ function App(){
         </div>
         <div id="nv-header-tools-options" className={'nv-tools-curtain'+(toolsMenuOpen?' is-open':'')} role="dialog" aria-label="Tous les outils" aria-hidden={!toolsMenuOpen}>
           <div className="nv-tools-curtain-inner">
-            <section className="nv-tools-col">
-              <div className="nv-tools-popup-head"><strong>Outils</strong><small>Glisse la poignée pour les ranger dans l’ordre voulu</small></div>
-              <div className="nv-tools-list" data-sort-scope="tools-popup">
-                {toolOrder.map(key=>{
-                  const meta=toolMeta(key);
-                  if(!meta)return null;
-                  const ip=toolSort.itemProps(key);
-                  return <div key={key} data-sort-id={key} className={ip.className+' nv-tool-row'+(meta.active?' is-active':'')}>
-                    {toolSort.grip(key,meta.label)}
-                    <button type="button" className="nv-tool-row-main" aria-pressed={meta.active} onClick={meta.run} tabIndex={toolsMenuOpen?0:-1}>
-                      <span className="nv-tool-glyph" aria-hidden="true">{meta.glyph}</span>
-                      <span className="nv-tool-label">{meta.label}</span>
-                      {meta.badge!==undefined&&<small>{meta.badge}</small>}
-                      {meta.active&&<span className="nv-tool-check" aria-hidden="true">✓</span>}
-                    </button>
-                  </div>;
-                })}
-              </div>
-            </section>
-            <section className="nv-tools-col">
-              <div className="nv-tools-section">Fichier</div>
-              <div className="nv-tools-file">
-                <button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-tools-save'+(project!==savedRef.current?' is-dirty':'')}
-                  disabled={!ready||savingManually||!!lock} onClick={()=>{setToolsMenuOpen(false);void manualSave();}}
-                  title="Enregistrer (⌘S / Ctrl+S)">
-                  <Save size={17}/><span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
-                  {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
-                </button>
-                <button type="button" tabIndex={toolsMenuOpen?0:-1} disabled={savingManually||!ready||!!lock||!project.scenes.length}
-                  onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}}>⚠ <span>Publier</span></button>
-                <button type="button" tabIndex={toolsMenuOpen?0:-1} disabled={exporting||!visibleScenes.length}
-                  title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
-                  onClick={()=>{setToolsMenuOpen(false);void exportTour();}}>
-                  <Download size={16}/><span>{exporting?'Export…':'Exporter'}</span>
-                </button>
-              </div>
-              <div className="nv-tools-section">Travailler à plusieurs</div>
-              <div className="nv-tools-team">
-                <WriteHand onStatus={setStatus}/>
-                <button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-header-live'+(liveProjectId?' is-on':'')} onClick={()=>{setToolsMenuOpen(false);void toggleLive();}}
-                  title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
-                  <Users size={16}/><span>Écran partagé</span>
-                </button>
-              </div>
-            </section>
+            <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux':'Touche une tuile pour l’ouvrir'}</small></div>
+            <div className="nv-tiles" role="list">
+              {toolOrder.map(key=>{
+                const meta=toolMeta(key);
+                if(!meta)return null;
+                return <div key={key} role="listitem" className={'nv-tile-wrap'+(dragTool===key?' is-dragging':'')} draggable={canDragTools}
+                  onDragStart={e=>{setDragTool(key);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key);}}
+                  onDragOver={e=>{
+                    if(!dragTool||dragTool===key)return;
+                    e.preventDefault();
+                    setToolOrder(order=>reorderItems(order,dragTool,key,k=>k));
+                  }}
+                  onDrop={e=>e.preventDefault()}
+                  onDragEnd={()=>{setDragTool(null);setToolOrder(order=>{saveToolOrder(order);return order;});}}>
+                  <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active} onClick={meta.run} tabIndex={toolsMenuOpen?0:-1}
+                    style={{'--tile-tone':meta.tone} as CSSProperties}>
+                    <span className="nv-app-tile-icon">{meta.icon}</span>
+                    <span className="nv-app-tile-label">{meta.label}</span>
+                    {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
+                  </button>
+                </div>;
+              })}
+            </div>
+            <div className="nv-tiles-title nv-tiles-title-second">Fichier et équipe</div>
+            <div className="nv-tiles">
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile nv-tile-save'+(project!==savedRef.current?' is-dirty':'')}
+                disabled={!ready||savingManually||!!lock} onClick={()=>{setToolsMenuOpen(false);void manualSave();}} title="Enregistrer (⌘S / Ctrl+S)"
+                style={{'--tile-tone':'#e8873a'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Save size={22}/></span><span className="nv-app-tile-label">{savingManually?'Enregistrement…':'Enregistrer'}</span>
+                {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+              </button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={savingManually||!ready||!!lock||!project.scenes.length}
+                onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}} style={{'--tile-tone':'#e05d44'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Upload size={22}/></span><span className="nv-app-tile-label">Publier</span></button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={exporting||!visibleScenes.length}
+                title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
+                onClick={()=>{setToolsMenuOpen(false);void exportTour();}} style={{'--tile-tone':'#3aa0d8'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Download size={22}/></span><span className="nv-app-tile-label">{exporting?'Export…':'Exporter'}</span></button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile'+(liveProjectId?' is-active':'')}
+                onClick={()=>{setToolsMenuOpen(false);void toggleLive();}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
+                title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
+                <span className="nv-app-tile-icon"><Users size={22}/></span><span className="nv-app-tile-label">Écran partagé</span></button></div>
+              <div className="nv-tile-wrap nv-tile-hand"><WriteHand onStatus={setStatus}/></div>
+            </div>
           </div>
         </div>
       </div>
@@ -2864,6 +2871,7 @@ function App(){
         </div>
       </section>
     </div>}
+    {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
       const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
