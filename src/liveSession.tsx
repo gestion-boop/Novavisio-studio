@@ -9,6 +9,7 @@ import {useCallback,useEffect,useMemo,useRef,useState,type ReactNode} from 'reac
  * personne ne peut agir à la place de l'autre. Canal Supabase Realtime nommé d'après l'identifiant (secret) du projet.
  */
 export type LiveState={sceneId:string;spaceId:string|null};
+export type LiveView={sceneId:string;yaw:number;pitch:number;zoom:number};
 type Meta={id:string;label:string;joinedAt:number};
 type Cursor={x:number;y:number;t:number};
 export type LivePeer=Meta&{color:string;cursor?:Cursor;pulse?:{x:number;y:number;t:number}};
@@ -44,7 +45,7 @@ function makeTransport(projectId:string,selfId:string):Promise<LiveTransport>{
   return custom?Promise.resolve(custom(projectId,selfId)):supabaseTransport(projectId,selfId);
 }
 
-export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label:string;state:LiveState;onRemoteState:(s:LiveState)=>void}){
+export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label:string;state:LiveState;onRemoteState:(s:LiveState)=>void;getView:()=>LiveView|null;onRemoteView:(v:LiveView)=>void}){
   const selfId=useMemo(()=>Math.random().toString(36).slice(2,10),[]);
   const joinedAt=useRef(Date.now());
   const [peers,setPeers]=useState<LivePeer[]>([]);
@@ -56,6 +57,10 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
   const followRef=useRef(follow);followRef.current=follow;
   const stateRef=useRef(opts.state);stateRef.current=opts.state;
   const remoteRef=useRef(opts.onRemoteState);remoteRef.current=opts.onRemoteState;
+  const getViewRef=useRef(opts.getView);getViewRef.current=opts.getView;
+  const remoteViewRef=useRef(opts.onRemoteView);remoteViewRef.current=opts.onRemoteView;
+  const lastInput=useRef(0);                 // dernière action de l'utilisateur (clic, molette, clavier) hors barre de partage
+  const [lastAction,setLastAction]=useState('');
   const {projectId,enabled,label}=opts;
 
   useEffect(()=>{
@@ -75,6 +80,9 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
       t.on('release',p=>{setLeaderId(cur=>cur===p.id?null:cur);});
       t.on('state',p=>{
         if(p.id===leaderRef.current&&followRef.current&&p.sceneId)remoteRef.current({sceneId:p.sceneId,spaceId:p.spaceId??null});
+      });
+      t.on('view',p=>{
+        if(p.id===leaderRef.current&&followRef.current&&typeof p.yaw==='number')remoteViewRef.current({sceneId:p.sceneId,yaw:p.yaw,pitch:p.pitch,zoom:p.zoom});
       });
       t.on('hello',()=>{ // un nouvel arrivant demande qui pilote
         if(leaderRef.current===selfId)t.send('hand',{id:selfId});
@@ -100,17 +108,50 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
       if(now-last<40)return;
       last=now;transport.current?.send('cursor',{id:selfId,...norm(e)});
     };
-    const click=(e:PointerEvent)=>{transport.current?.send('click',{id:selfId,...norm(e)});};
+    const inBar=(e:Event)=>e.target instanceof Element&&!!e.target.closest('.nv-live-bar');
+    const mark=(e:Event)=>{if(!inBar(e))lastInput.current=Date.now();};
+    const click=(e:PointerEvent)=>{mark(e);transport.current?.send('click',{id:selfId,...norm(e)});};
     window.addEventListener('pointermove',move,{passive:true});
     window.addEventListener('pointerdown',click,{passive:true,capture:true});
-    return ()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerdown',click,true);};
+    window.addEventListener('wheel',mark,{passive:true,capture:true});
+    window.addEventListener('keydown',mark,{capture:true});
+    window.addEventListener('touchmove',mark,{passive:true,capture:true});
+    return ()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerdown',click,true);
+      window.removeEventListener('wheel',mark,true);window.removeEventListener('keydown',mark,true);window.removeEventListener('touchmove',mark,true);};
   },[enabled,projectId,selfId]);
 
-  // Le pilote diffuse le panorama / l'espace affiché.
+  // Quiconque agit (déplace la vue, change de panorama…) devient le pilote : l'autre voit exactement la même chose.
+  const acting=()=>Date.now()-lastInput.current<1800;
+  const becomeLeader=()=>{
+    if(leaderRef.current===selfId)return;
+    leaderRef.current=selfId;setLeaderId(selfId);
+    transport.current?.send('hand',{id:selfId});
+  };
+  // Panorama / espace affiché.
   useEffect(()=>{
-    if(!enabled||leaderId!==selfId)return;
+    if(!enabled||!projectId)return;
+    if(leaderRef.current!==selfId){if(!acting())return;becomeLeader();}
     transport.current?.send('state',{id:selfId,...opts.state});
-  },[enabled,leaderId,selfId,opts.state.sceneId,opts.state.spaceId]);
+    setLastAction('');
+  },[enabled,projectId,selfId,opts.state.sceneId,opts.state.spaceId]);
+  // Orientation et zoom de la vue : envoyés dès qu'ils changent sous la main de l'utilisateur.
+  useEffect(()=>{
+    if(!enabled||!projectId)return;
+    let sent='';
+    const timer=window.setInterval(()=>{
+      const v=getViewRef.current();
+      if(!v||!v.sceneId)return;
+      const key=[v.sceneId,v.yaw.toFixed(3),v.pitch.toFixed(3),v.zoom.toFixed(1)].join('|');
+      if(key===sent)return;
+      if(leaderRef.current!==selfId){
+        if(!acting())return;      // simple suivi de l'autre : on ne renvoie rien
+        becomeLeader();
+      }
+      sent=key;
+      transport.current?.send('view',{id:selfId,...v});
+    },90);
+    return ()=>window.clearInterval(timer);
+  },[enabled,projectId,selfId]);
 
   const take=useCallback(()=>{
     setLeaderId(selfId);
@@ -118,7 +159,7 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
     transport.current?.send('state',{id:selfId,...stateRef.current});
   },[selfId]);
   const release=useCallback(()=>{setLeaderId(null);transport.current?.send('release',{id:selfId});},[selfId]);
-  return {selfId,peers,leaderId,follow,setFollow,take,release,error};
+  return {selfId,peers,leaderId,follow,setFollow,take,release,error,lastAction};
 }
 
 const fmtName=(p:LivePeer)=>p.label||'Invité';

@@ -104,7 +104,7 @@ type PanoramaProps = {
   onMarkerMove:(id:string,yaw:number,pitch:number)=>void;
   onAssetDrop:(iconId:string,yaw:number,pitch:number)=>void;
   onCameraChange:(yaw:number,pitch:number,zoom:number)=>void;
-  turn?:{n:number;yaw:number;pitch:number}|null; // demande de rotation de la vue (parcours guidé)
+  turn?:{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null; // demande de rotation de la vue (parcours guidé)
 };
 function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig {
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
@@ -306,7 +306,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     // Parcours guidé : tourne la vue (ex. demi-tour pour placer le retour) sans changer de panorama.
     const viewer=viewerRef.current;
     if(!viewer||!turn||loadedSceneRef.current!==scene.id)return;
-    void viewer.animate({yaw:turn.yaw,pitch:turn.pitch,speed:'40rpm'});
+    void viewer.animate({yaw:turn.yaw,pitch:turn.pitch,...(turn.zoom!==undefined?{zoom:turn.zoom}:{}),speed:turn.fast?120:'40rpm'});
   },[turn?.n]);
   useEffect(()=>{
     // Jour/Nuit : on change seulement la texture, sans toucher à la caméra ni aux points.
@@ -671,6 +671,12 @@ function App(){
   const live=useLiveSession({
     projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
     state:{sceneId:activeId,spaceId:activeSpaceId},
+    getView:()=>cameraRef.current.sceneId?cameraRef.current:null,
+    onRemoteView:v=>{
+      // Même panorama seulement : on reproduit l'orientation et le zoom de l'autre personne.
+      if(cameraRef.current.sceneId!==v.sceneId)return;
+      setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true});
+    },
     onRemoteState:remote=>{
       const current=projectRef.current;
       const space=remote.spaceId?(current.spaces??[]).find(sp=>sp.id===remote.spaceId):null;
@@ -724,7 +730,7 @@ function App(){
   const [autoNavigation,setAutoNavigation]=useState(false);
   // Parcours guidé (Auto) : suit l'ordre des panoramas. 'forward' = poser la flèche vers le suivant, 'back' = demi-tour puis valider le retour.
   const [guide,setGuide]=useState<{phase:'forward'|'back';prevId?:string;fwdYaw:number;fwdPitch:number}|null>(null);
-  const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number}|null>(null);
+  const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null>(null);
   const [preview,setPreview]=useState(false);
   const [clientVideoPlacement,setClientVideoPlacement]=useState<(ImportedClientVideo&{sceneId:string})|null>(null);
   useEffect(()=>{
