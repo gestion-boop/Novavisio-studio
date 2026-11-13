@@ -996,7 +996,7 @@ function App(){
     const ic=22;
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{setToolsMenuOpen(false);setSpacesDrawerOpen(open=>!open);}};
-    if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{setToolsMenuOpen(false);setNotesOpen(true);}};
+    if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{setToolsMenuOpen(false);setRightHidden(true);setNotesOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);
     if(!option)return null;
     const look:Record<string,{icon:ReactNode;tone:string}>={
@@ -1083,7 +1083,7 @@ function App(){
                 onClick={()=>{setToolsMenuOpen(false);void exportNovaVisioHtml();}} style={{'--tile-tone':'#1fb5a8'} as CSSProperties}>
                 <span className="nv-app-tile-icon"><Globe size={22}/></span><span className="nv-app-tile-label">HTML NovaVisio</span></button></div>
               <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile'+(liveProjectId?' is-active':'')}
-                onClick={()=>{setToolsMenuOpen(false);if(liveProjectId)void toggleLive();else setLiveDialogOpen(true);}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
+                onClick={()=>{setToolsMenuOpen(false);setRightHidden(true);if(liveProjectId)void toggleLive();else setLiveDialogOpen(true);}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
                 title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
                 <span className="nv-app-tile-icon"><Users size={22}/></span><span className="nv-app-tile-label">Écran partagé</span></button></div>
               <div className="nv-tile-wrap nv-tile-hand"><WriteHand onStatus={setStatus}/></div>
