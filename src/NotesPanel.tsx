@@ -9,6 +9,8 @@ import {cloudConfigured,readLink,supabase} from './cloud';
  */
 type Note={id:string;body:string;shared:boolean;authorEmail:string;mine:boolean;createdAt:string};
 type Mode={kind:'cloud';projectId:string;userId:string;email:string}|{kind:'local';key:string;reason:string};
+const MISSING=/nvstudio_notes|schema cache|does not exist|Could not find the table/i;
+const NOT_ACTIVE='Le partage des notes n’est pas encore activé sur ton Cloud (une mise à jour de la base est à lancer une fois) : en attendant, tes notes restent sur cet ordinateur.';
 const who=(email:string)=>email?email.split('@')[0]:'Quelqu’un';
 const when=(iso:string)=>{try{return new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch{return '';}};
 
@@ -48,14 +50,13 @@ export function NotesPanel({projectName,onClose}:{projectName:string;onClose:()=
     const {data,error:err}=await supabase().from('nvstudio_notes').select('id,body,shared,author_id,author_email,created_at')
       .eq('project_id',mode.projectId).order('created_at',{ascending:false}).limit(300);
     if(err){
-      setError(/nvstudio_notes|schema cache|does not exist/i.test(err.message)
-        ?'Les notes ne sont pas encore activées sur le Cloud (une mise à jour de la base est à appliquer une fois).'
-        :'Lecture des notes impossible : '+err.message);
+      if(MISSING.test(err.message)){setMode({kind:'local',key:'nvstudio-notes-local:'+(projectName||'projet'),reason:NOT_ACTIVE});return;}
+      setError('Lecture des notes impossible : '+err.message);
       return;
     }
     setError('');
     setNotes((data??[]).map(r=>({id:r.id as string,body:r.body as string,shared:!!r.shared,authorEmail:(r.author_email as string)||'',mine:r.author_id===mode.userId,createdAt:r.created_at as string})));
-  },[mode]);
+  },[mode,projectName]);
   useEffect(()=>{
     void refresh();
     if(mode?.kind!=='cloud')return;
@@ -73,7 +74,16 @@ export function NotesPanel({projectName,onClose}:{projectName:string;onClose:()=
         const next=[note,...localRead(mode.key)];localWrite(mode.key,next);setNotes(next);
       }else{
         const {error:err}=await supabase().from('nvstudio_notes').insert({project_id:mode.projectId,body,shared});
-        if(err)throw new Error(err.message);
+        if(err){
+          if(MISSING.test(err.message)){
+            // Table pas encore créée : la note n'est pas perdue, elle reste sur cet ordinateur.
+            const key='nvstudio-notes-local:'+(projectName||'projet');
+            const note:Note={id:Math.random().toString(36).slice(2),body,shared:false,authorEmail:'',mine:true,createdAt:new Date().toISOString()};
+            const next=[note,...localRead(key)];localWrite(key,next);
+            setMode({kind:'local',key,reason:NOT_ACTIVE});setNotes(next);setDraft('');setShared(false);return;
+          }
+          throw new Error(err.message);
+        }
         await refresh();
       }
       setDraft('');

@@ -41,6 +41,7 @@ import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
 import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler} from 'lucide-react';
 import {SectionHub} from './SectionHub';
+import {IconLibrary} from './IconLibrary';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -2157,8 +2158,8 @@ function App(){
     }catch{setStatus('Impossible de remplacer cette icône');}
     if(replaceIconInput.current)replaceIconInput.current.value='';
   }
-  function deleteIcon(id:string){
-    if(!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
+  function deleteIcon(id:string,confirmed=false){
+    if(!confirmed&&!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
     setProject(p=>({...p,
       icons:p.icons.filter(i=>i.id!==id),
       ...Object.fromEntries((['defaultPhotoIcon','defaultVideoIcon'] as const).map(key=>{const v=p[key];return [key,!v||v.iconId===id?undefined:{...v,hoverIconId:v.hoverIconId===id?undefined:v.hoverIconId,pressedIconId:v.pressedIconId===id?undefined:v.pressedIconId}]})),
@@ -4174,7 +4175,17 @@ function App(){
           </InspectorSection>)}
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
-        {panel==='icons' && <div className="properties">
+        {panel==='icons' && <div className="properties nv-icons-panel">
+          <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
+            onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer le jeu « '+name+' » ('+ids.length+' icône'+(ids.length>1?'s':'')+') de la bibliothèque et de ses utilisations ?'))return;ids.forEach(id=>deleteIcon(id,true));}}
+            applyLabel={selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
+            onApply={selectedBar||selected?set=>{
+              const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
+              if(selectedBar){patchBar(patch);setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
+              else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
+            }:undefined}/>
+          <details className="nv-icons-advanced">
+            <summary>Autres réglages : croix de fermeture, créateur d’icônes</summary>
           <InspectorSection title="Croix de fermeture des fenêtres">
           <p className="hint">Une seule icône pour fermer les photos, vidéos, informations et popups de tous les panoramas. Le changement s’applique à l’ensemble de cette visite, y compris à l’export.</p>
           <div className="nv-close-current">
@@ -4186,18 +4197,8 @@ function App(){
           {closeIcon&&<button type="button" className="tool" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG dans toute la bibliothèque</button>}
           <p className="hint">Après avoir choisi la croix, clique sur « Enregistrer » en haut de NovaStudio. Les autres icônes de navigation ne sont pas modifiées.</p>
           </InspectorSection>
-          {svgIconWorkshop()}
-          <div className="section-title">BIBLIOTHÈQUE D’ICÔNES <span className="counter">{project.icons.length}</span></div>
-          <p className="hint">Ajoute tes propres icônes pour les points 360° et la barre inférieure. Elles sont conservées dans le fichier projet exporté.</p>
-          <button className="import" onClick={()=>iconInput.current?.click()}>＋ Importer mes icônes</button>
-          <small className="hint-inline">Formats : PNG (transparent), JPG, WebP, GIF animé · 1,5 Mo maximum par fichier.</small>
-          <div className="asset-grid">{project.icons.map(icon=><div className="asset-card" key={icon.id}>
-            <img src={icon.dataUrl} alt={icon.name}/><span title={icon.name}>{icon.name}</span>
-            <button className="asset-delete" title={'Supprimer '+icon.name} onClick={()=>deleteIcon(icon.id)}>✕</button>
-            <button className="asset-replace" type="button" onClick={()=>requestReplaceIcon(icon.id)}>Remplacer partout</button>
-          </div>)}</div>
-          <p className="hint">Le remplacement conserve l’icône liée à tous les boutons et tous les points 360°, sans les reconfigurer.</p>
-          {!project.icons.length && <p className="hint">Ta bibliothèque est vide. Les icônes intégrées restent disponibles en attendant.</p>}
+            {svgIconWorkshop()}
+          </details>
         </div>}
       </aside>
     </div>

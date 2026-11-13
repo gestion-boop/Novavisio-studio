@@ -4667,3 +4667,42 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-fs-exit:hover{background:linear-gradient(160deg,#46aed6,#2f8fb5);border-color:#9fdcf3}
 .nv-fs-exit:active{transform:scale(.94);box-shadow:inset 0 4px 10px #0009}
 .nv-fs-topbar .nv-tools-curtain{left:50%;right:auto;transform:translateX(-50%);width:min(1000px,94%);top:calc(100% + 10px);border:1px solid #426b77;border-radius:18px}
+
+/* Bibliothèque d'icônes : jeux normal · survol · pressé, classés par couleur */
+.nv-icons-panel{display:block!important}
+.nv-iconlib{display:flex;flex-direction:column;gap:12px}
+.nv-iconlib-bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.nv-iconlib-import{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 18px;border:1px dashed #4bebde;border-radius:12px;background:#12414b;color:#e7fff9;font:700 14px system-ui,sans-serif;cursor:pointer}
+.nv-iconlib-import:hover{background:linear-gradient(160deg,#46aed6,#2f8fb5);border-style:solid}
+.nv-iconlib-import:active{transform:scale(.96);box-shadow:inset 0 4px 10px #0009}
+.nv-iconlib-count{color:#9db4bb;font-size:13px}
+.nv-iconlib-colors{display:flex;flex-wrap:wrap;gap:8px}
+.nv-color-chip{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px 0 6px;border:1px solid #35606f;border-radius:999px;background:#143543;color:#e6f6f8;font:600 13px system-ui,sans-serif;cursor:pointer;transition:transform .12s,background .15s,border-color .15s}
+.nv-color-chip.is-all{padding:0 14px}
+.nv-color-chip>span{width:26px;height:26px;border-radius:50%;background:var(--chip);border:2px solid #ffffffaa;box-shadow:0 2px 6px #0006}
+.nv-color-chip i{font-style:normal}
+.nv-color-chip:hover{background:linear-gradient(160deg,#46aed6,#2f8fb5);border-color:#9fdcf3}
+.nv-color-chip:active{transform:scale(.95)}
+.nv-color-chip.is-on{border-color:#4bebde;background:#17505c;box-shadow:0 0 0 2px #4bebde77}
+.nv-iconlib-apply{margin:0;padding:8px 12px;border-radius:10px;background:#1d6f7e55;color:#e6f6f8}
+.nv-iconlib-empty{margin:0;color:#9db4bb}
+.nv-iconlib-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.nv-iconset{position:relative;border:1px solid #2f5a69;border-radius:16px;background:linear-gradient(160deg,#17404e,#112c37);transition:transform .12s,border-color .18s,box-shadow .18s}
+.nv-iconset-main{width:100%;display:flex;flex-direction:column;gap:8px;align-items:center;padding:12px 10px 10px;border:0;background:transparent;color:#e6f6f8;cursor:default;font:inherit}
+.nv-iconset.is-clickable .nv-iconset-main{cursor:pointer}
+.nv-iconset.is-clickable:hover{border-color:#9fdcf3;box-shadow:0 0 0 3px #46aed655,0 10px 24px #0007;background:linear-gradient(160deg,#2c86ad,#1f6a8a);transform:translateY(-2px)}
+.nv-iconset.is-clickable:active{transform:scale(.97);box-shadow:inset 0 5px 12px #0009}
+.nv-iconset-states{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}
+.nv-iconset-state{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.nv-iconset-img{width:100%;aspect-ratio:1/1;max-width:64px;display:grid;place-items:center;border-radius:12px;background:#0b1b24}
+.nv-iconset-img img{max-width:82%;max-height:82%;object-fit:contain}
+.nv-iconset-img em{color:#5f7a84;font-style:normal}
+.nv-iconset-state small{font-size:11px;color:#9db4bb}
+.nv-iconset-main strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.nv-iconset-del{position:absolute;top:6px;right:6px;width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:8px;background:#0b1b24aa;color:#cfe3e8;cursor:pointer;opacity:.0;transition:opacity .15s}
+.nv-iconset:hover .nv-iconset-del,.nv-iconset-del:focus-visible{opacity:1}
+.nv-iconset-del:hover{background:#7b2a35;color:#fff}
+.nv-icons-advanced{margin-top:18px;border:1px solid #2c5361;border-radius:14px;padding:10px 14px;background:#0d222c}
+.nv-icons-advanced summary{cursor:pointer;font-weight:700;color:#b8cdd3}
+@media(max-width:820px){.nv-iconlib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.nv-iconset-del{opacity:1}}
+@media(max-width:520px){.nv-iconlib-grid{grid-template-columns:1fr}}
