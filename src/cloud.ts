@@ -375,7 +375,8 @@ const collabFriendly=(m:string)=>
   /write_control_not_manager/.test(m)?'Seul le propriétaire, ou la personne qui a la main, peut la transmettre.':
   /write_control_conflict/.test(m)?'La main vient de changer ailleurs. Réessaie.':
   /write_control_not_participant/.test(m)?'Cette personne n’a pas accès à la visite : invite-la d’abord.':
-  /not_owner/.test(m)?'Seul le propriétaire de la visite peut gérer les accès.':
+  /not_admin/.test(m)?'Seuls les administrateurs peuvent changer les droits.':
+  /not_owner/.test(m)?'Seul un administrateur peut choisir qui enregistre.':
   /invalid_email/.test(m)?'Adresse e-mail non valide.':
   /nvstudio_add_member|nvstudio_remove_member|nvstudio_members|schema cache|Could not find the function|does not exist/i.test(m)?
     'Le travail à plusieurs n’est pas encore installé : exécute le fichier SQL « 20261110030000_nvstudio_collaboration » dans Supabase.':m;
@@ -392,7 +393,7 @@ export async function addMember(projectId:string,email:string,includeSpaces=true
   if(error)throw new Error(collabFriendly(error.message));
 }
 /** Qui a la main pour enregistrer ? (contrôle côté Cloud : voir nvstudio_write_control) */
-export type WriteState={projectId:string;holderEmail:string|null;revision:number;ownerEmail:string;myEmail:string;isOwner:boolean;canWrite:boolean;canManage:boolean;participants:{email:string;owner:boolean}[]};
+export type WriteState={projectId:string;holderEmail:string|null;revision:number;ownerEmail:string;myEmail:string;isOwner:boolean;isAdmin?:boolean;canWrite:boolean;canManage:boolean;participants:{email:string;owner:boolean;role?:'admin'|'collaborator'}[]};
 export async function getWriteState(projectId:string):Promise<WriteState|null>{
   const {data,error}=await supabase().rpc('nvstudio_write_state',{p_project:projectId});
   if(error){
@@ -405,6 +406,12 @@ export async function getWriteState(projectId:string):Promise<WriteState|null>{
 export async function setWriteHolder(projectId:string,email:string|null,expectedRevision:number):Promise<WriteState>{
   const {data,error}=await supabase().rpc('nvstudio_set_write_holder',{p_project:projectId,p_email:email,p_expected:expectedRevision});
   if(error)throw new Error(collabFriendly(error.message));
+  return data as WriteState;
+}
+/** Droits d'une personne invitée : « admin » (choisit qui enregistre, gère les droits) ou « collaborateur ». */
+export async function setMemberRole(projectId:string,email:string,role:'admin'|'collaborator'):Promise<WriteState>{
+  const {data,error}=await supabase().rpc('nvstudio_set_member_role',{p_project:projectId,p_email:email,p_role:role});
+  if(error)throw new Error(/Could not find the function|schema cache/i.test(error.message)?'Les rôles ne sont pas encore activés : exécute le fichier SQL « 20261113130000_nvstudio_admin_roles » dans Supabase.':collabFriendly(error.message));
   return data as WriteState;
 }
 export type CloudSpace={project_id:string;space_id:string;name:string;panorama_count:number};

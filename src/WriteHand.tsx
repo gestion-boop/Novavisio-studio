@@ -1,5 +1,5 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {cloudConfigured,getWriteState,readLink,setWriteHolder,supabase,type WriteState} from './cloud';
+import {cloudConfigured,getWriteState,readLink,setMemberRole,setWriteHolder,supabase,type WriteState} from './cloud';
 
 /**
  * « Qui a la main ? » — indicateur en haut de l'éditeur pour les visites partagées dans le Cloud.
@@ -54,11 +54,20 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
     finally{setBusy(false);}
   }
 
+  async function changeRole(email:string,role:'admin'|'collaborator'){
+    if(!projectId)return;
+    setBusy(true);setError('');
+    try{const next=await setMemberRole(projectId,email,role);setState(next);onStatus(name(email)+' est maintenant '+(role==='admin'?'admin':'collaborateur')+'.');}
+    catch(e){setError(e instanceof Error?e.message:String(e));}
+    finally{setBusy(false);}
+  }
+
   if(!projectId||!state)return denied?<DeniedDialog holder={denied.holderEmail} state={null} busy={busy} error={error} onClose={()=>setDenied(null)} onTake={()=>{}}/>:null;
   const holder=state.holderEmail;
   const mine=holder===state.myEmail;
   const label=holder===null?'Tout le monde':mine?'Moi':name(holder);
   const people=state.participants;
+  const admin=state.isAdmin??state.isOwner;
   return <>
     <div className="nv-hand">
       <button type="button" className={'nv-hand-chip'+(holder===null?' is-free':mine?' is-mine':' is-other')} onClick={()=>setOpen(v=>!v)} aria-expanded={open}
@@ -67,18 +76,33 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
       </button>
       {open&&<div className="nv-hand-pop" role="dialog" aria-label="Qui a la main pour enregistrer ?">
         <div className="nv-hand-head"><b>Qui enregistre ?</b><button type="button" className="quiet" onClick={()=>setOpen(false)} aria-label="Fermer">✕</button></div>
-        <p>Une seule personne à la fois peut enregistrer dans le Cloud. {holder===null?'Pour l’instant, tout participant peut enregistrer.':mine?'C’est vous : les autres voient une fenêtre s’ils essaient d’enregistrer.':'Vous pouvez travailler, mais vous ne pouvez pas enregistrer tant que la main ne vous est pas transmise.'}</p>
-        <ul>
+        <p>{admin?'Choisis qui peut enregistrer dans le Cloud :':'Une seule personne à la fois enregistre dans le Cloud. '+(holder===null?'Pour l’instant, tout le monde peut enregistrer.':mine?'C’est vous : les autres voient une fenêtre s’ils essaient d’enregistrer.':'Vous pouvez travailler ; vous enregistrez quand un admin vous donne la main.')}</p>
+        <div className="nv-hand-choices" role="radiogroup" aria-label="Qui enregistre">
+          <button type="button" role="radio" aria-checked={holder===null} className={'nv-hand-choice'+(holder===null?' is-on':'')} disabled={busy||!admin||holder===null}
+            onClick={()=>void give(null,'Tout le monde peut enregistrer.')}>
+            <span className="nv-hand-radio" aria-hidden="true"/>
+            <span><b>Tout le monde</b><small>Chaque participant peut enregistrer</small></span>
+          </button>
           {people.map(p=>{
             const isHolder=p.email===holder;
             const isMe=p.email===state.myEmail;
-            return <li key={p.email}>
-              <span><b>{name(p.email)}{isMe?' (moi)':''}</b><small>{p.email}{p.owner?' · propriétaire':''}{isHolder?' · a la main':''}</small></span>
-              {state.canManage&&!isHolder&&<button type="button" disabled={busy} onClick={()=>void give(p.email,isMe?'Vous avez repris la main.':'La main est transmise à '+name(p.email)+'.')}>{isMe?'Reprendre la main':'Donner la main'}</button>}
-            </li>;
+            const role=p.owner?'Propriétaire':p.role==='admin'?'Admin':'Collaborateur';
+            return <button type="button" role="radio" aria-checked={isHolder} key={p.email} className={'nv-hand-choice'+(isHolder?' is-on':'')} disabled={busy||!(admin||state.canManage)||isHolder}
+              onClick={()=>void give(p.email,isMe?'Vous avez repris la main.':'La main est donnée à '+name(p.email)+'.')}>
+              <span className="nv-hand-radio" aria-hidden="true"/>
+              <span><b>{name(p.email)}{isMe?' (moi)':''}</b><small>{p.email}</small></span>
+              <em className={'nv-role nv-role-'+(p.owner||p.role==='admin'?'admin':'collab')}>{role}</em>
+            </button>;
           })}
-        </ul>
-        {state.isOwner&&holder!==null&&<button type="button" className="quiet" disabled={busy} onClick={()=>void give(null,'La main est libérée : tout participant peut enregistrer.')}>Libérer (tout le monde peut enregistrer)</button>}
+        </div>
+        {admin&&people.some(p=>!p.owner)&&<details className="nv-hand-rights">
+          <summary>Droits des personnes</summary>
+          <p>Les admins choisissent qui enregistre et gèrent les droits. Les collaborateurs travaillent et enregistrent quand ils ont la main.</p>
+          <ul>{people.filter(p=>!p.owner).map(p=><li key={p.email}>
+            <span><b>{name(p.email)}</b><small>{p.email}</small></span>
+            <button type="button" disabled={busy} onClick={()=>void changeRole(p.email,p.role==='admin'?'collaborator':'admin')}>{p.role==='admin'?'Admin → Collaborateur':'Collaborateur → Admin'}</button>
+          </li>)}</ul>
+        </details>}
         {error&&<p className="warning">{error}</p>}
       </div>}
     </div>
@@ -92,10 +116,10 @@ function DeniedDialog({holder,state,busy,error,onClose,onTake}:{holder:string|nu
     <section className="modal nv-hand-denied" role="alertdialog" aria-modal="true" aria-label="Enregistrement impossible">
       <h2>✍ {holder?name(holder)+' a la main':'Une autre personne a la main'}</h2>
       <p>Vous ne pouvez pas enregistrer pour le moment : la main sur cette visite est à <b>{holder??'une autre personne'}</b>. Demandez-lui de vous la transmettre (bouton « La main » en haut). <b>Vos modifications restent sur cet appareil</b>, rien n’est perdu.</p>
-      {state?.isOwner&&<p>En tant que propriétaire, vous pouvez la reprendre.</p>}
+      {(state?.isAdmin??state?.isOwner)&&<p>En tant qu’admin, vous pouvez la reprendre.</p>}
       {error&&<p className="warning">{error}</p>}
       <div className="nv-hand-actions">
-        {state?.isOwner&&<button type="button" className="primary" disabled={busy} onClick={onTake}>Reprendre la main</button>}
+        {(state?.isAdmin??state?.isOwner)&&<button type="button" className="primary" disabled={busy} onClick={onTake}>Reprendre la main</button>}
         <button type="button" onClick={onClose}>J’ai compris</button>
       </div>
     </section>

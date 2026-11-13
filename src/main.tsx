@@ -33,7 +33,7 @@ import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
-import {refreshActivePublication,publishPermanent} from './share';
+import {refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
@@ -2486,6 +2486,20 @@ function App(){
     setSelectedId('');setPreview(false);setMode(null);setSpaceManagerOpen(false);setSpaceDelete(null);
     setStatus(target?'Espace supprimé · panoramas transférés vers « '+target.name+' ». Rien n\'est perdu.':'Espace supprimé. Tous les panoramas du projet principal sont conservés.');
   }
+  /** Fichier HTML « NovaVisio » : une seule page, qui affiche toujours la dernière visite publiée (l'adresse ne change jamais). */
+  async function exportNovaVisioHtml(){
+    const link=readLink();
+    if(!link){setStatus('NovaVisio : enregistre d’abord la visite dans le Cloud, puis clique sur Publier.');return;}
+    try{
+      const pub=await getPublication(link.projectId);
+      if(!pub||!publicationActive(pub)){setStatus('NovaVisio : la visite n’est pas encore publiée. Clique d’abord sur Publier, puis sur NovaVisio.');return;}
+      const html=wrapperHtml(shareUrl(pub.token),project.name||'Visite 360°',project.introEnabled?project.introUrl:'',project.introDuration??6);
+      const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+      const a=document.createElement('a');a.href=url;a.download=(project.name.replace(/[^a-zA-Z0-9-]/g,'_')||'visite')+'-novavisio.html';
+      document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+      setStatus('Fichier HTML NovaVisio téléchargé. Il affiche toujours la dernière version publiée : après une mise à jour, clique simplement sur Publier.');
+    }catch(e){setStatus('NovaVisio : '+(e instanceof Error?e.message:String(e)));}
+  }
   function download(){
     const blob=new Blob(projectJsonParts(project),{type:'application/json'}); // par morceaux : pas de limite de ~512 Mo
     const url=URL.createObjectURL(blob);
@@ -2737,7 +2751,11 @@ function App(){
               <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={exporting||!visibleScenes.length}
                 title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
                 onClick={()=>{setToolsMenuOpen(false);void exportTour();}} style={{'--tile-tone':'#3aa0d8'} as CSSProperties}>
-                <span className="nv-app-tile-icon"><Download size={22}/></span><span className="nv-app-tile-label">{exporting?'Export…':'Exporter'}</span></button></div>
+                <span className="nv-app-tile-icon"><Download size={22}/></span><span className="nv-app-tile-label">{exporting?'Export…':'Exporter ZIP'}</span></button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={!ready}
+                title="Télécharger uniquement le fichier HTML NovaVisio : il affiche toujours la dernière version publiée"
+                onClick={()=>{setToolsMenuOpen(false);void exportNovaVisioHtml();}} style={{'--tile-tone':'#1fb5a8'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Globe size={22}/></span><span className="nv-app-tile-label">HTML NovaVisio</span></button></div>
               <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile'+(liveProjectId?' is-active':'')}
                 onClick={()=>{setToolsMenuOpen(false);void toggleLive();}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
                 title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
