@@ -21,7 +21,8 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
-import {useLiveSession,LiveOverlay} from './liveSession';
+import {useLiveSession,LiveOverlay,useLiveInvites,sendLiveInvite} from './liveSession';
+import {LiveShareDialog} from './LiveShareDialog';
 import {WriteHand} from './WriteHand';
 import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
@@ -32,7 +33,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
+import {cloudConfigured,confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
 import {refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -533,6 +534,26 @@ function App(){
   // Écran partagé (présence en direct à deux sur le même projet Cloud)
   const [liveProjectId,setLiveProjectId]=useState<string|null>(null);
   const [liveLabel,setLiveLabel]=useState('');
+  const [liveDialogOpen,setLiveDialogOpen]=useState(false);
+  // Identité (projet Cloud + e-mail) pour recevoir les invitations « partager l'écran ».
+  const [inviteIdentity,setInviteIdentity]=useState<{projectId:string;email:string}|null>(null);
+  useEffect(()=>{
+    let dead=false;
+    const read=async()=>{
+      const link=readLink();
+      if(!link||!cloudConfigured){if(!dead)setInviteIdentity(null);return;}
+      try{
+        const {supabase}=await import('./cloud');
+        const {data}=await supabase().auth.getSession();
+        const email=data.session?.user?.email?.toLowerCase();
+        if(dead)return;
+        setInviteIdentity(prev=>!email?null:prev&&prev.projectId===link.projectId&&prev.email===email?prev:{projectId:link.projectId,email});
+      }catch{/* hors ligne : on réessaie */}
+    };
+    void read();
+    const timer=window.setInterval(()=>void read(),30000);
+    return ()=>{dead=true;window.clearInterval(timer);};
+  },[]);
   const pendingClientSaveRef=useRef(false);
   useEffect(()=>{
     // Garder le tiroir monté pour l'animation, tout en excluant ses commandes
@@ -683,6 +704,23 @@ function App(){
       setLiveProjectId(link.projectId);
     }catch(e){setStatus('Écran partagé indisponible : '+(e instanceof Error?e.message:String(e)));}
   }
+  /** Démarre l'écran partagé et invite les personnes choisies. */
+  async function startLiveWith(emails:string[]){
+    setLiveDialogOpen(false);
+    const link=readLink();
+    if(!link){setStatus('Écran partagé : ouvre d’abord le projet depuis le Cloud (bouton Cloud), comme la personne avec qui tu travailles.');return;}
+    try{
+      const {supabase}=await import('./cloud');
+      const {data:{session}}=await supabase().auth.getSession();
+      const email=(session?.user?.email??'').toLowerCase();
+      const label=(email.split('@')[0]||'Invité').slice(0,24);
+      setLiveLabel(label);setLiveProjectId(link.projectId);
+      if(emails.length){
+        await sendLiveInvite(link.projectId,label,email,emails);
+        setStatus('Invitation envoyée à '+emails.map(e=>e.split('@')[0]).join(', ')+' : elle apparaît dans son NovaStudio ouvert sur ce projet.');
+      }
+    }catch(e){setStatus('Écran partagé indisponible : '+(e instanceof Error?e.message:String(e)));}
+  }
   const [spaceManagerOpen,setSpaceManagerOpen]=useState(false);
   const [editingSpaceId,setEditingSpaceId]=useState<string|null>(null);
   const [editingSpaceName,setEditingSpaceName]=useState('');
@@ -789,6 +827,7 @@ function App(){
     pv:preview,g:galleryOpen,b:selectedBarId,s:selectedId,p:panel,
     i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
   });
+  const liveInvite=useLiveInvites(inviteIdentity,!liveProjectId);
   const live=useLiveSession({
     projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
     state:{sceneId:activeId,spaceId:activeSpaceId},
@@ -994,7 +1033,7 @@ function App(){
                 onClick={()=>{setToolsMenuOpen(false);void exportNovaVisioHtml();}} style={{'--tile-tone':'#1fb5a8'} as CSSProperties}>
                 <span className="nv-app-tile-icon"><Globe size={22}/></span><span className="nv-app-tile-label">HTML NovaVisio</span></button></div>
               <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile'+(liveProjectId?' is-active':'')}
-                onClick={()=>{setToolsMenuOpen(false);void toggleLive();}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
+                onClick={()=>{setToolsMenuOpen(false);if(liveProjectId)void toggleLive();else setLiveDialogOpen(true);}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
                 title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
                 <span className="nv-app-tile-icon"><Users size={22}/></span><span className="nv-app-tile-label">Écran partagé</span></button></div>
               <div className="nv-tile-wrap nv-tile-hand"><WriteHand onStatus={setStatus}/></div>
@@ -2583,18 +2622,20 @@ function App(){
     setSelectedId('');setPreview(false);setMode(null);setSpaceManagerOpen(false);setSpaceDelete(null);
     setStatus(target?'Espace supprimé · panoramas transférés vers « '+target.name+' ». Rien n\'est perdu.':'Espace supprimé. Tous les panoramas du projet principal sont conservés.');
   }
-  /** Fichier HTML « NovaVisio » : une seule page, qui affiche toujours la dernière visite publiée (l'adresse ne change jamais). */
+  /** Fichier HTML « NovaVisio » : une seule page qui affiche toujours la dernière version publiée de LA visite affichée
+   *  (le projet complet, ou uniquement l'espace sélectionné : jamais les autres espaces). */
   async function exportNovaVisioHtml(){
-    const link=readLink();
-    if(!link){setStatus('NovaVisio : enregistre d’abord la visite dans le Cloud, puis clique sur Publier.');return;}
+    const scopeName=currentSpace?currentSpace.name:project.name;
+    const link=currentSpace?readSpaceCloudLink(currentSpace.id,'public'):readLink();
+    if(!link){setStatus(currentSpace?'NovaVisio : l’espace « '+currentSpace.name+' » n’est pas encore publié. Ouvre Partager › Lien public avec cet espace sélectionné, ou clique sur Publier.':'NovaVisio : enregistre d’abord la visite dans le Cloud, puis clique sur Publier.');return;}
     try{
       const pub=await getPublication(link.projectId);
-      if(!pub||!publicationActive(pub)){setStatus('NovaVisio : la visite n’est pas encore publiée. Clique d’abord sur Publier, puis sur NovaVisio.');return;}
-      const html=wrapperHtml(shareUrl(pub.token),project.name||'Visite 360°',project.introEnabled?project.introUrl:'',project.introDuration??6);
+      if(!pub||!publicationActive(pub)){setStatus('NovaVisio : « '+scopeName+' » n’est pas encore publié. Clique d’abord sur Publier, puis sur HTML NovaVisio.');return;}
+      const html=wrapperHtml(shareUrl(pub.token),scopeName||'Visite 360°',project.introEnabled?project.introUrl:'',project.introDuration??6);
       const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));
-      const a=document.createElement('a');a.href=url;a.download=(project.name.replace(/[^a-zA-Z0-9-]/g,'_')||'visite')+'-novavisio.html';
+      const a=document.createElement('a');a.href=url;a.download=((scopeName||'visite').replace(/[^a-zA-Z0-9-]/g,'_')||'visite')+'-novavisio.html';
       document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
-      setStatus('Fichier HTML NovaVisio téléchargé. Il affiche toujours la dernière version publiée : après une mise à jour, clique simplement sur Publier.');
+      setStatus('Fichier HTML de « '+scopeName+' » téléchargé. Il affiche toujours la dernière version publiée de cette visite : après une mise à jour, clique simplement sur Publier.');
     }catch(e){setStatus('NovaVisio : '+(e instanceof Error?e.message:String(e)));}
   }
   function download(){
@@ -2914,6 +2955,8 @@ function App(){
         </div>
       </section>
     </div>}
+    {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>setLiveDialogOpen(false)}/>}
+    {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([]);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
     {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{

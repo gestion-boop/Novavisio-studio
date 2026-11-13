@@ -220,3 +220,39 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
     </div>
   </>;
 }
+
+
+/* ---------- Invitations : « Je te propose de partager mon écran » ---------- */
+export type LiveInvite={fromLabel:string;fromEmail:string;at:number};
+const inviteChannel=(projectId:string)=>'inv:'+projectId;
+
+/** Écoute (en continu, très léger) les invitations adressées à cette adresse e-mail sur ce projet. */
+export function useLiveInvites(identity:{projectId:string;email:string}|null,enabled:boolean){
+  const [invite,setInvite]=useState<LiveInvite|null>(null);
+  const projectId=identity?.projectId,email=identity?.email;
+  useEffect(()=>{
+    if(!enabled||!projectId||!email)return;
+    let closed=false;let transport:LiveTransport|null=null;
+    const selfId=Math.random().toString(36).slice(2,10);
+    void makeTransport(inviteChannel(projectId),selfId).then(t=>{
+      if(closed){t.close();return;}
+      transport=t;
+      t.on('invite',p=>{
+        if(!p||!Array.isArray(p.to)||!p.to.includes(email)||p.fromEmail===email)return;
+        setInvite({fromLabel:String(p.fromLabel||'Quelqu’un').slice(0,40),fromEmail:String(p.fromEmail||''),at:Date.now()});
+      });
+      t.join({id:selfId,label:email,joinedAt:Date.now()},()=>undefined);
+    }).catch(()=>undefined);
+    return ()=>{closed=true;transport?.close();};
+  },[enabled,projectId,email]);
+  return {invite,dismiss:()=>setInvite(null)};
+}
+/** Envoie l'invitation aux personnes choisies (elles la voient si leur éditeur est ouvert sur ce projet). */
+export async function sendLiveInvite(projectId:string,fromLabel:string,fromEmail:string,to:string[]):Promise<void>{
+  const selfId=Math.random().toString(36).slice(2,10);
+  const t=await makeTransport(inviteChannel(projectId),selfId);
+  t.join({id:selfId,label:fromEmail,joinedAt:Date.now()},()=>undefined);
+  await new Promise(resolve=>window.setTimeout(resolve,1000)); // laisse la connexion s'établir
+  t.send('invite',{fromLabel,fromEmail,to});
+  window.setTimeout(()=>t.close(),700);
+}

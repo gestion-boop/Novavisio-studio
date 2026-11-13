@@ -4706,3 +4706,40 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-icons-advanced summary{cursor:pointer;font-weight:700;color:#b8cdd3}
 @media(max-width:820px){.nv-iconlib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.nv-iconset-del{opacity:1}}
 @media(max-width:520px){.nv-iconlib-grid{grid-template-columns:1fr}}
+
+/* Réglages en grand : lignes de saisie sobres, largeur adaptée au texte (formulaire client, rubriques) */
+.nv-sheet-open .nv-right-client-panel .nv-client-content{max-width:1080px;margin:0 auto;padding:4px 0 20px;gap:12px}
+.nv-sheet-open .nv-right-client-panel .nv-client-fields{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))!important;gap:10px 14px}
+.nv-sheet-open .nv-right-client-panel .nv-client-wide{grid-column:span 2}
+.nv-sheet-open .nv-right-client-panel .nv-client-query-row{grid-template-columns:minmax(0,2fr) minmax(0,1fr)!important;gap:12px}
+.nv-sheet-open .nv-right-client-panel .nv-client-search-actions{display:flex;flex-wrap:wrap;gap:10px}
+.nv-sheet-open .nv-right-client-panel .nv-client-search-actions button{width:auto!important;min-width:190px}
+.nv-sheet-open .nv-right-client-panel .nv-client-aspirator{padding:14px 16px}
+.nv-sheet-open .nv-right-client-panel input,.nv-sheet-open .nv-right-client-panel textarea,.nv-sheet-open .nv-right-client-panel select{padding:8px 11px!important;font-size:14px!important;min-height:0!important;height:auto}
+.nv-sheet-open .nv-right-client-panel textarea{rows:2}
+.nv-sheet-open .nv-right-client-panel label,.nv-sheet-open .nv-right-client-panel .nv-client-fields label span{font-size:12px}
+.nv-hub-detail-body input[type=text],.nv-hub-detail-body input:not([type]),.nv-hub-detail-body select,.nv-hub-detail-body textarea{min-height:0!important;font-size:14px!important;padding:8px 11px!important}
+.nv-hub-detail-body label>input:not([type=range]):not([type=checkbox]):not([type=color]),.nv-hub-detail-body label>select{max-width:520px}
+.nv-hub-detail-body label>textarea{max-width:720px}
+
+/* Écran partagé : choix des personnes + invitation reçue */
+.nv-liveshare-overlay{display:grid;place-items:center;z-index:100010}
+.nv-liveshare{width:min(520px,calc(100vw - 20px));display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:18px;background:#102a35;border:1px solid #426b77;box-shadow:0 20px 60px #000b;color:#e6f6f8;font:14px/1.4 system-ui,sans-serif}
+.nv-liveshare header{display:flex;justify-content:space-between;gap:10px}
+.nv-liveshare header div{display:flex;flex-direction:column;gap:3px}.nv-liveshare header strong{display:flex;align-items:center;gap:8px;font-size:17px}
+.nv-liveshare header small{color:#9db4bb}
+.nv-liveshare header button{width:38px;height:38px;border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;display:grid;place-items:center;cursor:pointer}
+.nv-liveshare-info{margin:0;color:#9db4bb}.nv-liveshare-error{margin:0;padding:8px 10px;border-radius:10px;background:#48232b;color:#ffcad2}
+.nv-liveshare-list{display:flex;flex-direction:column;gap:8px}
+.nv-liveshare-person{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 12px;border:1px solid #2c5361;border-radius:12px;background:#143543;color:#e6f6f8;cursor:pointer;transition:transform .12s,background .15s,border-color .15s}
+.nv-liveshare-person span:nth-child(2){flex:1;min-width:0;display:flex;flex-direction:column}.nv-liveshare-person small{color:#9db4bb;font-size:12px}
+.nv-liveshare-person em{font-style:normal;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:#ffffff1f}
+.nv-liveshare-check{width:24px;height:24px;border-radius:7px;border:2px solid #8fb1bb;display:grid;place-items:center;font-weight:800;color:#0b2630}
+.nv-liveshare-person.is-on{border-color:#4bebde;background:#17505c}.nv-liveshare-person.is-on .nv-liveshare-check{background:#4bebde;border-color:#4bebde}
+.nv-liveshare-person:hover{background:linear-gradient(160deg,#46aed6,#2f8fb5);border-color:#9fdcf3}.nv-liveshare-person:hover small{color:#e6f6f8}
+.nv-liveshare-person:active{transform:scale(.97);box-shadow:inset 0 4px 10px #0009}
+.nv-liveshare-actions{display:flex;justify-content:flex-end}
+.nv-liveshare-start{height:44px;padding:0 20px;border:1px solid #e8873a;border-radius:11px;background:#c9650f;color:#fff;font:700 14px system-ui,sans-serif;cursor:pointer}.nv-liveshare-start:disabled{opacity:.5}
+.nv-live-invite{position:fixed;top:72px;right:16px;z-index:100020;display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:min(440px,calc(100vw - 24px));padding:12px 14px;border-radius:14px;background:#0d2a33;border:1px solid #4bebde;box-shadow:0 12px 40px #000a;color:#e6f6f8;font:14px/1.35 system-ui,sans-serif}
+.nv-live-invite button{height:38px;padding:0 14px;border-radius:10px;border:1px solid #35606f;background:#143543;color:#e6f6f8;font-weight:700;cursor:pointer}
+.nv-live-invite .is-join{background:#1f7a5a;border-color:#3cc193}
