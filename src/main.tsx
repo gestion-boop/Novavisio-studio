@@ -21,7 +21,7 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
-import {useLiveSession,LiveOverlay,useLiveInvites,sendLiveInvite} from './liveSession';
+import {useLiveSession,LiveOverlay,useLiveInvites,sendLiveInvite,sendLiveShot} from './liveSession';
 import {LiveShareDialog} from './LiveShareDialog';
 import {WriteHand} from './WriteHand';
 import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
@@ -40,7 +40,8 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera} from 'lucide-react';
+import {captureScreen,ShotEditor,ShotInbox} from './ScreenshotTool';
 import {SectionHub} from './SectionHub';
 import {IconLibrary} from './IconLibrary';
 import {NotesPanel} from './NotesPanel';
@@ -876,13 +877,31 @@ function App(){
   const [notesOpen,setNotesOpen]=useState(false);
   const [dragTool,setDragTool]=useState<string|null>(null);
   const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
+  const [shotImage,setShotImage]=useState<{image:string;defaultTo?:string}|null>(null);
+  /** Capture annotée : photo de l'écran à l'instant T, à entourer / commenter puis envoyer à un collègue. */
+  async function takeShot(){
+    setToolsMenuOpen(false);
+    if(creationFullscreen)await toggleCreationFullscreen();
+    try{
+      await new Promise(resolve=>window.setTimeout(resolve,150));
+      setShotImage({image:await captureScreen()});
+    }catch(e){
+      setStatus(e instanceof DOMException&&e.name==='NotAllowedError'?'Capture annulée.':'Capture impossible : '+(e instanceof Error?e.message:String(e)));
+    }
+  }
+  async function sendShot(to:string[],comment:string,image:string){
+    const link=readLink();
+    if(!inviteIdentity||!link)throw new Error('ouvre le projet depuis le Cloud et connecte-toi.');
+    await sendLiveShot(link.projectId,inviteIdentity.email.split('@')[0].slice(0,24),inviteIdentity.email,to,comment,image);
+    setStatus('Capture envoyée à '+to.map(e=>e.split('@')[0]).join(', ')+'. Elle apparaît dans son NovaStudio s’il est ouvert sur ce projet.');
+  }
   // Fenêtres et panneaux ouverts : envoyés à l'autre personne pour qu'elle voie les mêmes écrans s'ouvrir.
   const liveUi=JSON.stringify({
     pv:preview,g:galleryOpen,b:selectedBarId,s:selectedId,p:panel,
     tm:toolsMenuOpen,rh:rightHidden,sp:spacesDrawerOpen,nd:navigationDrawerOpen,hub:hubOpen,sk:skinsOpen,cl:clientOpen,
     i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
   });
-  const liveInvite=useLiveInvites(inviteIdentity,!liveProjectId);
+  const liveInvite=useLiveInvites(inviteIdentity,true);
   const live=useLiveSession({
     projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
     state:{sceneId:activeId,spaceId:activeSpaceId},
@@ -2848,6 +2867,10 @@ function App(){
           aria-label="Nouvelle version de NovaStudio disponible : actualiser">
           <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
         </button>}
+        <button type="button" className="nv-v3-icon-btn nv-v3-camera" onClick={()=>void takeShot()}
+          aria-label="Capture annotée" title="Capture d’écran : entourer, écrire, envoyer à un collègue">
+          <Camera size={22}/>
+        </button>
         <button type="button" className={'nv-v3-icon-btn'+(!rightHidden?' is-open':'')}
           aria-label={rightHidden?'Afficher les réglages':'Masquer les réglages'}
           title={rightHidden?'Afficher les réglages':'Masquer les réglages'}
@@ -2965,6 +2988,8 @@ function App(){
         </div>
       </section>
     </div>}
+    {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
+    <ShotInbox shots={liveInvite.shots} onDismiss={liveInvite.dismissShot} onReply={shot=>{liveInvite.dismissShot(shot.id);setShotImage({image:shot.image,defaultTo:shot.fromEmail});}}/>
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>setLiveDialogOpen(false)}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([]);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
     {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)} onOpenCloud={()=>setCloudOpen(true)}/>}

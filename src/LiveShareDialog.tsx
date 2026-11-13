@@ -3,8 +3,22 @@ import {Users,X} from 'lucide-react';
 import {getWriteState,listMembers,readLink,supabase} from './cloud';
 
 /** « Partager l'écran avec… » : on choisit la ou les personnes du projet à inviter. */
-type Person={email:string;role:string};
 const name=(email:string)=>email.split('@')[0];
+
+export type Person={email:string;role:string};
+/** Participants du projet Cloud (sans soi-même), avec leur rôle. */
+export async function loadParticipants():Promise<{people:Person[];me:string}>{
+  const link=readLink();
+  if(!link)throw new Error('Ouvre d’abord le projet depuis le Cloud (bouton Cloud) pour envoyer à quelqu’un.');
+  const {data}=await supabase().auth.getSession();
+  const me=(data.session?.user?.email??'').toLowerCase();
+  if(!me)throw new Error('Connecte-toi au Cloud pour envoyer à quelqu’un.');
+  let list:Person[]=[];
+  const state=await getWriteState(link.projectId);
+  if(state)list=state.participants.map(p=>({email:p.email,role:p.owner?'Propriétaire':p.role==='admin'?'Admin':'Collaborateur'}));
+  else list=(await listMembers(link.projectId)).map(m=>({email:m.email,role:'Collaborateur'}));
+  return {people:list.filter(p=>p.email&&p.email!==me),me};
+}
 
 export function LiveShareDialog({onStart,onClose}:{onStart:(emails:string[])=>void;onClose:()=>void}){
   const [people,setPeople]=useState<Person[]|null>(null);

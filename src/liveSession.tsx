@@ -257,8 +257,10 @@ export type LiveInvite={fromLabel:string;fromEmail:string;at:number};
 const inviteChannel=(projectId:string)=>'inv:'+projectId;
 
 /** Écoute (en continu, très léger) les invitations adressées à cette adresse e-mail sur ce projet. */
+export type LiveShot={id:string;fromLabel:string;fromEmail:string;comment:string;image:string;at:number};
 export function useLiveInvites(identity:{projectId:string;email:string}|null,enabled:boolean){
   const [invite,setInvite]=useState<LiveInvite|null>(null);
+  const [shots,setShots]=useState<LiveShot[]>([]);
   const projectId=identity?.projectId,email=identity?.email;
   useEffect(()=>{
     if(!enabled||!projectId||!email)return;
@@ -271,11 +273,18 @@ export function useLiveInvites(identity:{projectId:string;email:string}|null,ena
         if(!p||!Array.isArray(p.to)||!p.to.includes(email)||p.fromEmail===email)return;
         setInvite({fromLabel:String(p.fromLabel||'Quelqu’un').slice(0,40),fromEmail:String(p.fromEmail||''),at:Date.now()});
       });
+      // Capture annotée envoyée par un collègue
+      t.on('shot',p=>{
+        if(!p||!Array.isArray(p.to)||!p.to.includes(email)||p.fromEmail===email)return;
+        if(typeof p.image!=='string'||!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p.image)||p.image.length>900_000)return;
+        setShots(list=>[{id:Math.random().toString(36).slice(2),fromLabel:String(p.fromLabel||'Quelqu’un').slice(0,40),fromEmail:String(p.fromEmail||''),
+          comment:String(p.comment||'').slice(0,600),image:p.image,at:Date.now()},...list].slice(0,6));
+      });
       t.join({id:selfId,label:email,joinedAt:Date.now()},()=>undefined);
     }).catch(()=>undefined);
     return ()=>{closed=true;transport?.close();};
   },[enabled,projectId,email]);
-  return {invite,dismiss:()=>setInvite(null)};
+  return {invite,dismiss:()=>setInvite(null),shots,dismissShot:(id:string)=>setShots(list=>list.filter(x=>x.id!==id))};
 }
 /** Envoie l'invitation aux personnes choisies (elles la voient si leur éditeur est ouvert sur ce projet). */
 export async function sendLiveInvite(projectId:string,fromLabel:string,fromEmail:string,to:string[]):Promise<void>{
@@ -285,4 +294,14 @@ export async function sendLiveInvite(projectId:string,fromLabel:string,fromEmail
   await new Promise(resolve=>window.setTimeout(resolve,1000)); // laisse la connexion s'établir
   t.send('invite',{fromLabel,fromEmail,to});
   window.setTimeout(()=>t.close(),700);
+}
+
+/** Envoie une capture annotée aux personnes choisies (elles la reçoivent si leur éditeur est ouvert sur ce projet). */
+export async function sendLiveShot(projectId:string,fromLabel:string,fromEmail:string,to:string[],comment:string,image:string):Promise<void>{
+  const selfId=Math.random().toString(36).slice(2,10);
+  const t=await makeTransport(inviteChannel(projectId),selfId);
+  t.join({id:selfId,label:fromEmail,joinedAt:Date.now()},()=>undefined);
+  await new Promise(resolve=>window.setTimeout(resolve,1000));
+  t.send('shot',{fromLabel,fromEmail,to,comment:comment.slice(0,600),image});
+  window.setTimeout(()=>t.close(),1500);
 }
