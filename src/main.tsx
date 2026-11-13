@@ -39,7 +39,8 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler} from 'lucide-react';
+import {SectionHub} from './SectionHub';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -878,6 +879,7 @@ function App(){
   const [notesOpen,setNotesOpen]=useState(false);
   const [dragTool,setDragTool]=useState<string|null>(null);
   const toolsMenuRef=useRef<HTMLDivElement>(null);
+  const fsToolsRef=useRef<HTMLDivElement>(null);
   const toolOptions:Array<{key:PanelTab;label:string}>=[
     {key:'panoramas',label:'Panoramas'},
     {key:'points',label:selectedId?'Inspecteur · Scène & Points':'Scène & Points'},
@@ -915,6 +917,100 @@ function App(){
     const l=look[key]??{icon:<Layers size={ic}/>,tone:'#4f7cff'};
     return {label:option.label,icon:l.icon,tone:l.tone,active:!rightHidden&&panel===key,run:()=>toggleToolPanel(key as PanelTab)};
   }
+  // Éditer · tous les outils · Aperçu (en-tête, et en haut du plein écran de création)
+  function modeSwitch(fs:boolean){
+    return (
+        <div className="mode-switch-group" role="group" aria-label="Mode de l'éditeur">
+        <button type="button" className={'mode-btn '+(!preview?'is-active':'')}
+          aria-pressed={!preview}
+          onClick={()=>{if(preview){setPreview(false);setIntroVisible(false);}}}>
+          <Edit3 size={15}/> Éditer
+        </button>
+        <button type="button" className={'mode-btn nv-v3-grid-btn'+(toolsMenuOpen?' is-open':'')}
+          aria-label="Tous les outils : panoramas, scène, barre, icônes, enregistrer, exporter" title="Tous les outils · Enregistrer · Publier · Exporter"
+          aria-haspopup="dialog" aria-expanded={toolsMenuOpen} aria-controls={fs?'nv-fs-tools-options':'nv-header-tools-options'}
+          onClick={()=>setToolsMenuOpen(open=>!open)}>
+          <LayoutGrid size={20}/>
+          {project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+        </button>
+        <button type="button" className={'mode-btn '+(preview?'is-active':'')}
+          aria-pressed={preview}
+          title="Visualiser la visite depuis la scène affichée"
+          onClick={()=>{
+            if(!preview){setIntroVisible(false);setPreview(true);setMode(null);setSelectedId('');}
+          }}>
+          <Eye size={15}/> Aperçu
+        </button>
+      </div>
+    );
+  }
+  // Rideau des outils (tuiles) : sous l'en-tête, ou dans le plein écran de création.
+  function toolsCurtain(fs:boolean){
+    return (
+        <div id={fs?'nv-fs-tools-options':'nv-header-tools-options'} className={'nv-tools-curtain'+(toolsMenuOpen?' is-open':'')+(fs?' nv-in-fullscreen':'')} role="dialog" aria-label="Tous les outils" aria-hidden={!toolsMenuOpen}>
+          <div className="nv-tools-curtain-inner">
+            <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux':'Touche une tuile pour l’ouvrir'}</small></div>
+            <div className="nv-tiles" role="list">
+              {toolOrder.map(key=>{
+                const meta=toolMeta(key);
+                if(!meta)return null;
+                return <div key={key} role="listitem" className={'nv-tile-wrap'+(dragTool===key?' is-dragging':'')} draggable={canDragTools}
+                  onDragStart={e=>{setDragTool(key);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key);}}
+                  onDragOver={e=>{
+                    if(!dragTool||dragTool===key)return;
+                    e.preventDefault();
+                    setToolOrder(order=>reorderItems(order,dragTool,key,k=>k));
+                  }}
+                  onDrop={e=>e.preventDefault()}
+                  onDragEnd={()=>{setDragTool(null);setToolOrder(order=>{saveToolOrder(order);return order;});}}>
+                  <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active} onClick={()=>fs?runFromFullscreen(key,meta.run):meta.run()} tabIndex={toolsMenuOpen?0:-1}
+                    style={{'--tile-tone':meta.tone} as CSSProperties}>
+                    <span className="nv-app-tile-icon">{meta.icon}</span>
+                    <span className="nv-app-tile-label">{meta.label}</span>
+                    {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
+                  </button>
+                </div>;
+              })}
+            </div>
+            {!fs&&<>
+            <div className="nv-tiles-title nv-tiles-title-second">Fichier et équipe</div>
+            <div className="nv-tiles">
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile nv-tile-save'+(project!==savedRef.current?' is-dirty':'')}
+                disabled={!ready||savingManually||!!lock} onClick={()=>{setToolsMenuOpen(false);void manualSave();}} title="Enregistrer (⌘S / Ctrl+S)"
+                style={{'--tile-tone':'#e8873a'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Save size={22}/></span><span className="nv-app-tile-label">{savingManually?'Enregistrement…':'Enregistrer'}</span>
+                {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+              </button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={savingManually||!ready||!!lock||!project.scenes.length}
+                onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}} style={{'--tile-tone':'#e05d44'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Upload size={22}/></span><span className="nv-app-tile-label">Publier</span></button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={exporting||!visibleScenes.length}
+                title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
+                onClick={()=>{setToolsMenuOpen(false);void exportTour();}} style={{'--tile-tone':'#3aa0d8'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Download size={22}/></span><span className="nv-app-tile-label">{exporting?'Export…':'Exporter ZIP'}</span></button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={!ready}
+                title="Télécharger uniquement le fichier HTML NovaVisio : il affiche toujours la dernière version publiée"
+                onClick={()=>{setToolsMenuOpen(false);void exportNovaVisioHtml();}} style={{'--tile-tone':'#1fb5a8'} as CSSProperties}>
+                <span className="nv-app-tile-icon"><Globe size={22}/></span><span className="nv-app-tile-label">HTML NovaVisio</span></button></div>
+              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile'+(liveProjectId?' is-active':'')}
+                onClick={()=>{setToolsMenuOpen(false);void toggleLive();}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
+                title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
+                <span className="nv-app-tile-icon"><Users size={22}/></span><span className="nv-app-tile-label">Écran partagé</span></button></div>
+              <div className="nv-tile-wrap nv-tile-hand"><WriteHand onStatus={setStatus}/></div>
+            </div>
+            </>}
+          </div>
+        </div>
+    );
+  }
+  // Dans le plein écran : Panoramas, Scène & Points et Barre du bas s'ouvrent sur place ; les autres outils sortent du plein écran.
+  function runFromFullscreen(key:string,run:()=>void){
+    setToolsMenuOpen(false);
+    if(key==='panoramas'){setFullscreenToolsOpen(false);setFullscreenCommandDrawerOpen(true);setFullscreenGalleryOpen(true);return;}
+    if(key==='points'){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);return;}
+    if(key==='bar'){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);return;}
+    void toggleCreationFullscreen().then(()=>run());
+  }
   function toggleToolPanel(next:PanelTab){
     setToolsMenuOpen(false);
     if(!rightHidden&&panel===next){setRightHidden(true);return;}
@@ -924,7 +1020,7 @@ function App(){
   }
   useEffect(()=>{
     if(!toolsMenuOpen)return;
-    const outside=(event:PointerEvent)=>{if(!toolsMenuRef.current?.contains(event.target as Node))setToolsMenuOpen(false);};
+    const outside=(event:PointerEvent)=>{const t=event.target as Node;if(!toolsMenuRef.current?.contains(t)&&!fsToolsRef.current?.contains(t))setToolsMenuOpen(false);};
     const close=(event:KeyboardEvent)=>{if(event.key==='Escape')setToolsMenuOpen(false);};
     document.addEventListener('pointerdown',outside);
     document.addEventListener('keydown',close);
@@ -1618,10 +1714,10 @@ function App(){
     }
     if(nightInput.current)nightInput.current.value='';
   }
-  function nightSceneControls(scene:Scene){
+  function nightSceneControls(scene:Scene,open=false){
     const source=project.scenes.find(other=>other.id===scene.nightSourceSceneId);
     const configured=!!(scene.nightDataUrl||source);
-    return <InspectorSection title="Mode jour / nuit"><div className="nv-night-settings">
+    return <InspectorSection title="Mode jour / nuit" initiallyOpen={open}><div className="nv-night-settings">
       <p className="hint">Associe un panorama de nuit au panorama actuel. Les deux vues gardent les mêmes points et un fondu assure la transition.</p>
       <div className="nv-night-dropzone" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void importNightPanorama(e.dataTransfer.files[0]);}}>
         <button type="button" className="import" onClick={()=>nightInput.current?.click()}>
@@ -2559,7 +2655,7 @@ function App(){
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
     (leftHidden?' nv-studio-hide-left':'')+
-    ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+
+    ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
     <header className="topbar nv-topbar-v3">
@@ -2690,80 +2786,8 @@ function App(){
       </label>
       </div>
       <div className="nv-v3-center" ref={toolsMenuRef}>
-        <div className="mode-switch-group" role="group" aria-label="Mode de l'éditeur">
-          <button type="button" className={'mode-btn '+(!preview?'is-active':'')}
-            aria-pressed={!preview}
-            onClick={()=>{if(preview){setPreview(false);setIntroVisible(false);}}}>
-            <Edit3 size={15}/> Éditer
-          </button>
-          <button type="button" className={'mode-btn nv-v3-grid-btn'+(toolsMenuOpen?' is-open':'')}
-            aria-label="Tous les outils : panoramas, scène, barre, icônes, enregistrer, exporter" title="Tous les outils · Enregistrer · Publier · Exporter"
-            aria-haspopup="dialog" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
-            onClick={()=>setToolsMenuOpen(open=>!open)}>
-            <LayoutGrid size={20}/>
-            {project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
-          </button>
-          <button type="button" className={'mode-btn '+(preview?'is-active':'')}
-            aria-pressed={preview}
-            title="Visualiser la visite depuis la scène affichée"
-            onClick={()=>{
-              if(!preview){setIntroVisible(false);setPreview(true);setMode(null);setSelectedId('');}
-            }}>
-            <Eye size={15}/> Aperçu
-          </button>
-        </div>
-        <div id="nv-header-tools-options" className={'nv-tools-curtain'+(toolsMenuOpen?' is-open':'')} role="dialog" aria-label="Tous les outils" aria-hidden={!toolsMenuOpen}>
-          <div className="nv-tools-curtain-inner">
-            <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux':'Touche une tuile pour l’ouvrir'}</small></div>
-            <div className="nv-tiles" role="list">
-              {toolOrder.map(key=>{
-                const meta=toolMeta(key);
-                if(!meta)return null;
-                return <div key={key} role="listitem" className={'nv-tile-wrap'+(dragTool===key?' is-dragging':'')} draggable={canDragTools}
-                  onDragStart={e=>{setDragTool(key);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key);}}
-                  onDragOver={e=>{
-                    if(!dragTool||dragTool===key)return;
-                    e.preventDefault();
-                    setToolOrder(order=>reorderItems(order,dragTool,key,k=>k));
-                  }}
-                  onDrop={e=>e.preventDefault()}
-                  onDragEnd={()=>{setDragTool(null);setToolOrder(order=>{saveToolOrder(order);return order;});}}>
-                  <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active} onClick={meta.run} tabIndex={toolsMenuOpen?0:-1}
-                    style={{'--tile-tone':meta.tone} as CSSProperties}>
-                    <span className="nv-app-tile-icon">{meta.icon}</span>
-                    <span className="nv-app-tile-label">{meta.label}</span>
-                    {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
-                  </button>
-                </div>;
-              })}
-            </div>
-            <div className="nv-tiles-title nv-tiles-title-second">Fichier et équipe</div>
-            <div className="nv-tiles">
-              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile nv-tile-save'+(project!==savedRef.current?' is-dirty':'')}
-                disabled={!ready||savingManually||!!lock} onClick={()=>{setToolsMenuOpen(false);void manualSave();}} title="Enregistrer (⌘S / Ctrl+S)"
-                style={{'--tile-tone':'#e8873a'} as CSSProperties}>
-                <span className="nv-app-tile-icon"><Save size={22}/></span><span className="nv-app-tile-label">{savingManually?'Enregistrement…':'Enregistrer'}</span>
-                {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
-              </button></div>
-              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={savingManually||!ready||!!lock||!project.scenes.length}
-                onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}} style={{'--tile-tone':'#e05d44'} as CSSProperties}>
-                <span className="nv-app-tile-icon"><Upload size={22}/></span><span className="nv-app-tile-label">Publier</span></button></div>
-              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={exporting||!visibleScenes.length}
-                title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
-                onClick={()=>{setToolsMenuOpen(false);void exportTour();}} style={{'--tile-tone':'#3aa0d8'} as CSSProperties}>
-                <span className="nv-app-tile-icon"><Download size={22}/></span><span className="nv-app-tile-label">{exporting?'Export…':'Exporter ZIP'}</span></button></div>
-              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={!ready}
-                title="Télécharger uniquement le fichier HTML NovaVisio : il affiche toujours la dernière version publiée"
-                onClick={()=>{setToolsMenuOpen(false);void exportNovaVisioHtml();}} style={{'--tile-tone':'#1fb5a8'} as CSSProperties}>
-                <span className="nv-app-tile-icon"><Globe size={22}/></span><span className="nv-app-tile-label">HTML NovaVisio</span></button></div>
-              <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile'+(liveProjectId?' is-active':'')}
-                onClick={()=>{setToolsMenuOpen(false);void toggleLive();}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
-                title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
-                <span className="nv-app-tile-icon"><Users size={22}/></span><span className="nv-app-tile-label">Écran partagé</span></button></div>
-              <div className="nv-tile-wrap nv-tile-hand"><WriteHand onStatus={setStatus}/></div>
-            </div>
-          </div>
-        </div>
+        {modeSwitch(false)}
+        {toolsCurtain(false)}
       </div>
       <div className="nv-v3-right">
         {updateAvailable&&<button type="button" className="nv-header-update is-available"
@@ -3075,6 +3099,11 @@ function App(){
                   <span aria-hidden="true">+</span>
                 </button>}
             </div>}
+          {creationFullscreen&&<div className="nv-fs-topbar" ref={fsToolsRef}>
+            {modeSwitch(true)}
+            <button type="button" className="nv-fs-exit" onClick={()=>void toggleCreationFullscreen()} aria-label="Quitter le plein écran" title="Revenir à l’écran classique"><Minimize2 size={20}/></button>
+            {toolsCurtain(true)}
+          </div>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
             <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
@@ -3640,7 +3669,7 @@ function App(){
           </button>
         </div>
         <div className={'scenes nv-panorama-list-'+panoramasLayout} ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
-          onMouseEnter={()=>hoverSidePreview(s.id)} onMouseLeave={leaveSidePreview}
+          onMouseEnter={()=>{if(autoNavigation)hoverSidePreview(s.id);}} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
           <button className={'scene '+(s.id===activeId?'active':'')} title={'Ouvrir '+s.name+' directement dans la grande vue'}
@@ -3651,6 +3680,7 @@ function App(){
             }}
             onClick={()=>{
               selectScene(s.id);
+              if(!autoNavigation)setRightHidden(true); // on va simplement au panorama choisi
               setMode(autoNavigation&&!preview?'navigation':null);
               setGalleryPreviewSceneId(null);
               setGalleryPreviewPinned(false);
@@ -3666,8 +3696,8 @@ function App(){
                 {s.id===visibleScenes[0]?.id?' · Accueil':''} · {s.hotspots.length} point{s.hotspots.length>1?'s':''}</small>
             </span>
           </button>
-          <button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
-            onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>
+          {autoNavigation&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
+            onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
              onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}>✕</button>:
@@ -3697,7 +3727,6 @@ function App(){
         </div>
         </div>}
         {panel==='points' && <div className="properties">
-          {active&&!selected&&nightSceneControls(active)}
           {!active?<div className="hint">Importe un panorama pour commencer à créer.</div>:selected ? (
             /* ============================================================== */
             /* DIRECT ELEMENT INSPECTOR (QUAND UN ÉLÉMENT DU 360° EST CLIQUÉ) */
@@ -3891,12 +3920,16 @@ function App(){
             /* ============================================================== */
             <div className="scene-overview">
               {currentSpace&&<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>}
-              <div className="section-title">PARAMÈTRES DU PANORAMA</div>
+              <SectionHub
+                intro={currentSpace?<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>:null}
+                sections={[
+                  {key:'name',title:'Nom du panorama',hint:active.name,icon:<Pencil size={26}/>,tone:'#4f7cff',content:<>
               <label>Nom de la scène
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
+                  </>},
+                  {key:'arrival',title:'Vue d’arrivée',hint:active.arrivalYaw!==undefined?'✓ Définie':'Par défaut',icon:<Eye size={26}/>,tone:'#2fbf8f',content:<>
 
-              <InspectorSection title="Vue d’arrivée et cadrage" initiallyOpen>
               {viaHotspot&&viaFrom?<div className="arrival-view-card is-arrow">
                 <div className="section-title">VUE D’ARRIVÉE · PAR CETTE FLÈCHE</div>
                 <p>Tu es arrivé ici par la flèche <b>« {viaHotspot.title||'Navigation'} »</b> de <b>{viaFrom.name}</b>. Oriente la vue comme tu veux qu’elle apparaisse quand on clique sur <b>cette flèche</b>, puis enregistre. Chaque flèche qui mène à ce panorama a sa propre vue.</p>
@@ -3920,8 +3953,10 @@ function App(){
                 {active.arrivalYaw!==undefined&&<small className="arrival-saved">✓ Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
               </div>}
 
-              </InspectorSection>
 
+                  </>},
+                  {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
+                  {key:'points',title:'Points interactifs',badge:active.hotspots.length,hint:'Flèches, infos, photos…',icon:<PinIcon size={26}/>,tone:'#ff8a3d',content:<>
               <div className="section-title">
                 <span>POINTS INTERACTIFS</span>
                 <span className="counter">{active.hotspots.length}</span>
@@ -3950,7 +3985,9 @@ function App(){
                 </div>
               )}
 
-              <hr/>
+
+                  </>},
+                  {key:'music',title:'Musique',hint:active.musicTrackId?(project.audioTracks??[]).find(t=>t.id===active.musicTrackId)?.name:'Aucune',icon:<Music size={26}/>,tone:'#ff6fa8',content:<>
               <div className="section-title">MUSIQUE DE CE PANORAMA</div>
               <label>Musique active
                 <select value={active.musicTrackId??''} onChange={e=>{
@@ -3963,32 +4000,17 @@ function App(){
               </label>
               <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une musique</button>
               <button type="button" className="style-reset" onClick={()=>setPanel('music')}>Gérer la bibliothèque musicale</button>
+                  </>}
+                ]}/>
             </div>
           )}
         </div>}
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
-          <InspectorSection title="Dimensions de la barre"><BarDimensions style={project.barStyle} onChange={changeBarStyle}/></InspectorSection>
+          <SectionHub forceOpen={selectedBarId?'buttons':null} sections={[
+            {key:'buttons',title:'Boutons et actions',badge:project.bottomBar.length,hint:'Ajouter, modifier, ordonner',icon:<PanelBottom size={26}/>,tone:'#a468f0',content:<>
 
-          <InspectorSection title="Couleurs et contours"><div className="style-settings">
-            <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
-            <div className="style-colors">
-              {barColorFields.map(field=><label className="style-color-field" key={field.key}>
-                <span>{field.label}</span>
-                <span className="style-picker"><input type="color" value={project.barStyle[field.key]} aria-label={field.label} onChange={e=>changeBarStyle({[field.key]:e.target.value})}/><small>{project.barStyle[field.key]}</small></span>
-              </label>)}
-            </div>
-            <label>Épaisseur du contour de la barre : {project.barStyle.outlineWidth} px
-              <input type="range" min="0" max="8" step="1" value={project.barStyle.outlineWidth} onChange={e=>changeBarStyle({outlineWidth:Number(e.target.value)})}/></label>
-            <label>Épaisseur du contour des boutons : {project.barStyle.buttonOutlineWidth} px
-              <input type="range" min="0" max="8" step="1" value={project.barStyle.buttonOutlineWidth} onChange={e=>changeBarStyle({buttonOutlineWidth:Number(e.target.value)})}/></label>
-            <label>Arrondi de la barre : {project.barStyle.roundness} px
-              <input type="range" min="0" max="60" step="1" value={project.barStyle.roundness} onChange={e=>changeBarStyle({roundness:Number(e.target.value)})}/></label>
-            <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
-          </div>
-          </InspectorSection>
-          <InspectorSection title="Boutons et actions" initiallyOpen>
           <div className="bar-items-list" data-sort-scope="visit-bar">{project.bottomBar.map(item=><div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-list-sort">{barSort.grip(item.id,item.title)}<button className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
             <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
             <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
@@ -4029,8 +4051,28 @@ function App(){
             </InspectorSection>
             <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
           </InspectorSection>}
-          </InspectorSection>
-          <button type="button" className="import" onClick={()=>setSkinsOpen(true)}>Enregistrer ou appliquer un skin</button>
+
+            </>},
+            {key:'colors',title:'Couleurs et contours',hint:'Fond, boutons, pictogrammes',icon:<Palette size={26}/>,tone:'#ff8a3d',content:<><div className="style-settings">
+            <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
+            <div className="style-colors">
+              {barColorFields.map(field=><label className="style-color-field" key={field.key}>
+                <span>{field.label}</span>
+                <span className="style-picker"><input type="color" value={project.barStyle[field.key]} aria-label={field.label} onChange={e=>changeBarStyle({[field.key]:e.target.value})}/><small>{project.barStyle[field.key]}</small></span>
+              </label>)}
+            </div>
+            <label>Épaisseur du contour de la barre : {project.barStyle.outlineWidth} px
+              <input type="range" min="0" max="8" step="1" value={project.barStyle.outlineWidth} onChange={e=>changeBarStyle({outlineWidth:Number(e.target.value)})}/></label>
+            <label>Épaisseur du contour des boutons : {project.barStyle.buttonOutlineWidth} px
+              <input type="range" min="0" max="8" step="1" value={project.barStyle.buttonOutlineWidth} onChange={e=>changeBarStyle({buttonOutlineWidth:Number(e.target.value)})}/></label>
+            <label>Arrondi de la barre : {project.barStyle.roundness} px
+              <input type="range" min="0" max="60" step="1" value={project.barStyle.roundness} onChange={e=>changeBarStyle({roundness:Number(e.target.value)})}/></label>
+            <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
+          </div>
+</>},
+            {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><BarDimensions style={project.barStyle} onChange={changeBarStyle}/></>},
+            {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)}
+          ]}/>
         </div>}
         {panel==='elements' && <div className="properties">
           <div className="section-title">ÉLÉMENTS DE CE PANORAMA</div>

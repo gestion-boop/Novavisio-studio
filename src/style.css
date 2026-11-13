@@ -4624,3 +4624,46 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-hand-rights ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .nv-hand-rights li{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .nv-hand-rights li span{display:flex;flex-direction:column;min-width:0}.nv-hand-rights small{color:#9db4bb;font-size:12px}
+
+/* ── Réglages en grand (plein écran sous l'en-tête) ; en bandeau latéral seulement quand un point du panorama est sélectionné ── */
+.nv-studio-pro.nv-sheet-open:not(.nv-sheet-side) .workspace>.right.panel{left:8px;right:8px;width:auto;max-width:none}
+.nv-studio-pro.nv-sheet-open:not(.nv-sheet-side) .nv-creation-fullscreen-enter{right:14px}
+.nv-sheet-open:not(.nv-sheet-side) .right.panel>*:not(.nv-inspector-top){width:min(1100px,100%);margin-left:auto;margin-right:auto;box-sizing:border-box}
+/* Tuiles de rubriques (Scène & Points, Barre du bas) */
+.nv-hub-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin:6px 0}
+.nv-hub-tile{aspect-ratio:auto!important;min-height:150px;position:relative}
+.nv-hub-hint{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#b8cdd3;font-weight:400;font-size:12px}
+.nv-app-tile:hover:not(:disabled) .nv-hub-hint{color:#fff}
+.nv-hub-detail{display:flex;flex-direction:column;gap:12px}
+.nv-hub-detail-head{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:1px solid #2c5361}
+.nv-hub-detail-head strong{font-size:18px}
+.nv-hub-back{display:inline-flex;align-items:center;gap:6px;height:42px;padding:0 14px;border:1px solid #35606f;border-radius:11px;background:#143543;color:#e6f6f8;font:700 14px system-ui,sans-serif;cursor:pointer;transition:transform .12s,background .15s}
+.nv-hub-back:hover{background:linear-gradient(160deg,#46aed6,#2f8fb5);border-color:#9fdcf3}
+.nv-hub-back:active{transform:scale(.95);box-shadow:inset 0 4px 10px #0009}
+.nv-hub-detail-body{display:flex;flex-direction:column;gap:12px}
+/* Dans le détail d'une rubrique : champs plus grands et à l'aise */
+.nv-hub-detail-body input[type=text],.nv-hub-detail-body input:not([type]),.nv-hub-detail-body select,.nv-hub-detail-body textarea{min-height:44px;font-size:15px}
+.nv-hub-detail-body .style-colors{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+/* Panoramas : de grandes cartes avec photo, un clic emmène au panorama */
+.nv-sheet-open .right.panel .nv-gallery-position,.nv-sheet-open .right.panel .nv-gallery-layout-choice,.nv-sheet-open .right.panel .nv-gallery-reset{display:none!important}
+.nv-sheet-open .right.panel .scenes{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))!important;gap:16px!important;height:auto!important;max-height:none!important;overflow:visible!important;padding:4px!important}
+.nv-sheet-open .right.panel .scene-slot{position:relative;min-width:0}
+.nv-sheet-open .right.panel .scene-slot .scene{width:100%;display:flex!important;flex-direction:column!important;align-items:stretch!important;padding:0!important;border-radius:16px!important;overflow:hidden;transition:transform .12s,box-shadow .18s,border-color .18s}
+.nv-sheet-open .right.panel .scene-slot .scene img,.nv-sheet-open .right.panel .scene-slot .scene .scene-thumb-ph{width:100%!important;height:auto!important;aspect-ratio:2/1;object-fit:cover}
+.nv-sheet-open .right.panel .scene-slot .scene:hover{border-color:#9fdcf3!important;box-shadow:0 0 0 3px #46aed655,0 10px 24px #0007;transform:translateY(-2px)}
+.nv-sheet-open .right.panel .scene-slot .scene:active{transform:scale(.97);box-shadow:inset 0 5px 12px #0009}
+.nv-sheet-open .right.panel .scene-slot .scene .nv-scene-description{padding:10px 12px 12px}
+.nv-sheet-open .right.panel .scene-grip{display:none}
+
+/* Plein écran de création : barre du haut (Éditer · outils · Aperçu) + retour à l'écran classique */
+.nv-fs-topbar{position:absolute;top:10px;left:0;right:0;z-index:60;display:flex;justify-content:center;align-items:flex-start;pointer-events:none}
+.nv-fs-topbar>*{pointer-events:auto}
+.nv-fs-topbar .mode-switch-group{height:44px;background:rgba(8,27,40,.88);border:1px solid rgba(123,209,211,.55);border-radius:12px;backdrop-filter:blur(12px);box-shadow:0 7px 30px rgba(0,0,0,.48)}
+.nv-fs-topbar .mode-btn{height:36px;min-height:36px;padding:0 16px;font-size:14px}
+.nv-fs-topbar .nv-v3-grid-btn{position:relative;width:46px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-left:1px solid #35606f;border-right:1px solid #35606f;border-radius:0}
+.nv-fs-topbar .nv-v3-grid-btn.is-open,.nv-fs-topbar .nv-v3-grid-btn[aria-expanded="true"]{background:#1d6f7e;color:#fff}
+.nv-fs-topbar .nv-v3-grid-btn .nv-unsaved-dot{position:absolute;top:4px;right:6px;width:9px;height:9px;border-radius:50%;background:#ff9f43;border:2px solid #0f2430}
+.nv-fs-exit{position:absolute;right:14px;top:0;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;border:1px solid rgba(123,209,211,.55);background:rgba(8,27,40,.88);color:#e8fbfc;cursor:pointer;backdrop-filter:blur(12px);box-shadow:0 7px 30px rgba(0,0,0,.48)}
+.nv-fs-exit:hover{background:linear-gradient(160deg,#46aed6,#2f8fb5);border-color:#9fdcf3}
+.nv-fs-exit:active{transform:scale(.94);box-shadow:inset 0 4px 10px #0009}
+.nv-fs-topbar .nv-tools-curtain{left:50%;right:auto;transform:translateX(-50%);width:min(1000px,94%);top:calc(100% + 10px);border:1px solid #426b77;border-radius:18px}
