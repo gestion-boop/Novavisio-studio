@@ -289,6 +289,19 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
 /* ---------- Invitations : « Je te propose de partager mon écran » ---------- */
 export type LiveInvite={fromLabel:string;fromEmail:string;at:number};
 const inviteChannel=(projectId:string)=>'inv:'+projectId;
+// Le canal des invitations est ouvert une seule fois par projet (écoute permanente). Pour envoyer, on RÉUTILISE ce canal :
+// en rouvrir un second sur le même nom provoque l'erreur « cannot add presence callbacks … after subscribe() ».
+const inviteTransports=new Map<string,LiveTransport>();
+async function sendOnInviteChannel(projectId:string,event:string,payload:unknown,fromEmail:string):Promise<void>{
+  const existing=inviteTransports.get(projectId);
+  if(existing){existing.send(event,payload);return;}
+  const selfId=Math.random().toString(36).slice(2,10);
+  const t=await makeTransport(inviteChannel(projectId),selfId);
+  t.join({id:selfId,label:fromEmail,joinedAt:Date.now()},()=>undefined);
+  await new Promise(resolve=>window.setTimeout(resolve,1000)); // laisse la connexion s'établir
+  t.send(event,payload);
+  window.setTimeout(()=>t.close(),1500);
+}
 
 /** Écoute (en continu, très léger) les invitations adressées à cette adresse e-mail sur ce projet. */
 export type LiveShot={id:string;fromLabel:string;fromEmail:string;comment:string;image:string;at:number};
@@ -304,7 +317,7 @@ export function useLiveInvites(identity:{projectId:string;email:string}|null,ena
     const selfId=Math.random().toString(36).slice(2,10);
     void makeTransport(inviteChannel(projectId),selfId).then(t=>{
       if(closed){t.close();return;}
-      transport=t;
+      transport=t;inviteTransports.set(projectId,t);
       t.on('invite',p=>{
         if(!p||!Array.isArray(p.to)||!p.to.includes(email)||p.fromEmail===email)return;
         setInvite({fromLabel:String(p.fromLabel||'Quelqu’un').slice(0,40),fromEmail:String(p.fromEmail||''),at:Date.now()});
@@ -324,36 +337,21 @@ export function useLiveInvites(identity:{projectId:string;email:string}|null,ena
       });
       t.join({id:selfId,label:email,joinedAt:Date.now()},()=>undefined);
     }).catch(()=>undefined);
-    return ()=>{closed=true;transport?.close();};
+    return ()=>{closed=true;if(transport&&inviteTransports.get(projectId)===transport)inviteTransports.delete(projectId);transport?.close();};
   },[enabled,projectId,email]);
   return {invite,dismiss:()=>setInvite(null),notesIn,dismissNote:(id:string)=>setNotesIn(list=>list.filter(x=>x.id!==id)),shots,dismissShot:(id:string)=>setShots(list=>list.filter(x=>x.id!==id))};
 }
 /** Envoie l'invitation aux personnes choisies (elles la voient si leur éditeur est ouvert sur ce projet). */
 export async function sendLiveInvite(projectId:string,fromLabel:string,fromEmail:string,to:string[]):Promise<void>{
-  const selfId=Math.random().toString(36).slice(2,10);
-  const t=await makeTransport(inviteChannel(projectId),selfId);
-  t.join({id:selfId,label:fromEmail,joinedAt:Date.now()},()=>undefined);
-  await new Promise(resolve=>window.setTimeout(resolve,1000)); // laisse la connexion s'établir
-  t.send('invite',{fromLabel,fromEmail,to});
-  window.setTimeout(()=>t.close(),700);
+  await sendOnInviteChannel(projectId,'invite',{fromLabel,fromEmail,to},fromEmail);
 }
 
 /** Envoie une capture annotée aux personnes choisies (elles la reçoivent si leur éditeur est ouvert sur ce projet). */
 export async function sendLiveShot(projectId:string,fromLabel:string,fromEmail:string,to:string[],comment:string,image:string):Promise<void>{
-  const selfId=Math.random().toString(36).slice(2,10);
-  const t=await makeTransport(inviteChannel(projectId),selfId);
-  t.join({id:selfId,label:fromEmail,joinedAt:Date.now()},()=>undefined);
-  await new Promise(resolve=>window.setTimeout(resolve,1000));
-  t.send('shot',{fromLabel,fromEmail,to,comment:comment.slice(0,600),image});
-  window.setTimeout(()=>t.close(),1500);
+  await sendOnInviteChannel(projectId,'shot',{fromLabel,fromEmail,to,comment:comment.slice(0,600),image},fromEmail);
 }
 
 /** Envoie une note en direct (sans base de données) aux personnes choisies. */
 export async function sendLiveNote(projectId:string,fromLabel:string,fromEmail:string,to:string[],body:string,projectName:string):Promise<void>{
-  const selfId=Math.random().toString(36).slice(2,10);
-  const t=await makeTransport(inviteChannel(projectId),selfId);
-  t.join({id:selfId,label:fromEmail,joinedAt:Date.now()},()=>undefined);
-  await new Promise(resolve=>window.setTimeout(resolve,1000));
-  t.send('note',{fromLabel,fromEmail,to,body:body.slice(0,4000),projectName});
-  window.setTimeout(()=>t.close(),1000);
+  await sendOnInviteChannel(projectId,'note',{fromLabel,fromEmail,to,body:body.slice(0,4000),projectName},fromEmail);
 }
