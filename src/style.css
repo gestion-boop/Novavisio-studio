@@ -4477,3 +4477,9 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
   .nv-topbar-v3 .nv-header-burger span{display:none}
   .nv-live-bar{right:8px!important;top:62px!important}
 }
+
+/* Mobile / tactile : pas de glisser-déposer, l'ordre des outils reste celui choisi sur ordinateur */
+@media (max-width:820px),(pointer:coarse){
+  .nv-tool-row .nv-sort-grip{display:none}
+  .nv-tools-popup-head small{display:none}
+}
