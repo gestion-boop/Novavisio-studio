@@ -43,6 +43,8 @@ import {useSceneThumbs} from './thumbs';
 import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera} from 'lucide-react';
 import {captureScreen,ShotEditor,ShotInbox} from './ScreenshotTool';
 import {SectionHub} from './SectionHub';
+import {MediaPicker} from './MediaPicker';
+import {rememberMedia} from './mediaLibrary';
 import {IconLibrary} from './IconLibrary';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
@@ -800,13 +802,13 @@ function App(){
   const projectInput=useRef<HTMLInputElement>(null);
   const placedMediaInput=useRef<HTMLInputElement>(null);
   const pendingMediaPlacement=useRef<{sceneId:string;hotspotId:string;type:'image'|'video'}|null>(null);
+  // Choix d'un média : la bibliothèque (déjà utilisés) s'ouvre d'abord ; l'import depuis l'ordinateur reste facultatif.
+  const [mediaPicker,setMediaPicker]=useState<{sceneId:string;hotspotId:string;type:'image'|'video';fresh:boolean}|null>(null);
+  const [mediaVersion,setMediaVersion]=useState(0);
   useEffect(()=>{
     const input=placedMediaInput.current;if(!input)return;
-    const cancel=()=>{
-      const pending=pendingMediaPlacement.current;if(!pending)return;pendingMediaPlacement.current=null;
-      setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===pending.sceneId?{...scene,hotspots:scene.hotspots.filter(h=>h.id!==pending.hotspotId||!!(h.imageDataUrl||h.videoDataUrl||h.videoUrl))}:scene)}));
-      setSelectedId(current=>current===pending.hotspotId?'':current);setStatus('Import du média annulé');
-    };
+    // Sélecteur du système annulé : on reste sur la bibliothèque, rien n'est supprimé.
+    const cancel=()=>{pendingMediaPlacement.current=null;setStatus('Import annulé : choisis un média déjà utilisé, ou réessaie.');};
     input.addEventListener('cancel',cancel);return ()=>input.removeEventListener('cancel',cancel);
   },[]);
 
@@ -1502,6 +1504,8 @@ function App(){
       if(!isSafeVideoData(data))throw Error('Fichier vidéo incompatible');
       setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===hotspotId?{...h,videoDataUrl:data,videoUrl:'',...(placement?{title:file.name.replace(/\.[^.]+$/,'').slice(0,120)}:{})}:h)}:scene)}));
       setStatus('Vidéo ajoutée à l’écran');
+      void rememberMedia('video',file.name.replace(/\.[^.]+$/,''),data).then(()=>setMediaVersion(v=>v+1));
+      setMediaPicker(null);
     }catch{setStatus('Impossible de lire la vidéo');}
     if(videoInput.current)videoInput.current.value='';
   }
@@ -1582,11 +1586,40 @@ function App(){
       })}));
       setPhotoFeedback('Photo importée avec succès.');
       setStatus('Photo ajoutée au panorama');
+      void rememberMedia('image',file.name.replace(/\.[^.]+$/,''),data).then(()=>setMediaVersion(v=>v+1));
+      setMediaPicker(null);
     }catch(e){
       const message=e instanceof Error?e.message:'Impossible de lire cette photo.';
       setPhotoFeedback(message);
       setStatus('Import photo : '+message);
     }
+  }
+  function importFromPicker(){
+    if(!mediaPicker)return;
+    pendingMediaPlacement.current={sceneId:mediaPicker.sceneId,hotspotId:mediaPicker.hotspotId,type:mediaPicker.type};
+    const input=placedMediaInput.current;
+    if(input){input.accept=mediaPicker.type==='image'?'image/*,.heic,.heif':'video/mp4,video/webm';input.value='';input.click();}
+  }
+  function pickFromLibrary(item:{name:string;dataUrl?:string;url?:string}){
+    const target=mediaPicker;if(!target)return;
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==target.sceneId?sc:{...sc,hotspots:sc.hotspots.map(h=>h.id!==target.hotspotId?h:{
+      ...h,
+      ...(target.type==='image'?{imageDataUrl:item.dataUrl}:item.dataUrl?{videoDataUrl:item.dataUrl,videoUrl:''}:{videoUrl:item.url??'',videoDataUrl:undefined}),
+      ...(target.fresh?{title:item.name.slice(0,120)}:{})
+    })})}));
+    setMediaPicker(null);
+    setStatus((target.type==='image'?'Photo':'Vidéo')+' « '+item.name+' » ajoutée depuis la bibliothèque.');
+  }
+  function closeMediaPicker(){
+    const target=mediaPicker;setMediaPicker(null);
+    if(!target||!target.fresh)return;
+    // Point créé pour rien (aucun média choisi) : on le retire, comme avant.
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===target.sceneId?{...sc,hotspots:sc.hotspots.filter(h=>h.id!==target.hotspotId||!!(h.imageDataUrl||h.videoDataUrl||h.videoUrl))}:sc)}));
+    setSelectedId(cur=>cur===target.hotspotId?'':cur);
+    setStatus('Aucun média choisi : le point n’a pas été créé.');
+  }
+  function mediaPickerEl(){
+    return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onImport={importFromPicker} onClose={closeMediaPicker}/>:null;
   }
   function stopAutoNavigation(){
     setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);
@@ -2549,9 +2582,7 @@ function App(){
     if(importedVideo){setClientVideoPlacement(null);setRightHidden(false);setStatus('Vidéo NovaGen placée · Enregistre la visite pour conserver le fichier');}
     if(mode==='image'||(mode==='video'&&!importedVideo)){
       setRightHidden(false);
-      pendingMediaPlacement.current={sceneId:active.id,hotspotId:h.id,type:mode};
-      const input=placedMediaInput.current;
-      if(input){input.accept=mode==='image'?'image/*,.heic,.heif':'video/mp4,video/webm';input.value='';input.click();}
+      setMediaPicker({sceneId:active.id,hotspotId:h.id,type:mode,fresh:true});
     }
     if(mode==='navigation'){
       const sceneIndex=visibleScenes.findIndex(sc=>sc.id===active.id);
@@ -3006,6 +3037,7 @@ function App(){
       {liveInvite.notesIn.map(n=><article key={n.id} className="nv-note-in"><strong>📝 {n.fromLabel} t’envoie une note</strong><p>{n.body}</p>
         <button type="button" className="x" onClick={()=>liveInvite.dismissNote(n.id)} aria-label="Fermer cette note">✕</button></article>)}
     </div>}
+    {!creationFullscreen&&mediaPickerEl()}
     {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
     <ShotInbox shots={liveInvite.shots} onDismiss={liveInvite.dismissShot} onReply={shot=>{liveInvite.dismissShot(shot.id);setShotImage({image:shot.image,defaultTo:shot.fromEmail});}}/>
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>setLiveDialogOpen(false)}/>}
@@ -3196,6 +3228,7 @@ function App(){
                   <span aria-hidden="true">+</span>
                 </button>}
             </div>}
+          {creationFullscreen&&mediaPickerEl()}
           {creationFullscreen&&<div className="nv-fs-topbar" ref={fsToolsRef}>
             {modeSwitch(true)}
             <button type="button" className="nv-fs-exit" onClick={()=>void toggleCreationFullscreen()} aria-label="Quitter le plein écran" title="Revenir à l’écran classique"><Minimize2 size={20}/></button>
@@ -3870,6 +3903,7 @@ function App(){
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
+                <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'image',fresh:false});}}>🖼 Choisir une photo déjà utilisée</button>
                 <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
                   onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
                   onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
@@ -3899,6 +3933,7 @@ function App(){
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'video',fresh:false});}}>🎞 Choisir une vidéo déjà utilisée</button>
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
                 <small className="hint-inline">45 Mo max en local, ou renseigne une URL HTTPS directe :</small>
                 <label>Ou URL HTTPS de la vidéo
@@ -3969,7 +4004,8 @@ function App(){
                     <input type="text" placeholder="https://… menu, réservations" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
                     <small className="hint-inline">Si renseignée, la page s'ouvre directement dans la visite à la place du texte.</small>
                   </label>
-                  <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
+                  <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'image',fresh:false});}}>🖼 Choisir une photo déjà utilisée</button>
+                <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
                     onDragLeave={e=>e.currentTarget.classList.remove('drag-hover')}
                     onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
                     <span className="photo-upload-icon">＋</span>
