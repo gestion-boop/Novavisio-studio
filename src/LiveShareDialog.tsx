@@ -47,7 +47,7 @@ export function LiveShareDialog({onStart,onClose}:{onStart:(emails:string[])=>vo
   const toggle=(email:string)=>setChosen(cur=>{const next=new Set(cur);if(next.has(email))next.delete(email);else next.add(email);return next;});
   return <div className="overlay nv-liveshare-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
     <section className="nv-liveshare" role="dialog" aria-modal="true" aria-label="Partager l’écran avec…">
-      <header><div><strong><Users size={18}/> Partager l’écran avec…</strong><small>La personne reçoit une invitation dans son NovaStudio ouvert sur ce projet.</small></div>
+      <header><div><strong><Users size={18}/> Partager l’écran avec…</strong><small>La personne reçoit une invitation. Tu seras le pilote : elle voit ton écran, et toi seul décides de lui laisser la main.</small></div>
         <button type="button" onClick={onClose} aria-label="Fermer"><X size={20}/></button></header>
       {people===null&&<p className="nv-liveshare-info">Chargement des participants…</p>}
       {error&&<p className="nv-liveshare-error">{error}</p>}

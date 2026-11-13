@@ -536,6 +536,7 @@ function App(){
   const [liveProjectId,setLiveProjectId]=useState<string|null>(null);
   const [liveLabel,setLiveLabel]=useState('');
   const [liveDialogOpen,setLiveDialogOpen]=useState(false);
+  const [liveLeads,setLiveLeads]=useState(true); // celui qui lance le partage pilote ; celui qui rejoint suit
   // Identité (projet Cloud + e-mail) pour recevoir les invitations « partager l'écran ».
   const [inviteIdentity,setInviteIdentity]=useState<{projectId:string;email:string}|null>(null);
   useEffect(()=>{
@@ -706,7 +707,7 @@ function App(){
     }catch(e){setStatus('Écran partagé indisponible : '+(e instanceof Error?e.message:String(e)));}
   }
   /** Démarre l'écran partagé et invite les personnes choisies. */
-  async function startLiveWith(emails:string[]){
+  async function startLiveWith(emails:string[],asLeader=true){
     setLiveDialogOpen(false);
     const link=readLink();
     if(!link){setStatus('Écran partagé : ouvre d’abord le projet depuis le Cloud (bouton Cloud), comme la personne avec qui tu travailles.');return;}
@@ -715,7 +716,7 @@ function App(){
       const {data:{session}}=await supabase().auth.getSession();
       const email=(session?.user?.email??'').toLowerCase();
       const label=(email.split('@')[0]||'Invité').slice(0,24);
-      setLiveLabel(label);setLiveProjectId(link.projectId);
+      setLiveLabel(label);setLiveLeads(asLeader);setLiveProjectId(link.projectId);
       if(emails.length){
         await sendLiveInvite(link.projectId,label,email,emails);
         setStatus('Invitation envoyée à '+emails.map(e=>e.split('@')[0]).join(', ')+' : elle apparaît dans son NovaStudio ouvert sur ce projet.');
@@ -902,8 +903,21 @@ function App(){
     i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
   });
   const liveInvite=useLiveInvites(inviteIdentity,true);
+  // Notes reçues en direct : on les garde dans les notes de ce projet (sur cet ordinateur), en plus de la carte affichée.
+  const savedNoteIds=useRef(new Set<string>());
+  useEffect(()=>{
+    for(const n of liveInvite.notesIn){
+      if(savedNoteIds.current.has(n.id))continue;
+      savedNoteIds.current.add(n.id);
+      try{
+        const key='nvstudio-notes-local:'+(project.name||'projet');
+        const list=JSON.parse(localStorage.getItem(key)||'[]');
+        localStorage.setItem(key,JSON.stringify([{id:n.id,body:n.body,shared:true,authorEmail:n.fromEmail,mine:false,createdAt:new Date(n.at).toISOString()},...(Array.isArray(list)?list:[])].slice(0,300)));
+      }catch{/* stockage indisponible */}
+    }
+  },[liveInvite.notesIn,project.name]);
   const live=useLiveSession({
-    projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
+    startAsLeader:liveLeads,projectId:liveProjectId,enabled:!!liveProjectId,label:liveLabel,
     state:{sceneId:activeId,spaceId:activeSpaceId},
     getView:()=>cameraRef.current.sceneId?cameraRef.current:null,
     ui:liveUi,
@@ -2988,10 +3002,14 @@ function App(){
         </div>
       </section>
     </div>}
+    {liveInvite.notesIn.length>0&&<div className="nv-shot-inbox" style={{top:'auto',bottom:90}} role="region" aria-label="Notes reçues">
+      {liveInvite.notesIn.map(n=><article key={n.id} className="nv-note-in"><strong>📝 {n.fromLabel} t’envoie une note</strong><p>{n.body}</p>
+        <button type="button" className="x" onClick={()=>liveInvite.dismissNote(n.id)} aria-label="Fermer cette note">✕</button></article>)}
+    </div>}
     {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
     <ShotInbox shots={liveInvite.shots} onDismiss={liveInvite.dismissShot} onReply={shot=>{liveInvite.dismissShot(shot.id);setShotImage({image:shot.image,defaultTo:shot.fromEmail});}}/>
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>setLiveDialogOpen(false)}/>}
-    {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([]);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
+    {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
     {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)} onOpenCloud={()=>setCloudOpen(true)}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{

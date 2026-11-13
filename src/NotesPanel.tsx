@@ -1,6 +1,8 @@
 import {useCallback,useEffect,useState} from 'react';
 import {Lock,Users,Trash2,X} from 'lucide-react';
 import {cloudConfigured,readLink,supabase} from './cloud';
+import {loadParticipants,type Person} from './LiveShareDialog';
+import {sendLiveNote} from './liveSession';
 
 /**
  * Notes du projet : attachées à UN projet, privées (seul l'auteur les voit) ou partagées avec l'équipe du projet.
@@ -26,6 +28,26 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
   const [shared,setShared]=useState(false);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
+  // Envoi direct (sans base de données) : possible dès qu'on est connecté au Cloud sur ce projet.
+  const [ident,setIdent]=useState<{projectId:string;email:string}|null>(null);
+  const [people,setPeople]=useState<Person[]|null>(null);
+  const [sendTo,setSendTo]=useState<Set<string>>(new Set());
+  useEffect(()=>{
+    let dead=false;
+    (async()=>{
+      const link=readLink();
+      if(!link||!cloudConfigured)return;
+      try{
+        const {data}=await supabase().auth.getSession();
+        const email=data.session?.user?.email?.toLowerCase();
+        if(!email||dead)return;
+        setIdent({projectId:link.projectId,email});
+        const r=await loadParticipants();
+        if(!dead)setPeople(r.people);
+      }catch{/* pas de participants : on reste en local */}
+    })();
+    return ()=>{dead=true;};
+  },[]);
 
   // Cloud si le projet est lié au Cloud et qu'on est connecté ; sinon notes locales.
   useEffect(()=>{
@@ -72,6 +94,10 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
       if(mode.kind==='local'){
         const note:Note={id:Math.random().toString(36).slice(2),body,shared:false,authorEmail:'',mine:true,createdAt:new Date().toISOString()};
         const next=[note,...localRead(mode.key)];localWrite(mode.key,next);setNotes(next);
+        if(ident&&sendTo.size){
+          await sendLiveNote(ident.projectId,ident.email.split('@')[0].slice(0,24),ident.email,[...sendTo],body,projectName);
+          setError('');
+        }
       }else{
         const {error:err}=await supabase().from('nvstudio_notes').insert({project_id:mode.projectId,body,shared});
         if(err){
@@ -80,6 +106,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
             const key='nvstudio-notes-local:'+(projectName||'projet');
             const note:Note={id:Math.random().toString(36).slice(2),body,shared:false,authorEmail:'',mine:true,createdAt:new Date().toISOString()};
             const next=[note,...localRead(key)];localWrite(key,next);
+            if(ident&&sendTo.size)await sendLiveNote(ident.projectId,ident.email.split('@')[0].slice(0,24),ident.email,[...sendTo],body,projectName);
             setMode({kind:'local',key,reason:NOT_ACTIVE});setNotes(next);setDraft('');setShared(false);return;
           }
           throw new Error(err.message);
@@ -113,11 +140,19 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
         <div className="nv-notes-composer-row">
           <label className={'nv-notes-share'+(mode?.kind!=='cloud'?' is-disabled':'')}>
             <input type="checkbox" checked={shared&&mode?.kind==='cloud'} disabled={mode?.kind!=='cloud'} onChange={e=>setShared(e.target.checked)}/>
-            <span><Users size={15}/> Partager avec l’équipe du projet</span>
+            <span><Users size={15}/> Partager avec l’équipe du projet{mode?.kind!=='cloud'&&<em className="nv-notes-why"> (indisponible tant que la mise à jour de la base n’est pas faite : utilise « Envoyer aussi à » ci-dessous)</em>}</span>
           </label>
           <button type="button" className="nv-notes-add" disabled={!draft.trim()||busy||!mode} onClick={()=>void add()}>Ajouter</button>
         </div>
-        <small>{shared&&mode?.kind==='cloud'?'Les personnes invitées sur ce projet verront cette note.':'Note privée : toi seul(e) la vois.'}</small>
+        {mode?.kind==='local'&&<div className="nv-notes-sendto">
+          <strong>Envoyer aussi à</strong>
+          {!ident&&<small>Connecte-toi au Cloud sur ce projet pour pouvoir envoyer cette note à quelqu’un.</small>}
+          {ident&&people===null&&<small>Chargement…</small>}
+          {people&&people.length===0&&<small>Personne d’autre n’est invité sur ce projet.</small>}
+          {people&&people.map(p=><button type="button" key={p.email} aria-pressed={sendTo.has(p.email)} className={'nv-notes-person'+(sendTo.has(p.email)?' is-on':'')}
+            onClick={()=>setSendTo(cur=>{const n=new Set(cur);if(n.has(p.email))n.delete(p.email);else n.add(p.email);return n;})}><span aria-hidden="true">{sendTo.has(p.email)?'✓':''}</span>{p.email.split('@')[0]}</button>)}
+        </div>}
+        <small>{mode?.kind==='local'?(sendTo.size?'La note sera envoyée en direct à '+sendTo.size+' personne'+(sendTo.size>1?'s':'')+' (elle la reçoit si son NovaStudio est ouvert sur ce projet).':'Note gardée sur cet ordinateur.'):shared&&mode?.kind==='cloud'?'Les personnes invitées sur ce projet verront cette note.':'Note privée : toi seul(e) la vois.'}</small>
       </div>
       {error&&<p className="nv-notes-error" role="alert">{error}</p>}
       <ul className="nv-notes-list">
@@ -125,7 +160,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
         {notes.map(n=><li key={n.id} className={'nv-note'+(n.shared?' is-shared':'')}>
           <div className="nv-note-meta">
             <span className="nv-note-badge">{n.shared?<><Users size={13}/> Partagée</>:<><Lock size={13}/> Privée</>}</span>
-            <span>{n.mine?'Moi':who(n.authorEmail)} · {when(n.createdAt)}</span>
+            <span>{n.mine?'Moi':'Reçue de '+who(n.authorEmail)} · {when(n.createdAt)}</span>
             <span className="nv-note-actions">
               {n.mine&&mode?.kind==='cloud'&&<button type="button" onClick={()=>void toggle(n)}>{n.shared?'Rendre privée':'Partager'}</button>}
               {n.mine&&<button type="button" aria-label="Supprimer la note" onClick={()=>void remove(n)}><Trash2 size={14}/></button>}

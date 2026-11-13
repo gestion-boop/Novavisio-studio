@@ -45,7 +45,7 @@ function makeTransport(projectId:string,selfId:string):Promise<LiveTransport>{
   return custom?Promise.resolve(custom(projectId,selfId)):supabaseTransport(projectId,selfId);
 }
 
-export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label:string;state:LiveState;onRemoteState:(s:LiveState)=>void;getView:()=>LiveView|null;onRemoteView:(v:LiveView)=>void;ui:string;onRemoteUi:(raw:string)=>void}){
+export function useLiveSession(opts:{startAsLeader?:boolean;projectId:string|null;enabled:boolean;label:string;state:LiveState;onRemoteState:(s:LiveState)=>void;getView:()=>LiveView|null;onRemoteView:(v:LiveView)=>void;ui:string;onRemoteUi:(raw:string)=>void}){
   const selfId=useMemo(()=>Math.random().toString(36).slice(2,10),[]);
   const joinedAt=useRef(Date.now());
   const [peers,setPeers]=useState<LivePeer[]>([]);
@@ -63,6 +63,8 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
   const remoteUiRef=useRef(opts.onRemoteUi);remoteUiRef.current=opts.onRemoteUi;
   const lastInput=useRef(0);                 // dernière action de l'utilisateur (clic, molette, clavier) hors barre de partage
   const [lastAction,setLastAction]=useState('');
+  const [requests,setRequests]=useState<{id:string;label:string}[]>([]);        // demandes de pilotage reçues (côté pilote)
+  const [myRequest,setMyRequest]=useState<'idle'|'sent'|'declined'>('idle');     // ma demande (côté suiveur)
   const {projectId,enabled,label}=opts;
 
   useEffect(()=>{
@@ -78,7 +80,23 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
       t.on('click',p=>{
         setPeers(list=>list.map(x=>x.id===p.id?{...x,cursor:{x:p.x,y:p.y,t:Date.now()},pulse:{x:p.x,y:p.y,t:Date.now(),label:typeof p.label==='string'?p.label.slice(0,60):undefined}}:x));
       });
-      t.on('hand',p=>{leaderRef.current=p.id;setLeaderId(p.id);}); // la référence est mise à jour tout de suite : le message suivant n'est pas ignoré
+      // Pilotage : celui qui a lancé le partage en premier pilote ; il décide seul de passer la main (« force »).
+      // Si deux personnes se déclarent pilotes en même temps, la plus ancienne l'emporte.
+      t.on('hand',p=>{
+        if(!p||typeof p.id!=='string')return;
+        if(leaderRef.current===selfId&&p.id!==selfId&&!p.force&&!((p.joinedAt??Infinity)<joinedAt.current)){
+          t.send('hand',{id:selfId,joinedAt:joinedAt.current}); // je garde le pilotage
+          return;
+        }
+        leaderRef.current=p.id;setLeaderId(p.id);          // la référence est mise à jour tout de suite : le message suivant n'est pas ignoré
+        if(p.id===selfId)setMyRequest('idle');
+        setRequests(list=>p.id===selfId?list:[]);
+      });
+      t.on('request',p=>{
+        if(leaderRef.current!==selfId||!p||typeof p.id!=='string')return;
+        setRequests(list=>list.some(r=>r.id===p.id)?list:[...list,{id:p.id,label:String(p.label||'Quelqu’un').slice(0,40)}]);
+      });
+      t.on('decline',p=>{if(p&&p.to===selfId)setMyRequest('declined');});
       t.on('release',p=>{setLeaderId(cur=>cur===p.id?null:cur);});
       t.on('state',p=>{
         if(p.id===leaderRef.current&&followRef.current&&p.sceneId)remoteRef.current({sceneId:p.sceneId,spaceId:p.spaceId??null});
@@ -90,7 +108,7 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
         if(p.id===leaderRef.current&&followRef.current&&typeof p.ui==='string')remoteUiRef.current(p.ui);
       });
       t.on('hello',()=>{ // un nouvel arrivant demande qui pilote
-        if(leaderRef.current===selfId){t.send('hand',{id:selfId});t.send('state',{id:selfId,...stateRef.current});t.send('ui',{id:selfId,ui:uiRef.current});}
+        if(leaderRef.current===selfId){t.send('hand',{id:selfId,joinedAt:joinedAt.current});t.send('state',{id:selfId,...stateRef.current});t.send('ui',{id:selfId,ui:uiRef.current});}
       });
       t.join({id:selfId,label,joinedAt:joinedAt.current},list=>{
         const sorted=[...list].sort((a,b)=>a.joinedAt-b.joinedAt||a.id.localeCompare(b.id));
@@ -99,6 +117,10 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
         setLeaderId(cur=>cur&&!sorted.some(m=>m.id===cur)?null:cur);
       });
       t.send('hello',{id:selfId});
+      if(opts.startAsLeader){ // c'est moi qui lance le partage : je pilote
+        leaderRef.current=selfId;setLeaderId(selfId);
+        t.send('hand',{id:selfId,joinedAt:joinedAt.current});
+      }
     }).catch(e=>setError(e instanceof Error?e.message:String(e)));
     return ()=>{closed=true;transport.current?.send('release',{id:selfId});transport.current?.close();transport.current=null;setPeers([]);setLeaderId(null);};
   },[enabled,projectId,selfId,label]);
@@ -132,24 +154,17 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
       window.removeEventListener('wheel',mark,true);window.removeEventListener('keydown',mark,true);window.removeEventListener('touchmove',mark,true);};
   },[enabled,projectId,selfId]);
 
-  // Quiconque agit (déplace la vue, change de panorama…) devient le pilote : l'autre voit exactement la même chose.
-  const acting=()=>Date.now()-lastInput.current<1800;
-  const becomeLeader=()=>{
-    if(leaderRef.current===selfId)return;
-    leaderRef.current=selfId;setLeaderId(selfId);
-    transport.current?.send('hand',{id:selfId});
-  };
   // Panorama / espace affiché.
   useEffect(()=>{
     if(!enabled||!projectId)return;
-    if(leaderRef.current!==selfId){if(!acting())return;becomeLeader();}
+    if(leaderRef.current!==selfId)return;   // seul le pilote diffuse son écran
     transport.current?.send('state',{id:selfId,...opts.state});
     setLastAction('');
   },[enabled,projectId,selfId,opts.state.sceneId,opts.state.spaceId]);
   // Panneaux et fenêtres ouverts (barre du bas, galerie, information, aperçu…).
   useEffect(()=>{
     if(!enabled||!projectId)return;
-    if(leaderRef.current!==selfId){if(!acting())return;becomeLeader();}
+    if(leaderRef.current!==selfId)return;
     transport.current?.send('ui',{id:selfId,ui:opts.ui});
   },[enabled,projectId,selfId,opts.ui]);
   // Orientation et zoom de la vue : envoyés dès qu'ils changent sous la main de l'utilisateur.
@@ -161,23 +176,35 @@ export function useLiveSession(opts:{projectId:string|null;enabled:boolean;label
       if(!v||!v.sceneId)return;
       const key=[v.sceneId,v.yaw.toFixed(3),v.pitch.toFixed(3),v.zoom.toFixed(1)].join('|');
       if(key===sent)return;
-      if(leaderRef.current!==selfId){
-        if(!acting())return;      // simple suivi de l'autre : on ne renvoie rien
-        becomeLeader();
-      }
+      if(leaderRef.current!==selfId)return;   // simple suivi de l'autre : on ne renvoie rien
       sent=key;
       transport.current?.send('view',{id:selfId,...v});
     },90);
     return ()=>window.clearInterval(timer);
   },[enabled,projectId,selfId]);
 
+  // Sans pilote (il est parti) : n'importe qui peut prendre le pilotage. Sinon, on le DEMANDE au pilote.
   const take=useCallback(()=>{
-    setLeaderId(selfId);
-    transport.current?.send('hand',{id:selfId});
+    if(leaderRef.current&&leaderRef.current!==selfId)return;
+    leaderRef.current=selfId;setLeaderId(selfId);
+    transport.current?.send('hand',{id:selfId,joinedAt:joinedAt.current});
     transport.current?.send('state',{id:selfId,...stateRef.current});
   },[selfId]);
-  const release=useCallback(()=>{setLeaderId(null);transport.current?.send('release',{id:selfId});},[selfId]);
-  return {selfId,peers,leaderId,follow,setFollow,take,release,error,lastAction};
+  const request=useCallback(()=>{
+    transport.current?.send('request',{id:selfId,label});
+    setMyRequest('sent');
+  },[selfId,label]);
+  // Le pilote donne la main (à la personne de son choix) : lui seul décide.
+  const giveTo=useCallback((id:string)=>{
+    if(leaderRef.current!==selfId)return;
+    leaderRef.current=id;setLeaderId(id);setRequests([]);
+    transport.current?.send('hand',{id,force:true});
+  },[selfId]);
+  const declineRequest=useCallback((id:string)=>{
+    setRequests(list=>list.filter(r=>r.id!==id));
+    transport.current?.send('decline',{to:id});
+  },[]);
+  return {selfId,peers,leaderId,follow,setFollow,take,request,giveTo,declineRequest,requests,myRequest,error,lastAction};
 }
 
 const fmtName=(p:LivePeer)=>p.label||'Invité';
@@ -224,6 +251,9 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
         </div>;
       })}
     </div>
+    {iHaveHand&&live.requests.map(r=><div key={r.id} className="nv-live-banner nv-live-request" role="alert"><span><b>{r.label}</b> demande la main.</span>
+      <button type="button" className="is-ok" onClick={()=>live.giveTo(r.id)}>Laisser la main</button>
+      <button type="button" onClick={()=>live.declineRequest(r.id)}>Garder</button></div>)}
     {banner&&<div className="nv-live-banner" role="status"><span>{banner}</span><button type="button" onClick={()=>setBanner('')} aria-label="Fermer le message">✕</button></div>}
     <div className={'nv-live-bar'+(open?' is-open':'')+(iHaveHand?' is-pilot':leader?' is-follower':'')} role="status">
       <button type="button" className="nv-live-pill" onClick={()=>setOpen(o=>!o)}
@@ -236,12 +266,16 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
       <button type="button" className="nv-live-more" aria-expanded={open} aria-label="Détails de l’écran partagé" onClick={()=>setOpen(o=>!o)}>{open?'▴':'▾'}</button>
       {open&&<div className="nv-live-details">
         <div className="nv-live-details-head"><b>Écran partagé</b><button type="button" className="nv-live-close" onClick={()=>setOpen(false)} aria-label="Fermer cette fenêtre">✕</button></div>
-        <p className="nv-live-explain">{iHaveHand?'Tu es le pilote : l’autre personne voit ton écran (panorama, onglets, réglages). Pour lui laisser la main, clique sur « Passer le pilotage ».'
-          :leader?fmtName(leader)+' est le pilote : tu vois son écran. Décoche « Suivre » pour travailler de ton côté, ou prends le pilotage.'
-          :'Personne ne pilote. La première personne qui agit devient pilote.'}</p>
+        <p className="nv-live-explain">{iHaveHand?'Tu es le pilote : l’autre personne voit ton écran (panorama, onglets, réglages). Toi seul décides de lui laisser la main.'
+          :leader?fmtName(leader)+' est le pilote : tu vois son écran. Tu peux lui demander la main, ou décocher « Suivre » pour travailler de ton côté.'
+          :'Personne ne pilote pour l’instant : tu peux prendre le pilotage.'}</p>
         <span>Avec {others.length?others.map(p=><i key={p.id} style={{color:p.color}}>{fmtName(p)}</i>).reduce<ReactNode[]>((a,x,i)=>i?[...a,', ',x]:[x],[]):'personne pour l’instant (l’autre doit accepter l’invitation ou cliquer sur « Écran partagé »)'}</span>
         <div className="nv-live-actions">
-          {others.length>0&&(iHaveHand?<button type="button" onClick={live.release}>Passer le pilotage</button>:<button type="button" onClick={live.take}>Prendre le pilotage</button>)}
+          {iHaveHand&&others.map(p=><button type="button" key={p.id} onClick={()=>live.giveTo(p.id)}>Laisser la main à {fmtName(p)}</button>)}
+          {!iHaveHand&&leader&&(live.myRequest==='sent'?<span className="nv-live-chip">Demande envoyée à {fmtName(leader)}…</span>
+            :<button type="button" onClick={live.request}>{live.myRequest==='declined'?'Redemander la main':'Demander la main'}</button>)}
+          {!iHaveHand&&!leader&&others.length>0&&<button type="button" onClick={live.take}>Prendre le pilotage</button>}
+          {!iHaveHand&&leader&&live.myRequest==='declined'&&<span className="nv-live-chip">{fmtName(leader)} garde la main pour l’instant.</span>}
           {others.length>0&&!iHaveHand&&leader&&<label className="nv-live-follow"><input type="checkbox" checked={live.follow} onChange={e=>live.setFollow(e.target.checked)}/> Suivre son écran</label>}
           <button type="button" className="nv-live-quit" onClick={onClose}>Quitter le partage</button>
         </div>
@@ -258,8 +292,10 @@ const inviteChannel=(projectId:string)=>'inv:'+projectId;
 
 /** Écoute (en continu, très léger) les invitations adressées à cette adresse e-mail sur ce projet. */
 export type LiveShot={id:string;fromLabel:string;fromEmail:string;comment:string;image:string;at:number};
+export type LiveNote={id:string;fromLabel:string;fromEmail:string;body:string;projectName:string;at:number};
 export function useLiveInvites(identity:{projectId:string;email:string}|null,enabled:boolean){
   const [invite,setInvite]=useState<LiveInvite|null>(null);
+  const [notesIn,setNotesIn]=useState<LiveNote[]>([]);
   const [shots,setShots]=useState<LiveShot[]>([]);
   const projectId=identity?.projectId,email=identity?.email;
   useEffect(()=>{
@@ -273,6 +309,12 @@ export function useLiveInvites(identity:{projectId:string;email:string}|null,ena
         if(!p||!Array.isArray(p.to)||!p.to.includes(email)||p.fromEmail===email)return;
         setInvite({fromLabel:String(p.fromLabel||'Quelqu’un').slice(0,40),fromEmail:String(p.fromEmail||''),at:Date.now()});
       });
+      // Note envoyée en direct par un collègue
+      t.on('note',p=>{
+        if(!p||!Array.isArray(p.to)||!p.to.includes(email)||p.fromEmail===email||typeof p.body!=='string')return;
+        setNotesIn(list=>[{id:Math.random().toString(36).slice(2),fromLabel:String(p.fromLabel||'Quelqu’un').slice(0,40),fromEmail:String(p.fromEmail||''),
+          body:p.body.slice(0,4000),projectName:String(p.projectName||'').slice(0,150),at:Date.now()},...list].slice(0,10));
+      });
       // Capture annotée envoyée par un collègue
       t.on('shot',p=>{
         if(!p||!Array.isArray(p.to)||!p.to.includes(email)||p.fromEmail===email)return;
@@ -284,7 +326,7 @@ export function useLiveInvites(identity:{projectId:string;email:string}|null,ena
     }).catch(()=>undefined);
     return ()=>{closed=true;transport?.close();};
   },[enabled,projectId,email]);
-  return {invite,dismiss:()=>setInvite(null),shots,dismissShot:(id:string)=>setShots(list=>list.filter(x=>x.id!==id))};
+  return {invite,dismiss:()=>setInvite(null),notesIn,dismissNote:(id:string)=>setNotesIn(list=>list.filter(x=>x.id!==id)),shots,dismissShot:(id:string)=>setShots(list=>list.filter(x=>x.id!==id))};
 }
 /** Envoie l'invitation aux personnes choisies (elles la voient si leur éditeur est ouvert sur ce projet). */
 export async function sendLiveInvite(projectId:string,fromLabel:string,fromEmail:string,to:string[]):Promise<void>{
@@ -304,4 +346,14 @@ export async function sendLiveShot(projectId:string,fromLabel:string,fromEmail:s
   await new Promise(resolve=>window.setTimeout(resolve,1000));
   t.send('shot',{fromLabel,fromEmail,to,comment:comment.slice(0,600),image});
   window.setTimeout(()=>t.close(),1500);
+}
+
+/** Envoie une note en direct (sans base de données) aux personnes choisies. */
+export async function sendLiveNote(projectId:string,fromLabel:string,fromEmail:string,to:string[],body:string,projectName:string):Promise<void>{
+  const selfId=Math.random().toString(36).slice(2,10);
+  const t=await makeTransport(inviteChannel(projectId),selfId);
+  t.join({id:selfId,label:fromEmail,joinedAt:Date.now()},()=>undefined);
+  await new Promise(resolve=>window.setTimeout(resolve,1000));
+  t.send('note',{fromLabel,fromEmail,to,body:body.slice(0,4000),projectName});
+  window.setTimeout(()=>t.close(),1000);
 }
