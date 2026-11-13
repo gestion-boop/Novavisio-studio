@@ -39,7 +39,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X} from 'lucide-react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
@@ -511,13 +511,13 @@ type HeaderMenu='file'|'share'|'display'|null;
 type SceneFilter='all'|'with'|'without';
 function readStudioLayout(){
   try{
-    const raw=window.localStorage.getItem('nvstudio-ui-layout-v1');
+    const raw=window.localStorage.getItem('nvstudio-sheet-v1')?window.localStorage.getItem('nvstudio-ui-layout-v1'):null;
     if(raw){const value=JSON.parse(raw) as Record<string,unknown>;return {
       leftHidden:value.leftHidden===true,rightHidden:value.rightHidden===true,
       density:value.density==='compact'?'compact' as const:'comfortable' as const
     };}
   }catch{/* Private browsing or storage disabled. */}
-  return {leftHidden:false,rightHidden:false,density:'comfortable' as const};
+  return {leftHidden:false,rightHidden:true,density:'comfortable' as const}; // les réglages s'ouvrent à la demande (icône en haut à droite)
 }
 function App(){
   const studioRef=useRef<HTMLDivElement>(null);
@@ -544,7 +544,7 @@ function App(){
   const [sceneSearch,setSceneSearch]=useState('');
   const [sceneFilter,setSceneFilter]=useState<SceneFilter>('all');
   useEffect(()=>{
-    try{window.localStorage.setItem('nvstudio-ui-layout-v1',JSON.stringify({leftHidden,rightHidden,density:sceneDensity}));}
+    try{window.localStorage.setItem('nvstudio-sheet-v1','1');window.localStorage.setItem('nvstudio-ui-layout-v1',JSON.stringify({leftHidden,rightHidden,density:sceneDensity}));}
     catch{/* Viewing and editing still work if local preferences cannot be saved. */}
   },[leftHidden,rightHidden,sceneDensity]);
   useEffect(()=>{
@@ -2537,7 +2537,7 @@ function App(){
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
     (leftHidden?' nv-studio-hide-left':'')+
-    (rightHidden?' nv-studio-hide-right':'')+
+    ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
     <header className="topbar nv-topbar-v3">
@@ -2667,12 +2667,19 @@ function App(){
           onChange={event=>setProject(current=>({...current,name:event.target.value}))}/>
       </label>
       </div>
-      <div className="nv-v3-center">
+      <div className="nv-v3-center" ref={toolsMenuRef}>
         <div className="mode-switch-group" role="group" aria-label="Mode de l'éditeur">
           <button type="button" className={'mode-btn '+(!preview?'is-active':'')}
             aria-pressed={!preview}
             onClick={()=>{if(preview){setPreview(false);setIntroVisible(false);}}}>
             <Edit3 size={15}/> Éditer
+          </button>
+          <button type="button" className={'mode-btn nv-v3-grid-btn'+(toolsMenuOpen?' is-open':'')}
+            aria-label="Tous les outils : panoramas, scène, barre, icônes, enregistrer, exporter" title="Tous les outils · Enregistrer · Publier · Exporter"
+            aria-haspopup="dialog" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
+            onClick={()=>setToolsMenuOpen(open=>!open)}>
+            <LayoutGrid size={20}/>
+            {project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
           </button>
           <button type="button" className={'mode-btn '+(preview?'is-active':'')}
             aria-pressed={preview}
@@ -2683,6 +2690,55 @@ function App(){
             <Eye size={15}/> Aperçu
           </button>
         </div>
+        <div id="nv-header-tools-options" className={'nv-tools-curtain'+(toolsMenuOpen?' is-open':'')} role="dialog" aria-label="Tous les outils" aria-hidden={!toolsMenuOpen}>
+          <div className="nv-tools-curtain-inner">
+            <section className="nv-tools-col">
+              <div className="nv-tools-popup-head"><strong>Outils</strong><small>Glisse la poignée pour les ranger dans l’ordre voulu</small></div>
+              <div className="nv-tools-list" data-sort-scope="tools-popup">
+                {toolOrder.map(key=>{
+                  const meta=toolMeta(key);
+                  if(!meta)return null;
+                  const ip=toolSort.itemProps(key);
+                  return <div key={key} data-sort-id={key} className={ip.className+' nv-tool-row'+(meta.active?' is-active':'')}>
+                    {toolSort.grip(key,meta.label)}
+                    <button type="button" className="nv-tool-row-main" aria-pressed={meta.active} onClick={meta.run} tabIndex={toolsMenuOpen?0:-1}>
+                      <span className="nv-tool-glyph" aria-hidden="true">{meta.glyph}</span>
+                      <span className="nv-tool-label">{meta.label}</span>
+                      {meta.badge!==undefined&&<small>{meta.badge}</small>}
+                      {meta.active&&<span className="nv-tool-check" aria-hidden="true">✓</span>}
+                    </button>
+                  </div>;
+                })}
+              </div>
+            </section>
+            <section className="nv-tools-col">
+              <div className="nv-tools-section">Fichier</div>
+              <div className="nv-tools-file">
+                <button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-tools-save'+(project!==savedRef.current?' is-dirty':'')}
+                  disabled={!ready||savingManually||!!lock} onClick={()=>{setToolsMenuOpen(false);void manualSave();}}
+                  title="Enregistrer (⌘S / Ctrl+S)">
+                  <Save size={17}/><span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
+                  {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
+                </button>
+                <button type="button" tabIndex={toolsMenuOpen?0:-1} disabled={savingManually||!ready||!!lock||!project.scenes.length}
+                  onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}}>⚠ <span>Publier</span></button>
+                <button type="button" tabIndex={toolsMenuOpen?0:-1} disabled={exporting||!visibleScenes.length}
+                  title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
+                  onClick={()=>{setToolsMenuOpen(false);void exportTour();}}>
+                  <Download size={16}/><span>{exporting?'Export…':'Exporter'}</span>
+                </button>
+              </div>
+              <div className="nv-tools-section">Travailler à plusieurs</div>
+              <div className="nv-tools-team">
+                <WriteHand onStatus={setStatus}/>
+                <button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-header-live'+(liveProjectId?' is-on':'')} onClick={()=>{setToolsMenuOpen(false);void toggleLive();}}
+                  title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
+                  <Users size={16}/><span>Écran partagé</span>
+                </button>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
       <div className="nv-v3-right">
         {updateAvailable&&<button type="button" className="nv-header-update is-available"
@@ -2691,61 +2747,9 @@ function App(){
           aria-label="Nouvelle version de NovaStudio disponible : actualiser">
           <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
         </button>}
-        <div className="nv-header-tool-picker nv-v3-tools" ref={toolsMenuRef}>
-          <button type="button" className={'nv-v3-icon-btn'+(toolsMenuOpen?' is-open':'')}
-            aria-label="Outils, enregistrer, exporter" title="Outils d’édition · Enregistrer · Publier · Exporter"
-            aria-haspopup="dialog" aria-expanded={toolsMenuOpen} aria-controls="nv-header-tools-options"
-            onClick={()=>setToolsMenuOpen(open=>!open)}>
-            <LayoutGrid size={22}/>
-            {project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
-          </button>
-          {toolsMenuOpen&&<div id="nv-header-tools-options" className="nv-tools-popup" role="dialog" aria-label="Outils d’édition">
-            <div className="nv-tools-popup-head"><strong>Outils</strong><small>Glisse la poignée pour les ranger dans l’ordre voulu</small></div>
-            <div className="nv-tools-list" data-sort-scope="tools-popup">
-              {toolOrder.map(key=>{
-                const meta=toolMeta(key);
-                if(!meta)return null;
-                const ip=toolSort.itemProps(key);
-                return <div key={key} data-sort-id={key} className={ip.className+' nv-tool-row'+(meta.active?' is-active':'')}>
-                  {toolSort.grip(key,meta.label)}
-                  <button type="button" className="nv-tool-row-main" aria-pressed={meta.active} onClick={meta.run}>
-                    <span className="nv-tool-glyph" aria-hidden="true">{meta.glyph}</span>
-                    <span className="nv-tool-label">{meta.label}</span>
-                    {meta.badge!==undefined&&<small>{meta.badge}</small>}
-                    {meta.active&&<span className="nv-tool-check" aria-hidden="true">✓</span>}
-                  </button>
-                </div>;
-              })}
-            </div>
-            <div className="nv-tools-section">Fichier</div>
-            <div className="nv-tools-file">
-              <button type="button" className={'nv-tools-save'+(project!==savedRef.current?' is-dirty':'')}
-                disabled={!ready||savingManually||!!lock} onClick={()=>{setToolsMenuOpen(false);void manualSave();}}
-                title="Enregistrer (⌘S / Ctrl+S)">
-                <Save size={17}/><span>{savingManually?'Enregistrement…':'Enregistrer'}</span>
-                {!savingManually&&project!==savedRef.current&&<i aria-hidden="true" className="nv-unsaved-dot"/>}
-              </button>
-              <button type="button" disabled={savingManually||!ready||!!lock||!project.scenes.length}
-                onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}}>⚠ <span>Publier</span></button>
-              <button type="button" disabled={exporting||!visibleScenes.length}
-                title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
-                onClick={()=>{setToolsMenuOpen(false);void exportTour();}}>
-                <Download size={16}/><span>{exporting?'Export…':'Exporter'}</span>
-              </button>
-            </div>
-            <div className="nv-tools-section">Travailler à plusieurs</div>
-            <div className="nv-tools-team">
-              <WriteHand onStatus={setStatus}/>
-              <button type="button" className={'nv-header-live'+(liveProjectId?' is-on':'')} onClick={()=>{setToolsMenuOpen(false);void toggleLive();}}
-                title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
-                <Users size={16}/><span>Écran partagé</span>
-              </button>
-            </div>
-          </div>}
-        </div>
         <button type="button" className={'nv-v3-icon-btn'+(!rightHidden?' is-open':'')}
-          aria-label={rightHidden?'Afficher le panneau de droite':'Masquer le panneau de droite'}
-          title={rightHidden?'Afficher le panneau de droite':'Masquer le panneau de droite'}
+          aria-label={rightHidden?'Afficher les réglages':'Masquer les réglages'}
+          title={rightHidden?'Afficher les réglages':'Masquer les réglages'}
           aria-pressed={!rightHidden} onClick={()=>setRightHidden(value=>!value)}>
           <Menu size={22}/>
         </button>
@@ -2996,7 +3000,6 @@ function App(){
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {rightHidden&&!preview&&<button type="button" className="nv-inspector-reopen" aria-label="Ouvrir le panneau latéral" onClick={()=>setRightHidden(false)}><ChevronLeft size={17}/> Réglages</button>}
           {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else guidedForward(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
@@ -3053,7 +3056,7 @@ function App(){
           </div>}
           {active && !creationFullscreen && <button type="button" className="nv-creation-fullscreen-enter"
             onClick={()=>void toggleCreationFullscreen()} title="Agrandir uniquement la création 360°" aria-label="Plein écran de la création">
-            <Maximize2 size={18}/> Plein écran création
+            <Maximize2 size={20}/>
           </button>}
           {active && creationFullscreen && !fullscreenToolsOpen && <button type="button" className={'nv-command-drawer-handle'+(fullscreenCommandDrawerOpen?' is-open':'')}
             onClick={()=>{setFullscreenCommandDrawerOpen(open=>!open);setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);setHoveredGallerySceneId(null);}}
@@ -3565,7 +3568,7 @@ function App(){
 
       </main>
       <aside className="right panel">
-        <div className="nv-inspector-top"><strong>Réglages</strong><button type="button" onClick={()=>setRightHidden(true)} aria-label="Replier le panneau latéral" title="Replier le panneau latéral"><ChevronRight size={18}/></button></div>
+        <div className="nv-inspector-top"><button type="button" onClick={()=>setRightHidden(true)} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         {currentSpace&&<SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
