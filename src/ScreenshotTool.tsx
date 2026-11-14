@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState,type PointerEvent as RPointerEvent} from 'react';
-import {Camera,Circle,Download,Copy,MousePointer2,MoveUpRight,Pencil,Square,Type,Undo2,Trash2,X,Send} from 'lucide-react';
+import {Camera,Circle,Download,Copy,MousePointer2,MoveUpRight,Pencil,Square,Type,Undo2,Trash2,X,Send,ChevronUp,ChevronDown,Layers} from 'lucide-react';
 import {loadParticipants,type Person} from './LiveShareDialog';
 import type {LiveShot} from './liveSession';
 
@@ -241,6 +241,16 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
     if(sel===null)return;
     setShapes(list=>list.filter((_,i)=>i!==sel));setSel(null);
   }
+  function pickLayer(i:number){commitText();setTool('select');setSel(i);setColor(shapes[i].color);setSize(shapes[i].size);}
+  function moveLayer(i:number,dir:1|-1){
+    const j=i+dir;if(j<0||j>=shapes.length)return;
+    setShapes(list=>{const n=[...list];[n[i],n[j]]=[n[j],n[i]];return n;});
+    if(sel===i)setSel(j);else if(sel===j)setSel(i);
+  }
+  function removeLayer(i:number){
+    setShapes(list=>list.filter((_,k)=>k!==i));
+    setSel(cur=>cur===null?null:cur===i?null:cur>i?cur-1:cur);
+  }
   function pickColor(c:string){setColor(c);if(textBox){setTextBox(b=>b?{...b,color:c}:b);requestAnimationFrame(()=>textRef.current?.focus());}if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,color:c}:sh));}
   function pickSize(sz:number){setSize(sz);if(textBox){setTextBox(b=>b?{...b,size:sz}:b);requestAnimationFrame(()=>textRef.current?.focus());}if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,size:sz}:sh));}
   function dblClick(e:RPointerEvent<HTMLCanvasElement>|React.MouseEvent<HTMLCanvasElement>){
@@ -319,6 +329,7 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
         <button type="button" className="nv-shot-close" onClick={onClose} aria-label="Fermer la capture"><X size={20}/></button>
       </header>
       <p className="nv-shot-tip">{sel!==null?'Élément sélectionné : change sa couleur ou son épaisseur, supprime-le (bouton ou touche Suppr)'+(tool==='select'?', glisse-le pour le déplacer, double-clique sur un texte pour le modifier.':'. Choisis « Sélection » pour le déplacer ou en choisir un autre.'):(tool==='select'?'Clique sur une annotation pour la sélectionner.':'Astuce : après avoir tracé un élément, il reste sélectionné ; « Sélection » permet d’en choisir un autre.')}</p>
+      <div className="nv-shot-body">
       <div className="nv-shot-stage">
         <div className="nv-shot-canvaswrap">
           <canvas ref={canvasRef} className={'nv-shot-canvas tool-'+tool} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={dblClick}/>
@@ -328,6 +339,24 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
             onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();commitText();}if(e.key==='Escape'){setTextBox(null);}}}
             onBlur={e=>{const to=e.relatedTarget as HTMLElement|null;if(to&&to.closest('.nv-shot-bar'))return;commitText();}}/>}
         </div>
+      </div>
+      <aside className="nv-shot-layers" aria-label="Calques">
+        <strong><Layers size={15}/> Calques <small>{shapes.length}</small></strong>
+        {!shapes.length&&<p>Les éléments que tu traces apparaissent ici : clique pour les sélectionner.</p>}
+        <ul>
+          {shapes.map((sh,i)=>({sh,i})).reverse().map(({sh,i})=>{
+            const meta=tools.find(t=>t[0]===sh.tool)!,Ic=meta[2];
+            return <li key={i} className={sel===i?'is-on':''}>
+              <button type="button" className="nv-layer-main" onClick={()=>pickLayer(i)} aria-pressed={sel===i}>
+                <i className="nv-layer-dot" style={{background:sh.color}}/><Ic size={15}/>
+                <span>{sh.tool==='text'?'« '+(sh.text||'').split('\n')[0].slice(0,22)+' »':meta[1]+' '+(i+1)}</span>
+              </button>
+              <button type="button" className="nv-layer-btn" onClick={()=>moveLayer(i,1)} disabled={i===shapes.length-1} aria-label="Mettre devant"><ChevronUp size={14}/></button>
+              <button type="button" className="nv-layer-btn" onClick={()=>moveLayer(i,-1)} disabled={i===0} aria-label="Mettre derrière"><ChevronDown size={14}/></button>
+              <button type="button" className="nv-layer-btn" onClick={()=>removeLayer(i)} aria-label="Supprimer ce calque"><Trash2 size={14}/></button>
+            </li>;})}
+        </ul>
+      </aside>
       </div>
       <footer className="nv-shot-send">
         <div className="nv-shot-people">

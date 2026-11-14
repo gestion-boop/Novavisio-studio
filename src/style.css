@@ -4942,3 +4942,32 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-shot{position:relative}
 .nv-shot .nv-shot-bar{padding-right:56px}
 .nv-shot .nv-shot-bar>.nv-shot-close{position:absolute;top:10px;right:10px;margin:0;z-index:2}
+
+.nv-shot-body{flex:1;min-height:0;display:flex;gap:8px}
+.nv-shot-body .nv-shot-stage{flex:1;min-width:0}
+.nv-shot-layers{width:210px;flex:none;display:flex;flex-direction:column;gap:6px;background:#0c1d27;border:1px solid #ffffff1f;border-radius:12px;padding:8px;overflow:auto;color:#e8f3f8}
+.nv-shot-layers>strong{display:flex;align-items:center;gap:6px;font-size:13px}
+.nv-shot-layers>strong small{margin-left:auto;opacity:.7}
+.nv-shot-layers>p{margin:0;font-size:12px;opacity:.7}
+.nv-shot-layers ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.nv-shot-layers li{display:flex;align-items:center;gap:2px;border:1px solid #ffffff1f;border-radius:9px;background:#ffffff0a}
+.nv-shot-layers li.is-on{border-color:#2f8fb5;background:#2f8fb533}
+.nv-layer-main{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:none;border:0;color:inherit;padding:6px;font-size:12px;cursor:pointer;text-align:left}
+.nv-layer-main span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-layer-dot{width:10px;height:10px;border-radius:50%;flex:none;border:1px solid #fff6}
+.nv-layer-btn{background:none;border:0;color:inherit;padding:4px;cursor:pointer;border-radius:6px;display:grid;place-items:center}
+.nv-layer-btn:hover:not(:disabled){background:#ffffff22}.nv-layer-btn:disabled{opacity:.3;cursor:default}
+@media(max-width:700px){.nv-shot-body{flex-direction:column}.nv-shot-layers{width:auto;max-height:120px}}
+
+/* Effet global : survol bleu NovaVisio + sensation de bouton enfoncé sur tout élément cliquable */
+:where(button,[role="button"],summary,.nv-clickable):not(:disabled):not(.nv-shot-color):not(.nv-no-fx):not(.nv-layer-main):not(.is-on):not([aria-pressed="true"]):not(.nv-app-tile):hover{
+  background-image:linear-gradient(160deg,var(--nv-logo-blue-hi),var(--nv-logo-blue))!important;
+  background-color:var(--nv-logo-blue)!important;border-color:#9fdcf3!important;color:#fff;
+  box-shadow:0 0 0 2px #46aed655,0 4px 12px #0006}
+:where(button,[role="button"],summary,.nv-clickable):not(:disabled):not(.nv-shot-color):not(.nv-no-fx):not(.nv-app-tile){transition:transform .1s,background-color .15s,box-shadow .15s,border-color .15s}
+:where(button,[role="button"],summary,.nv-clickable):not(:disabled):not(.nv-shot-color):not(.nv-no-fx):not(.nv-app-tile):active{
+  transform:translateY(1px) scale(.95)!important;
+  background-image:linear-gradient(160deg,var(--nv-logo-blue),var(--nv-logo-blue-lo))!important;
+  box-shadow:inset 0 3px 8px #0009!important}
+.nv-shot-color:hover{transform:scale(1.12)}.nv-shot-color:active{transform:scale(.9)}
+.nv-layer-main:hover{background:#2f8fb544}.nv-layer-main:active{background:#2f8fb588}
