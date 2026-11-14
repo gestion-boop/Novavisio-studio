@@ -1739,6 +1739,12 @@ function App(){
   const sceneSortEnabled=!currentSpace&&!sceneSearch.trim()&&sceneFilter==='all';
   const visibleIds=new Set(visibleScenes.map(scene=>scene.id));
   const active=visibleScenes.find(s=>s.id===activeId) ?? null;
+  // Aperçu : les flèches vers les panoramas décochés disparaissent (ils ne font pas partie de la visite)
+  const tourActive=useMemo(()=>{
+    if(!active||!preview||!project.scenes.some(sc=>sc.excluded))return active;
+    const out=new Set(project.scenes.filter(sc=>sc.excluded).map(sc=>sc.id));
+    return {...active,hotspots:active.hotspots.filter(h=>!(h.type==='navigation'&&h.target&&out.has(h.target)))};
+  },[active,preview,project.scenes]);
   useEffect(()=>{
     if(activeSpaceId && !(project.spaces??[]).some(sp=>sp.id===activeSpaceId)){
       setActiveSpaceId(null);setSpaceManagerOpen(false);return;
@@ -2856,16 +2862,28 @@ function App(){
   }
   function navigationEditor(){
     if(!selected||selected.type!=='navigation')return null;
+    const target=project.scenes.find(sc=>sc.id===selected.target);
+    const canGo=!!selected.target&&visibleIds.has(selected.target);
+    const hasBack=!!target?.hotspots.some(h=>h.type==='navigation'&&h.target===activeId);
+    const openDestination=()=>{
+      if(!active)return;
+      setClassicDestinationSearch('');
+      setClassicDestinationPreviewId(selected.target||suggestDestinations(active.id)[0]?.id||visibleScenes.find(sc=>sc.id!==active.id)?.id||null);
+      setClassicDestinationOpen(true);
+    };
+    const goIcon=()=>document.querySelector<HTMLElement>('aside.right')?.querySelectorAll('.section-title').forEach(el=>{if(el.textContent?.includes('ICÔNE'))el.scrollIntoView({behavior:'smooth',block:'center'});});
     return <div className="nv-navigation-edit-card">
-      <strong>Modifier cette flèche</strong>
-      <label>Panorama d’arrivée
-        <select aria-label="Panorama d’arrivée" value={selected.target} onChange={event=>setNavigationDestination(event.target.value)}>
-          <option value="">Choisir un panorama…</option>
-          {visibleScenes.filter(scene=>scene.id!==activeId).map(scene=><option key={scene.id} value={scene.id}>{scene.name}</option>)}
-        </select>
-      </label>
-      <small>Glisse la poignée ✥ à côté de la flèche pour la déplacer. La croix rouge la supprime.</small>
-      <button type="button" className="delete" onClick={()=>removeAutoNavigationArrow(selected.id)}>Supprimer la flèche</button>
+      <strong>Flèche{target?' → '+target.name:' · sans destination'}</strong>
+      <div className="nv-action-tiles" role="toolbar" aria-label="Actions sur la flèche">
+        <button type="button" className={'nv-act'+(selected.target?'':' is-todo')} onClick={openDestination} title="Choisir le panorama d’arrivée dans la galerie 360°">
+          {target&&sceneThumbs[target.id]?<img src={sceneThumbs[target.id]} alt=""/>:<Images size={26}/>}<span>Destination</span></button>
+        <button type="button" className="nv-act" disabled={!canGo} onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}} title="Tester : aller au panorama d’arrivée"><Play size={26}/><span>Tester</span></button>
+        <button type="button" className="nv-act" disabled={!canGo} onClick={()=>reverseNavigation(selected)} title={hasBack?'Ouvrir la flèche retour existante':'Créer la flèche retour vers ce panorama'}><Undo2 size={26}/><span>{hasBack?'Voir le retour':'Créer le retour'}</span></button>
+        <button type="button" className="nv-act" disabled={!canGo} onClick={()=>goThroughArrow(selected,activeId)} title="Régler la vue d’arrivée dans le panorama de destination"><Eye size={26}/><span>Vue d’arrivée</span></button>
+        <button type="button" className="nv-act" onClick={goIcon} title="Changer l’icône et la taille"><Star size={26}/><span>Icône</span></button>
+        <button type="button" className="nv-act is-danger" onClick={()=>removeAutoNavigationArrow(selected.id)} title="Supprimer cette flèche"><Trash2 size={26}/><span>Supprimer</span></button>
+      </div>
+      <small>✥ Glisse la poignée à côté de la flèche pour la déplacer.</small>
     </div>;
   }
   function patchPoint(update:Partial<Hotspot>){
@@ -3648,7 +3666,7 @@ function App(){
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -4185,8 +4203,8 @@ function App(){
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;
             return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces,sceneThumbs)}
-              entries={galleryEntries(item,visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
-              onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} onClose={()=>setGalleryOpen(null)}/>;
+              entries={galleryEntries(item,preview?visibleScenes.filter(sc=>!sc.excluded):visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
+              onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
           {imageZoom?.imageDataUrl && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
@@ -4303,7 +4321,7 @@ function App(){
             onPointerDown={e=>e.stopPropagation()}
             onClick={e=>{e.stopPropagation();setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===s.id?{...sc,excluded:sc.excluded?undefined:true}:sc)}));}}>
             {s.excluded?'':'✓'}</button>
-          {autoNavigation&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
+          {!preview&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
             onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
@@ -4436,34 +4454,11 @@ function App(){
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
               </> : selected.type==='navigation' ? (
                 <>
-                <label>Scène de destination</label>
-                <button type="button" className="nv-classic-destination-trigger"
-                  aria-expanded={classicDestinationOpen} aria-controls="nv-classic-destination-picker"
-                  onClick={()=>{
-                    setClassicDestinationOpen(open=>!open);
-                    setClassicDestinationSearch('');
-                    setClassicDestinationPreviewId(selected.target||visibleScenes.find(sc=>sc.id!==activeId)?.id||null);
-                  }}>
-                  <Images size={17}/>
-                  <span>{visibleScenes.find(sc=>sc.id===selected.target)?.name??'Choisir et visualiser un panorama…'}</span>
-                  <ChevronRight size={16}/>
-                </button>
-                <small className="hint-inline">Ouvre la galerie à gauche pour examiner la destination en 360° avant de confirmer.</small>
-                <button type="button" className="tool" disabled={!selected.target||!visibleIds.has(selected.target)}
-                  onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}}>
-                  ➜ Tester la navigation vers ce panorama
-                </button>
-                <button type="button" className="tool nv-reverse-navigation" disabled={!selected.target||!visibleIds.has(selected.target)}
-                  onClick={()=>reverseNavigation(selected)}>
-                  ↩ {project.scenes.find(sc=>sc.id===selected.target)?.hotspots.some(h=>h.type==='navigation'&&h.target===activeId)
-                    ?'Ouvrir le retour existant':'Créer le retour vers ce panorama'}
-                </button>
-                <small className="hint-inline">Aucun retour n’est créé par défaut. Tu peux décider de le créer avec ce bouton.</small>
+                {/* Destination, test, retour et vue d'arrivée : voir les tuiles d'action en haut du panneau */}
                 {selected.target&&<div className="arrival-view-card is-inspector">
                   <div className="section-title">VUE D’ARRIVÉE DE CETTE FLÈCHE</div>
                   {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>
                     :<small>Pas de vue propre : celle par défaut du panorama de destination est utilisée.</small>}
-                  <button type="button" onClick={()=>goThroughArrow(selected,activeId)}>➜ Aller au panorama et régler la vue d’arrivée</button>
                   {selected.arrivalYaw!==undefined&&<button type="button" onClick={()=>{patchPoint({arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined});setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser</button>}
                 </div>}
                 </>

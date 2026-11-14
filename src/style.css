@@ -5205,3 +5205,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 
 .nv-apply-all{width:100%;margin:8px 0;padding:11px 12px;border-radius:10px;border:1px solid #9fdcf3;background:linear-gradient(160deg,#2f8fb5,#1d6b8a);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;text-align:center}
 .nv-apply-all b{opacity:.85}
+
+.nv-scene-include{left:8px!important;right:auto!important}
+
+/* Actions de la flèche : grandes tuiles carrées à icône */
+.nv-action-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin:8px 0}
+.nv-act{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;aspect-ratio:1/1;min-height:84px;padding:8px 4px;border-radius:16px;border:1px solid #2f5a69;background:linear-gradient(160deg,#17404e,#112c37);color:#e6f6f8;font:700 12px/1.15 system-ui,sans-serif;text-align:center;cursor:pointer;overflow:hidden}
+.nv-act img{width:44px;height:44px;border-radius:10px;object-fit:cover}
+.nv-act.is-todo{border-color:#e3b341;box-shadow:0 0 0 2px #e3b34155}
+.nv-act.is-danger{color:#ffb4ab}
+.nv-act:disabled{opacity:.4;cursor:not-allowed}

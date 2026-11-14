@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect,useState,type ReactNode} from 'react';
 import {X} from 'lucide-react';
 import type {BottomBarItem,Scene,StudioProject} from './storage';
 
@@ -33,22 +33,30 @@ export function galleryBackgroundSrc(item:BottomBarItem,scenes:Scene[],spaces:St
 }
 export type GalleryCard={sceneId:string;label:string;thumb?:string;spaceId?:string};
 /** Galerie de raccourcis vers les panoramas : un clic sur une vignette emmène directement au panorama. */
-export function PanoramaGallery({title,entries,currentId,background,onPick,onClose}:{title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void}){
+export function PanoramaGallery({title,entries,currentId,background,onPick,onClose,renderPreview}:{title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void;renderPreview?:(sceneId:string)=>ReactNode}){
+  const [look,setLook]=useState<GalleryCard|null>(null);
   useEffect(()=>{
-    const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose();};
+    const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape'){if(look)setLook(null);else onClose();}};
     document.addEventListener('keydown',onKey);
     return ()=>document.removeEventListener('keydown',onKey);
-  },[onClose]);
+  },[onClose,look]);
   return <div className="nv-gallery-overlay" onClick={onClose} role="presentation">
     <section className={'nv-gallery'+(background?' has-bg':'')} role="dialog" aria-label={title} onClick={e=>e.stopPropagation()}
       style={background?{backgroundImage:'linear-gradient(rgba(4,14,20,.58),rgba(4,14,20,.84)),url("'+background.replace(/"/g,'%22')+'")',backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
       <header><h2>{title}</h2><button type="button" className="nv-gallery-close" onClick={onClose} aria-label="Fermer la galerie"><X size={20}/></button></header>
-      {entries.length?<div className="nv-gallery-grid">{entries.map(e=>
-        <button type="button" key={e.spaceId??e.sceneId} className={'nv-gallery-card'+(e.sceneId===currentId?' is-current':'')} onClick={()=>onPick(e.sceneId,e.spaceId)}>
+      {entries.length?<div className="nv-gallery-grid">{entries.map(e=><div className="nv-gallery-cell" key={e.spaceId??e.sceneId}>
+        <button type="button" className={'nv-gallery-card'+(e.sceneId===currentId?' is-current':'')} onClick={()=>onPick(e.sceneId,e.spaceId)}>
           <span className="nv-gallery-thumb">{e.thumb?<img src={e.thumb} alt="" loading="lazy" decoding="async" draggable={false}/>:<span className="nv-gallery-ph"/>}</span>
           <strong>{e.label}</strong>
-        </button>)}</div>
+        </button>
+        {renderPreview&&!e.spaceId&&<button type="button" className="nv-gallery-360" title="Voir ce panorama en 360° pour le reconnaître" aria-label={'Voir '+e.label+' en 360°'} onClick={ev=>{ev.stopPropagation();setLook(e);}}>360°</button>}
+      </div>)}</div>
       :<p className="nv-gallery-empty">Aucun espace ni panorama dans ce panneau.</p>}
+      {look&&renderPreview&&<div className="nv-gallery-look" role="dialog" aria-label={'Aperçu 360° de '+look.label}>
+        <header><strong>{look.label}</strong><button type="button" onClick={()=>setLook(null)} aria-label="Fermer l’aperçu 360°"><X size={18}/></button></header>
+        <div className="nv-gallery-look-view">{renderPreview(look.sceneId)}</div>
+        <footer><span>Glisse pour tourner à 360°</span><button type="button" onClick={()=>{const l=look;setLook(null);onPick(l.sceneId,l.spaceId);}}>Aller dans ce panorama</button></footer>
+      </div>}
     </section>
   </div>;
 }
