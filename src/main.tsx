@@ -122,6 +122,8 @@ type PanoramaProps = {
   onCameraChange:(yaw:number,pitch:number,zoom:number)=>void;
   turn?:{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null; // demande de rotation de la vue (parcours guidé)
 };
+/** Panorama de départ : le premier qui est coché (un panorama décoché ne doit jamais servir de point d'entrée). */
+const startSceneId=(scenes:{id:string;excluded?:boolean}[])=>(scenes.find(sc=>!sc.excluded)??scenes[0])?.id??'';
 function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig {
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
   // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
@@ -722,6 +724,11 @@ function App(){
       window.removeEventListener('vite:preloadError',onPreloadError);
     };
   },[]);
+  // Dernière position (panorama + vue) mémorisée en continu : une mise à jour OU un simple rafraîchissement ramène au même endroit.
+  function rememberPosition(){
+    if(!activeId)return;
+    try{const cam=cameraRef.current;localStorage.setItem('nvstudio-resume',JSON.stringify({sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
+  }
   function reloadToLatestVersion(){
     if(savingManually||savingRef.current){
       setStatus('Sauvegarde en cours : actualise NovaStudio une fois terminée.');
@@ -735,7 +742,7 @@ function App(){
     }
     updateReloadApproved.current=true;
     // On mémorise où l'on était : après la mise à jour, on revient dans le même panorama (même vue), pas au début de la visite.
-    try{const cam=cameraRef.current;localStorage.setItem('nvstudio-resume',JSON.stringify({sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
+    rememberPosition();
     window.location.reload();
   }
   const [activeId,setActiveId]=useState('');
@@ -805,13 +812,22 @@ function App(){
   // Parcours guidé (Auto) : suit l'ordre des panoramas. 'forward' = poser la flèche vers le suivant, 'back' = demi-tour puis valider le retour.
   const [guide,setGuide]=useState<{phase:'forward'|'back';prevId?:string;fwdYaw:number;fwdPitch:number}|null>(null);
   // Retour au panorama en cours d'édition après une mise à jour de l'application
+  const rememberRef=useRef(rememberPosition);rememberRef.current=rememberPosition;
+  useEffect(()=>{if(ready)rememberRef.current();},[activeId,activeSpaceId,ready]);
+  useEffect(()=>{
+    const save=()=>rememberRef.current();
+    const vis=()=>{if(document.visibilityState==='hidden')save();};
+    window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',vis);
+    const t=window.setInterval(save,8000);
+    return ()=>{window.removeEventListener('pagehide',save);document.removeEventListener('visibilitychange',vis);window.clearInterval(t);};
+  },[]);
   const resumeDone=useRef(false);
   useEffect(()=>{
     if(!ready||resumeDone.current)return;
     resumeDone.current=true;
     let saved:{sceneId?:string;spaceId?:string|null;yaw?:number;pitch?:number;zoom?:number;at?:number}|null=null;
-    try{saved=JSON.parse(localStorage.getItem('nvstudio-resume')||'null');localStorage.removeItem('nvstudio-resume');}catch{saved=null;}
-    if(!saved||!saved.sceneId||Date.now()-(saved.at??0)>15*60_000)return;
+    try{saved=JSON.parse(localStorage.getItem('nvstudio-resume')||'null');}catch{saved=null;}
+    if(!saved||!saved.sceneId||Date.now()-(saved.at??0)>24*3600_000)return;
     const sceneId=saved.sceneId;
     if(!projectRef.current.scenes.some(sc=>sc.id===sceneId))return;
     setActiveSpaceId(saved.spaceId&&(projectRef.current.spaces??[]).some(sp=>sp.id===saved!.spaceId)?saved.spaceId:null);
@@ -1535,7 +1551,7 @@ function App(){
   },[project,ready,savingManually]); // eslint-disable-line react-hooks/exhaustive-deps
   function applyHistory(target:StudioProject,label:string){
     setProjectRaw(target);setHistTick(t=>t+1);histRef.current.last=0;
-    if(!target.scenes.some(sc=>sc.id===activeId))setActiveId(target.scenes[0]?.id??'');
+    if(!target.scenes.some(sc=>sc.id===activeId))setActiveId(startSceneId(target.scenes));
     if(selectedId&&!target.scenes.some(sc=>sc.hotspots.some(h=>h.id===selectedId)))setSelectedId('');
     setStatus(label);
   }
@@ -1560,7 +1576,7 @@ function App(){
     setActiveSpaceId(null);setSpaceManagerOpen(false);
     const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
     savedRef.current=upgraded;baseRef.current=stamp;
-    resetProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');setSelectedId('');setMode(null);
+    resetProject(upgraded);setActiveId(startSceneId(upgraded.scenes));setSelectedId('');setMode(null);
   }
   useEffect(()=>{
     let cancelled=false;
@@ -1581,7 +1597,13 @@ function App(){
             setReady(true);
             return;
           }
-          const loaded=await openCloudProject(link.projectId,message=>{if(!cancelled)setStatus(message);});
+          // Juste après une mise à jour le réseau / la session peut mettre un instant : on réessaie seul avant d'afficher une erreur.
+          let loaded:Awaited<ReturnType<typeof openCloudProject>>|null=null,lastError:unknown=null;
+          for(let attempt=0;attempt<3&&!loaded;attempt++){
+            if(attempt>0){setStatus('Réouverture du projet Cloud… nouvel essai '+(attempt+1)+'/3');await new Promise(r=>window.setTimeout(r,1500*attempt));if(cancelled)return;}
+            try{loaded=await openCloudProject(link.projectId,message=>{if(!cancelled)setStatus(message);});}catch(err){lastError=err;}
+          }
+          if(!loaded)throw lastError??new Error('Réouverture impossible');
           if(cancelled)return;
           adopt(loaded.project,null);
           writeLink(loaded.link);
@@ -1675,7 +1697,7 @@ function App(){
   const cloud=useCloudSync(project,ready&&!lock,(remote,by)=>{
     const up=ensureFrameReferences(remote,viewAreaRef.current?.clientHeight||550);
     resetProject(up);
-    setActiveId(id=>up.scenes.some(sc=>sc.id===id)?id:up.scenes[0]?.id??'');
+    setActiveId(id=>up.scenes.some(sc=>sc.id===id)?id:startSceneId(up.scenes));
     setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
   },true);
@@ -1781,7 +1803,7 @@ function App(){
       setActiveSpaceId(null);setSpaceManagerOpen(false);return;
     }
     if(activeSpaceId && !visibleIds.has(activeId)){
-      setActiveId(visibleScenes[0]?.id??'');setSelectedId('');
+      setActiveId(startSceneId(visibleScenes));setSelectedId('');
       setArrivedVia(null);nextArrivalRef.current=null;
     }
   },[activeSpaceId,project.spaces,project.scenes,activeId]);
@@ -2906,6 +2928,27 @@ function App(){
     return <button type="button" className="nv-apply-all" onClick={applyIconToAll} title="Remplace l'icône de tous les points du même type de la visite">
       ⟳ Remplacer {TYPE_LABELS[selected.type]??'tous les points du même type'} par cette icône <b>({n})</b></button>;
   }
+  /** Vue d'arrivée : de simples tuiles-icônes, un toucher = l'action (plus de paragraphes ni de longs boutons). */
+  function arrivalTiles(){
+    if(!active)return null;
+    const deg=(y?:number)=>y===undefined?'':Math.round(y*180/Math.PI)+'°';
+    const tile=(key:string,title:string,hint:string,icon:ReactNode,tone:string,onClick:()=>void)=>
+      <button type="button" key={key} className="nv-app-tile nv-hub-tile" style={{'--tile-tone':tone} as CSSProperties} onClick={onClick}>
+        <span className="nv-app-tile-icon">{icon}</span><span className="nv-app-tile-label">{title}</span><small className="nv-hub-hint">{hint}</small>
+      </button>;
+    const defHint=active.arrivalYaw!==undefined?'✓ '+deg(active.arrivalYaw)+' · zoom '+Math.round(active.arrivalZoom??60)+'%':'Pas encore définie';
+    return <>
+      <small className="nv-arrival-caption">Oriente la vue dans le panorama, puis touche une tuile pour l’enregistrer.</small>
+      <div className="nv-hub-tiles">
+        {viaHotspot&&viaFrom?<>
+          {tile('arrow','Pour cette flèche',viaHotspot.arrivalYaw!==undefined?'✓ '+deg(viaHotspot.arrivalYaw)+' · zoom '+Math.round(viaHotspot.arrivalZoom??60)+'%':'« '+(viaHotspot.title||'Navigation')+' »',<Eye size={26}/>,'#2fbf8f',saveArrivalForArrow)}
+          {tile('back','Retour',viaFrom.name,<Undo2 size={26}/>,'#4f7cff',()=>selectScene(viaFrom.id))}
+          {viaHotspot.arrivalYaw!==undefined&&tile('reset','Réinitialiser','Cette flèche',<RefreshCw size={26}/>,'#e0645c',()=>{setArrowArrival(viaFrom.id,viaHotspot.id,null);nextArrivalRef.current=null;setStatus('Vue d’arrivée de la flèche réinitialisée');})}
+          {tile('default','Vue par défaut',defHint,<Home size={26}/>,'#ff8a3d',saveArrivalView)}
+        </>:tile('default','Définir la vue',defHint,<Eye size={26}/>,'#2fbf8f',saveArrivalView)}
+      </div>
+    </>;
+  }
   function navigationEditor(){
     if(!selected||selected.type!=='navigation')return null;
     const target=project.scenes.find(sc=>sc.id===selected.target);
@@ -3153,7 +3196,7 @@ function App(){
       setActiveSpaceId(target.id);
       setActiveId(moved[0]??target.sceneIds[0]??'');
     }else{
-      setActiveSpaceId(null);setActiveId(project.scenes[0]?.id??'');
+      setActiveSpaceId(null);setActiveId(startSceneId(project.scenes));
     }
     setSelectedId('');setPreview(false);setMode(null);setSpaceManagerOpen(false);setSpaceDelete(null);
     setStatus(target?'Espace supprimé · panoramas transférés vers « '+target.name+' ». Rien n\'est perdu.':'Espace supprimé. Tous les panoramas du projet principal sont conservés.');
@@ -3188,7 +3231,7 @@ function App(){
       const raw=await readProjectFile(file,pct=>setStatus('Lecture du fichier… '+pct+' %'));
       const imported=ensureFrameReferences(validateProject(raw),viewAreaRef.current?.clientHeight||550);
       if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
-      setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(imported.scenes[0]?.id??'');setSelectedId('');setMode(null);setPreview(false);
+      setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(startSceneId(imported.scenes));setSelectedId('');setMode(null);setPreview(false);
       cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
       setStatus('Projet importé');setPreparationOpen(false);
     }catch(e){window.alert('Impossible d’ouvrir ce projet : '+String(e));}
@@ -4649,30 +4692,7 @@ function App(){
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:active.arrivalYaw!==undefined?'✓ Définie':'Par défaut',icon:<Eye size={26}/>,tone:'#2fbf8f',content:<>
 
-              {viaHotspot&&viaFrom?<div className="arrival-view-card is-arrow">
-                <div className="section-title">VUE D’ARRIVÉE · PAR CETTE FLÈCHE</div>
-                <p>Tu es arrivé ici par la flèche <b>« {viaHotspot.title||'Navigation'} »</b> de <b>{viaFrom.name}</b>. Oriente la vue comme tu veux qu’elle apparaisse quand on clique sur <b>cette flèche</b>, puis enregistre. Chaque flèche qui mène à ce panorama a sa propre vue.</p>
-                <button type="button" onClick={saveArrivalForArrow}>◎ Définir la vue actuelle comme arrivée pour cette flèche</button>
-                {viaHotspot.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée pour cette flèche · angle {Math.round(viaHotspot.arrivalYaw*180/Math.PI)}° · zoom {Math.round(viaHotspot.arrivalZoom??60)}%</small>
-                  :<small>Pas encore de vue propre à cette flèche : la vue par défaut du panorama est utilisée.</small>}
-                <div className="arrival-actions">
-                  <button type="button" onClick={()=>selectScene(viaFrom.id)}>↩ Retour à « {viaFrom.name} » (autres flèches)</button>
-                  {viaHotspot.arrivalYaw!==undefined&&<button type="button" onClick={()=>{setArrowArrival(viaFrom.id,viaHotspot.id,null);nextArrivalRef.current=null;setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser cette flèche</button>}
-                </div>
-                <details className="arrival-default">
-                  <summary>Vue par défaut du panorama</summary>
-                  <p>Utilisée quand on arrive ici sans flèche (liste des scènes, barre du bas) ou par une flèche qui n’a pas sa propre vue.</p>
-                  <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme vue par défaut</button>
-                  {active.arrivalYaw!==undefined&&<small className="arrival-saved">✓ Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
-                </details>
-              </div>:<div className="arrival-view-card">
-                <div className="section-title">VUE D’ARRIVÉE PAR DÉFAUT DU PANORAMA</div>
-                <p>Oriente la visite dans la direction souhaitée et choisis le zoom, puis enregistre ce cadrage. <b>Astuce :</b> pour une vue différente selon la flèche utilisée, clique sur une flèche (en Aperçu) : tu arrives ici et l’enregistrement se fera pour cette flèche.</p>
-                <button type="button" onClick={saveArrivalView}>◎ Définir la vue actuelle comme arrivée</button>
-                {active.arrivalYaw!==undefined&&<small className="arrival-saved">✓ Enregistrée · angle {Math.round(active.arrivalYaw*180/Math.PI)}° · zoom {Math.round(active.arrivalZoom??60)}%</small>}
-              </div>}
-
-
+              {arrivalTiles()}
                   </>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
                   {key:'points',title:'Points interactifs',badge:active.hotspots.length,hint:'Flèches, infos, photos…',icon:<PinIcon size={26}/>,tone:'#ff8a3d',content:<>
@@ -4851,7 +4871,7 @@ function App(){
               onChange={e=>setProject(p=>({...p,introDuration:Number(e.target.value)}))}/>
           </label>
           <small className="hint-inline">La transition s'effectue automatiquement à la durée réglée, indépendamment de la durée de la vidéo et sans attendre de clic.</small>
-          <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setActiveId(visibleScenes[0]?.id??'');setMode(null);setSelectedId('');setPreview(true);setIntroEnding(false);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
+          <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setActiveId(startSceneId(visibleScenes));setMode(null);setSelectedId('');setPreview(true);setIntroEnding(false);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='music' && <div className="properties">
@@ -4979,7 +4999,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(up.scenes[0]?.id??''));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
