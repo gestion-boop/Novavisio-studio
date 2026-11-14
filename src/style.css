@@ -5168,3 +5168,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-issue-callout .nv-issue-choose:hover{background:#ffe9e6}
 .nv-issue-callout .nv-issue-notebox{display:block;flex:none}
 .nv-issue-callout .nv-issue-open{white-space:normal;text-align:left}
+
+/* Cloche : onglets Notifications / Commentaires */
+.nv-bell-tabs{display:flex;gap:4px;margin-bottom:4px}
+.nv-bell-tabs button{flex:1;justify-content:center!important;min-height:40px!important;font-weight:700!important;border-radius:10px!important;padding:0 8px!important;font-size:13px!important}
+.nv-bell-tabs button.is-on{background:#2f8fb5!important;border-color:#9fdcf3!important;color:#fff}
+.nv-bell-open-all{font-weight:800!important}

@@ -933,6 +933,7 @@ function App(){
   const spaceImportInput=useRef<HTMLInputElement>(null);
   const [shareMenuOpen,setShareMenuOpen]=useState(false);
   const [bellOpen,setBellOpen]=useState(false);
+  const [bellTab,setBellTab]=useState<'notifs'|'comments'>('notifs');
   const bellRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     if(!bellOpen)return;
@@ -1042,6 +1043,7 @@ function App(){
     const stale=(project.comments??[]).filter(c=>c.issueId&&!c.done&&!present.has(c.issueId));
     if(stale.length)setProject(p=>({...p,comments:(p.comments??[]).map(c=>c.issueId&&!c.done&&!present.has(c.issueId)?{...c,done:true}:c)}));
   },[projectIssues,ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openCommentCount=(project.comments??[]).filter(c=>!c.done).length;
   // Pastille 📝 sur les vignettes des panoramas qui ont un correctif « à faire » en attente.
   const todoByScene=useMemo(()=>{const m=new Map<string,number>();for(const c of project.comments??[])if(c.issueId&&!c.done)m.set(c.sceneId,(m.get(c.sceneId)??0)+1);return m;},[project.comments]);
   const todoPin=(sceneId:string)=>{const n=todoByScene.get(sceneId);return n?<span className="nv-todo-pin" title={n+' correctif'+(n>1?'s':'')+' à faire dans ce panorama'}>📝{n>1?<b>{n}</b>:null}</span>:null;};
@@ -1937,7 +1939,7 @@ function App(){
     return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onImport={importFromPicker} onClose={closeMediaPicker} banner={issueFocus?<IssueBanner focus={issueFocus}/>:undefined}/>:null;
   }
   function stopAutoNavigation(){
-    setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);
+    setAutoPending(null);setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);
     setClassicDestinationOpen(false);setFullscreenGalleryOpen(false);
     setFullscreenCommandDrawerOpen(false);setGalleryPreviewSceneId(null);
     setGalleryPreviewPinned(false);setMode(null);setSelectedId('');
@@ -2040,10 +2042,21 @@ function App(){
   // ── Parcours guidé ──────────────────────────────────────────────────────────
   // Aller : la flèche part vers le panorama SUIVANT dans l'ordre, on y arrive en regardant dans le même sens (on avance).
   // Retour : dans ce panorama on fait demi-tour (180°), on valide la vue, la flèche retour est posée, puis on repart en avant.
-  function guidedForward(yaw:number,pitch:number){
+  // Mode Auto : le clic sur la cible ouvre la galerie 360° pour choisir le panorama d'arrivée (suggestion par numéro de scan).
+  const [autoPending,setAutoPending]=useState<{yaw:number;pitch:number}|null>(null);
+  function openAutoGallery(yaw:number,pitch:number){
     if(!active)return;
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
-    const next=visibleScenes[index+1];
+    if(visibleScenes.length<2){setStatus('Il faut au moins deux panoramas pour créer une flèche.');return;}
+    setAutoPending({yaw,pitch});
+    setClassicDestinationSearch('');
+    setClassicDestinationPreviewId(suggestDestinations(active.id)[0]?.id??visibleScenes[index+1]?.id??visibleScenes.find(sc=>sc.id!==active.id)?.id??null);
+    setClassicDestinationOpen(true);
+  }
+  function guidedForward(yaw:number,pitch:number,destinationId?:string){
+    if(!active)return;
+    const index=visibleScenes.findIndex(sc=>sc.id===active.id);
+    const next=destinationId?visibleScenes.find(sc=>sc.id===destinationId):visibleScenes[index+1];
     if(!next){stopAutoNavigation();setStatus('Dernier panorama atteint · le parcours est terminé. Enregistre avec la disquette.');return;}
     const existing=active.hotspots.find(h=>h.type==='navigation'&&h.target===next.id);
     const prevId=active.id;
@@ -3266,6 +3279,15 @@ function App(){
             <Bell size={21}/>{notifCount>0&&<i className="nv-bell-badge" aria-hidden="true">{notifCount>9?'9+':notifCount}</i>}
           </button>
           {bellOpen&&<div className="nv-share-menu nv-bell-menu" role="menu" aria-label="Notifications">
+            <div className="nv-bell-tabs" role="tablist">
+              <button type="button" role="tab" aria-selected={bellTab==='notifs'} className={bellTab==='notifs'?'is-on':''} onClick={()=>setBellTab('notifs')}>🔔 Notifications{notifCount?' ('+notifCount+')':''}</button>
+              <button type="button" role="tab" aria-selected={bellTab==='comments'} className={bellTab==='comments'?'is-on':''} onClick={()=>setBellTab('comments')}>💬 Commentaires{openCommentCount?' ('+openCommentCount+')':''}</button>
+            </div>
+            {bellTab==='comments'?<>
+              <button type="button" role="menuitem" className="nv-bell-open-all" onClick={()=>{setBellOpen(false);setCommentsOpen(true);}}>💬 Ouvrir tous les commentaires · en ajouter un ici</button>
+              {!openCommentCount&&<p className="nv-bell-empty">Aucun commentaire en attente. Ajoute-en un accroché à l’endroit que tu regardes.</p>}
+              {[...(project.comments??[])].filter(c=>!c.done).sort((x,y)=>y.at-x.at).slice(0,12).map(c=><button type="button" role="menuitem" key={c.id} onClick={()=>{setBellOpen(false);goToComment(c);}}>{c.issueId?'📝':'💬'} <span><b>{project.scenes.find(sc=>sc.id===c.sceneId)?.name||'panorama'}</b> · {c.text.replace(/\n/g,' ').slice(0,90)}<small>{c.author} · {new Date(c.at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})} · cliquer pour aller à l’endroit</small></span></button>)}
+            </>:<>
             <button type="button" role="menuitem" onClick={()=>{setBellOpen(false);setCheckOpen(true);}}>{issueErrors?'⛔':projectIssues.length?'⚠️':'✅'} <span><b>Contrôle du projet</b><small>{projectIssues.length?issueErrors+' erreur'+(issueErrors>1?'s':'')+' · '+(projectIssues.length-issueErrors)+' avertissement'+(projectIssues.length-issueErrors>1?'s':'')+' · cliquer pour corriger':'Rien d’anormal détecté'}</small></span></button>
             {!notifCount&&!notifHistory.length&&<p className="nv-bell-empty">Rien de nouveau. Les notes, captures et invitations de tes collègues apparaîtront ici.</p>}
             {liveInvite.invite&&<button type="button" role="menuitem" onClick={()=>{setBellOpen(false);liveInvite.dismiss();void startLiveWith([],false);}}>🖥 <span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran<small>Cliquer pour rejoindre</small></span></button>}
@@ -3276,6 +3298,7 @@ function App(){
             {notifHistory.slice(0,10).map(h=><div key={h.id} className="nv-bell-hist"><span>{h.icon}</span><span>{h.text}<small>{new Date(h.at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small></span></div>)}
             {notifHistory.length>0&&<button type="button" role="menuitem" className="nv-bell-clear" onClick={()=>{setNotifHistory([]);try{localStorage.removeItem('nvstudio-notif-history');}catch{/* rien */}}}>Effacer l’historique</button>}
             {(liveInvite.notesIn.length+liveInvite.shots.length>1)&&<button type="button" role="menuitem" className="nv-bell-clear" onClick={()=>{liveInvite.notesIn.forEach(n=>liveInvite.dismissNote(n.id));liveInvite.shots.forEach(sh=>liveInvite.dismissShot(sh.id));}}>Tout marquer comme lu</button>}
+            </>}
           </div>}
         </div>
       </div>
@@ -3512,14 +3535,14 @@ function App(){
       </>}
     </div>}
     <div className="workspace">
-      {classicDestinationOpen&&!creationFullscreen&&!preview&&active&&selected?.type==='navigation'&&
+      {classicDestinationOpen&&!creationFullscreen&&!preview&&active&&(selected?.type==='navigation'||(autoNavigation&&autoPending))&&
         <section id="nv-classic-destination-picker" className="nv-classic-destination-overlay"
           aria-label="Choix visuel du panorama de destination">
           <div className="nv-classic-destination-heading">
             <div><small>{autoNavigation?'AUTO · ÉTAPE 2 / DESTINATION':'CHOISIR UNE DESTINATION'}</small><strong>Galerie 360°</strong></div>
-            <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)} aria-label={autoNavigation?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}><XMark/></button>
+            <button type="button" onClick={()=>{if(autoPending){setAutoPending(null);setClassicDestinationOpen(false);}else if(autoNavigation)stopAutoNavigation();else setClassicDestinationOpen(false);}} aria-label={autoNavigation&&!autoPending?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}><XMark/></button>
           </div>
-          {(issueFocus||(selected&&active&&!selected.target))&&<IssueBanner focus={issueFocus?{...issueFocus,thumb:undefined,sceneName:undefined}:{level:'warn' as const,text:'Cette flèche n’a pas encore de panorama de destination.',hint:'Choisis dans la liste le panorama vers lequel elle doit mener, règle le viseur, puis valide.',thumb:undefined,sceneName:undefined}}/>}
+          {(issueFocus||(selected&&active&&!selected.target)||(autoPending&&active))&&<IssueBanner focus={issueFocus?{...issueFocus,thumb:undefined,sceneName:undefined}:{level:'warn' as const,text:autoPending?'Mode Auto · tu as placé la flèche. Vers quel panorama doit-elle mener ?':'Cette flèche n’a pas encore de panorama de destination.',hint:'Choisis dans la liste le panorama vers lequel elle doit mener, règle le viseur, puis valide.',thumb:undefined,sceneName:undefined}}/>}
           <div className="nv-classic-destination-layout">
             <div className="nv-classic-destination-list-panel">
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
@@ -3530,7 +3553,7 @@ function App(){
                     onClick={()=>setClassicDestinationPreviewId(sc.id)}
                     aria-pressed={classicDestinationPreviewId===sc.id}>
                     {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}{todoPin(sc.id)}
-                    <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné'+(why?' · '+why.replace('⭐ Suggéré · ','suggéré : '):' · vue affichée'):sc.id===selected.target?'✓ Destination actuelle':why??'Voir en 360°'}</small></span>
+                    <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné'+(why?' · '+why.replace('⭐ Suggéré · ','suggéré : '):' · vue affichée'):sc.id===selected?.target?'✓ Destination actuelle':why??'Voir en 360°'}</small></span>
                     <ChevronRight size={15}/>
                   </button>)}
               </div>
@@ -3544,6 +3567,7 @@ function App(){
                      <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
                    </div>
                   <button type="button" className="nv-classic-destination-confirm" onClick={()=>{
+                      if(autoNavigation&&autoPending&&active){const p=autoPending;setAutoPending(null);setClassicDestinationOpen(false);guidedForward(p.yaw,p.pitch,sc.id);return;}
                       if(!active||!selected||selected.type!=='navigation')return;
                       if(!autoNavigation)setNavigationDestination(sc.id);
                       else confirmNavigationDirection({
@@ -3566,12 +3590,12 @@ function App(){
           </div>
           <div className="nv-classic-destination-foot">
             <span>Choisis le prochain panorama, règle la direction avec le viseur, puis valide pour continuer de panorama en panorama.</span>
-            <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)}>{autoNavigation?'✕ Quitter Auto':'← Retour aux réglages'}</button>
+            <button type="button" onClick={()=>{if(autoPending){setAutoPending(null);setClassicDestinationOpen(false);}else if(autoNavigation)stopAutoNavigation();else setClassicDestinationOpen(false);}}>{autoPending?'← Annuler et replacer la flèche':autoNavigation?'✕ Quitter Auto':'← Retour aux réglages'}</button>
           </div>
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else guidedForward(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama scene={active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
