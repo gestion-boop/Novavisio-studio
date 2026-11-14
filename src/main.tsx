@@ -4011,7 +4011,14 @@ function App(){
                       {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.videoOpenFullscreen!==false}
                         onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic</label>}
                       <label className="nv-quick-check"><input type="checkbox" checked={selected.videoMasterSound!==false} onChange={e=>patchPoint({videoMasterSound:e.target.checked})}/> 🔊 Son de la télé prioritaire (la musique s'efface)</label>
-                      {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.frameHalo!==false} onChange={e=>patchPoint({frameHalo:e.target.checked})}/> ✨ Auréole discrète autour du cadre</label>}
+                      {!isPopupMedia(selected)&&<label className="nv-quick-check">Signal de clic
+                        <select value={selected.frameHalo===false?'none':(selected.frameSignalStyle??'gold')} onChange={e=>patchPoint({frameSignalStyle:e.target.value as 'gold'|'soft'|'pulse'|'none',frameHalo:e.target.value!=='none'})}>
+                          <option value="gold">Contour doré fin</option>
+                          <option value="soft">Halo discret</option>
+                          <option value="pulse">Pulsation légère</option>
+                          <option value="none">Aucun</option>
+                        </select>
+                      </label>}
                     </>}
                     {selected.type!=='image'&&selected.type!=='video'&&fullscreenIconSetPicker(
                       {...selected,size:selected.iconSize??28},
@@ -4501,7 +4508,14 @@ function App(){
                 <label className="toggle-row"><input type="checkbox" checked={selected.videoLoop!==false} onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Répéter la vidéo en boucle</label>
                 {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic avec le son</label>}
                 <label className="toggle-row"><input type="checkbox" checked={selected.videoMasterSound!==false} onChange={e=>patchPoint({videoMasterSound:e.target.checked})}/> 🔊 Son de la télé prioritaire : la musique de fond s’efface en fondu pendant la vidéo agrandie, puis revient vite à son niveau</label>
-                {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.frameHalo!==false} onChange={e=>patchPoint({frameHalo:e.target.checked})}/> ✨ Auréole très légère autour du cadre dans l’Aperçu, pour montrer qu’on peut cliquer</label>}
+                {!isPopupMedia(selected)&&<label className="toggle-row">Signal visuel de la vidéo / image
+                  <select value={selected.frameHalo===false?'none':(selected.frameSignalStyle??'gold')} onChange={e=>patchPoint({frameSignalStyle:e.target.value as 'gold'|'soft'|'pulse'|'none',frameHalo:e.target.value!=='none'})}>
+                    <option value="gold">Fin contour doré (conseillé)</option>
+                    <option value="soft">Halo très discret</option>
+                    <option value="pulse">Légère pulsation</option>
+                    <option value="none">Aucun effet</option>
+                  </select>
+                </label>}
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
               </> : selected.type==='navigation' ? (
                 <>
