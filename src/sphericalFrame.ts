@@ -1,3 +1,5 @@
+import {Vector3} from 'three';
+import type {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 import type {Hotspot,FrameSphericalCorners} from './storage';
 import {defaultFrameCorners} from './storage';
 
@@ -98,3 +100,48 @@ export function haloMarkers(h:Hotspot):{id:string;polygon:[number,number][];svgS
   const polygon=rel.map(p=>[ref+cy+(p.yaw-cy)*k,Math.max(-lim,Math.min(lim,cp+(p.pitch-cp)*k))] as [number,number]);
   return [{id:h.id+':halo',polygon,className:'nv-frame-halo',svgStyle:{fill:'none',stroke:'rgba(255,255,255,0.85)',strokeWidth:'3px'}}];
 }
+
+/**
+ * Perspective correcte des cadres photo / vidéo.
+ * Le plugin plaque l'image sur deux triangles dont les 4 sommets sont à la même distance : dès que le cadre n'est pas un parallélogramme parfait,
+ * l'image se déforme le long de la diagonale. On garde exactement les mêmes directions (les coins restent là où on les a posés) mais on règle la
+ * distance de chaque sommet pour que le cadre soit un parallélogramme plan : l'image est alors en perspective exacte, sans cisaillement.
+ * Le rapport largeur / hauteur réel sert aussi à ne rogner l'image que si son format diffère vraiment de celui du cadre.
+ */
+export function straightenFrames(plugin:MarkersPlugin,ids:string[]){
+  for(const id of ids){
+    let marker:unknown;
+    try{marker=plugin.getMarker(id);}catch{continue;}
+    const mesh=(marker as {threeMesh?:{geometry:{getAttribute:(n:string)=>{count:number;needsUpdate:boolean;setXYZ:(i:number,x:number,y:number,z:number)=>void;getX:(i:number)=>number;getY:(i:number)=>number;getZ:(i:number)=>number}|undefined;boundingSphere:unknown;boundingBox:unknown};material:{map?:{image?:{videoWidth?:number;videoHeight?:number;naturalWidth?:number;naturalHeight?:number;width?:number;height?:number}};repeat?:{set:(x:number,y:number)=>void};offset?:{set:(x:number,y:number)=>void}}}}).threeMesh;
+    const pos=mesh?.geometry.getAttribute('position');
+    if(!mesh||!pos||pos.count<4)continue;
+    // Ordre des sommets du maillage : 0 = haut-gauche, 1 = haut-droit, 2 = bas-gauche, 3 = bas-droit
+    const v=[0,1,2,3].map(i=>new Vector3(pos.getX(i),pos.getY(i),pos.getZ(i)));
+    const R=v[0].length();
+    if(!R)continue;
+    const r=[v[0],v[1],v[3],v[2]].map(p=>p.clone().normalize()); // haut-gauche, haut-droit, bas-droit, bas-gauche
+    // d2·r2 − d1·r1 − d3·r3 = −r0 (parallélogramme : P0 + P2 = P1 + P3), avec d0 = 1
+    const a=r[2],b=r[1].clone().negate(),c=r[3].clone().negate(),rhs=r[0].clone().negate();
+    const det=(x:Vector3,y:Vector3,z:Vector3)=>x.dot(new Vector3().crossVectors(y,z));
+    const D=det(a,b,c);
+    if(Math.abs(D)<1e-9)continue;
+    const d2=det(rhs,b,c)/D,d1=det(a,rhs,c)/D,d3=det(a,b,rhs)/D;
+    if(!(d1>0&&d2>0&&d3>0))continue;
+    const ds=[1,d1,d2,d3],mean=(ds[0]+ds[1]+ds[2]+ds[3])/4;
+    const P=r.map((dir,i)=>dir.clone().multiplyScalar(R*ds[i]/mean)); // TL, TR, BR, BL
+    pos.setXYZ(0,P[0].x,P[0].y,P[0].z);pos.setXYZ(1,P[1].x,P[1].y,P[1].z);
+    pos.setXYZ(2,P[3].x,P[3].y,P[3].z);pos.setXYZ(3,P[2].x,P[2].y,P[2].z);
+    pos.needsUpdate=true;mesh.geometry.boundingSphere=null;mesh.geometry.boundingBox=null;
+    // Format réel du cadre (largeur / hauteur dans le plan) comparé à celui de l'image
+    const layerRatio=P[1].distanceTo(P[0])/Math.max(1e-9,P[3].distanceTo(P[0]));
+    const img=mesh.material.map?.image;
+    const iw=img?.videoWidth||img?.naturalWidth||img?.width||0,ih=img?.videoHeight||img?.naturalHeight||img?.height||0;
+    if(iw&&ih&&mesh.material.repeat&&mesh.material.offset){
+      const imageRatio=iw/ih;
+      let rx=1,ry=1;
+      if(layerRatio<imageRatio)rx=layerRatio/imageRatio;else ry=imageRatio/layerRatio;
+      mesh.material.repeat.set(rx,ry);mesh.material.offset.set((1-rx)/2,(1-ry)/2);
+    }
+  }
+}
+export const frameIdsOf=(hotspots:Hotspot[])=>hotspots.filter(h=>(h.type==='image'&&!!h.imageDataUrl&&h.mediaDisplay!=='popup')||(h.type==='video'&&!!(h.videoDataUrl||h.videoUrl)&&h.mediaDisplay!=='popup')).map(h=>h.id);

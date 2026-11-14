@@ -59,10 +59,10 @@ import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plug
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
 import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,paletteFromLogo,type SvgIconDesign} from './svgIcons';
-import {haloMarkers,frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
+import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './media.css';
 import {XMark} from './XMark';
@@ -125,12 +125,12 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
   // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
   if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
-    return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
+    return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false,opacity:(!preview&&selectedId===h.id)?0.3:1};
   }
   const videoSource=h.videoDataUrl||h.videoUrl;
   if(h.type==='video'&&videoSource&&!isPopupMedia(h)){
     return {id:h.id,videoLayer:videoSource,position:frameWorldCorners(h),
-      autoplay:h.videoAutoplay!==false,hoverScale:false};
+      autoplay:h.videoAutoplay!==false,hoverScale:false,opacity:(!preview&&selectedId===h.id)?0.3:1};
   }
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
   const sz=isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.max(16,Math.min(80,h.iconSize??28));
@@ -256,6 +256,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     };
     viewer.addEventListener('zoom-updated',onZoom);
     const markers = viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
+    viewer.addEventListener('before-render',()=>{const ids=frameIdsOf(actions.current.scene.hotspots);if(ids.length)straightenFrames(markers,ids);});
     markers.addEventListener('select-marker',({marker})=>{
       const a=actions.current;
       const h=a.scene.hotspots.find(item=>item.id===marker.id);
@@ -434,7 +435,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
         }
       };
       const cleanup=()=>{
-        dimFrame(1);
+        dimFrame(0.3);
         root.classList.remove('nv-frame-dragging');root.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
         document.removeEventListener('pointermove',update,true);
         document.removeEventListener('pointerup',finish,true);
@@ -2410,7 +2411,11 @@ function App(){
     });
   }
   function patchBar(update:Partial<BottomBarItem>){
-    setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===selectedBarId?{...b,...update}:b)}));
+    setProject(p=>{
+      const bottomBar=p.bottomBar.map(b=>b.id===selectedBarId?{...b,...update}:b);
+      // Locked proportions: the bar height always follows the biggest button.
+      return 'iconSize' in update?{...p,bottomBar,barStyle:{...p.barStyle,height:barHeightFor(bottomBar)}}:{...p,bottomBar};
+    });
   }
   function addBar(type:BottomBarItem['type']='information'){
     if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}
@@ -3740,6 +3745,7 @@ function App(){
                   </div>
                 </div>)}
             </section>}
+          {preview&&active&&viaFrom&&!viaFrom.excluded&&arrivedVia?.sceneId===active.id&&<button type="button" className="nv-preview-back" onClick={()=>selectScene(viaFrom.id)} aria-label={'Retour vers '+viaFrom.name} title={'Retour vers '+viaFrom.name}>↩ <span>{viaFrom.name}</span></button>}
           {autoNavigation&&!preview&&guide?.phase==='back'&&<div className="nv-guide-banner" role="status">
             <span>↩ <b>Retour</b> · fais un demi-tour (180°), ajuste la vue si besoin, puis valide.</span>
             <button type="button" className="nv-guide-ok" onClick={guidedBack}>✓ Valider le retour</button>
@@ -4113,7 +4119,7 @@ function App(){
                         onChange={e=>patchBar({iconSize:Number(e.target.value)})}/>
                     </label>
                   </div>}
-                  <InspectorSection title="Dimensions de la barre"><BarDimensions style={project.barStyle} onChange={changeBarStyle}/></InspectorSection>
+                  <InspectorSection title="Dimensions de la barre"><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/></InspectorSection>
                   <div className="nv-quick-section-title">Apparence de la barre</div>
                   <div className="nv-quick-colors">
                     {([
@@ -4235,7 +4241,7 @@ function App(){
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={icon?{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties:undefined} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+              return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button></div></div>;
@@ -4726,7 +4732,7 @@ function App(){
             </InspectorSection>
             <InspectorSection title="Taille et position">
             <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
-            <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>({...b,iconSize:size}))}));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
+            <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>withBarSize(p,size));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
             <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
             </InspectorSection>
             <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
@@ -4750,7 +4756,7 @@ function App(){
             <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
           </div>
 </>},
-            {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><BarDimensions style={project.barStyle} onChange={changeBarStyle}/></>},
+            {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/></>},
             {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)}
           ]}/>
         </div>}

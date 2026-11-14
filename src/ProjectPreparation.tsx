@@ -2,7 +2,7 @@ import {MediaIconDefaults} from './MediaIconSettings';
 import {ButtonImporter} from './ButtonImporter';
 import {SetupBarPreview} from './SetupBarPreview';
 import {useRef,useState,type Dispatch,type SetStateAction} from 'react';
-import {STUDIO_LANGUAGES,defaultBarStyle,isSafeAudioData,readImage,type BarStyle,type StudioProject} from './storage';
+import {STUDIO_LANGUAGES,defaultBarStyle,barIconSize,withBarSize,isSafeAudioData,readImage,type BarStyle,type StudioProject} from './storage';
 import {BarDimensions,PreparationDialog} from './PreparationControls';
 import {SkinChoices} from './SkinLibrary';
 import {ICON_PACKS,packPreview,prepareIconPack} from './iconPacks';
@@ -60,7 +60,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
             {clientMode&&<ClientColorProposals project={project} onPick={patchStyle}/>}
             <div className="nv-palette-choices">{palettes.map(palette=><button key={palette.name} type="button" onClick={()=>{const {name,...style}=palette;patchStyle(style);}}><span style={{background:palette.background,borderColor:palette.outline}}><i style={{background:palette.button}}/></span>{palette.name}</button>)}</div>
             <SetupBarPreview project={project}/>
-            <BarDimensions style={project.barStyle} onChange={patchStyle}/>
+            <BarDimensions style={project.barStyle} onChange={patchStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/>
             <div className="nv-setup-color-grid">{([['background','Fond de la barre'],['outline','Contour de la barre'],['button','Fond des boutons'],['buttonOutline','Contour des boutons'],['icon','Pictogrammes']] as const).map(([key,label])=><label key={key}>{label}<input type="color" aria-label={label} value={project.barStyle[key]} onChange={e=>patchStyle({[key]:e.target.value})}/></label>)}</div>
             <label>Arrondi : {project.barStyle.roundness} px<input type="range" min="0" max="60" value={project.barStyle.roundness} onChange={e=>patchStyle({roundness:Number(e.target.value)})}/></label>
           </>}

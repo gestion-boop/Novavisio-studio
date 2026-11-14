@@ -83,6 +83,12 @@ export type BottomBarItem = {
 };
 // Single source of truth for the size of a bottom-bar button (editor, preview and exported tour).
 export const BAR_ICON_DEFAULT = 48;
+/** One lock for the bar: its height always follows the biggest button (button + 16 px of air). */
+export const barHeightFor = (items:{iconSize?:number}[]) => Math.max(56, Math.min(160, Math.max(BAR_ICON_DEFAULT, ...items.map(i=>barIconSize(i))) + 18));
+export const withBarSize = <T extends {bottomBar:BottomBarItem[];barStyle:BarStyle}>(p:T,size:number):T => {
+  const bottomBar=p.bottomBar.map(b=>({...b,iconSize:size}));
+  return {...p,bottomBar,barStyle:{...p.barStyle,height:Math.max(56,Math.min(160,size+18))}};
+};
 export const barIconSize = (item:{iconSize?:number}) => Math.max(20, Math.min(72, item.iconSize ?? BAR_ICON_DEFAULT));
 export const defaultBar = ():BottomBarItem[] => [
   {id:crypto.randomUUID(),title:'Carte',type:'information',target:'',text:'',url:'',builtinIcon:'utensils'},

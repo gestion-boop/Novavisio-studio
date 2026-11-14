@@ -7,11 +7,12 @@ export function InspectorSection({title,children,initiallyOpen=false}:{title:str
     <summary>{title}<span aria-hidden="true">⌄</span></summary><div className="nv-inspector-section-body">{children}</div>
   </details>;
 }
-export function BarDimensions({style,onChange}:{style:BarStyle;onChange:(style:Partial<BarStyle>)=>void}){
+export function BarDimensions({style,onChange,size,onSize}:{style:BarStyle;onChange:(style:Partial<BarStyle>)=>void;size:number;onSize:(size:number)=>void}){
   return <div className="nv-bar-dimensions">
-    <label>Hauteur de la barre : {style.height??82} px
-      <input aria-label="Hauteur de la barre" type="range" min="56" max="160" step="2" value={style.height??82} onChange={e=>onChange({height:Number(e.target.value)})}/>
+    <label>Taille de la barre et des boutons : {size} px
+      <input aria-label="Taille de la barre et des boutons" type="range" min="20" max="72" step="2" value={size} onChange={e=>onSize(Number(e.target.value))}/>
     </label>
+    <small>Un seul réglage : la barre et tous les boutons grandissent ensemble, toujours proportionnels.</small>
     <label className="toggle-row"><input type="checkbox" checked={!style.width} onChange={e=>onChange({width:e.target.checked?0:500})}/> Largeur automatique</label>
     {!!style.width&&<label>Largeur de la barre : {style.width} px
       <input aria-label="Largeur de la barre" type="range" min="240" max="1400" step="10" value={style.width} onChange={e=>onChange({width:Number(e.target.value)})}/>

@@ -7,7 +7,7 @@ import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
-import {frameWorldCorners,haloMarkers} from './sphericalFrame';
+import {frameWorldCorners,haloMarkers,straightenFrames,frameIdsOf} from './sphericalFrame';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
@@ -98,6 +98,10 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
     // Notify when the first 360° texture is decoded: only then dismiss the intro.
     instance.addEventListener('ready',()=>handlers.current.onReady(scene.id));
     const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
+    instance.addEventListener('before-render',()=>{
+      const ids=frameIdsOf(handlers.current.scene.hotspots);
+      if(ids.length)straightenFrames(plugin,ids);
+    });
     plugin.addEventListener('select-marker',({marker})=>{
       const a=handlers.current;
       const h=a.scene.hotspots.find(x=>x.id===marker.id);
@@ -355,7 +359,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {project.bottomBar?.length>0&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
         const icon=project.icons?.find(i=>i.id===item.iconId);
-        return <button type="button" style={icon?{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties:undefined} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={item.title} title={item.title}>
+        return <button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={item.title} title={item.title}>
           <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
         </button>;
       })}
