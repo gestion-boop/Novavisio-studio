@@ -1,6 +1,6 @@
 import {newProject,validateProject,type StudioProject,type BottomBarItem} from './storage';
 
-const globalIcons=['closeIconId','soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId'] as const;
+const globalIcons=['closeIconId','soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId','settingsIconId','settingsHoverIconId','settingsPressedIconId'] as const;
 export type Skin={version:1;id:string;name:string;updatedAt:string;appearance:StudioProject};
 
 export function captureSkin(project:StudioProject,name:string,id:string=crypto.randomUUID()):Skin {

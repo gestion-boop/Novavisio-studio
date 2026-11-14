@@ -29,6 +29,7 @@ import {WriteHand} from './WriteHand';
 import {scenesInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {attachSphereLayer} from './sphereLayer';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
@@ -106,6 +107,7 @@ function launchLink(link:string) {
   return true;
 }
 type PanoramaProps = {
+  sphereImage:(sceneId:string)=>string|undefined;
   scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean; autoNavigation:boolean; night:boolean; nightTexture?:string;
   onCreate: (yaw:number,pitch:number)=>void;
   onPick: (id:string)=>void;
@@ -137,13 +139,14 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
       autoplay:h.videoAutoplay!==false,hoverScale:false,opacity:(!preview&&selectedId===h.id)?0.3:1};
   }
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
-  const sz=isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.max(16,Math.min(80,h.iconSize??28));
+  const isSphere=h.type==='navigation'&&!!h.sphere&&!!h.target;
+  const sz=isSphere?Math.max(40,Math.min(120,h.iconSize??90)):isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.max(16,Math.min(80,h.iconSize??28));
   const scaled=isMedia?responsiveFrameSize(h,viewerHeight,zoom):null;
   const width=scaled?.width??sz;
   const height=scaled?.height??sz;
   const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
-  const content=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
+  const content=isSphere?'<span class="nv-sphere-hit"></span>':isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
     h.type==='video'?videoMarkerHtml(h,width,height):
     iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
@@ -154,7 +157,8 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
       '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button>'+redCross+'</span>':content;
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
     html,
-    size:{width,height},anchor:'center center',tooltip:h.title};
+    size:{width,height},anchor:'center center',tooltip:h.title,
+    ...(isSphere?{data:{nvSphere:{size:sz,target:h.target}}}:{})};
 }
 function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
@@ -208,15 +212,15 @@ function FullscreenGalleryHoverPreview({scene,thumb,onOrientation}:{scene:Scene;
   </div>;
 }
 
-function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
+function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
   const currentTextureRef=useRef(scene.dataUrl);
   const lastPointer=useRef<ZoomOrigin|null>(null);
   const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
-  const actions = useRef({scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
+  const actions = useRef({sphereImage,scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {sphereImage,scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     const root=box.current;
@@ -260,6 +264,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     };
     viewer.addEventListener('zoom-updated',onZoom);
     const markers = viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
+    const detachSpheres=attachSphereLayer(viewer,id=>actions.current.sphereImage(id));
     viewer.addEventListener('before-render',()=>{const ids=frameIdsOf(actions.current.scene.hotspots);if(ids.length)straightenFrames(markers,ids);});
     // La loupe de précision (panneau de droite) rend le cadre quasi invisible pendant qu'on règle un coin.
     const onDim=(e:Event)=>{const d=(e as CustomEvent<{id:string;opacity:number}>).detail;try{markers.updateMarker({id:d.id,opacity:d.opacity},false);markers.renderMarkers();viewer.needsUpdate();}catch{/* cadre supprimé */}};
@@ -296,7 +301,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation));
     // Aperçu seulement : léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
     const stopBounce=startPosterBounce(viewer,()=>actions.current.scene,()=>actions.current.preview&&loadedSceneRef.current===actions.current.scene.id);
-    return ()=>{window.removeEventListener('nv-frame-dim',onDim);stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
+    return ()=>{detachSpheres();window.removeEventListener('nv-frame-dim',onDim);stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
     const viewer=viewerRef.current;
@@ -757,6 +762,8 @@ function App(){
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
   const visitorPrefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const sphereImage=(id:string)=>projectRef.current.scenes.find(sc=>sc.id===id)?.dataUrl;
+  const settingsIconSrc=project.icons.find(i=>i.id===(project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId))?.dataUrl;
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
   async function toggleLive(){
     if(liveProjectId){setLiveProjectId(null);return;}
@@ -2719,6 +2726,9 @@ function App(){
       soundOffIconId:p.soundOffIconId===id?undefined:p.soundOffIconId,
       soundOffHoverIconId:p.soundOffHoverIconId===id?undefined:p.soundOffHoverIconId,
       soundOffPressedIconId:p.soundOffPressedIconId===id?undefined:p.soundOffPressedIconId,
+      settingsIconId:p.settingsIconId===id?undefined:p.settingsIconId,
+      settingsHoverIconId:p.settingsHoverIconId===id?undefined:p.settingsHoverIconId,
+      settingsPressedIconId:p.settingsPressedIconId===id?undefined:p.settingsPressedIconId,
       // Nettoie aussi les PNG de survol et de clic : une référence orpheline empêcherait de rouvrir le projet.
       scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>({...h,
         iconId:h.iconId===id?undefined:h.iconId,
@@ -2918,6 +2928,11 @@ function App(){
   /** Réglette de taille de l'icône du point sélectionné (16 à 80 px). */
   function iconSizeControl(){
     if(!selected)return null;
+    if(selected.type==='navigation'&&selected.sphere){
+      const d=Math.max(40,Math.min(120,selected.iconSize??90));
+      return <label className="nv-size-control">Diamètre de la sphère : <b>{d} px</b>
+        <input type="range" min="40" max="120" step="2" value={d} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>;
+    }
     const current=selected.iconSize??(isPopupMedia(selected)?42:28);
     return <label className="nv-size-control">Taille de l’icône : <b>{current} px</b>
       <input type="range" min="16" max="80" step="2" value={current} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>;
@@ -2983,6 +2998,7 @@ function App(){
         <button type="button" className="nv-act" disabled={!canGo} onClick={()=>reverseNavigation(selected)} title={hasBack?'Ouvrir la flèche retour existante':'Créer la flèche retour vers ce panorama'}><Undo2 size={26}/><span>{hasBack?'Voir le retour':'Créer le retour'}</span></button>
         <button type="button" className="nv-act" disabled={!canGo} onClick={()=>document.querySelector('.nv-arrival-inline')?.scrollIntoView({behavior:'smooth',block:'center'})} title="Régler la vue d’arrivée juste en dessous"><Eye size={26}/><span>Vue d’arrivée</span></button>
         <button type="button" className="nv-act" onClick={goIcon} title="Changer l’icône et la taille"><Star size={26}/><span>Icône</span></button>
+        <button type="button" className={'nv-act'+(selected.sphere?' is-on':'')} aria-pressed={!!selected.sphere} onClick={()=>patchPoint({sphere:!selected.sphere,iconSize:selected.iconSize&&selected.iconSize>=40?selected.iconSize:90})} title={selected.target?'Remplacer la flèche par une sphère 3D qui montre le panorama de destination et tourne sur elle-même':'Choisis d’abord la destination : la sphère affiche ce panorama'}><Globe size={26}/><span>{selected.sphere?'Sphère : oui':'Sphère 3D'}</span></button>
         <button type="button" className="nv-act is-danger" onClick={()=>removeAutoNavigationArrow(selected.id)} title="Supprimer cette flèche"><Trash2 size={26}/><span>Supprimer</span></button>
       </div>
       {iconSizeControl()}
@@ -3786,7 +3802,7 @@ function App(){
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -4333,7 +4349,7 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {preview&&active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" className="nv-visitor-settings-btn" aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : son et langue" onClick={()=>setSettingsOpen(o=>!o)}><SettingsIcon size={22}/></button>
+            <button type="button" className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : son et langue" onClick={()=>setSettingsOpen(o=>!o)}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={44}/>:<SettingsIcon size={22}/>}</button>
             {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
               <strong>Son</strong>
               <div className="nv-vs-row">
@@ -4917,6 +4933,13 @@ function App(){
             id=>setProject(p=>({...p,soundOffHoverIconId:id})),'🔇')}
           {iconStateEditor('audio-off-pressed','Son coupé · Clic',project.soundOffPressedIconId,
             id=>setProject(p=>({...p,soundOffPressedIconId:id})),'🔇')}
+          <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>
+          {iconStateEditor('settings-normal','Paramètres · Normal',project.settingsIconId,
+            id=>setProject(p=>({...p,settingsIconId:id})),'⚙')}
+          {iconStateEditor('settings-hover','Paramètres · Survol',project.settingsHoverIconId,
+            id=>setProject(p=>({...p,settingsHoverIconId:id})),'⚙')}
+          {iconStateEditor('settings-pressed','Paramètres · Clic',project.settingsPressedIconId,
+            id=>setProject(p=>({...p,settingsPressedIconId:id})),'⚙')}
           </InspectorSection>
           <div className="section-title">BIBLIOTHÈQUE MUSICALE <span className="counter">{project.audioTracks?.length??0}</span></div>
           <p className="hint">Attribue une piste à plusieurs panoramas : elle joue en continu, en boucle, sans recommencer lors du passage d’une scène à l’autre. Choisis une autre piste là où tu souhaites changer d’ambiance.</p>

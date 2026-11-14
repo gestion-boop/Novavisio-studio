@@ -9,6 +9,7 @@ import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaL
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {frameWorldCorners,haloMarkers,straightenFrames,frameIdsOf} from './sphericalFrame';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
+import {attachSphereLayer} from './sphereLayer';
 import {startPosterBounce} from './posterBounce';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import '@photo-sphere-viewer/core/index.css';
@@ -44,17 +45,21 @@ function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):Ma
   }
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
   const size=isMedia?responsiveFrameSize(h,height,zoom):null;
-  const w=size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28)));
+  const isSphere=h.type==='navigation'&&!!h.sphere&&!!h.target;
+  const w=isSphere?Math.max(40,Math.min(120,h.iconSize??90)):size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28)));
   const hh=size?.height??w;
   const custom=icons.find(icon=>icon.id===h.iconId);
   const html=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
     h.type==='video'?videoMarkerHtml(h,w,hh):
+    isSphere?'<span class="nv-sphere-hit"></span>':
     custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
     '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},
-    anchor:'center center',html,tooltip:h.title};
+    anchor:'center center',html,tooltip:h.title,
+    ...(isSphere?{data:{nvSphere:{size:w,target:h.target}}}:{})};
 }
 type ViewerProps={
+  sphereImage:(sceneId:string)=>string|undefined;
   scene:Scene;
   icons:CustomIcon[];
   night:boolean;
@@ -67,7 +72,7 @@ type ViewerProps={
   video:(h:Hotspot,from?:ZoomOrigin|null)=>void;
   onReady:(sceneId:string)=>void;
 };
-function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image,video,onReady}:ViewerProps){
+function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,linked,image,video,onReady}:ViewerProps){
   const container=useRef<HTMLDivElement>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic : point de départ du zoom photo/vidéo
   useEffect(()=>{
@@ -80,8 +85,8 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
   const viewer=useRef<Viewer|null>(null);
   const loadedScene=useRef<string|null>(null);
   const currentTexture=useRef(scene.dataUrl);
-  const handlers=useRef({scene,icons,arrival,navigate,info,linked,image,video,onReady});
-  handlers.current={scene,icons,arrival,navigate,info,linked,image,video,onReady};
+  const handlers=useRef({sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady});
+  handlers.current={sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady};
   useEffect(()=>{
     if(!container.current)return;
     const instance=new Viewer({
@@ -98,6 +103,7 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
     // Notify when the first 360° texture is decoded: only then dismiss the intro.
     instance.addEventListener('ready',()=>handlers.current.onReady(scene.id));
     const plugin=instance.getPlugin(MarkersPlugin) as MarkersPlugin;
+    const detachSpheres=attachSphereLayer(instance,id=>handlers.current.sphereImage(id));
     instance.addEventListener('before-render',()=>{
       const ids=frameIdsOf(handlers.current.scene.hotspots);
       if(ids.length)straightenFrames(plugin,ids);
@@ -130,7 +136,7 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
     if(container.current)observer.observe(container.current);
     // Léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
     const stopBounce=startPosterBounce(instance,()=>handlers.current.scene,()=>loadedScene.current===handlers.current.scene.id);
-    return ()=>{stopBounce();if(pending)cancelAnimationFrame(pending);observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
+    return ()=>{detachSpheres();stopBounce();if(pending)cancelAnimationFrame(pending);observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
   },[]);
   useEffect(()=>{
     const instance=viewer.current;
@@ -346,7 +352,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     setMobileExpanded(true);
   };
   return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
-    {current.dataUrl?<Pano scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
+    {current.dataUrl?<Pano sphereImage={id=>project.scenes.find(x=>x.id===id)?.dataUrl} scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
       <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
       <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(current.id)}>☾ <span>Nuit</span></button>

@@ -25,7 +25,7 @@ function relevantIcons(project:StudioProject,scenes:Scene[]){
     take(item.iconId);take(item.hoverIconId);take(item.pressedIconId);
   }
   for(const key of ['closeIconId','soundOnIconId','soundOnHoverIconId','soundOnPressedIconId',
-      'soundOffIconId','soundOffHoverIconId','soundOffPressedIconId'] as const)take(project[key]);
+      'soundOffIconId','soundOffHoverIconId','soundOffPressedIconId','settingsIconId','settingsHoverIconId','settingsPressedIconId'] as const)take(project[key]);
   return project.icons.filter(icon=>ids.has(icon.id));
 }
 

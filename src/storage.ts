@@ -15,7 +15,7 @@ export type Hotspot = {
   type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
-  iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;url?:string;
+  iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;/** Flèche « Sphère » : boule 3D qui tourne et montre le panorama de destination (diamètre = iconSize). */sphere?:boolean;url?:string;
   mediaDisplay?:'popup'|'inline';
   fontFamily?:string;linkMode?:'embed'|'tab';
   imageDataUrl?:string;
@@ -133,7 +133,7 @@ export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIc
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 /** Commentaire d'équipe accroché à un endroit d'un panorama (jamais publié dans la visite). */
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
-export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -221,7 +221,7 @@ export function validateProject(value:unknown):StudioProject {
     ids.add(track.id);
   }
   if(p.closeIconId!==undefined && (typeof p.closeIconId!=='string' || !icons.some(icon=>icon.id===p.closeIconId))) throw new Error('Icône de fermeture introuvable');
-  for(const field of ['soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId'] as const){
+  for(const field of ['soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId','settingsIconId','settingsHoverIconId','settingsPressedIconId'] as const){
     if(p[field]!==undefined && (typeof p[field]!=='string'||!icons.some(icon=>icon.id===p[field]))) throw new Error('Icône de son introuvable');
   }
   if(p.clientProfile!==undefined){
@@ -312,6 +312,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.arrivalZoom !== undefined && (!Number.isFinite(h.arrivalZoom) || h.arrivalZoom < 0 || h.arrivalZoom > 100)) ||
         (h.arrivalZoomModel !== undefined && h.arrivalZoomModel !== 'wide') ||
         (h.iconSize !== undefined && (typeof h.iconSize !== 'number' || h.iconSize < 16 || h.iconSize > 120)) ||
+        (h.sphere !== undefined && typeof h.sphere !== 'boolean') ||
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
         (h.fontFamily!==undefined&&(typeof h.fontFamily!=='string'||h.fontFamily.length>50)) ||
