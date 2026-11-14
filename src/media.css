@@ -402,3 +402,8 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 .nv-zoom-wrap>.lightbox-close,.nv-zoom-wrap>.tour-close-image{position:absolute!important;top:-16px!important;right:-16px!important;left:auto!important;bottom:auto!important;z-index:5;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;box-shadow:0 4px 14px #000a}
 @media(max-width:520px){.nv-zoom-wrap>.lightbox-close,.nv-zoom-wrap>.tour-close-image{top:-12px!important;right:-6px!important}}
 .image-lightbox .nv-zoom-wrap>img.nv-photo-frame,.tour-image-viewer .nv-zoom-wrap>img.nv-photo-frame{max-width:92vw;max-height:86vh;box-shadow:0 22px 90px #0009}
+
+/* Bouton son : à droite, un peu sous le haut (la place du coin est réservée à l'icône plein écran de la plateforme) */
+.nv-audio-layer{left:auto!important;right:16px!important;top:76px!important}
+.nv-audio-toggle.is-editing{position:relative}
+.nv-audio-edit-tag{position:absolute;right:-4px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:#2f8fb5;color:#fff;font-size:11px;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}

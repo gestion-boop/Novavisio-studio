@@ -1,23 +1,20 @@
 import {useState} from 'react';
 import {Image,Play} from 'lucide-react';
 import {IconStateVisual} from './media';
+import {buildIconSets} from './IconLibrary';
 import type {DefaultNavigationIcon,StudioProject} from './storage';
 import type {Dispatch,SetStateAction} from 'react';
-const STATE_NAME=/(?:[_\s-])(survol|presse|pressé|press|hover|pressed|active)\b/i;
 const KIND_NAME={image:/photo|image|picto|galerie|gallery|camera|appareil|diapo/i,video:/vid[eé]o|film|play|lecture|cin[eé]ma|clip/i};
 /** Choix visuel de l'icône d'un popup : uniquement des icônes du bon type (photo ou vidéo), sans les variantes survol / pressé. */
 export function MediaIconSelector({project,value,onChange,label,kind}:{project:StudioProject;value?:Partial<DefaultNavigationIcon>;onChange:(value:Partial<DefaultNavigationIcon>)=>void;label:string;kind:'image'|'video'}){
  const [open,setOpen]=useState(false);
- const [all,setAll]=useState(false);
  const match=KIND_NAME[kind];
- const sets=(project.buttonSets??[]).filter(set=>project.icons.some(i=>i.id===set.iconId));
- const singles=project.icons.filter(icon=>!STATE_NAME.test(icon.name));
- const relevantSets=sets.filter(set=>match.test(set.name));
- const relevantSingles=singles.filter(icon=>match.test(icon.name));
- const nothingRelevant=relevantSets.length+relevantSingles.length===0;
- const showSets=all||nothingRelevant?sets:relevantSets;
- const showSingles=all||nothingRelevant?singles:relevantSingles;
- const set=project.buttonSets?.find(set=>set.iconId===value?.iconId&&set.hoverIconId===value?.hoverIconId&&set.pressedIconId===value?.pressedIconId);
+ // Toutes les icônes de la bibliothèque, regroupées en jeux (normal / survol / pressé reconnus d'après le nom du fichier) : une icône ajoutée apparaît tout de suite ici.
+ const libSets=buildIconSets(project.icons).map(g=>{const main=g.normal??g.hover??g.pressed;return main?{id:'lib:'+g.key,name:g.name,iconId:main.id,hoverIconId:g.hover?.id,pressedIconId:g.pressed?.id,iconSize:42}:null;}).filter((x):x is NonNullable<typeof x>=>!!x);
+ const saved=(project.buttonSets??[]).filter(set=>project.icons.some(i=>i.id===set.iconId));
+ const merged=[...saved,...libSets.filter(l=>!saved.some(sv=>sv.iconId===l.iconId))];
+ const allSets=[...merged].sort((x,y)=>(match.test(y.name)?1:0)-(match.test(x.name)?1:0));
+ const set=allSets.find(set=>set.iconId===value?.iconId&&set.hoverIconId===value?.hoverIconId&&set.pressedIconId===value?.pressedIconId);
  const current=set?set.name:value?.iconId?project.icons.find(i=>i.id===value.iconId)?.name??'Icône personnalisée':'Icône '+(kind==='image'?'Photo':'Vidéo')+' standard';
  const pick=(next:Partial<DefaultNavigationIcon>)=>{onChange(next);setOpen(false);};
  const thumb=(id?:string)=>project.icons.find(i=>i.id===id)?.dataUrl;
@@ -32,15 +29,10 @@ export function MediaIconSelector({project,value,onChange,label,kind}:{project:S
     <button type="button" role="option" aria-selected={!value?.iconId} className={'nv-icon-tile'+(!value?.iconId?' is-selected':'')} onClick={()=>pick({iconId:undefined,hoverIconId:undefined,pressedIconId:undefined,iconSize:42})}>
      <span>{kind==='image'?<Image size={30}/>:<Play size={30}/>}</span><small>Standard</small>
     </button>
-    {showSets.map(item=><button type="button" role="option" key={'s'+item.id} aria-selected={set?.id===item.id} className={'nv-icon-tile'+(set?.id===item.id?' is-selected':'')} title={item.name}
+    {allSets.map(item=><button type="button" role="option" key={'s'+item.id} aria-selected={set?.id===item.id} className={'nv-icon-tile'+(set?.id===item.id?' is-selected':'')} title={item.name}
       onClick={()=>pick({iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})}>
       <span><img alt="" src={thumb(item.iconId)}/></span><small>{item.name}</small></button>)}
-    {showSingles.map(icon=><button type="button" role="option" key={icon.id} aria-selected={!set&&value?.iconId===icon.id} className={'nv-icon-tile'+(!set&&value?.iconId===icon.id?' is-selected':'')} title={icon.name}
-      onClick={()=>pick({iconId:icon.id,hoverIconId:undefined,pressedIconId:undefined,iconSize:42})}>
-      <span><img alt="" src={icon.dataUrl}/></span><small>{icon.name.replace(/\.(png|webp|svg|jpe?g)$/i,'').replace(/[_-]normal$/i,'')}</small></button>)}
    </div>
-   {nothingRelevant&&<p className="nv-icon-picker-note">Aucune icône de {kind==='image'?'photo':'vidéo'} trouvée dans ta bibliothèque : voici toutes les icônes.</p>}
-   {!nothingRelevant&&<button type="button" className="nv-icon-picker-all" onClick={()=>setAll(v=>!v)}>{all?'Seulement les icônes de '+(kind==='image'?'photo':'vidéo'):'Afficher toutes les icônes'}</button>}
   </div>}
  </div>;
 }

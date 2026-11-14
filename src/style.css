@@ -5235,3 +5235,10 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-arrival-actions{display:flex;gap:8px;flex-wrap:wrap}
 .nv-arrival-actions button{padding:10px 14px;border-radius:10px;border:1px solid #5b8e98;background:#143543;color:#fff;font-weight:700;cursor:pointer}
 .nv-arrival-actions .nv-arrival-save{flex:1;border-color:#9fdcf3;background:linear-gradient(160deg,#2f8fb5,#1d6b8a);font-weight:800}
+
+/* Déplacement d'un coin / d'un cadre : plus de rond, seulement des pointillés horizontaux et verticaux */
+.nv-sphere-handle.is-dragging::after,.nv-sphere-center.is-dragging::after{display:none!important}
+.nv-sphere-handle.is-dragging::before,.nv-sphere-center.is-dragging::before{width:340px!important;height:340px!important;-webkit-mask:none!important;mask:none!important;
+  background:repeating-linear-gradient(90deg,#fff 0 7px,transparent 7px 12px) center/100% 1.5px no-repeat,repeating-linear-gradient(0deg,#fff 0 7px,transparent 7px 12px) center/1.5px 100% no-repeat!important;
+  filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #000a)!important}
+.nv-frame-dragging .nv-sphere-handle:not(.is-dragging),.nv-frame-dragging .nv-sphere-center:not(.is-dragging){opacity:.2}

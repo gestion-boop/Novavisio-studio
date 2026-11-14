@@ -394,6 +394,9 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
       // Pendant le déplacement, la poignée devient un anneau transparent avec un réticule : on voit exactement où le coin se pose.
       const ghost=()=>{const el=root.querySelector<HTMLElement>(movingCenter?'.nv-sphere-center[data-frame-id="'+id+'"]':'[data-frame-id="'+id+'"][data-corner="'+key+'"]');el?.classList.add('is-dragging');};
       ghost();root.classList.add('nv-frame-dragging');
+      // L'image / la vidéo devient quasi invisible pendant le geste : on voit le décor exact sous les pointillés.
+      const dimFrame=(o:number)=>{try{plugin.updateMarker({id:h.id,opacity:o},false);plugin.renderMarkers();viewer.needsUpdate();}catch{/* cadre supprimé */}};
+      dimFrame(0.06);
       const update=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
         pointer.preventDefault();
@@ -430,6 +433,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
         }
       };
       const cleanup=()=>{
+        dimFrame(1);
         root.classList.remove('nv-frame-dragging');root.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
         document.removeEventListener('pointermove',update,true);
         document.removeEventListener('pointerup',finish,true);
@@ -4203,7 +4207,7 @@ function App(){
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
-          {active && <ContinuousMusic project={project} scene={active} paused={!preview||!!videoZoom||introVisible}/>}
+          {active && <ContinuousMusic project={project} scene={active} paused={!preview||!!videoZoom||introVisible} onEdit={!preview?()=>{setPanel('music');setRightHidden(false);setSelectedId('');setSelectedBarId('');setMode(null);}:undefined}/>}
           {preview&&galleryOpen&&(()=>{
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;

@@ -21,7 +21,7 @@ function SoundGlyph({project,side}:{project:StudioProject;side:SoundSide}){
 
 /** One player throughout the visit. The first sound choice is made by the visitor,
  * after the intro. This also satisfies browser audio autoplay restrictions. */
-export function ContinuousMusic({project,scene,paused=false}:{project:StudioProject;scene:Scene|null;paused?:boolean}){
+export function ContinuousMusic({project,scene,paused=false,onEdit}:{project:StudioProject;scene:Scene|null;paused?:boolean;onEdit?:()=>void}){
   const audio=useRef<HTMLAudioElement>(null);
   const [choice,setChoice]=useState<SoundChoice>('undecided');
   const [playing,setPlaying]=useState(false);
@@ -63,7 +63,7 @@ export function ContinuousMusic({project,scene,paused=false}:{project:StudioProj
     <audio ref={audio} src={source||undefined} preload="auto" playsInline
       onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
       onError={()=>{if(source&&choice==='on')setFailed(true);}}/>
-    {!!source&&!paused&&choice==='undecided'&&
+    {!onEdit&&!!source&&!paused&&choice==='undecided'&&
       <div className="nv-sound-choice-backdrop" role="dialog" aria-modal="true" aria-label="Choisir le son de la visite">
         <section className="nv-sound-choice-dialog">
           <h2>Profitez de la visite immersive</h2>
@@ -78,7 +78,9 @@ export function ContinuousMusic({project,scene,paused=false}:{project:StudioProj
           </div>
         </section>
       </div>}
-    {!!source&&!paused&&choice!=='undecided'&&
+    {onEdit&&<button type="button" className="nv-audio-toggle is-editing" aria-label="Modifier les icônes du bouton son" title="Bouton son de la visite : clique pour changer ses icônes (normal, survol, clic)" onClick={onEdit}>
+      <SoundGlyph project={project} side="on"/><span className="nv-audio-edit-tag">✎</span></button>}
+    {!onEdit&&!!source&&!paused&&choice!=='undecided'&&
       <button type="button" className="nv-audio-toggle"
         aria-label={choice==='on'?'Couper la musique':'Activer la musique'}
         title={choice==='on'?(playing?'Couper la musique':'Démarrer la musique'):'Activer la musique'}
