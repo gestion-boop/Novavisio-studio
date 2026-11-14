@@ -5033,3 +5033,17 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-check-filter{display:flex;gap:6px}
 .nv-check-filter button{padding:5px 12px;border-radius:999px;border:1px solid #35606f;background:#143543;color:inherit;font-weight:600;cursor:pointer}
 .nv-check-filter button.is-on{background:#2f8fb5;border-color:#9fdcf3}
+
+/* Mise en évidence d'un problème à corriger */
+.nv-issue-target{outline:4px solid #ff5a4f!important;outline-offset:6px;border-radius:50%;animation:nv-issue-pulse 1.1s ease-in-out infinite;position:relative;z-index:50}
+@keyframes nv-issue-pulse{0%,100%{box-shadow:0 0 0 0 #ff5a4faa}50%{box-shadow:0 0 0 18px #ff5a4f00}}
+.nv-issue-callout{position:fixed;z-index:100004;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;color:#fff;font:13.5px/1.35 system-ui,sans-serif;box-shadow:0 12px 36px #000a;border:2px solid #fff4}
+.nv-issue-callout.is-error{background:#b3261e}.nv-issue-callout.is-warn{background:#a86b00}.nv-issue-callout.is-ok{background:#1f8f4e}
+.nv-issue-callout>svg{flex:none;margin-top:2px}.nv-issue-callout>div{flex:1;display:flex;flex-direction:column;gap:3px;text-align:left}
+.nv-issue-callout button{flex:none;width:26px;height:26px;border-radius:8px;border:1px solid #fff6;background:#0003;color:#fff;display:grid;place-items:center;cursor:pointer}
+.nv-issue-callout.arrow-left::before,.nv-issue-callout.arrow-right::before{content:'';position:absolute;top:24px;border:9px solid transparent}
+.nv-issue-callout.arrow-left::before{left:-18px;border-right-color:currentColor;color:inherit}
+.nv-issue-callout.arrow-right::before{right:-18px;border-left-color:currentColor}
+.nv-issue-callout.is-error::before{color:#b3261e}.nv-issue-callout.is-warn::before{color:#a86b00}
+
+.nv-issue-callout .nv-issue-open{width:auto;height:auto;padding:6px 10px;margin-top:4px;align-self:flex-start;font-weight:700;font-size:12.5px}

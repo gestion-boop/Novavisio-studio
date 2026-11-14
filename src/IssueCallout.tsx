@@ -1,0 +1,37 @@
+import {useEffect,useRef,useState} from 'react';
+import {AlertTriangle,CheckCircle2} from 'lucide-react';
+import {XMark} from './XMark';
+
+export type IssueFocus={hotspotId?:string;text:string;level:'error'|'warn'};
+
+/** Met en évidence le point à corriger (anneau pulsant) et affiche une bulle à côté qui dit quoi corriger. */
+export function IssueCallout({focus,stillPresent,onClose,onOpen}:{focus:IssueFocus;stillPresent:boolean;onClose:()=>void;onOpen?:()=>void}){
+  const [pos,setPos]=useState<{x:number;y:number}|null>(null);
+  const targetRef=useRef<HTMLElement|null>(null);
+  useEffect(()=>{
+    let raf=0,alive=true;
+    const tick=()=>{
+      if(!alive)return;
+      const el=focus.hotspotId?document.querySelector<HTMLElement>('[data-nv-marker-id="'+focus.hotspotId+'"]'):null;
+      if(targetRef.current&&targetRef.current!==el)targetRef.current.classList.remove('nv-issue-target');
+      targetRef.current=el;
+      if(el){
+        el.classList.add('nv-issue-target');
+        const r=el.getBoundingClientRect();
+        const visible=r.width>0&&r.right>0&&r.left<window.innerWidth&&r.bottom>0&&r.top<window.innerHeight;
+        setPos(p=>{const n=visible?{x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)}:null;return p&&n&&p.x===n.x&&p.y===n.y?p:n;});
+      }else setPos(p=>p?null:p);
+      raf=requestAnimationFrame(tick);
+    };
+    raf=requestAnimationFrame(tick);
+    return ()=>{alive=false;cancelAnimationFrame(raf);targetRef.current?.classList.remove('nv-issue-target');};
+  },[focus.hotspotId]);
+  useEffect(()=>{if(!stillPresent){const t=window.setTimeout(onClose,2200);return ()=>window.clearTimeout(t);}},[stillPresent,onClose]);
+  const W=300,right=pos&&pos.x+50+W<window.innerWidth;
+  const style=pos?{left:right?pos.x+46:Math.max(8,pos.x-46-W),top:Math.max(70,Math.min(pos.y-30,window.innerHeight-170))}:{left:'50%',top:92,transform:'translateX(-50%)'};
+  return <aside className={'nv-issue-callout is-'+(stillPresent?focus.level:'ok')+(pos?(right?' arrow-left':' arrow-right'):'')} style={{...style,width:W}} role="status" aria-live="polite">
+    {stillPresent?<><AlertTriangle size={18}/><div><b>{focus.level==='error'?'À corriger':'À vérifier'}</b><span>{focus.text}</span>{onOpen&&focus.hotspotId&&<button type="button" className="nv-issue-open" onClick={onOpen}>Ouvrir les réglages du point</button>}</div>
+      <button type="button" onClick={onClose} aria-label="Fermer l’indication"><XMark size={14}/></button></>
+    :<><CheckCircle2 size={18}/><div><b>Corrigé !</b><span>Ce problème a disparu du contrôle.</span></div></>}
+  </aside>;
+}

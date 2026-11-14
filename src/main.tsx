@@ -42,6 +42,7 @@ import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
 import {MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
 import {checkProject} from './projectCheck';
+import {IssueCallout,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
 import {CommentsPanel} from './CommentsPanel';
 import {captureScreen,ShotEditor} from './ScreenshotTool';
@@ -1016,12 +1017,16 @@ function App(){
   const publishIssues=projectIssues;
   const issueErrors=projectIssues.filter(i=>i.level==='error').length;
   const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
-  function goToIssue(is:{sceneId?:string;hotspotId?:string}){
+  const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
+  function goToIssue(is:{sceneId?:string;hotspotId?:string;text:string;level:'error'|'warn'}){
     setCheckOpen(false);setPublishConfirm(false);
-    if(!is.sceneId)return;
+    setIssueFocus({hotspotId:is.hotspotId,text:is.text,level:is.level});
+    if(!is.sceneId){setPanel('bar');setRightHidden(false);return;}
+    const hs=project.scenes.find(sc=>sc.id===is.sceneId)?.hotspots.find(h=>h.id===is.hotspotId);
     if(currentSpace&&!visibleIds.has(is.sceneId))setActiveSpaceId(null);
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(is.sceneId);setMode(null);
-    if(is.hotspotId){setSelectedId(is.hotspotId);setPanel('points');setRightHidden(false);}else setSelectedId('');
+    if(is.hotspotId){setSelectedId(is.hotspotId);setPanel('points');setRightHidden(true);}else setSelectedId('');
+    if(hs)window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:hs.yaw,pitch:hs.pitch}),900);
   }
   // Carte « depuis ta dernière visite » (une fois par ouverture, seulement s'il y a quelque chose à dire)
   const [welcome,setWelcome]=useState<{since:number|null;notifs:number;comments:number;errors:number}|null>(null);
@@ -3218,6 +3223,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
+    {issueFocus&&<IssueCallout focus={issueFocus} stillPresent={projectIssues.some(i=>i.text===issueFocus.text)} onClose={()=>setIssueFocus(null)} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
     {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={goToIssue} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
