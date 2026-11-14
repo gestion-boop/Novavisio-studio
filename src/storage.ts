@@ -26,6 +26,8 @@ export type Hotspot = {
   videoMasterSound?:boolean;
   /** Auréole discrète autour d'un cadre cliquable (Aperçu et visite). Actif par défaut. */
   frameHalo?:boolean;
+  /** Signal visuel autour d'un média cliquable. */
+  frameSignalStyle?:'gold'|'soft'|'pulse'|'none';
   frameWidth?:number;frameHeight?:number;
   frameReferenceHeight?:number;
   frameReferenceZoom?:number;
