@@ -13,6 +13,7 @@ export type SphereData={size:number;target:string};
 const DEPTH=7;          // distance de la sphère à la caméra (le panorama est à 10 : elle passe devant)
 const HOVER_GROW=0.16;  // grossissement apparent au survol
 const HOVER_PULL=0.9;   // et elle se rapproche d'autant
+const SPHERE_ALPHA=0.72; // translucidité : on devine le décor à travers la sphère
 const SPIN=0.00035;     // radians / ms
 
 type Entry={group:Group;ball:Mesh;halo:Mesh;mat:MeshBasicMaterial;haloMat:MeshBasicMaterial;hover:number;spin:number;key:string};
@@ -120,7 +121,7 @@ export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string
       if(e.mat.map)e.mat.map.offset.x=1+e.spin;
       const op=Math.max(0,Math.min(1,cfg.opacity??1));
       e.group.visible=op>0.01;
-      e.mat.opacity=op;e.haloMat.opacity=0.16*op*(1+e.hover);
+      e.mat.opacity=op*SPHERE_ALPHA;e.haloMat.opacity=0.16*op*(1+e.hover);
       // On ne redessine en continu que si une sphère est dans le champ de vision (batterie).
       const dy=Math.atan2(Math.sin(cfg.position.yaw-cam.yaw),Math.cos(cfg.position.yaw-cam.yaw)),dp=cfg.position.pitch-cam.pitch;
       if(Math.abs(dy)<vfov*2&&Math.abs(dp)<vfov)needsRender=true;

@@ -2977,6 +2977,13 @@ function App(){
       </div>
     </>;
   }
+  /** Transforme toutes les flèches de la visite en sphères du même diamètre que la flèche sélectionnée. */
+  function applySphereToAll(){
+    if(!selected||selected.type!=='navigation')return;
+    const size=Math.max(40,Math.min(120,selected.iconSize??90));
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.type==='navigation'?{...h,sphere:true,iconSize:size}:h)}))}));
+    setStatus('Sphère de '+size+' px appliquée à toutes les flèches de la visite');
+  }
   function navigationEditor(){
     if(!selected||selected.type!=='navigation')return null;
     const target=project.scenes.find(sc=>sc.id===selected.target);
@@ -3002,6 +3009,7 @@ function App(){
         <button type="button" className="nv-act is-danger" onClick={()=>removeAutoNavigationArrow(selected.id)} title="Supprimer cette flèche"><Trash2 size={26}/><span>Supprimer</span></button>
       </div>
       {iconSizeControl()}
+      {selected.sphere&&<button type="button" className="style-reset" onClick={applySphereToAll} title="Toutes les flèches de la visite deviennent des sphères de ce diamètre">Appliquer à toute la visite</button>}
       <small>✥ Glisse la poignée à côté de la flèche pour la déplacer.</small>
     </div>;
   }
