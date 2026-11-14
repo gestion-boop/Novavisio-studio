@@ -3637,7 +3637,7 @@ function App(){
             <button type="button" onClick={guidedSkipBack}>Passer</button>
           </div>}
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
-            <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : la flèche part vers le panorama suivant.</span>
+            <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : la galerie s’ouvre pour choisir le panorama d’arrivée.</span>
           </div>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
@@ -3645,7 +3645,7 @@ function App(){
               {autoNavigation&&guide?.phase!=='back'&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
                 <button type="button" className="nv-auto-crosshair-place" aria-label="Placer la flèche sur la cible au centre"
                   title="Placer la flèche ici"
-                  onClick={e=>{e.stopPropagation();const v=cameraRef.current;if(active&&v.sceneId===active.id)guidedForward(v.yaw,v.pitch);}}>
+                  onClick={e=>{e.stopPropagation();const v=cameraRef.current;if(active&&v.sceneId===active.id)openAutoGallery(v.yaw,v.pitch);}}>
                   <span aria-hidden="true">+</span>
                 </button>}
             </div>}
