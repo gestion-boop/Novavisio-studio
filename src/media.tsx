@@ -3,6 +3,7 @@ import {Play,Volume2,VolumeX,X} from 'lucide-react';
 import {perspectiveMatrix,escapeAttribute} from './imageFrame';
 import {defaultFrameCorners,type CustomIcon,type Hotspot,type ImageFrameStyle,type Scene} from './storage';
 import {XMark} from './XMark';
+import {getPrefs} from './visitorPrefs';
 
 export const iconById=(icons:CustomIcon[],id?:string)=>icons.find(icon=>icon.id===id)?.dataUrl;
 
@@ -125,7 +126,7 @@ export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=
     const el=ref.current;
     if(!el)return;
     let live=true;
-    el.muted=false;
+    el.muted=getPrefs().sound==='off';
     el.play().then(()=>{if(live)setBlocked(false);}).catch(()=>{if(live)setBlocked(true);});
     return ()=>{live=false;el.pause();};
   },[url]);

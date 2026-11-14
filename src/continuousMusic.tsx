@@ -1,8 +1,8 @@
 import {useEffect,useRef,useState} from 'react';
 import {Volume2,VolumeX} from 'lucide-react';
 import type {StudioProject,Scene} from './storage';
+import {setSound,useVisitorPrefs} from './visitorPrefs';
 
-type SoundChoice='undecided'|'on'|'off';
 type SoundSide='on'|'off';
 
 function SoundGlyph({project,side}:{project:StudioProject;side:SoundSide}){
@@ -23,7 +23,9 @@ function SoundGlyph({project,side}:{project:StudioProject;side:SoundSide}){
  * after the intro. This also satisfies browser audio autoplay restrictions. */
 export function ContinuousMusic({project,scene,paused=false,onEdit}:{project:StudioProject;scene:Scene|null;paused?:boolean;onEdit?:()=>void}){
   const audio=useRef<HTMLAudioElement>(null);
-  const [choice,setChoice]=useState<SoundChoice>('undecided');
+  // Le choix du son est partagé avec le bouton « Paramètres » (même état).
+  const choice=useVisitorPrefs().sound;
+  const setChoice=setSound;
   const [playing,setPlaying]=useState(false);
   const [failed,setFailed]=useState(false);
   const track=project.audioTracks?.find(t=>t.id===scene?.musicTrackId);

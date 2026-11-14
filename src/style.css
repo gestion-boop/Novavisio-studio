@@ -5316,3 +5316,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-loupe-start{align-self:flex-start}
 .nv-loupe-note{color:#9fb7bf;font-size:11px;line-height:1.35}
 .nv-arrival-caption{display:block;margin:2px 0 6px;color:#b8cdd3;font-size:12px;line-height:1.35}
+
+/* Bouton Paramètres du visiteur (son + langue), à droite de la visite */
+.nv-visitor-settings{position:absolute;z-index:16;right:12px;top:12px;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.nv-visitor-settings-btn{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.45);background:rgba(11,24,38,.78);color:#fff;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px)}
+.nv-visitor-settings-btn:hover{background:rgba(24,60,80,.92)}
+.nv-visitor-settings-panel{display:flex;flex-direction:column;gap:8px;min-width:190px;padding:12px;border-radius:14px;background:rgba(11,24,38,.92);border:1px solid rgba(154,204,217,.4);color:#eaf7fa;font:600 13px system-ui;box-shadow:0 12px 40px #0009}
+.nv-vs-row{display:flex;gap:6px;flex-wrap:wrap}
+.nv-vs-row button{flex:1;border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;padding:8px 10px;font:700 13px system-ui;cursor:pointer}
+.nv-vs-row button.is-on{background:#1f8aa8;border-color:#7ad6ee;color:#fff}
+.nv-vs-flags button{font-size:22px;padding:4px 8px;flex:0 0 auto}

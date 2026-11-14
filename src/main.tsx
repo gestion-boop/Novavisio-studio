@@ -29,6 +29,7 @@ import {WriteHand} from './WriteHand';
 import {scenesInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
 import {ClientPanel,type ClientLink} from './ClientPanel';
@@ -42,7 +43,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
@@ -754,6 +755,8 @@ function App(){
   const [activeId,setActiveId]=useState('');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
+  const visitorPrefs=useVisitorPrefs();
+  const [settingsOpen,setSettingsOpen]=useState(false);
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
   async function toggleLive(){
     if(liveProjectId){setLiveProjectId(null);return;}
@@ -1881,9 +1884,11 @@ function App(){
       // La page intégrée affiche seulement les langues choisies dans le projet.
       try{
         const parsed=new URL(link);
-        if(parsed.hostname==='campingfigurotta-infos.vercel.app'){
+        // Tous les mini-sites d'information hébergés sur Vercel reçoivent les langues du projet (?langs=) et la langue choisie par le visiteur (?lang=).
+        if(parsed.hostname.endsWith('.vercel.app')){
           const codes=project.languages??['fr','es','de','en','nl'];
           parsed.searchParams.set('langs',codes.join(','));
+          parsed.searchParams.set('lang',effectiveLang(visitorPrefs,codes));
           url=parsed.toString();
         }
       }catch{/* Conserver le lien original si l'URL ne peut pas être analysée. */}
@@ -2469,6 +2474,8 @@ function App(){
     patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:{type});
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
+  // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
+  useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
   function triggerBar(item:BottomBarItem){
     if(!preview){
       setSelectedBarId(current=>current===item.id?'':item.id);setPanel('bar');setSelectedId('');setRightHidden(false);
@@ -4325,6 +4332,19 @@ function App(){
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
+          {preview&&active&&!introVisible&&<div className="nv-visitor-settings">
+            <button type="button" className="nv-visitor-settings-btn" aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : son et langue" onClick={()=>setSettingsOpen(o=>!o)}><SettingsIcon size={22}/></button>
+            {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
+              <strong>Son</strong>
+              <div className="nv-vs-row">
+                <button type="button" className={visitorPrefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
+                <button type="button" className={visitorPrefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 Coupé</button>
+              </div>
+              {activeLanguages.length>1&&<><strong>Langue</strong>
+              <div className="nv-vs-row nv-vs-flags">{STUDIO_LANGUAGES.filter(l=>activeLanguages.includes(l.code)).map(l=>
+                <button type="button" key={l.code} title={l.name} aria-label={l.name} aria-pressed={effectiveLang(visitorPrefs,activeLanguages)===l.code} className={effectiveLang(visitorPrefs,activeLanguages)===l.code?'is-on':''} onClick={()=>setLang(l.code)}>{l.flag}</button>)}</div></>}
+            </div>}
+          </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} onEdit={!preview?()=>{setPanel('music');setRightHidden(false);setSelectedId('');setSelectedBarId('');setMode(null);}:undefined}/>}
           {preview&&galleryOpen&&(()=>{
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
