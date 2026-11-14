@@ -44,6 +44,8 @@ import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Glo
 import {captureScreen,ShotEditor,ShotInbox} from './ScreenshotTool';
 import {SectionHub} from './SectionHub';
 import {MediaPicker} from './MediaPicker';
+import {SpacesActions} from './SpacesActions';
+import {mergeImportedSpaces} from './spaceTransfer';
 import {rememberMedia} from './mediaLibrary';
 import {IconLibrary} from './IconLibrary';
 import {NotesPanel} from './NotesPanel';
@@ -896,6 +898,24 @@ function App(){
     return ()=>window.removeEventListener('resize',fit);
   },[toolsMenuOpen]);
   const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
+  // Sélection multiple d'espaces : partager avec des membres, envoyer vers un autre projet
+  const [spaceSelectMode,setSpaceSelectMode]=useState(false);
+  const [spaceSelection,setSpaceSelection]=useState<Set<string>>(new Set());
+  const [spaceAction,setSpaceAction]=useState<'share'|'transfer'|null>(null);
+  const spaceImportInput=useRef<HTMLInputElement>(null);
+  const selectedSpaces=(project.spaces??[]).filter(space=>spaceSelection.has(space.id));
+  const toggleSpacePick=(id:string)=>setSpaceSelection(cur=>{const n=new Set(cur);if(n.has(id))n.delete(id);else n.add(id);return n;});
+  async function importSpacesFile(file?:File){
+    if(!file)return;
+    try{
+      setStatus('Lecture du fichier d’espaces…');
+      const raw=await readProjectFile(file,pct=>setStatus('Lecture du fichier d’espaces… '+pct+' %'));
+      const result=mergeImportedSpaces(project,raw);
+      setProject(result.project);
+      setStatus(result.spaces+' espace'+(result.spaces>1?'s':'')+' importé'+(result.spaces>1?'s':'')+' ('+result.scenes+' nouveau'+(result.scenes>1?'x':'')+' panorama'+(result.scenes>1?'s':'')+'). Enregistre avec la disquette.');
+    }catch(e){setStatus('Import des espaces impossible : '+(e instanceof Error?e.message:String(e)));}
+    finally{if(spaceImportInput.current)spaceImportInput.current.value='';}
+  }
   const [shotImage,setShotImage]=useState<{image:string;defaultTo?:string}|null>(null);
   /** Capture annotée : photo de l'écran à l'instant T, à entourer / commenter puis envoyer à un collègue. */
   async function takeShot(){
@@ -2932,6 +2952,10 @@ function App(){
           aria-label="Capture annotée" title="Capture d’écran : entourer, écrire, envoyer à un collègue">
           <Camera size={22}/>
         </button>
+        <button type="button" className="nv-v3-icon-btn nv-v3-fullscreen" onClick={()=>void toggleCreationFullscreen()} disabled={!active}
+          aria-label="Plein écran de la création" title="Plein écran : agrandir uniquement la création 360°">
+          <Maximize2 size={21}/>
+        </button>
         <button type="button" className={'nv-v3-icon-btn'+(!rightHidden?' is-open':'')}
           aria-label={rightHidden?'Afficher les réglages':'Masquer les réglages'}
           title={rightHidden?'Afficher les réglages':'Masquer les réglages'}
@@ -2963,7 +2987,8 @@ function App(){
             </>}
         </div>
         {(project.spaces??[]).map(space=><div key={space.id} data-hsort-id={space.id}
-          className={'nv-space-tab nv-space-tab-editable'+(activeSpaceId===space.id?' is-active':'')+(spaceSort.drag===space.id?' is-dragging':'')}>
+          className={'nv-space-tab nv-space-tab-editable'+(activeSpaceId===space.id?' is-active':'')+(spaceSort.drag===space.id?' is-dragging':'')+(spaceSelection.has(space.id)?' is-picked':'')}>
+          {spaceSelectMode&&<button type="button" className={'nv-space-pick'+(spaceSelection.has(space.id)?' is-on':'')} aria-pressed={spaceSelection.has(space.id)} aria-label={'Sélectionner '+space.name} onClick={()=>toggleSpacePick(space.id)}>{spaceSelection.has(space.id)?'✓':''}</button>}
           {editingSpaceId!==space.id&&spaceSort.grip(space.id,space.name)}
           {editingSpaceId===space.id?
             <input autoFocus className="nv-space-tab-rename" value={editingSpaceName}
@@ -2998,10 +3023,22 @@ function App(){
         title="Créer une sous-visite à partir des panoramas existants">
         <Plus size={15}/> Ajouter un espace
       </button>
+      {(project.spaces?.length??0)>0&&<button type="button" className={'nv-space-select-toggle'+(spaceSelectMode?' is-on':'')} aria-pressed={spaceSelectMode}
+        title="Choisir plusieurs espaces pour les partager ou les envoyer vers un autre projet"
+        onClick={()=>{setSpaceSelectMode(on=>!on);setSpaceSelection(new Set());}}>☑ Sélection multiple</button>}
+      <button type="button" className="nv-space-select-toggle" title="Ajouter à ce projet des espaces venant d’un autre projet (fichier .nvspaces.json)" onClick={()=>spaceImportInput.current?.click()}>⭳ Importer des espaces</button>
       {currentSpace&&<button type="button" className="nv-space-manage" onClick={()=>setSpaceManagerOpen(true)}>
         Gérer les panoramas
       </button>}
     </section>
+    {spacesDrawerOpen&&spaceSelectMode&&<div className="nv-space-selbar" role="toolbar" aria-label="Actions sur les espaces choisis">
+      <b>{spaceSelection.size} espace{spaceSelection.size>1?'s':''} choisi{spaceSelection.size>1?'s':''}</b>
+      <button type="button" onClick={()=>setSpaceSelection(new Set((project.spaces??[]).map(space=>space.id)))}>Tout choisir</button>
+      <button type="button" disabled={!spaceSelection.size} onClick={()=>setSpaceAction('share')}>👥 Partager avec un membre…</button>
+      <button type="button" disabled={!spaceSelection.size} onClick={()=>setSpaceAction('transfer')}>⭱ Envoyer vers un autre projet…</button>
+      <button type="button" onClick={()=>{setSpaceSelectMode(false);setSpaceSelection(new Set());}}>Terminer</button>
+    </div>}
+    <input ref={spaceImportInput} hidden type="file" accept=".json,.nvspaces.json,application/json" onChange={e=>void importSpacesFile(e.currentTarget.files?.[0])}/>
     {spaceManagerOpen&&currentSpace&&<div className="overlay nv-space-overlay" onMouseDown={event=>{
       if(event.target===event.currentTarget)setSpaceManagerOpen(false);
     }}>
@@ -3053,6 +3090,8 @@ function App(){
       {liveInvite.notesIn.map(n=><article key={n.id} className="nv-note-in"><strong>📝 {n.fromLabel} t’envoie une note</strong><p>{n.body}</p>
         <button type="button" className="x" onClick={()=>liveInvite.dismissNote(n.id)} aria-label="Fermer cette note">✕</button></article>)}
     </div>}
+    {spaceAction&&selectedSpaces.length>0&&<SpacesActions mode={spaceAction} project={project} spaces={selectedSpaces} onClose={()=>setSpaceAction(null)} onStatus={setStatus}
+      onMoved={ids=>{setProject(p=>({...p,spaces:(p.spaces??[]).filter(space=>!ids.includes(space.id))}));setSpaceSelection(new Set());if(activeSpaceId&&ids.includes(activeSpaceId)){setActiveSpaceId(null);}}}/>}
     {!creationFullscreen&&mediaPickerEl()}
     {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
     <ShotInbox shots={liveInvite.shots} onDismiss={liveInvite.dismissShot} onReply={shot=>{liveInvite.dismissShot(shot.id);setShotImage({image:shot.image,defaultTo:shot.fromEmail});}}/>
@@ -3260,10 +3299,6 @@ function App(){
             <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
             <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(activeId)}>☾ <span>Nuit</span></button>
           </div>}
-          {active && !creationFullscreen && <button type="button" className="nv-creation-fullscreen-enter"
-            onClick={()=>void toggleCreationFullscreen()} title="Agrandir uniquement la création 360°" aria-label="Plein écran de la création">
-            <Maximize2 size={20}/>
-          </button>}
           {active && creationFullscreen && !fullscreenToolsOpen && <button type="button" className={'nv-command-drawer-handle'+(fullscreenCommandDrawerOpen?' is-open':'')}
             onClick={()=>{setFullscreenCommandDrawerOpen(open=>!open);setFullscreenToolsOpen(false);setFullscreenGalleryOpen(false);setHoveredGallerySceneId(null);}}
             aria-expanded={fullscreenCommandDrawerOpen} aria-controls="nv-fullscreen-command-drawer"
