@@ -5075,3 +5075,12 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
   .nv-topbar-v3 .nv-v3-name{flex:1 1 0;min-width:0;max-width:none;width:auto}
   .nv-topbar-v3 .nv-v3-name input{width:100%;min-width:0}
 }
+
+/* Bulle de contrôle en colonne à droite, avec la vignette du panorama concerné */
+.nv-issue-callout.is-docked{display:block;position:fixed;padding:0 0 12px;overflow:hidden;max-height:calc(100dvh - 140px);overflow-y:auto}
+.nv-issue-callout.is-docked>svg{display:none}
+.nv-issue-callout.is-docked>div{padding:10px 12px 0}
+.nv-issue-callout.is-docked>button{position:absolute;top:8px;right:8px;z-index:2;background:#000a}
+.nv-issue-thumb{margin:0;position:relative;line-height:0}
+.nv-issue-thumb img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.nv-issue-thumb figcaption{position:absolute;left:0;right:0;bottom:0;padding:18px 10px 6px;line-height:1.2;font-weight:800;font-size:12.5px;background:linear-gradient(transparent,#000c);overflow-wrap:anywhere}

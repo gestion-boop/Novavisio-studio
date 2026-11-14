@@ -1050,7 +1050,7 @@ function App(){
   }
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
-    setIssueFocus({hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint});
+    setIssueFocus({hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
     setClassicDestinationOpen(false);
     if(is.kind==='comments'){setCommentsOpen(true);return;}
     if(is.kind==='bar-link'||is.kind==='bar-nav'){setPanel('bar');setSelectedBarId(is.barId??'');setSelectedId('');setRightHidden(false);return;}
