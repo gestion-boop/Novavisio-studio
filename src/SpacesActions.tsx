@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react';
 import {Download,Share2,X} from 'lucide-react';
 import {addMember,saveToCloud,cloudConfigured,listCloudProjects,openCloudProject,saveWorking,readLink,type CloudProject} from './cloud';
 import {loadParticipants,type Person} from './LiveShareDialog';
-import {readSpaceCloudLink,writeSpaceCloudLink,projectForSpaceExport,type StudioSpace} from './spaces';
+import {readSpaceCloudLink,writeSpaceCloudLink,projectForSpaceExport,stripExcluded,type StudioSpace} from './spaces';
 import {exportSpacesProject,mergeImportedSpaces} from './spaceTransfer';
 import {projectJsonParts,type StudioProject} from './storage';
 
@@ -51,7 +51,7 @@ export function SpacesActions({mode,project,spaces,onClose,onStatus,onMoved}:{
       let count=0;
       for(const space of spaces){
         setBusy('Envoi de l’espace « '+space.name+' » dans le Cloud…');
-        const saved=await saveToCloud(projectForSpaceExport(project,space),readSpaceCloudLink(space.id,'private'),setBusy);
+        const saved=await saveToCloud(projectForSpaceExport(stripExcluded(project),space),readSpaceCloudLink(space.id,'private'),setBusy);
         writeSpaceCloudLink(space.id,'private',saved);
         for(const email of emails){setBusy('Accès de '+email+' à « '+space.name+' »…');await addMember(saved.projectId,email,true);count++;}
       }

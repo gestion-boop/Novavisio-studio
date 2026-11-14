@@ -31,7 +31,19 @@ function relevantIcons(project:StudioProject,scenes:Scene[]){
 
 /** Prepare an independent visit without changing the parent project or its cloud IDs.
  * slim=true for published links/static exports: omit unused icon and audio libraries. */
+/** Retire de la visite les panoramas décochés, les flèches qui y mènent et leurs entrées dans les galeries / espaces. */
+export function stripExcluded(project:StudioProject):StudioProject{
+  const out=new Set(project.scenes.filter(sc=>sc.excluded).map(sc=>sc.id));
+  if(!out.size)return project;
+  return {...project,
+    scenes:project.scenes.filter(sc=>!out.has(sc.id)).map(sc=>({...sc,hotspots:sc.hotspots.filter(h=>!(h.type==='navigation'&&h.target&&out.has(h.target)))})),
+    bottomBar:project.bottomBar.map(item=>({...item,
+      ...(item.gallery?{gallery:item.gallery.filter(g=>!out.has(g.sceneId))}:{}),
+      target:item.target&&out.has(item.target)?'':item.target})),
+    spaces:(project.spaces??[]).map(space=>({...space,sceneIds:space.sceneIds.filter(id=>!out.has(id))}))};
+}
 export function projectForSpaceExport(project:StudioProject,space:StudioSpace|null,slim=false):StudioProject{
+  if(slim)project=stripExcluded(project);
   if(!space){
     if(!slim)return project;
     return {...project,

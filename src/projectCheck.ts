@@ -6,10 +6,12 @@ export type CheckIssue={id:string;level:'error'|'warn';text:string;kind:IssueKin
 /** Contrôle avant publication : repère ce qui sera visible vide ou cassé pour les visiteurs. */
 export function checkProject(project:StudioProject):CheckIssue[]{
   const out:Omit<CheckIssue,'id'>[]=[];
-  const ids=new Set(project.scenes.map(s=>s.id));
+  const ids=new Set(project.scenes.filter(s=>!s.excluded).map(s=>s.id));
+  const hidden=new Set(project.scenes.filter(s=>s.excluded).map(s=>s.id));
   const nameOf=(id:string)=>project.scenes.find(s=>s.id===id)?.name||'panorama';
   if(!project.scenes.length)out.push({level:'error',kind:'other',hint:'Importe au moins un panorama.',text:'Le projet ne contient aucun panorama.'});
   for(const scene of project.scenes){
+    if(scene.excluded)continue;
     const label='« '+(scene.name||'sans nom')+' »';
     if(!scene.name.trim()||/\.(jpe?g|png|webp)$/i.test(scene.name)||/^(img|dsc|pxl|pano)[-_ ]?\d*/i.test(scene.name))
       out.push({level:'warn',kind:'scene-name',hint:'Donne un vrai nom à ce panorama dans le champ ci-contre.',text:'Panorama '+label+' : le nom ressemble à un nom de fichier, pense à le renommer.',sceneId:scene.id});
@@ -18,7 +20,8 @@ export function checkProject(project:StudioProject):CheckIssue[]{
       const same=scene.hotspots.filter(o=>o.type===h.type&&(o.title||'')===(h.title||''));
       const where=label+' · '+(h.title||'point sans titre')+(same.length>1?' (n°'+(same.indexOf(h)+1)+')':'');
       const base={sceneId:scene.id,hotspotId:h.id};
-      if(h.type==='navigation'&&(!h.target||!ids.has(h.target)))out.push({level:'error',kind:'nav',hint:'Choisis le panorama de destination dans la galerie.',text:where+' : la flèche ne mène à aucun panorama.',...base});
+      if(h.type==='navigation'&&h.target&&hidden.has(h.target))out.push({level:'warn',kind:'nav',hint:'Recoche le panorama de destination ou choisis-en un autre : cette flèche sera retirée de la visite.',text:where+' : la flèche mène à un panorama décoché (masqué de la visite).',...base});
+      else if(h.type==='navigation'&&(!h.target||!ids.has(h.target)))out.push({level:'error',kind:'nav',hint:'Choisis le panorama de destination dans la galerie.',text:where+' : la flèche ne mène à aucun panorama.',...base});
       if(h.type==='image'&&!h.imageDataUrl)out.push({level:'error',kind:'photo',hint:'Choisis ou importe la photo dans la fenêtre ouverte.',text:where+' : point photo sans photo.',...base});
       if(h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)out.push({level:'error',kind:'video',hint:'Choisis ou importe la vidéo dans la fenêtre ouverte.',text:where+' : point vidéo sans vidéo.',...base});
       if(h.type==='lien'&&!h.url)out.push({level:'error',kind:'link',hint:'Colle l’adresse du lien dans le champ ci-contre.',text:where+' : lien sans adresse.',...base});

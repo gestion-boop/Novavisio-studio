@@ -104,6 +104,8 @@ export type Scene = {
   arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
   audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
   musicTrackId?:string;
+  /** Panorama décoché : il reste dans le projet mais n'apparaît ni dans la visite publiée ni dans les exports. */
+  excluded?:boolean;
 };
 export const isSafeVideoData = (s:unknown):s is string =>
   typeof s==='string' && /^data:video\/(?:mp4|webm);base64,[A-Za-z0-9+/=]+$/.test(s);

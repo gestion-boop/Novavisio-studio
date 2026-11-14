@@ -24,7 +24,7 @@ import {exportStaticTour} from './exportTour';
 import {useLiveSession,LiveOverlay,useLiveInvites,sendLiveInvite,sendLiveShot} from './liveSession';
 import {LiveShareDialog} from './LiveShareDialog';
 import {WriteHand} from './WriteHand';
-import {scenesInSpace,projectForSpaceExport,safeSpaceName,type StudioSpace} from './spaces';
+import {scenesInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
@@ -4215,7 +4215,12 @@ function App(){
             <span className="nv-gallery-drag-lines" aria-hidden="true">⠿</span> Déplacer la liste <span className="nv-gallery-drag-direction" aria-hidden="true">↕</span>
           </button>
         </div>
-        <div className={'scenes nv-panorama-list-'+panoramasLayout} ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className="scene-slot"
+        <div className="nv-scene-bulk" role="group" aria-label="Panoramas dans la visite">
+          <span>✓ {project.scenes.filter(sc=>!sc.excluded).length} / {project.scenes.length} dans la visite</span>
+          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.excluded?{...sc,excluded:undefined}:sc)}))}>Tout cocher</button>
+          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===p.scenes[0]?.id||sc.excluded?sc:{...sc,excluded:true})}))} title="Décoche tout sauf le premier panorama (accueil)">Tout décocher</button>
+        </div>
+        <div className={'scenes nv-panorama-list-'+panoramasLayout} ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className={'scene-slot'+(s.excluded?' is-excluded':'')}
           onMouseEnter={()=>{if(autoNavigation)hoverSidePreview(s.id);}} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
@@ -4243,6 +4248,11 @@ function App(){
                 {s.id===visibleScenes[0]?.id?' · Accueil':''} · {s.hotspots.length} point{s.hotspots.length>1?'s':''}</small>
             </span>
           </button>
+          <button type="button" className={'nv-scene-include'+(s.excluded?'':' is-on')} role="checkbox" aria-checked={!s.excluded}
+            title={s.excluded?'Panorama décoché : absent de la visite. Clique pour le remettre.':'Dans la visite. Décoche pour le retirer de la visite sans le supprimer.'}
+            onPointerDown={e=>e.stopPropagation()}
+            onClick={e=>{e.stopPropagation();setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===s.id?{...sc,excluded:sc.excluded?undefined:true}:sc)}));}}>
+            {s.excluded?'':'✓'}</button>
           {autoNavigation&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
             onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
@@ -4777,7 +4787,7 @@ function App(){
         setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
       }}
     />}
-    <footer className="nv-app-footer"><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
+    <footer className="nv-app-footer"><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas{project.scenes.some(sc=>sc.excluded)?' ('+project.scenes.filter(sc=>sc.excluded).length+' décoché'+(project.scenes.filter(sc=>sc.excluded).length>1?'s':'')+')':''} · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
     {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}><XMark/></button></div>}
     {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
@@ -4805,7 +4815,7 @@ function App(){
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
-    {privateOpen&&<PrivatePanel project={projectForSpaceExport({...project,clientProfile:undefined,comments:undefined},currentSpace)} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
+    {privateOpen&&<PrivatePanel project={projectForSpaceExport(stripExcluded({...project,clientProfile:undefined,comments:undefined}),currentSpace)} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
