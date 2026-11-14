@@ -390,6 +390,9 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
       let coords=frameWorldCorners(h);
       let center={yaw:h.yaw,pitch:h.pitch};
       let touched=false;
+      // Pendant le déplacement, la poignée devient un anneau transparent avec un réticule : on voit exactement où le coin se pose.
+      const ghost=()=>{const el=root.querySelector<HTMLElement>(movingCenter?'.nv-sphere-center[data-frame-id="'+id+'"]':'[data-frame-id="'+id+'"][data-corner="'+key+'"]');el?.classList.add('is-dragging');};
+      ghost();root.classList.add('nv-frame-dragging');
       const update=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
         pointer.preventDefault();
@@ -419,12 +422,14 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
           });
           plugin.updateMarker({id:centerMarkerId(h.id),position:center},false);
           plugin.renderMarkers();
+          ghost();
           viewer.needsUpdate(); // repaint the WebGL photo/video layer while dragging
         }catch{
           // If the frame was deleted during a drag, the edit will simply stop.
         }
       };
       const cleanup=()=>{
+        root.classList.remove('nv-frame-dragging');root.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
         document.removeEventListener('pointermove',update,true);
         document.removeEventListener('pointerup',finish,true);
         document.removeEventListener('pointercancel',cancel,true);
@@ -625,21 +630,21 @@ function App(){
   }
   const [project,setProjectRaw]=useState<StudioProject>(newProject());
   // Historique Annuler / Rétablir (Ctrl+Z · Ctrl+Maj+Z · Ctrl+Y) : des modifications rapprochées comptent pour une seule action.
-  const histRef=useRef<{past:StudioProject[];future:StudioProject[];last:number}>({past:[],future:[],last:0});
+  const histRef=useRef<{past:StudioProject[];future:StudioProject[];last:number;ops:number}>({past:[],future:[],last:0,ops:0});
   const [,setHistTick]=useState(0);
   const setProject=useCallback((update:React.SetStateAction<StudioProject>)=>{
     setProjectRaw(prev=>{
       const next=typeof update==='function'?(update as (p:StudioProject)=>StudioProject)(prev):update;
       if(next===prev)return prev;
       const h=histRef.current,now=Date.now();
-      if(now-h.last>700||!h.past.length){h.past.push(prev);if(h.past.length>60)h.past.shift();}
+      if(now-h.last>700||!h.past.length){h.past.push(prev);if(h.past.length>60)h.past.shift();h.ops++;}
       h.last=now;h.future=[];
       return next;
     });
     setHistTick(t=>t+1);
   },[]);
   /** Remplace tout le projet (ouverture, nouveau projet…) : l'historique repart de zéro. */
-  const resetProject=useCallback((p:StudioProject)=>{histRef.current={past:[],future:[],last:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
+  const resetProject=useCallback((p:StudioProject)=>{histRef.current={past:[],future:[],last:0,ops:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
   const [svgWorkshopOpen,setSvgWorkshopOpen]=useState(true);
   const [svgPreset,setSvgPreset]=useState<string>('info');
   const [svgDesign,setSvgDesign]=useState<SvgIconDesign>({
@@ -1485,6 +1490,18 @@ function App(){
   const channelRef=useRef<BroadcastChannel|null>(null);
   const [lock,setLock]=useState<{kind:'unreadable';reason:string}|{kind:'conflict'}|{kind:'saveError';reason:string}|null>(null);
   projectRef.current=project;
+  // Enregistrement automatique discret : dès la 6e modification non enregistrée, on sauvegarde en arrière-plan (sans fenêtre ni blocage).
+  const autoSaveBlock=useRef(0);
+  useEffect(()=>{
+    if(!ready||lock||savingManually)return;
+    if(histRef.current.ops<6||project===savedRef.current||Date.now()<autoSaveBlock.current)return;
+    const t=window.setTimeout(async()=>{
+      if(projectRef.current===savedRef.current)return;
+      const ok=await manualSave(false,true);
+      if(!ok)autoSaveBlock.current=Date.now()+90_000;
+    },2500);
+    return ()=>window.clearTimeout(t);
+  },[project,ready,savingManually]); // eslint-disable-line react-hooks/exhaustive-deps
   function applyHistory(target:StudioProject,label:string){
     setProjectRaw(target);setHistTick(t=>t+1);histRef.current.last=0;
     if(!target.scenes.some(sc=>sc.id===activeId))setActiveId(target.scenes[0]?.id??'');
@@ -1631,7 +1648,7 @@ function App(){
     setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
   },true);
-  async function manualSave(publishing=false):Promise<boolean>{
+  async function manualSave(publishing=false,silent=false):Promise<boolean>{
     if(!ready||savingManually||savingRef.current)return false;
     if(lock?.kind==='unreadable'||lock?.kind==='conflict'){
       setStatus('Enregistrement bloqué : vérifie le conflit ou récupère le projet');
@@ -1683,9 +1700,11 @@ function App(){
         }
         }else setStatus('Enregistré dans le Cloud · Cliquez sur Publier pour actualiser la visite en ligne');
       }else{
-        setStatus('Cloud déconnecté : connexion nécessaire pour enregistrer ou publier.');setCloudOpen(true);
+        if(!silent){setStatus('Cloud déconnecté : connexion nécessaire pour enregistrer ou publier.');setCloudOpen(true);}
         return false;
       }
+      if(silent)setStatus('Enregistrement automatique effectué');
+      histRef.current.ops=0;setHistTick(t=>t+1);
       return true;
     }catch(error){setStatus('Échec : '+(error instanceof Error?error.message:String(error)));return false;}finally{setSavingManually(false);}
   }
@@ -3252,6 +3271,14 @@ function App(){
           aria-label="Nouvelle version de NovaStudio disponible : actualiser">
           <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
         </button>}
+        {(()=>{
+          const dirty=ready&&project!==savedRef.current,ops=histRef.current.ops;
+          const state=savingManually?'saving':!dirty?'clean':ops>=5?'urgent':'dirty';
+          const tip=state==='saving'?'Enregistrement en cours…':state==='clean'?'Tout est enregistré':state==='urgent'?ops+' modifications non enregistrées : clique pour enregistrer (enregistrement automatique à la 6e)':'Des modifications ne sont pas enregistrées : clique pour enregistrer (Ctrl+S)';
+          return <button type="button" className={'nv-v3-icon-btn nv-v3-save is-'+state} onClick={()=>void manualSave()} disabled={!ready||savingManually||!!lock} aria-label={tip} title={tip}>
+            <Save size={20}/>{state==='dirty'||state==='urgent'?<i className="nv-save-badge" aria-hidden="true">{ops>9?'9+':ops||'!'}</i>:null}
+          </button>;
+        })()}
         <button type="button" className="nv-v3-icon-btn nv-v3-undo" onClick={undo} disabled={!histRef.current.past.length} aria-label="Annuler la dernière action" title="Annuler (Ctrl+Z)"><Undo2 size={20}/></button>
         <button type="button" className="nv-v3-icon-btn nv-v3-redo" onClick={redo} disabled={!histRef.current.future.length} aria-label="Rétablir l’action annulée" title="Rétablir (Ctrl+Maj+Z ou Ctrl+Y)"><Redo2 size={20}/></button>
         <div className="nv-share-wrap" ref={shareMenuRef}>

@@ -5185,3 +5185,20 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-scene-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px;font-size:12.5px;color:#cfe8ee}
 .nv-scene-bulk span{flex:1;font-weight:700}
 .nv-scene-bulk button{padding:4px 10px;border-radius:8px;border:1px solid #35606f;background:#143543;color:inherit;font-weight:600;cursor:pointer}
+
+/* Disquette d'enregistrement dans l'en-tête */
+.nv-v3-save{position:relative}
+.nv-v3-save.is-clean{opacity:.7}
+.nv-v3-save.is-dirty{background:#c76a12!important;border-color:#ffc27a!important;color:#fff}
+.nv-v3-save.is-urgent{background:#c8281f!important;border-color:#ff9a92!important;color:#fff;animation:nv-save-pulse 1.4s ease-in-out infinite}
+.nv-v3-save.is-saving{opacity:.85}.nv-v3-save.is-saving svg{animation:nv-save-spin 1s linear infinite}
+.nv-save-badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#fff;color:#7a1d16;font:800 11px/18px system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 2px #0d1f2a}
+@keyframes nv-save-pulse{0%,100%{box-shadow:0 0 0 0 #ff5a4f99}50%{box-shadow:0 0 0 8px #ff5a4f00}}
+@keyframes nv-save-spin{to{transform:rotate(360deg)}}
+@media(max-width:600px){.nv-topbar-v3 .nv-v3-undo,.nv-topbar-v3 .nv-v3-redo{display:none}}
+
+/* Poignée de coin en cours de déplacement : anneau transparent + réticule, pour voir le point exact sous le doigt */
+.nv-sphere-handle.is-dragging::after,.nv-sphere-center.is-dragging::after{width:18px;height:18px;background:transparent!important;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #000b,inset 0 0 0 1px #000b}
+.nv-sphere-handle.is-dragging::before,.nv-sphere-center.is-dragging::before{content:"";position:absolute;left:50%;top:50%;width:84px;height:84px;transform:translate(-50%,-50%);pointer-events:none;
+  background:linear-gradient(#fff,#fff) center/1.5px 100% no-repeat,linear-gradient(#fff,#fff) center/100% 1.5px no-repeat;filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #0009);-webkit-mask:radial-gradient(circle,transparent 11px,#000 12px);mask:radial-gradient(circle,transparent 11px,#000 12px)}
+.nv-frame-dragging .nv-sphere-handle:not(.is-dragging)::after{opacity:.35}
