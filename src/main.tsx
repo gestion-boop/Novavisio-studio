@@ -1048,14 +1048,17 @@ function App(){
   const returnToCheck=useRef(false);
   const [guided,setGuided]=useState<{queue:CheckIssue[];i:number}|null>(null);
   const fixingRef=useRef(false);
+  const [fixError,setFixError]=useState('');
   async function validateFix(){
     if(fixingRef.current)return;
-    fixingRef.current=true;
+    fixingRef.current=true;setFixError('');
     const guidedNow=guided;
+    let ok:boolean|undefined;
     try{
       // On n'attend pas indéfiniment le Cloud : après 20 s l'enregistrement continue en arrière-plan et on passe à la suite.
-      await Promise.race([manualSave().catch(()=>undefined),new Promise<void>(resolve=>window.setTimeout(resolve,20000))]);
+      ok=await Promise.race([manualSave().catch(()=>false),new Promise<undefined>(resolve=>window.setTimeout(()=>resolve(undefined),20000))]);
     }finally{fixingRef.current=false;}
+    if(ok===false){setFixError('L’enregistrement n’a pas abouti : la correction n’est pas sauvegardée. Lis le message en haut de l’écran, puis réessaie.');return;}
     if(guidedNow){nextGuided();return;}
     setIssueFocus(null);setGuided(null);
     if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
@@ -1074,7 +1077,7 @@ function App(){
   }
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
-    setIssueFocus({id:is.id,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
+    setFixError('');setIssueFocus({id:is.id,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
     // Le mode Auto crée / déplace des flèches et change de panorama après chaque validation : on le coupe pour que la correction ne touche que la flèche signalée.
     if(autoNavigation){setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);}
     setClassicDestinationOpen(false);setPreview(false);
@@ -1554,11 +1557,11 @@ function App(){
     setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
   },true);
-  async function manualSave(publishing=false){
-    if(!ready||savingManually||savingRef.current)return;
+  async function manualSave(publishing=false):Promise<boolean>{
+    if(!ready||savingManually||savingRef.current)return false;
     if(lock?.kind==='unreadable'||lock?.kind==='conflict'){
       setStatus('Enregistrement bloqué : vérifie le conflit ou récupère le projet');
-      return;
+      return false;
     }
     const snapshot=projectRef.current;
     setSavingManually(true);
@@ -1568,7 +1571,7 @@ function App(){
         const synced=await cloud.syncNow(snapshot);
         if(!synced){
           setStatus('Échec de la sauvegarde Cloud : rien n’a été écrasé. Vérifie le panneau Cloud et réessaie.');
-          return;
+          return false;
         }
         savedRef.current=snapshot;
         if(publishing){
@@ -1607,8 +1610,10 @@ function App(){
         }else setStatus('Enregistré dans le Cloud · Cliquez sur Publier pour actualiser la visite en ligne');
       }else{
         setStatus('Cloud déconnecté : connexion nécessaire pour enregistrer ou publier.');setCloudOpen(true);
+        return false;
       }
-    }catch(error){setStatus('Échec : '+(error instanceof Error?error.message:String(error)));}finally{setSavingManually(false);}
+      return true;
+    }catch(error){setStatus('Échec : '+(error instanceof Error?error.message:String(error)));return false;}finally{setSavingManually(false);}
   }
   useEffect(()=>{
     const onSaveShortcut=(event:KeyboardEvent)=>{
@@ -3331,7 +3336,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
     {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">

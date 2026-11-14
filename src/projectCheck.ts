@@ -31,5 +31,5 @@ export function checkProject(project:StudioProject):CheckIssue[]{
   }
   const open=(project.comments??[]).filter(c=>!c.done).length;
   if(open)out.push({level:'warn',kind:'comments',hint:'Ouvre les commentaires et marque-les comme résolus.',text:open+' commentaire'+(open>1?'s':'')+' d’équipe non résolu'+(open>1?'s':'')+'.'});
-  return out.map((issue,i)=>({...issue,id:issue.kind+'|'+(issue.hotspotId??issue.barId??issue.sceneId??'')+(issue.hotspotId||issue.barId||issue.sceneId?'':'|'+i)}));
+  return out.map((issue,i)=>({...issue,id:issue.kind+'|'+(issue.sceneId??'')+'|'+(issue.hotspotId??issue.barId??'')+(issue.hotspotId||issue.barId||issue.sceneId?'':'|'+i)}));
 }
