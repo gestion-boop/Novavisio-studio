@@ -1664,11 +1664,10 @@ function App(){
   }
   function closeMediaPicker(){
     const target=mediaPicker;setMediaPicker(null);
-    if(!target||!target.fresh)return;
-    // Point créé pour rien (aucun média choisi) : on le retire, comme avant.
-    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===target.sceneId?{...sc,hotspots:sc.hotspots.filter(h=>h.id!==target.hotspotId||!!(h.imageDataUrl||h.videoDataUrl||h.videoUrl))}:sc)}));
-    setSelectedId(cur=>cur===target.hotspotId?'':cur);
-    setStatus('Aucun média choisi : le point n’a pas été créé.');
+    if(!target)return;
+    // Le point reste placé et sélectionné : on retrouve ses réglages (icône, taille…) et on pourra choisir le média plus tard.
+    setSelectedId(target.hotspotId);setPanel('points');setMode(null);setRightHidden(false);
+    setStatus((target.type==='image'?'Point photo':'Point vidéo')+' créé sans média : choisis-le avec « '+(target.type==='image'?'Choisir une photo déjà utilisée':'Choisir une vidéo déjà utilisée')+' », ou règle son icône et sa taille.');
   }
   function mediaPickerEl(){
     return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onImport={importFromPicker} onClose={closeMediaPicker}/>:null;
