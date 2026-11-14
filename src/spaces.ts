@@ -1,7 +1,7 @@
 import type {StudioProject,Scene,BottomBarItem} from './storage';
 import type {CloudLink} from './cloud';
 
-export type StudioSpace={id:string;name:string;sceneIds:string[];coverDataUrl?:string};
+export type StudioSpace={id:string;name:string;nameTranslations?:Partial<Record<'en'|'es'|'de'|'nl',string>>;sceneIds:string[];coverDataUrl?:string};
 
 /**
  * Master project is immutable to space selection: a space contains REFERENCES

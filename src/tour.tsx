@@ -3,7 +3,7 @@ import {informationFont} from './InformationEditor';
 import {projectForSpaceExport} from './spaces';
 import {isPopupMedia,popupMediaMarkerHtml} from './mediaDisplay';
 import {framedPhotoSource} from './photoFrame';
-import {useEffect,useRef,useState,type CSSProperties} from 'react';
+import {useEffect,useMemo,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -19,6 +19,7 @@ import {barIconSize,defaultBarStyle,defaultFrameCorners,STUDIO_LANGUAGES,type St
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {localizedProject} from './projectTranslations';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
@@ -201,10 +202,15 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const sourceProject=given??fromPage;
   const [gallerySpace,setGallerySpace]=useState<string|null>(null);
   const chosenSpace=sourceProject?.spaces?.find(space=>space.id===gallerySpace);
-  const project=sourceProject&&chosenSpace?projectForSpaceExport(sourceProject,chosenSpace):sourceProject;
+  const prefs=useVisitorPrefs();
+  const project=useMemo(()=>{
+    const scoped=sourceProject&&chosenSpace?projectForSpaceExport(sourceProject,chosenSpace):sourceProject;
+    if(!scoped)return null;
+    const langs=scoped.languages??(scoped.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(l=>l.code):['fr']);
+    return localizedProject(scoped,effectiveLang(prefs,langs));
+  },[sourceProject,chosenSpace,prefs.lang]);
   const [sceneId,setSceneId]=useState(()=>project?.scenes[0]?.id??'');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
-  const prefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [modal,setModal]=useState<{title:string;url?:string;text?:string;fontFamily?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);

@@ -15,6 +15,7 @@ export type Hotspot = {
   type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
+  titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;/** Flèche « Sphère » : boule 3D qui tourne et montre le panorama de destination (diamètre = iconSize). */sphere?:boolean;url?:string;
   mediaDisplay?:'popup'|'inline';
   fontFamily?:string;linkMode?:'embed'|'tab';
@@ -61,13 +62,14 @@ export const defaultBarStyle = ():BarStyle => ({
   outlineWidth:2,buttonOutlineWidth:1,roundness:60
 });
 /** Une vignette de la galerie : panorama + nom affiché (vide = nom du panorama). */
-export type GalleryItem = { sceneId: string; label: string };
+export type GalleryItem = { sceneId: string; label: string; labelTranslations?: Partial<Record<Exclude<StudioLanguage,'fr'>,string>> };
 export type BottomBarItem = {
   id: string;
   title: string;
   type: 'navigation' | 'information' | 'lien' | 'gallery';
   gallery?: GalleryItem[];
   galleryTitle?: string;
+  galleryTitleTranslations?: Partial<Record<Exclude<StudioLanguage,'fr'>,string>>;
   /** Photo de fond du panneau d'espaces : « scene:<id> » (un panorama) ou « space:<id> » (la couverture d'un espace). */
   galleryBackground?: string;
   /** Photo importée par l'utilisateur comme fond du panneau (image compressée) : prioritaire sur galleryBackground. */
@@ -77,6 +79,7 @@ export type BottomBarItem = {
   text: string;
   url: string;
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
+  titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   iconId?: string;
   hoverIconId?: string;
   pressedIconId?: string;
@@ -112,7 +115,7 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
   });
 };
 export type Scene = {
-  id:string;name:string;dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;hotspots:Hotspot[];
+  id:string;name:string;nameTranslations?:Partial<Record<Exclude<StudioLanguage,'fr'>,string>>;dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;hotspots:Hotspot[];
   arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
   audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
   musicTrackId?:string;
@@ -133,7 +136,7 @@ export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIc
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 /** Commentaire d'équipe accroché à un endroit d'un panorama (jamais publié dans la visite). */
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
-export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;nameTranslations?:Partial<Record<Exclude<StudioLanguage,'fr'>,string>>;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -196,6 +199,10 @@ export function readImage(file:File):Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+function validTranslationMap(value:unknown,max:number):boolean {
+  return value===undefined || (!!value && typeof value==='object' && !Array.isArray(value) && Object.entries(value).every(([lang,text])=>['en','es','de','nl'].includes(lang)&&typeof text==='string'&&text.length<=max));
+}
+
 export function validateProject(value:unknown):StudioProject {
   if (!value || typeof value !== 'object') throw new Error('Format de projet incorrect');
   const p = value as Partial<StudioProject>;
@@ -267,9 +274,10 @@ export function validateProject(value:unknown):StudioProject {
     if (!item || typeof item.id !== 'string' || typeof item.title !== 'string' || item.title.length > 120 ||
       !['navigation','information','lien','gallery'].includes(item.type) ||
       (item.gallery !== undefined && (!Array.isArray(item.gallery) || item.gallery.length > 200 ||
-        !item.gallery.every(g => g && typeof g.sceneId === 'string' && typeof g.label === 'string' && g.label.length <= 100))) ||
+        !item.gallery.every(g => g && typeof g.sceneId === 'string' && typeof g.label === 'string' && g.label.length <= 100 && validTranslationMap(g.labelTranslations,100)))) ||
       (item.gallerySpaceIds!==undefined&&(!Array.isArray(item.gallerySpaceIds)||item.gallerySpaceIds.length>80||item.gallerySpaceIds.some(id=>typeof id!=='string'))) ||
       (item.linkMode!==undefined&&!['embed','tab'].includes(item.linkMode)) ||
+      (!validTranslationMap(item.titleTranslations,120)||!validTranslationMap(item.galleryTitleTranslations,100)) ||
       (item.fontFamily!==undefined&&(typeof item.fontFamily!=='string'||item.fontFamily.length>50)) ||
       (item.galleryTitle !== undefined && (typeof item.galleryTitle !== 'string' || item.galleryTitle.length > 100)) ||
       (item.galleryBackgroundImage !== undefined && (item.galleryBackgroundImage.length > 3_000_000 || !isSafeFrameImage(item.galleryBackgroundImage))) ||
@@ -286,6 +294,7 @@ export function validateProject(value:unknown):StudioProject {
   }
   for (const scene of p.scenes) {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
+    if(!validTranslationMap(scene.nameTranslations,200))throw new Error('Traduction de panorama invalide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
     if(scene.nightDataUrl!==undefined && (!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(scene.nightDataUrl) || scene.nightDataUrl.length>85_000_000)) throw new Error('Panorama de nuit invalide');
     if(scene.nightSourceSceneId!==undefined && (typeof scene.nightSourceSceneId!=='string'||scene.nightSourceSceneId===scene.id||!p.scenes.some(other=>other.id===scene.nightSourceSceneId))) throw new Error('Panorama de nuit sélectionné introuvable');
@@ -304,6 +313,7 @@ export function validateProject(value:unknown):StudioProject {
        ) throw new Error('Piste audio non valide');
     for (const h of scene.hotspots) {
       if (!h || typeof h.id !== 'string' || !['navigation','information','lien','image','video'].includes(h.type) || typeof h.title !== 'string' || typeof h.text !== 'string' || typeof h.target !== 'string' || !Number.isFinite(h.yaw) || !Number.isFinite(h.pitch) ||
+        (!validTranslationMap(h.titleTranslations,120)||!validTranslationMap(h.translations,8000)) ||
         (h.iconId !== undefined && (typeof h.iconId !== 'string' || !icons.some(icon=>icon.id===h.iconId))) ||
         (h.hoverIconId !== undefined && (typeof h.hoverIconId !== 'string' || !icons.some(icon=>icon.id===h.hoverIconId))) ||
         (h.pressedIconId !== undefined && (typeof h.pressedIconId !== 'string' || !icons.some(icon=>icon.id===h.pressedIconId))) ||
@@ -354,7 +364,7 @@ export function validateProject(value:unknown):StudioProject {
   const spaceIds=new Set<string>();
   for(const space of spaces){
     if(!space||typeof space.id!=='string'||!space.id||space.id.length>100||spaceIds.has(space.id)||
-       typeof space.name!=='string'||!space.name.trim()||space.name.length>100||
+       typeof space.name!=='string'||!space.name.trim()||space.name.length>100||!validTranslationMap(space.nameTranslations,100)||
        (space.coverDataUrl!==undefined&&(space.coverDataUrl.length>3_000_000||!isSafeFrameImage(space.coverDataUrl))) ||
        !Array.isArray(space.sceneIds)||space.sceneIds.length>p.scenes.length||
        new Set(space.sceneIds).size!==space.sceneIds.length||

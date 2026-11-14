@@ -1,6 +1,8 @@
 import {MediaIconSelector} from './MediaIconSettings';
 import {BarSmartCard,barKind,recommendedType} from './BarSmartCard';
 import {InformationEditor,informationFont} from './InformationEditor';
+import {ProjectTranslations} from './ProjectTranslations';
+import {localized,localizedProject} from './projectTranslations';
 import {EmbeddedPage} from './EmbeddedPage';
 import {SpaceCover} from './SpaceCover';
 import {BarGalleryEditor,type BarGalleryTab} from './BarGalleryEditor';
@@ -681,6 +683,7 @@ function App(){
   const svgLogoInput=useRef<HTMLInputElement>(null);
   const [ready,setReady]=useState(false);
   const [preparationOpen,setPreparationOpen]=useState(false);
+  const [translationsOpen,setTranslationsOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
   const [informationEdit,setInformationEdit]=useState<{sceneId:string;pointId:string}|null>(null);
   const [publishConfirm,setPublishConfirm]=useState(false);
@@ -1325,7 +1328,7 @@ function App(){
     if(u.p&&['points','panoramas','bar','general'].includes(u.p as string))setPanel(u.p);
     // Fenêtre d'information : soit un bouton de la barre du bas, soit un point du panorama (toujours relus dans MA copie du projet).
     const bar=u.i?current.bottomBar.find(b=>b.id===u.i):null;
-    if(bar)setInfo({id:bar.id,type:'information',title:bar.title,text:bar.text,translations:bar.translations,target:'',yaw:0,pitch:0});
+    if(bar)setInfo({id:bar.id,type:'information',title:bar.title,titleTranslations:bar.titleTranslations,text:bar.text,translations:bar.translations,target:'',yaw:0,pitch:0});
     else setInfo(findHotspot(u.i));
     const safe=u.f?safeLink(u.f.u):null;
     setFrame(u.f&&safe&&/^https:\/\//i.test(safe)?{title:String(u.f.t).slice(0,120),url:safe}:null);
@@ -1851,12 +1854,16 @@ function App(){
   const sceneSortEnabled=!currentSpace&&!sceneSearch.trim()&&sceneFilter==='all';
   const visibleIds=new Set(visibleScenes.map(scene=>scene.id));
   const active=visibleScenes.find(s=>s.id===activeId) ?? null;
+  const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
+  const previewLang=effectiveLang(visitorPrefs,activeLanguages);
+  const previewProject=useMemo(()=>preview?localizedProject(project,previewLang):project,[project,preview,previewLang]);
   // Aperçu : les flèches vers les panoramas décochés disparaissent (ils ne font pas partie de la visite)
   const tourActive=useMemo(()=>{
-    if(!active||!preview||!project.scenes.some(sc=>sc.excluded))return active;
+    if(!active||!preview)return active;
+    const localizedScene=previewProject.scenes.find(sc=>sc.id===active.id)??active;
     const out=new Set(project.scenes.filter(sc=>sc.excluded).map(sc=>sc.id));
-    return {...active,hotspots:active.hotspots.filter(h=>!(h.type==='navigation'&&h.target&&out.has(h.target)))};
-  },[active,preview,project.scenes]);
+    return {...localizedScene,hotspots:localizedScene.hotspots.filter(h=>!(h.type==='navigation'&&h.target&&out.has(h.target)))};
+  },[active,preview,project.scenes,previewProject]);
   useEffect(()=>{
     if(activeSpaceId && !(project.spaces??[]).some(sp=>sp.id===activeSpaceId)){
       setActiveSpaceId(null);setSpaceManagerOpen(false);return;
@@ -2523,7 +2530,6 @@ function App(){
     // Keep existing selections and content when changing the button's action.
     patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:{type});
   }
-  const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
   useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
   function triggerBar(item:BottomBarItem){
@@ -2540,10 +2546,10 @@ function App(){
       const dest=item.target && visibleIds.has(item.target)?item.target:visibleScenes[0]?.id;
       if(dest)selectScene(dest);
     }else if(item.type==='information') {
-      if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url,item.linkMode);
-      else {setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo({id:item.id,type:'information',title:item.title,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
+      if (item.url && safeLink(item.url)) openLinkInTour(preview?localized(item.title,item.titleTranslations,previewLang):item.title,item.url,item.linkMode);
+      else {setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo({id:item.id,type:'information',title:item.title,titleTranslations:item.titleTranslations,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
     }
-    else if(item.url)openLinkInTour(item.title,item.url,item.linkMode);
+    else if(item.url)openLinkInTour(preview?localized(item.title,item.titleTranslations,previewLang):item.title,item.url,item.linkMode);
   }
   // Atelier SVG intégré : modèles vectoriels de confiance, convertis en PNG à
   // l'enregistrement pour rester compatibles avec les projets Cloud existants.
@@ -3387,6 +3393,7 @@ function App(){
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setPreparationOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Sparkles size={17}/> Préparer le projet</span></button>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setTranslationsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Globe size={17}/> Traduire la visite</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
             <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
           </button>
@@ -3708,6 +3715,7 @@ function App(){
         <button type="button" onClick={()=>setWelcome(null)}>OK</button>
       </div>
     </aside>}
+    {translationsOpen&&<ProjectTranslations project={project} onApply={fn=>{setProject(fn);setStatus('Traductions appliquées · enregistre le projet avec la disquette.');}} onClose={()=>setTranslationsOpen(false)}/>}
     {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>{setNotesOpen(false);backFrom();}} onOpenCloud={()=>{returnTo.current=null;setToolsMenuOpen(false);setCloudOpen(true);}}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
@@ -3853,7 +3861,7 @@ function App(){
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(active?.hotspots.find(p=>p.id===h.id)??h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -4396,10 +4404,11 @@ function App(){
           {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
+              const label=preview?localized(item.title,item.titleTranslations,previewLang):item.title;
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+              return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':label} aria-label={label}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
-                <span className="visitor-bar-label">{item.title}</span>
+                <span className="visitor-bar-label">{label}</span>
               </button></div></div>;
             })}
           </nav>}
@@ -4422,10 +4431,10 @@ function App(){
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
           {preview&&galleryOpen&&(()=>{
-            const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
+            const item=previewProject.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;
             return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces,sceneThumbs)}
-              entries={galleryEntries(item,preview?visibleScenes.filter(sc=>!sc.excluded):visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
+              entries={galleryEntries(item,preview?previewProject.scenes.filter(sc=>visibleIds.has(sc.id)&&!sc.excluded):visibleScenes,previewProject.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
               onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
           {imageZoom?.imageDataUrl && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
@@ -4443,7 +4452,7 @@ function App(){
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
             <div className="modal" onClick={event=>event.stopPropagation()}>
               <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer"><XMark/></button>
-              <h2>{info.title}</h2>
+              <h2>{localized(info.title,info.titleTranslations,infoLanguage)}</h2>
               <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
                 {STUDIO_LANGUAGES.filter(lang=>activeLanguages.includes(lang.code)).map(lang=><button type="button" key={lang.code} title={lang.name} aria-label={lang.name} aria-pressed={infoLanguage===lang.code} className={infoLanguage===lang.code?'is-active':''} onClick={()=>setInfoLanguage(lang.code)}>{lang.flag}</button>)}
               </div><p className="preserve" style={{fontFamily:informationFont(info.fontFamily)+', Arial, sans-serif'}}>{(infoLanguage==='fr'?info.text:info.translations?.[infoLanguage]||info.text)||'Aucune information renseignée.'}</p>
@@ -5100,7 +5109,7 @@ function App(){
         <ul className="nv-publish-check">{publishIssues.slice(0,40).map((is,i)=><li key={i} className={'is-'+is.level}><span>{is.level==='error'?'⛔':'⚠️'}</span><span>{is.text}</span>
           {is.sceneId&&<button type="button" onClick={()=>goToIssue(is)}>Corriger</button>}</li>)}</ul></>}
       <div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>{publishIssues.some(i=>i.level==='error')?'Publier quand même':'Confirmer la publication'}</button></div></section></div>}
-    {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
+    {preparationOpen&&<ProjectPreparation project={project} onTranslate={()=>{setPreparationOpen(false);setTranslationsOpen(true);}} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
     {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}
     <input ref={placedMediaInput} hidden type="file" aria-label="Importer le média placé" onChange={e=>{
