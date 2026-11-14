@@ -118,8 +118,9 @@ export function straightenFrames(plugin:MarkersPlugin,ids:string[]){
     if(!mesh||!pos||pos.count<4)continue;
     // Ordre des sommets du maillage : 0 = haut-gauche, 1 = haut-droit, 2 = bas-gauche, 3 = bas-droit
     const v=[0,1,2,3].map(i=>new Vector3(pos.getX(i),pos.getY(i),pos.getZ(i)));
-    const R=v[0].length();
-    if(!R)continue;
+    // Rayon FIXE (celui de la sphère de PSV) : recalculé à partir des sommets courants, il dériverait à chaque image et le cadre finirait par s'effondrer.
+    const R=10;
+    if(!v.every(p=>p.lengthSq()>1e-6&&Number.isFinite(p.x+p.y+p.z)))continue;
     const r=[v[0],v[1],v[3],v[2]].map(p=>p.clone().normalize()); // haut-gauche, haut-droit, bas-droit, bas-gauche
     // d2·r2 − d1·r1 − d3·r3 = −r0 (parallélogramme : P0 + P2 = P1 + P3), avec d0 = 1
     const a=r[2],b=r[1].clone().negate(),c=r[3].clone().negate(),rhs=r[0].clone().negate();
