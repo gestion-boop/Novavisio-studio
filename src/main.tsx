@@ -1018,6 +1018,19 @@ function App(){
   const issueErrors=projectIssues.filter(i=>i.level==='error').length;
   const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
+  const [guided,setGuided]=useState<{queue:{text:string;level:'error'|'warn';sceneId?:string;hotspotId?:string}[];i:number}|null>(null);
+  function startGuided(){
+    const queue=[...projectIssues.filter(i=>i.level==='error'),...projectIssues.filter(i=>i.level==='warn')];
+    if(!queue.length)return;
+    setGuided({queue,i:0});goToIssue(queue[0]);
+  }
+  function nextGuided(){
+    if(!guided)return;
+    let j=guided.i+1;
+    while(j<guided.queue.length&&!projectIssues.some(x=>x.text===guided.queue[j].text))j++;
+    if(j>=guided.queue.length){setGuided(null);setIssueFocus(null);setStatus('Tous les problèmes ont été passés en revue 🎉');return;}
+    setGuided({queue:guided.queue,i:j});goToIssue(guided.queue[j]);
+  }
   function goToIssue(is:{sceneId?:string;hotspotId?:string;text:string;level:'error'|'warn'}){
     setCheckOpen(false);setPublishConfirm(false);
     setIssueFocus({hotspotId:is.hotspotId,text:is.text,level:is.level});
@@ -3223,8 +3236,8 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&<IssueCallout focus={issueFocus} stillPresent={projectIssues.some(i=>i.text===issueFocus.text)} onClose={()=>setIssueFocus(null)} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
-    {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={goToIssue} onClose={()=>setCheckOpen(false)}/>}
+    {issueFocus&&<IssueCallout focus={issueFocus} stillPresent={projectIssues.some(i=>i.text===issueFocus.text)} onClose={()=>{setIssueFocus(null);setGuided(null);}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={i=>{setGuided(null);goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>

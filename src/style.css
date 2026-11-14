@@ -5047,3 +5047,6 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-issue-callout.is-error::before{color:#b3261e}.nv-issue-callout.is-warn::before{color:#a86b00}
 
 .nv-issue-callout .nv-issue-open{width:auto;height:auto;padding:6px 10px;margin-top:4px;align-self:flex-start;font-weight:700;font-size:12.5px}
+
+.nv-check-guided{align-self:flex-start;height:40px;padding:0 16px;border-radius:10px;border:1px solid #9fdcf3;background:linear-gradient(160deg,#46aed6,#2f8fb5);color:#fff;font-weight:800;cursor:pointer}
+.nv-issue-callout .nv-issue-next{background:#fff;color:#222;border-color:#fff}
