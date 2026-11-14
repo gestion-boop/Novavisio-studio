@@ -5254,3 +5254,6 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-frame-halo path,.nv-frame-halo polygon{pointer-events:none;filter:drop-shadow(0 0 5px rgba(255,255,255,.9)) drop-shadow(0 0 12px rgba(120,220,255,.6));animation:nv-halo 2.6s ease-in-out infinite}
 @keyframes nv-halo{0%,100%{opacity:.18}50%{opacity:.75}}
 @media(prefers-reduced-motion:reduce){.nv-frame-halo path,.nv-frame-halo polygon{animation:none;opacity:.4}}
+
+.nv-size-control{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-weight:700;font-size:13px}
+.nv-size-control input[type=range]{width:100%;accent-color:#2f8fb5}

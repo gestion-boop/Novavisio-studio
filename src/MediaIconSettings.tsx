@@ -16,7 +16,7 @@ export function MediaIconSelector({project,value,onChange,label,kind}:{project:S
  const allSets=[...merged].sort((x,y)=>(match.test(y.name)?1:0)-(match.test(x.name)?1:0));
  const set=allSets.find(set=>set.iconId===value?.iconId&&set.hoverIconId===value?.hoverIconId&&set.pressedIconId===value?.pressedIconId);
  const current=set?set.name:value?.iconId?project.icons.find(i=>i.id===value.iconId)?.name??'Icône personnalisée':'Icône '+(kind==='image'?'Photo':'Vidéo')+' standard';
- const pick=(next:Partial<DefaultNavigationIcon>)=>{onChange(next);setOpen(false);};
+ const pick=(next:Partial<DefaultNavigationIcon>)=>{onChange({...next,iconSize:value?.iconSize??next.iconSize});setOpen(false);};
  const thumb=(id?:string)=>project.icons.find(i=>i.id===id)?.dataUrl;
  return <div className="nv-media-icon-selector nv-icon-picker">
   <span className="nv-icon-picker-label">{label}</span>

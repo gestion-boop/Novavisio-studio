@@ -2871,6 +2871,13 @@ function App(){
   }
   /** Applique l'icône (normal / survol / clic) et la taille du point sélectionné à tous les points du même type de la visite, et en fait le choix par défaut des prochains points. */
   const TYPE_LABELS:Record<string,string>={navigation:'toutes les flèches',image:'tous les points photo',video:'tous les points vidéo',information:'tous les points information',lien:'tous les liens'};
+  /** Réglette de taille de l'icône du point sélectionné (16 à 80 px). */
+  function iconSizeControl(){
+    if(!selected)return null;
+    const current=selected.iconSize??(isPopupMedia(selected)?42:28);
+    return <label className="nv-size-control">Taille de l’icône : <b>{current} px</b>
+      <input type="range" min="16" max="80" step="2" value={current} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>;
+  }
   function applyIconToAll(){
     if(!selected)return;
     const type=selected.type,{iconId,hoverIconId,pressedIconId}=selected,iconSize=selected.iconSize;
@@ -2913,6 +2920,7 @@ function App(){
         <button type="button" className="nv-act" onClick={goIcon} title="Changer l’icône et la taille"><Star size={26}/><span>Icône</span></button>
         <button type="button" className="nv-act is-danger" onClick={()=>removeAutoNavigationArrow(selected.id)} title="Supprimer cette flèche"><Trash2 size={26}/><span>Supprimer</span></button>
       </div>
+      {iconSizeControl()}
       <small>✥ Glisse la poignée à côté de la flèche pour la déplacer.</small>
     </div>;
   }
@@ -2993,11 +3001,16 @@ function App(){
     if(!active||!mode)return;
     const importedVideo=mode==='video'&&clientVideoPlacement?.sceneId===active.id?clientVideoPlacement:null;
     const favorite=mode==='navigation'?defaultNavigationIconSet():mode==='image'?project.defaultPhotoIcon:mode==='video'?project.defaultVideoIcon:null;
+    // Taille par défaut = celle de la plupart des points du même type déjà posés (sinon celle de l'icône favorite).
+    const sizes=new Map<number,number>();
+    for(const sc of project.scenes)for(const x of sc.hotspots)if(x.type===mode&&typeof x.iconSize==='number')sizes.set(x.iconSize,(sizes.get(x.iconSize)??0)+1);
+    const commonSize=[...sizes.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0];
     const h:Hotspot={
       id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Photo':mode==='video'?'Vidéo':'Informations',
       text:'',target:'',yaw,pitch,
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{}),
+      ...(commonSize!==undefined?{iconSize:commonSize}:{}),
       ...(['image','video'].includes(mode)?{mediaDisplay:'popup' as const,frameWidth:320,frameHeight:200,frameReferenceHeight:Math.max(100,viewAreaRef.current?.clientHeight||550),frameReferenceZoom:cameraRef.current.zoom,frameCorners:defaultFrameCorners(),fadeOnClick:true}:{}),
       ...(mode==='lien'?{linkMode:'embed' as const}:{}),
       ...(mode==='video'?{videoAutoplay:true,videoLoop:true,videoOpenFullscreen:true}:{}),
@@ -3960,6 +3973,7 @@ function App(){
                     {selected.type==='image'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                       <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo':'Ajouter une photo'}
@@ -3979,6 +3993,7 @@ function App(){
                     {selected.type==='video'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <label>URL de la vidéo
                         <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''}
@@ -4429,6 +4444,7 @@ function App(){
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                 <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'image',fresh:false});}}>🖼 Choisir une photo déjà utilisée</button>
@@ -4461,6 +4477,7 @@ function App(){
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'video',fresh:false});}}>🎞 Choisir une vidéo déjà utilisée</button>
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
