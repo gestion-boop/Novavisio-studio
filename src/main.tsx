@@ -1066,7 +1066,7 @@ function App(){
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
     setIssueFocus({id:is.id,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
-    setClassicDestinationOpen(false);
+    setClassicDestinationOpen(false);setPreview(false);
     if(is.kind==='comments'){setCommentsOpen(true);return;}
     if(is.kind==='bar-link'||is.kind==='bar-nav'){setPanel('bar');setSelectedBarId(is.barId??'');setSelectedId('');setRightHidden(false);return;}
     if(!is.sceneId){setPanel('panoramas');setRightHidden(false);return;}
@@ -1085,7 +1085,7 @@ function App(){
     }else{
       setSelectedId('');
       if(is.kind==='scene-name')setHubOpen(h=>({...h,scene:'name'}));
-      else setHubOpen(h=>({...h,scene:null}));
+      else{setHubOpen(h=>({...h,scene:null}));setRightHidden(true);} // panorama sans point : on montre seulement la bulle, rien à ouvrir
     }
     if(hs)window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:hs.yaw,pitch:hs.pitch}),900);
   }
