@@ -884,6 +884,11 @@ function App(){
   const [fullscreenCommandDrawerOpen,setFullscreenCommandDrawerOpen]=useState(false);
   const [quickLinkMode,setQuickLinkMode]=useState(true);
   const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
+  // « Retour » : quand une fenêtre s'ouvre depuis le rideau d'outils ou le menu Partager, la croix ramène à ce rideau / menu.
+  const returnTo=useRef<'tools'|'share'|null>(null);
+  function backFrom(){const r=returnTo.current;returnTo.current=null;if(r==='tools')setToolsMenuOpen(true);else if(r==='share')setShareMenuOpen(true);}
+  function leaveTools(){returnTo.current='tools';setToolsMenuOpen(false);}
+  function leaveShare(){returnTo.current='share';setShareMenuOpen(false);}
   const [notesOpen,setNotesOpen]=useState(false);
   const [dragTool,setDragTool]=useState<string|null>(null);
   // Le rideau des outils s'arrête à la limite de la barre de création (ou du pied de page) : il ne la recouvre jamais.
@@ -1042,8 +1047,8 @@ function App(){
   function toolMeta(key:string):{label:string;icon:ReactNode;tone:string;active:boolean;badge?:number;run:()=>void}|null{
     const ic=22;
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
-      run:()=>{setToolsMenuOpen(false);setSpacesDrawerOpen(open=>!open);}};
-    if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{setToolsMenuOpen(false);setRightHidden(true);setNotesOpen(true);}};
+      run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
+    if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);
     if(!option)return null;
     const look:Record<string,{icon:ReactNode;tone:string}>={
@@ -1130,7 +1135,7 @@ function App(){
                 onClick={()=>{setToolsMenuOpen(false);void exportNovaVisioHtml();}} style={{'--tile-tone':'#1fb5a8'} as CSSProperties}>
                 <span className="nv-app-tile-icon"><Globe size={22}/></span><span className="nv-app-tile-label">HTML NovaVisio</span></button></div>
               <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className={'nv-app-tile'+(liveProjectId?' is-active':'')}
-                onClick={()=>{setToolsMenuOpen(false);setRightHidden(true);if(liveProjectId)void toggleLive();else setLiveDialogOpen(true);}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
+                onClick={()=>{leaveTools();setRightHidden(true);if(liveProjectId)void toggleLive();else setLiveDialogOpen(true);}} style={{'--tile-tone':'#27ae60'} as CSSProperties}
                 title="Travailler à deux sur le même projet : voir la souris de l’autre et se passer la main">
                 <span className="nv-app-tile-icon"><Users size={22}/></span><span className="nv-app-tile-label">Écran partagé</span></button></div>
               <div className="nv-tile-wrap nv-tile-hand"><WriteHand onStatus={setStatus}/></div>
@@ -1149,7 +1154,7 @@ function App(){
     void toggleCreationFullscreen().then(()=>run());
   }
   function toggleToolPanel(next:PanelTab){
-    setToolsMenuOpen(false);
+    leaveTools();
     if(!rightHidden&&panel===next){setRightHidden(true);return;}
     setPanel(next);
     setRightHidden(false);
@@ -2970,8 +2975,8 @@ function App(){
           </button>
           {shareMenuOpen&&<div className="nv-share-menu" role="menu" aria-label="Partager">
             <div className="nv-share-group">Le projet</div>
-            <button type="button" role="menuitem" onClick={()=>{setShareMenuOpen(false);setShareOpen(true);}}>🔗 Lien public et publication</button>
-            <button type="button" role="menuitem" onClick={()=>{setShareMenuOpen(false);setPrivateOpen(true);}}>🔒 Inviter un membre (lien privé)</button>
+            <button type="button" role="menuitem" onClick={()=>{leaveShare();setShareOpen(true);}}>🔗 Lien public et publication</button>
+            <button type="button" role="menuitem" onClick={()=>{leaveShare();setPrivateOpen(true);}}>🔒 Inviter un membre (lien privé)</button>
             <div className="nv-share-group">Les espaces</div>
             <button type="button" role="menuitem" onClick={()=>startSpaceAction()}>☑ Choisir plusieurs espaces</button>
             <button type="button" role="menuitem" onClick={()=>startSpaceAction('share')}>👥 Partager des espaces avec un membre</button>
@@ -3128,9 +3133,9 @@ function App(){
       <button type="button" className="is-go" onClick={reloadToLatestVersion} disabled={savingManually}><RefreshCw size={16}/> Actualiser maintenant</button>
       <button type="button" onClick={()=>setUpdateSnoozeUntil(Date.now()+10*60_000)}>Plus tard</button>
     </div>}
-    {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>setLiveDialogOpen(false)}/>}
+    {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>setNotesOpen(false)} onOpenCloud={()=>setCloudOpen(true)}/>}
+    {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>{setNotesOpen(false);backFrom();}} onOpenCloud={()=>{returnTo.current=null;setToolsMenuOpen(false);setCloudOpen(true);}}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
       const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
@@ -3837,7 +3842,7 @@ function App(){
 
       </main>
       <aside className="right panel">
-        <div className="nv-inspector-top"><button type="button" onClick={()=>setRightHidden(true)} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
+        <div className="nv-inspector-top"><button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         {currentSpace&&<SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
@@ -3894,7 +3899,7 @@ function App(){
             }}
             onClick={()=>{
               selectScene(s.id);
-              if(!autoNavigation)setRightHidden(true); // on va simplement au panorama choisi
+              if(!autoNavigation){returnTo.current=null;setRightHidden(true);} // on va simplement au panorama choisi
               setMode(autoNavigation&&!preview?'navigation':null);
               setGalleryPreviewSceneId(null);
               setGalleryPreviewPinned(false);
@@ -4422,7 +4427,7 @@ function App(){
       currentProjectName={project.name}
       currentProfile={project.clientProfile}
       canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
-      onClose={()=>setClientOpen(false)}
+      onClose={()=>{setClientOpen(false);backFrom();}}
       onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
       currentStyle={project.barStyle}
       onUpdateCurrent={(profile,style)=>setProject(p=>({...p,...(profile?{clientProfile:profile}:{}),...(style?{barStyle:{...p.barStyle,...style}}:{})}))}
@@ -4467,8 +4472,8 @@ function App(){
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
-    {privateOpen&&<PrivatePanel project={projectForSpaceExport({...project,clientProfile:undefined},currentSpace)} space={currentSpace} onClose={()=>setPrivateOpen(false)} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
-    {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>setShareOpen(false)} onStatus={setStatus}/>}
+    {privateOpen&&<PrivatePanel project={projectForSpaceExport({...project,clientProfile:undefined},currentSpace)} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
+    {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
       onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(up.scenes[0]?.id??''));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
