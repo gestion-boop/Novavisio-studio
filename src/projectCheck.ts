@@ -29,7 +29,7 @@ export function checkProject(project:StudioProject):CheckIssue[]{
     if(item.type==='lien'&&!item.url)out.push({level:'error',kind:'bar-link',hint:'Colle l’adresse du lien dans le champ ci-contre.',barId:item.id,text:'Barre du bas · « '+(item.title||'bouton')+' » : lien sans adresse.'});
     if(item.type==='navigation'&&item.target&&!ids.has(item.target))out.push({level:'error',kind:'bar-nav',hint:'Choisis une destination existante pour ce bouton.',barId:item.id,text:'Barre du bas · « '+(item.title||'bouton')+' » : destination introuvable ('+nameOf(item.target)+').'});
   }
-  const open=(project.comments??[]).filter(c=>!c.done).length;
+  const open=(project.comments??[]).filter(c=>!c.done&&!c.issueId).length;
   if(open)out.push({level:'warn',kind:'comments',hint:'Ouvre les commentaires et marque-les comme résolus.',text:open+' commentaire'+(open>1?'s':'')+' d’équipe non résolu'+(open>1?'s':'')+'.'});
   return out.map((issue,i)=>({...issue,id:issue.kind+'|'+(issue.sceneId??'')+'|'+(issue.hotspotId??issue.barId??'')+(issue.hotspotId||issue.barId||issue.sceneId?'':'|'+i)}));
 }

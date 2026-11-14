@@ -25,7 +25,7 @@ export function CommentsPanel({comments,scenes,currentSceneId,onAdd,onGo,onToggl
         {!list.length&&<p className="nv-comments-empty">Aucun commentaire{doneCount&&!showDone?' en attente':''}.</p>}
         {list.map(c=><article key={c.id} className={'nv-comment'+(c.done?' is-done':'')}>
           <button type="button" className="nv-comment-main" onClick={()=>onGo(c)} title="Aller à cet endroit du panorama">
-            <small><MapPin size={12}/> {sceneName(c.sceneId)} · {c.author} · {new Date(c.at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</small>
+            <small><MapPin size={12}/> {sceneName(c.sceneId)} · {c.author}{c.issueId&&<span className="nv-comment-tag">à corriger</span>} · {new Date(c.at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</small>
             <span>{c.text}</span>
           </button>
           <button type="button" className="nv-comment-btn" onClick={()=>onToggle(c.id)} aria-label={c.done?'Rouvrir':'Marquer comme résolu'} title={c.done?'Rouvrir':'Marquer comme résolu'}><Check size={16}/></button>

@@ -5123,3 +5123,10 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-issue-banner>div>small{opacity:.9;font-size:12.5px;margin-top:2px}
 @media(max-width:700px){.nv-issue-banner{flex-direction:column}.nv-issue-banner-thumb{width:100%}}
 .nv-issue-callout{font-size:14.5px}
+
+.nv-issue-360{height:200px;background:#0a1c26}
+.nv-issue-360 .nv-hover-preview-media{position:absolute;inset:0;width:100%;height:100%}
+.nv-issue-360 .nv-hover-preview-viewer{position:absolute;inset:0}
+.nv-issue-callout .nv-issue-note{background:#fff3;color:#fff;border-color:#fff8}
+.nv-check-note{font-size:11.5px;background:#2f8fb5;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.nv-comment-tag{font-size:10.5px;background:#2f8fb5;border-radius:999px;padding:0 7px;margin-left:6px}

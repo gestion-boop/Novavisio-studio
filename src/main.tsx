@@ -1034,6 +1034,30 @@ function App(){
   const projectIssues=useMemo(()=>ready?checkProject(project):[],[project,ready]);
   const publishIssues=projectIssues;
   const issueErrors=projectIssues.filter(i=>i.level==='error').length;
+  // Correctifs notés « à faire » : un commentaire lié au problème, résolu tout seul dès que le problème disparaît.
+  const notedIds=useMemo(()=>new Set((project.comments??[]).filter(c=>c.issueId&&!c.done).map(c=>c.issueId!)),[project.comments]);
+  useEffect(()=>{
+    if(!ready)return;
+    const present=new Set(projectIssues.map(i=>i.id));
+    const stale=(project.comments??[]).filter(c=>c.issueId&&!c.done&&!present.has(c.issueId));
+    if(stale.length)setProject(p=>({...p,comments:(p.comments??[]).map(c=>c.issueId&&!c.done&&!present.has(c.issueId)?{...c,done:true}:c)}));
+  },[projectIssues,ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  function noteIssueForLater(){
+    if(!issueFocus?.id)return;
+    const is=projectIssues.find(x=>x.id===issueFocus.id);
+    const sceneId=issueFocus.sceneId??is?.sceneId;
+    if(sceneId&&!notedIds.has(issueFocus.id)){
+      const hs=project.scenes.find(sc=>sc.id===sceneId)?.hotspots.find(h=>h.id===issueFocus.hotspotId);
+      const cam=cameraRef.current;
+      const c:ProjectComment={id:uid(),sceneId,yaw:hs?.yaw??cam.yaw,pitch:hs?.pitch??cam.pitch,text:'À faire : '+issueFocus.text+(issueFocus.hint?' — '+issueFocus.hint:''),author:inviteIdentity?inviteIdentity.email.split('@')[0].slice(0,24):'Moi',at:Date.now(),issueId:issueFocus.id};
+      setProject(p=>({...p,comments:[c,...(p.comments??[])].slice(0,500)}));
+      pushNotif('📝','Noté « à faire » : '+issueFocus.text.slice(0,80));
+      setStatus('Correctif noté dans les commentaires du panorama · enregistre pour le partager');
+    }
+    if(guided){nextGuided();return;}
+    setIssueFocus(null);
+    if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
+  }
   const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
   // Flèche provisoire créée pour un panorama sans point : supprimée si on ferme la galerie sans choisir de destination.
@@ -1064,14 +1088,14 @@ function App(){
     if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
   }
   function startGuided(){
-    const queue=[...projectIssues.filter(i=>i.level==='error'),...projectIssues.filter(i=>i.level==='warn')];
+    const queue=[...projectIssues.filter(i=>i.level==='error'&&!notedIds.has(i.id)),...projectIssues.filter(i=>i.level==='warn'&&!notedIds.has(i.id))];
     if(!queue.length)return;
     returnToCheck.current=true;setGuided({queue,i:0});goToIssue(queue[0]);
   }
   function nextGuided(){
     if(!guided)return;
     let j=guided.i+1;
-    while(j<guided.queue.length&&!projectIssues.some(x=>x.id===guided.queue[j].id))j++;
+    while(j<guided.queue.length&&(!projectIssues.some(x=>x.id===guided.queue[j].id)||notedIds.has(guided.queue[j].id)))j++;
     if(j>=guided.queue.length){setGuided(null);setIssueFocus(null);setStatus('Tous les problèmes ont été passés en revue 🎉');if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}return;}
     setGuided({queue:guided.queue,i:j});goToIssue(guided.queue[j]);
   }
@@ -1103,7 +1127,7 @@ function App(){
   }
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
-    setFixError('');setIssueFocus({id:is.id,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
+    setFixError('');setIssueFocus({id:is.id,sceneId:is.sceneId,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
     // Le mode Auto crée / déplace des flèches et change de panorama après chaque validation : on le coupe pour que la correction ne touche que la flèche signalée.
     if(autoNavigation){setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);}
     setClassicDestinationOpen(false);setPreview(false);
@@ -3362,8 +3386,8 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
-    {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
+    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} onNote={noteIssueForLater} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>

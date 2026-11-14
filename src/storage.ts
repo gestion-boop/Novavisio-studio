@@ -118,7 +118,7 @@ export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;nam
 export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number};
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 /** Commentaire d'équipe accroché à un endroit d'un panorama (jamais publié dans la visite). */
-export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean};
+export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
 export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
@@ -328,7 +328,7 @@ export function validateProject(value:unknown):StudioProject {
   if(p.comments!==undefined){
     if(!Array.isArray(p.comments)||p.comments.length>500)throw new Error('Commentaires invalides');
     for(const c of p.comments){
-      if(!c||typeof c.id!=='string'||typeof c.sceneId!=='string'||typeof c.text!=='string'||c.text.length>2000||typeof c.author!=='string'||c.author.length>100||
+      if(!c||typeof c.id!=='string'||typeof c.sceneId!=='string'||typeof c.text!=='string'||c.text.length>2000||typeof c.author!=='string'||c.author.length>100||(c.issueId!==undefined&&(typeof c.issueId!=='string'||c.issueId.length>300))||
         !Number.isFinite(c.yaw)||!Number.isFinite(c.pitch)||!Number.isFinite(c.at))throw new Error('Commentaire invalide');
     }
   }
