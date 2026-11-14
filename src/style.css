@@ -5099,3 +5099,6 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-issue-banner img{width:84px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;flex:none}
 .nv-issue-banner>div{display:flex;flex-direction:column;gap:2px;min-width:0}
 .nv-issue-banner b{font-size:14px}.nv-issue-banner em{font-style:normal;font-weight:700}
+
+/* Le rideau des outils se referme en remontant (même animation que l'ouverture) */
+.nv-tools-curtain{max-height:none;transition:height .38s cubic-bezier(.2,.75,.2,1),opacity .3s ease,visibility 0s linear .38s}

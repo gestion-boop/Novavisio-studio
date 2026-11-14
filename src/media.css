@@ -364,3 +364,8 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 .nv-gallery-bg-import,.nv-gallery-bg-actions button{display:inline-block;text-align:center;border:1px solid #4bebde;border-radius:8px;background:#12414b;color:#e7fff9;padding:7px 12px;font-size:12px;cursor:pointer}
 .nv-gallery-bg-actions button{border-color:#5b6e75;background:transparent}
 .nv-gallery-bg-error{color:#ffb3bd}
+
+/* Beaucoup de panoramas : le cadre s'étale en largeur (6 colonnes) au lieu de 3 */
+.nv-gallery:has(.nv-gallery-card:nth-child(7)){width:min(94vw,1120px);max-width:min(94vw,1120px);max-height:min(88vh,760px)}
+.nv-gallery:has(.nv-gallery-card:nth-child(7)) .nv-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));justify-content:stretch}
+.nv-gallery:has(.nv-gallery-card:nth-child(7)) .nv-gallery-card{width:auto}
