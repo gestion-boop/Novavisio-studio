@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState,type PointerEvent as RPointerEvent} from 'react';
-import {Camera,Circle,Download,Copy,MoveUpRight,Pencil,Square,Type,Undo2,Trash2,X,Send} from 'lucide-react';
+import {Camera,Circle,Download,Copy,MousePointer2,MoveUpRight,Pencil,Square,Type,Undo2,Trash2,X,Send} from 'lucide-react';
 import {loadParticipants,type Person} from './LiveShareDialog';
 import type {LiveShot} from './liveSession';
 
@@ -24,7 +24,7 @@ export async function captureScreen():Promise<string>{
   }finally{stream.getTracks().forEach(t=>t.stop());}
 }
 
-type Tool='pen'|'circle'|'arrow'|'rect'|'text';
+type Tool='select'|'pen'|'circle'|'arrow'|'rect'|'text';
 type Shape={tool:Tool;color:string;size:number;pts?:[number,number][];x1?:number;y1?:number;x2?:number;y2?:number;text?:string};
 const COLORS=['#ff3b30','#ffd60a','#34c759','#0a84ff','#ffffff','#111111'];
 const SIZES=[3,6,10];
@@ -55,6 +55,55 @@ function drawShape(ctx:CanvasRenderingContext2D,sh:Shape,scale:number){
   ctx.restore();
 }
 
+/* ---- Sélection / modification des annotations ---- */
+const distSeg=(px:number,py:number,x1:number,y1:number,x2:number,y2:number)=>{
+  const dx=x2-x1,dy=y2-y1,l2=dx*dx+dy*dy;
+  const t=l2===0?0:Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy)/l2));
+  return Math.hypot(px-(x1+t*dx),py-(y1+t*dy));
+};
+function textBounds(ctx:CanvasRenderingContext2D,sh:Shape,scale:number){
+  const px=Math.round((10+sh.size*2.2)*scale);
+  ctx.save();ctx.font=`800 ${px}px system-ui,Segoe UI,Arial,sans-serif`;
+  const lines=(sh.text??'').split('\n');
+  const w=Math.max(...lines.map(l=>ctx.measureText(l).width),10);
+  ctx.restore();
+  return {x:sh.x1!,y:sh.y1!,w,h:lines.length*px*1.2};
+}
+function shapeBounds(ctx:CanvasRenderingContext2D,sh:Shape,scale:number){
+  if(sh.tool==='text')return textBounds(ctx,sh,scale);
+  if(sh.tool==='pen'&&sh.pts?.length){
+    const xs=sh.pts.map(p=>p[0]),ys=sh.pts.map(p=>p[1]);
+    const x=Math.min(...xs),y=Math.min(...ys);return {x,y,w:Math.max(...xs)-x,h:Math.max(...ys)-y};
+  }
+  const x=Math.min(sh.x1!,sh.x2!),y=Math.min(sh.y1!,sh.y2!);return {x,y,w:Math.abs(sh.x2!-sh.x1!),h:Math.abs(sh.y2!-sh.y1!)};
+}
+function hitShape(ctx:CanvasRenderingContext2D,sh:Shape,x:number,y:number,scale:number):boolean{
+  const tol=Math.max(12*scale,sh.size*scale*1.5);
+  if(sh.tool==='text'){const b=textBounds(ctx,sh,scale);return x>=b.x-tol/2&&x<=b.x+b.w+tol/2&&y>=b.y-tol/2&&y<=b.y+b.h+tol/2;}
+  if(sh.tool==='pen'&&sh.pts){
+    if(sh.pts.length===1)return Math.hypot(x-sh.pts[0][0],y-sh.pts[0][1])<=tol;
+    for(let i=1;i<sh.pts.length;i++)if(distSeg(x,y,sh.pts[i-1][0],sh.pts[i-1][1],sh.pts[i][0],sh.pts[i][1])<=tol)return true;
+    return false;
+  }
+  if(sh.tool==='arrow')return distSeg(x,y,sh.x1!,sh.y1!,sh.x2!,sh.y2!)<=tol;
+  const b=shapeBounds(ctx,sh,scale);
+  if(sh.tool==='rect'){
+    const inside=x>=b.x-tol&&x<=b.x+b.w+tol&&y>=b.y-tol&&y<=b.y+b.h+tol;
+    const inner=x>b.x+tol&&x<b.x+b.w-tol&&y>b.y+tol&&y<b.y+b.h-tol;
+    return inside&&!inner;
+  }
+  // cercle / ellipse : proche du contour
+  const cx=b.x+b.w/2,cy=b.y+b.h/2,rx=Math.max(b.w/2,1),ry=Math.max(b.h/2,1);
+  const d=Math.hypot((x-cx)/rx,(y-cy)/ry);
+  return Math.abs(d-1)*Math.min(rx,ry)<=tol;
+}
+const moveShape=(sh:Shape,dx:number,dy:number):Shape=>({
+  ...sh,
+  ...(sh.pts?{pts:sh.pts.map(([a,b])=>[a+dx,b+dy] as [number,number])}:{}),
+  ...(sh.x1!==undefined?{x1:sh.x1+dx,y1:sh.y1!+dy}:{}),
+  ...(sh.x2!==undefined?{x2:sh.x2+dx,y2:sh.y2!+dy}:{})
+});
+
 export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
   image:string;defaultTo?:string;canSend:boolean;onSend:(to:string[],comment:string,image:string)=>Promise<void>;onClose:()=>void;
 }){
@@ -66,7 +115,9 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
   const [size,setSize]=useState(SIZES[1]);
   const [shapes,setShapes]=useState<Shape[]>([]);
   const draft=useRef<Shape|null>(null);
-  const [textBox,setTextBox]=useState<{x:number;y:number;value:string}|null>(null);
+  const [textBox,setTextBox]=useState<{x:number;y:number;value:string;index?:number}|null>(null);
+  const [sel,setSel]=useState<number|null>(null);                       // annotation sélectionnée (outil « Sélection »)
+  const drag=useRef<{idx:number;x:number;y:number}|null>(null);
   const [people,setPeople]=useState<Person[]|null>(null);
   const [peopleError,setPeopleError]=useState('');
   const [chosen,setChosen]=useState<Set<string>>(new Set(defaultTo?[defaultTo]:[]));
@@ -101,8 +152,22 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
     ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
     for(const sh of shapes)drawShape(ctx,sh,scaleOf());
     if(draft.current)drawShape(ctx,draft.current,scaleOf());
+    // Cadre pointillé autour de l'annotation sélectionnée (jamais exporté)
+    if(sel!==null&&shapes[sel]){
+      const k=scaleOf(),bb=shapeBounds(ctx,shapes[sel],k),pad=8*k;
+      ctx.save();ctx.setLineDash([8*k,6*k]);ctx.lineWidth=2*k;ctx.strokeStyle='#4bebde';
+      ctx.strokeRect(bb.x-pad,bb.y-pad,bb.w+2*pad,bb.h+2*pad);ctx.restore();
+    }
   }
-  useEffect(render,[shapes,ready,scale]);
+  // Image propre (sans cadre de sélection) pour télécharger, copier, envoyer
+  function flatCanvas():HTMLCanvasElement{
+    const c=canvasRef.current!,img=imgRef.current!;
+    const out=document.createElement('canvas');out.width=c.width;out.height=c.height;
+    const ctx=out.getContext('2d')!;ctx.drawImage(img,0,0,c.width,c.height);
+    for(const sh of shapes)drawShape(ctx,sh,Math.max(1,c.width/1000));
+    return out;
+  }
+  useEffect(render,[shapes,ready,scale,sel]);
 
   const pos=(e:RPointerEvent):[number,number]=>{
     const c=canvasRef.current!,r=c.getBoundingClientRect();
@@ -112,18 +177,33 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
     if(!ready)return;
     e.preventDefault();
     const [x,y]=pos(e);
+    if(tool==='select'){
+      commitText();
+      const ctx=canvasRef.current!.getContext('2d')!,k=scaleOf();
+      let idx=-1;for(let i=shapes.length-1;i>=0;i--){if(hitShape(ctx,shapes[i],x,y,k)){idx=i;break;}}
+      setSel(idx>=0?idx:null);
+      if(idx>=0){setColor(shapes[idx].color);setSize(shapes[idx].size);drag.current={idx,x,y};(e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);}
+      return;
+    }
     if(tool==='text'){commitText();setTextBox({x,y,value:''});return;}
     (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);
     draft.current=tool==='pen'?{tool,color,size,pts:[[x,y]]}:{tool,color,size,x1:x,y1:y,x2:x,y2:y};
     render();
   }
   function move(e:RPointerEvent<HTMLCanvasElement>){
+    if(drag.current){
+      const [x,y]=pos(e),dr=drag.current,dx=x-dr.x,dy=y-dr.y;
+      dr.x=x;dr.y=y;
+      setShapes(list=>list.map((sh,i)=>i===dr.idx?moveShape(sh,dx,dy):sh));
+      return;
+    }
     const d=draft.current;if(!d)return;
     const [x,y]=pos(e);
     if(d.tool==='pen')d.pts!.push([x,y]);else{d.x2=x;d.y2=y;}
     render();
   }
   function up(){
+    if(drag.current){drag.current=null;return;}
     const d=draft.current;draft.current=null;
     if(!d)return;
     const tiny=d.tool!=='pen'&&Math.hypot((d.x2??0)-(d.x1??0),(d.y2??0)-(d.y1??0))<6;
@@ -131,13 +211,48 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
   }
   function commitText(){
     setTextBox(box=>{
-      if(box&&box.value.trim())setShapes(list=>[...list,{tool:'text',color,size,x1:box.x,y1:box.y,text:box.value.trim()}]);
+      if(!box)return null;
+      const value=box.value.trim();
+      if(box.index!==undefined){
+        // modification d'un texte existant (texte vide = suppression)
+        setShapes(list=>value?list.map((sh,i)=>i===box.index?{...sh,text:value}:sh):list.filter((_,i)=>i!==box.index));
+        if(!value)setSel(null);
+      }else if(value){
+        setShapes(list=>[...list,{tool:'text',color,size,x1:box.x,y1:box.y,text:value}]);
+      }
       return null;
     });
   }
+  // Modifier le texte sélectionné (double-clic ou bouton)
+  function editSelectedText(){
+    if(sel===null||shapes[sel]?.tool!=='text')return;
+    const sh=shapes[sel];setTextBox({x:sh.x1!,y:sh.y1!,value:sh.text??'',index:sel});
+  }
+  function removeSelected(){
+    if(sel===null)return;
+    setShapes(list=>list.filter((_,i)=>i!==sel));setSel(null);
+  }
+  function pickColor(c:string){setColor(c);if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,color:c}:sh));}
+  function pickSize(sz:number){setSize(sz);if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,size:sz}:sh));}
+  function dblClick(e:RPointerEvent<HTMLCanvasElement>|React.MouseEvent<HTMLCanvasElement>){
+    if(tool!=='select')return;
+    const c=canvasRef.current!,r=c.getBoundingClientRect();
+    const x=(e.clientX-r.left)*c.width/r.width,y=(e.clientY-r.top)*c.height/r.height;
+    const ctx=c.getContext('2d')!,k=scaleOf();
+    for(let i=shapes.length-1;i>=0;i--)if(shapes[i].tool==='text'&&hitShape(ctx,shapes[i],x,y,k)){setSel(i);setTextBox({x:shapes[i].x1!,y:shapes[i].y1!,value:shapes[i].text??'',index:i});return;}
+  }
+  // Touches Suppr / Retour arrière : supprime l'annotation sélectionnée
+  useEffect(()=>{
+    const onKey=(e:KeyboardEvent)=>{
+      const tag=(e.target as HTMLElement|null)?.tagName;if(tag==='TEXTAREA'||tag==='INPUT')return;
+      if((e.key==='Delete'||e.key==='Backspace')&&sel!==null){e.preventDefault();removeSelected();}
+      if(e.key==='Escape'&&sel!==null)setSel(null);
+    };
+    window.addEventListener('keydown',onKey);return ()=>window.removeEventListener('keydown',onKey);
+  });
   // Image finale (annotations incluses)
   function exportCanvas(maxW:number,type:'image/png'|'image/jpeg',q=.8):string{
-    const c=canvasRef.current!;
+    const c=flatCanvas();
     const k=Math.min(1,maxW/c.width);
     const out=document.createElement('canvas');out.width=Math.round(c.width*k);out.height=Math.round(c.height*k);
     out.getContext('2d')!.drawImage(c,0,0,out.width,out.height);
@@ -148,7 +263,7 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
     return exportCanvas(480,'image/jpeg',.35);
   }
   function download(){
-    const c=canvasRef.current!;
+    const c=flatCanvas();
     c.toBlob(blob=>{
       if(!blob)return;
       const url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -157,7 +272,7 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
   }
   async function copy(){
     try{
-      const c=canvasRef.current!;
+      const c=flatCanvas();
       const blob=await new Promise<Blob|null>(r=>c.toBlob(r,'image/png'));
       if(!blob)throw new Error('image vide');
       await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
@@ -173,28 +288,31 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
     finally{setBusy(false);}
   }
   const toggle=(email:string)=>setChosen(cur=>{const n=new Set(cur);if(n.has(email))n.delete(email);else n.add(email);return n;});
-  const tools:[Tool,string,typeof Pencil][]=[['arrow','Flèche',MoveUpRight],['circle','Cercle',Circle],['rect','Cadre',Square],['pen','Crayon',Pencil],['text','Texte',Type]];
+  const tools:[Tool,string,typeof Pencil][]=[['select','Sélection',MousePointer2],['arrow','Flèche',MoveUpRight],['circle','Cercle',Circle],['rect','Cadre',Square],['pen','Crayon',Pencil],['text','Texte',Type]];
   const canvasRect=canvasRef.current?.getBoundingClientRect();
 
   return <div className="overlay nv-shot-overlay" role="dialog" aria-modal="true" aria-label="Capture annotée">
     <div className="nv-shot">
       <header className="nv-shot-bar">
         <div className="nv-shot-tools" role="toolbar" aria-label="Outils d’annotation">
-          {tools.map(([key,label,Icon])=><button type="button" key={key} className={'nv-shot-tool'+(tool===key?' is-on':'')} aria-pressed={tool===key} onClick={()=>{commitText();setTool(key);}}><Icon size={18}/><span>{label}</span></button>)}
+          {tools.map(([key,label,Icon])=><button type="button" key={key} className={'nv-shot-tool'+(tool===key?' is-on':'')} aria-pressed={tool===key} onClick={()=>{commitText();setTool(key);if(key!=='select')setSel(null);}}><Icon size={18}/><span>{label}</span></button>)}
         </div>
         <div className="nv-shot-colors" role="group" aria-label="Couleur">
-          {COLORS.map(c=><button type="button" key={c} className={'nv-shot-color'+(color===c?' is-on':'')} style={{background:c}} aria-label={'Couleur '+c} aria-pressed={color===c} onClick={()=>setColor(c)}/>)}
+          {COLORS.map(c=><button type="button" key={c} className={'nv-shot-color'+(color===c?' is-on':'')} style={{background:c}} aria-label={'Couleur '+c} aria-pressed={color===c} onClick={()=>pickColor(c)}/>)}
         </div>
         <div className="nv-shot-sizes" role="group" aria-label="Épaisseur">
-          {SIZES.map(sz=><button type="button" key={sz} className={'nv-shot-size'+(size===sz?' is-on':'')} aria-pressed={size===sz} onClick={()=>setSize(sz)}><i style={{height:Math.max(3,sz)+'px'}}/></button>)}
+          {SIZES.map(sz=><button type="button" key={sz} className={'nv-shot-size'+(size===sz?' is-on':'')} aria-pressed={size===sz} onClick={()=>pickSize(sz)}><i style={{height:Math.max(3,sz)+'px'}}/></button>)}
         </div>
-        <button type="button" className="nv-shot-tool" onClick={()=>setShapes(l=>l.slice(0,-1))} disabled={!shapes.length}><Undo2 size={18}/><span>Annuler</span></button>
-        <button type="button" className="nv-shot-tool" onClick={()=>setShapes([])} disabled={!shapes.length}><Trash2 size={18}/><span>Tout effacer</span></button>
+        <button type="button" className="nv-shot-tool" onClick={()=>{setShapes(l=>l.slice(0,-1));setSel(null);}} disabled={!shapes.length}><Undo2 size={18}/><span>Annuler</span></button>
+        <button type="button" className="nv-shot-tool" onClick={()=>{setShapes([]);setSel(null);}} disabled={!shapes.length}><Trash2 size={18}/><span>Tout effacer</span></button>
+        {sel!==null&&shapes[sel]?.tool==='text'&&<button type="button" className="nv-shot-tool" onClick={editSelectedText}><Pencil size={18}/><span>Modifier le texte</span></button>}
+        <button type="button" className="nv-shot-tool nv-shot-del" onClick={removeSelected} disabled={sel===null} title="Supprimer l’élément sélectionné (touche Suppr)"><Trash2 size={18}/><span>Supprimer</span></button>
         <button type="button" className="nv-shot-close" onClick={onClose} aria-label="Fermer la capture"><X size={20}/></button>
       </header>
+      <p className="nv-shot-tip">{tool==='select'?(sel!==null?'Élément sélectionné : change sa couleur ou son épaisseur, glisse-le pour le déplacer, double-clique sur un texte pour le modifier, ou supprime-le.':'Clique sur une annotation pour la sélectionner.'):'Astuce : choisis « Sélection » pour modifier, déplacer ou supprimer une annotation déjà posée.'}</p>
       <div className="nv-shot-stage">
         <div className="nv-shot-canvaswrap">
-          <canvas ref={canvasRef} className={'nv-shot-canvas tool-'+tool} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}/>
+          <canvas ref={canvasRef} className={'nv-shot-canvas tool-'+tool} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={dblClick}/>
           {textBox&&canvasRect&&canvasRef.current&&<textarea className="nv-shot-text" autoFocus rows={2} value={textBox.value} placeholder="Écris ton message…"
             style={{left:textBox.x*canvasRect.width/canvasRef.current.width,top:textBox.y*canvasRect.height/canvasRef.current.height,color}}
             onChange={e=>setTextBox({...textBox,value:e.target.value})}

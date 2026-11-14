@@ -4899,3 +4899,6 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-update-banner .is-go{background:#c9650f;border-color:#e8873a;color:#fff}
 .nv-update-banner button:hover:not(:disabled){filter:brightness(1.12)}.nv-update-banner button:active:not(:disabled){transform:scale(.96)}
 @keyframes nvUpdatePop{0%{opacity:0;transform:translate(-50%,-14px)}100%{opacity:1;transform:translate(-50%,0)}}
+.nv-shot-tip{margin:0;padding:4px 6px;font-size:13px;color:#9db4bb}
+.nv-shot-del:not(:disabled){border-color:#c0505a}
+.nv-shot-canvas.tool-select{cursor:default}
