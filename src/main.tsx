@@ -1467,6 +1467,18 @@ function App(){
     if(key==='bar'){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);return;}
     void toggleCreationFullscreen().then(()=>run());
   }
+  function togglePanoramaSettings(){
+    if(creationFullscreen){
+      const open=!(fullscreenToolsOpen&&fullscreenToolsTab==='scene');
+      setFullscreenToolsTab('scene');setFullscreenToolsOpen(open);
+      setFullscreenCommandDrawerOpen(false);setFullscreenGalleryOpen(false);
+      setToolsMenuOpen(false);setMode(null);return;
+    }
+    if(!rightHidden&&panel==='points'&&!selectedId){setRightHidden(true);return;}
+    returnTo.current=null;setToolsMenuOpen(false);
+    setSelectedId('');setSelectedBarId('');setMode(null);
+    setPanel('points');setHubOpen(h=>({...h,scene:null}));setRightHidden(false);
+  }
   function editSettingsButton(){
     const open=()=>{
       leaveTools();setSettingsOpen(false);setPanel('settings');setRightHidden(false);
@@ -2338,7 +2350,7 @@ function App(){
     const view=cameraRef.current;
     if(view.sceneId!==active.id){setStatus('Oriente d’abord le panorama puis réessaie');return;}
     patchScene(sc=>({...sc,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom,arrivalZoomModel:'wide'}));
-    setStatus('Vue d’arrivée sauvegardée pour '+active.name);
+    setStatus('Vue d’arrivée définie pour '+active.name+' · Enregistre le projet avec la disquette.');
   }
   function removeAutoNavigationArrow(id:string){
     if(!active||!active.hotspots.some(h=>h.id===id))return;
@@ -2997,14 +3009,14 @@ function App(){
       </button>;
     const defHint=active.arrivalYaw!==undefined?'✓ '+deg(active.arrivalYaw)+' · zoom '+Math.round(active.arrivalZoom??60)+'%':'Pas encore définie';
     return <>
-      <small className="nv-arrival-caption">Oriente la vue dans le panorama, puis touche une tuile pour l’enregistrer.</small>
+      <small className="nv-arrival-caption">Glisse dans le panorama pour choisir la direction, ajuste le zoom, puis enregistre la vue ci-dessous. Termine par la disquette pour sauvegarder le projet.</small>
       <div className="nv-hub-tiles">
         {viaHotspot&&viaFrom?<>
           {tile('arrow','Pour cette flèche',viaHotspot.arrivalYaw!==undefined?'✓ '+deg(viaHotspot.arrivalYaw)+' · zoom '+Math.round(viaHotspot.arrivalZoom??60)+'%':'« '+(viaHotspot.title||'Navigation')+' »',<Eye size={26}/>,'#2fbf8f',saveArrivalForArrow)}
           {tile('back','Retour',viaFrom.name,<Undo2 size={26}/>,'#4f7cff',()=>selectScene(viaFrom.id))}
           {viaHotspot.arrivalYaw!==undefined&&tile('reset','Réinitialiser','Cette flèche',<RefreshCw size={26}/>,'#e0645c',()=>{setArrowArrival(viaFrom.id,viaHotspot.id,null);nextArrivalRef.current=null;setStatus('Vue d’arrivée de la flèche réinitialisée');})}
           {tile('default','Vue par défaut',defHint,<Home size={26}/>,'#ff8a3d',saveArrivalView)}
-        </>:tile('default','Définir la vue',defHint,<Eye size={26}/>,'#2fbf8f',saveArrivalView)}
+        </>:tile('default','Enregistrer la vue actuelle',defHint,<Eye size={26}/>,'#2fbf8f',saveArrivalView)}
       </div>
     </>;
   }
@@ -3897,6 +3909,14 @@ function App(){
             <button type="button" className="nv-fs-exit" onClick={()=>void toggleCreationFullscreen()} aria-label="Quitter le plein écran" title="Revenir à l’écran classique"><Minimize2 size={20}/></button>
             {toolsCurtain(true)}
           </div>}
+          {active&&!preview&&<button type="button"
+            className={'nv-panorama-settings-toggle'+(creationFullscreen?' is-fullscreen':'')}
+            aria-label="Réglages du panorama" title="Réglages du panorama : vue d’arrivée, nom, jour/nuit et musique"
+            aria-expanded={creationFullscreen?fullscreenToolsOpen&&fullscreenToolsTab==='scene':!rightHidden&&panel==='points'&&!selectedId}
+            aria-controls={creationFullscreen?'nv-fullscreen-tools':'nv-panorama-inspector'}
+            onClick={togglePanoramaSettings}>
+            <Menu size={20}/><span>Réglages</span>
+          </button>}
           {creationFullscreen&&<small className="nv-build-stamp" title="Date et heure de compilation de cette version">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</small>}
           {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
             <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
@@ -4439,8 +4459,8 @@ function App(){
           }}/>}
 
       </main>
-      <aside className="right panel">
-        <div className="nv-inspector-top"><button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
+      <aside id="nv-panorama-inspector" className="right panel">
+        <div className="nv-inspector-top">{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         {currentSpace&&<SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
@@ -4771,7 +4791,7 @@ function App(){
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
                   </>},
-                  {key:'arrival',title:'Vue d’arrivée',hint:active.arrivalYaw!==undefined?'✓ Définie':'Par défaut',icon:<Eye size={26}/>,tone:'#2fbf8f',content:<>
+                  {key:'arrival',title:'Vue d’arrivée',hint:active.arrivalYaw!==undefined?'✓ Définie · direction et zoom':'Direction et zoom',icon:<Eye size={26}/>,tone:'#2fbf8f',content:<>
 
               {arrivalTiles()}
                   </>},
