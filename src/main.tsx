@@ -912,16 +912,16 @@ function App(){
   function leaveShare(){returnTo.current='share';setShareMenuOpen(false);}
   const [notesOpen,setNotesOpen]=useState(false);
   const [dragTool,setDragTool]=useState<string|null>(null);
-  // Le rideau des outils s'arrête à la limite de la barre de création (ou du pied de page) : il ne la recouvre jamais.
+  // Le rideau des outils descend TOUJOURS jusqu'à la ligne du bas (pied de page), quelle que soit la vue ou son contenu.
   useEffect(()=>{
     if(!toolsMenuOpen)return;
     const fit=()=>{
       const top=document.querySelector('.topbar')?.getBoundingClientRect().bottom??0;
-      const limit=document.querySelector('.nv-sortable-toolbar')?.getBoundingClientRect().top??document.querySelector('footer')?.getBoundingClientRect().top??window.innerHeight;
+      const limit=document.querySelector('.nv-app-footer')?.getBoundingClientRect().top??window.innerHeight;
       document.documentElement.style.setProperty('--nv-curtain-max',Math.max(160,Math.floor(limit-top))+'px');
     };
-    fit();window.addEventListener('resize',fit);
-    return ()=>window.removeEventListener('resize',fit);
+    fit();const t=window.setTimeout(fit,450);window.addEventListener('resize',fit);
+    return ()=>{window.clearTimeout(t);window.removeEventListener('resize',fit);};
   },[toolsMenuOpen]);
   const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
   // Sélection multiple d'espaces : partager avec des membres, envoyer vers un autre projet
@@ -4629,7 +4629,7 @@ function App(){
         setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
       }}
     />}
-    <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
+    <footer className="nv-app-footer"><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
     {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}><XMark/></button></div>}
     {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>

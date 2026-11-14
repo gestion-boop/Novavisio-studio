@@ -5087,3 +5087,8 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 
 .nv-issue-callout .nv-issue-save{background:#fff;color:#14532d;border-color:#fff;font-weight:800}
 .nv-issue-callout .nv-issue-save:disabled{opacity:.6}
+
+/* Rideau des outils : hauteur fixe jusqu'à la ligne du bas (et non plus seulement un maximum) */
+.nv-tools-curtain{height:0}
+.nv-tools-curtain.is-open{height:var(--nv-curtain-max,calc(100dvh - 70px));max-height:none;transition:height .38s cubic-bezier(.2,.75,.2,1),opacity .25s ease,visibility 0s}
+@media(max-width:820px){.nv-tools-curtain.is-open{max-height:none;height:var(--nv-curtain-max,calc(100dvh - 120px))}}
