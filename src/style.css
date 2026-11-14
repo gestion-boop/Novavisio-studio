@@ -5202,3 +5202,6 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-sphere-handle.is-dragging::before,.nv-sphere-center.is-dragging::before{content:"";position:absolute;left:50%;top:50%;width:84px;height:84px;transform:translate(-50%,-50%);pointer-events:none;
   background:linear-gradient(#fff,#fff) center/1.5px 100% no-repeat,linear-gradient(#fff,#fff) center/100% 1.5px no-repeat;filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #0009);-webkit-mask:radial-gradient(circle,transparent 11px,#000 12px);mask:radial-gradient(circle,transparent 11px,#000 12px)}
 .nv-frame-dragging .nv-sphere-handle:not(.is-dragging)::after{opacity:.35}
+
+.nv-apply-all{width:100%;margin:8px 0;padding:11px 12px;border-radius:10px;border:1px solid #9fdcf3;background:linear-gradient(160deg,#2f8fb5,#1d6b8a);color:#fff;font-weight:800;font-size:13.5px;cursor:pointer;text-align:center}
+.nv-apply-all b{opacity:.85}

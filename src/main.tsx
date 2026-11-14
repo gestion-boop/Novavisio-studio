@@ -2833,6 +2833,27 @@ function App(){
       setClassicDestinationOpen(true);
     }
   }
+  /** Applique l'icône (normal / survol / clic) et la taille du point sélectionné à tous les points du même type de la visite, et en fait le choix par défaut des prochains points. */
+  const TYPE_LABELS:Record<string,string>={navigation:'toutes les flèches',image:'tous les points photo',video:'tous les points vidéo',information:'tous les points information',lien:'tous les liens'};
+  function applyIconToAll(){
+    if(!selected)return;
+    const type=selected.type,{iconId,hoverIconId,pressedIconId}=selected,iconSize=selected.iconSize;
+    const n=project.scenes.reduce((sum,sc)=>sum+sc.hotspots.filter(h=>h.type===type).length,0);
+    if(!window.confirm('Appliquer cette icône (et sa taille) à '+(TYPE_LABELS[type]??'tous les points du même type')+' de la visite ? '+n+' point'+(n>1?'s':'')+' '+(n>1?'seront':'sera')+' modifié'+(n>1?'s':'')+'. Tu peux annuler avec Ctrl+Z.'))return;
+    setProject(p=>{
+      const def=iconId?{iconId,hoverIconId,pressedIconId,iconSize:iconSize??28}:undefined;
+      return {...p,
+        ...(type==='navigation'?{defaultNavigationIcon:def}:type==='image'?{defaultPhotoIcon:def}:type==='video'?{defaultVideoIcon:def}:{}),
+        scenes:p.scenes.map(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.type!==type?h:{...h,iconId,hoverIconId,pressedIconId,iconSize})}))};
+    });
+    setStatus('Icône appliquée à '+n+' point'+(n>1?'s':'')+' · enregistre pour conserver');
+  }
+  function applyAllButton(){
+    if(!selected)return null;
+    const n=project.scenes.reduce((sum,sc)=>sum+sc.hotspots.filter(h=>h.type===selected.type).length,0);
+    return <button type="button" className="nv-apply-all" onClick={applyIconToAll} title="Remplace l'icône de tous les points du même type de la visite">
+      ⟳ Remplacer {TYPE_LABELS[selected.type]??'tous les points du même type'} par cette icône <b>({n})</b></button>;
+  }
   function navigationEditor(){
     if(!selected||selected.type!=='navigation')return null;
     return <div className="nv-navigation-edit-card">
@@ -3891,6 +3912,7 @@ function App(){
                     {selected.type==='image'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&applyAllButton()}
                       <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                       <label className="nv-quick-upload">▣ {selected.imageDataUrl?'Remplacer la photo':'Ajouter une photo'}
                         <input type="file" accept="image/*,.heic,.heif"
@@ -3909,6 +3931,7 @@ function App(){
                     {selected.type==='video'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&applyAllButton()}
                       <label>URL de la vidéo
                         <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''}
                           onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
@@ -4356,6 +4379,7 @@ function App(){
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&applyAllButton()}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
                 <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'image',fresh:false});}}>🖼 Choisir une photo déjà utilisée</button>
                 <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
@@ -4387,6 +4411,7 @@ function App(){
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&applyAllButton()}
                 <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'video',fresh:false});}}>🎞 Choisir une vidéo déjà utilisée</button>
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
                 <small className="hint-inline">45 Mo max en local, ou renseigne une URL HTTPS directe :</small>
@@ -4485,6 +4510,7 @@ function App(){
                 {iconSetPicker({...selected,size:selected.iconSize??28},set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:Math.max(16,Math.min(80,set.size))}))}
                 {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
                 {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
+                {applyAllButton()}
                 {iconStateEditor('pt-hover','PNG au survol (optionnel)',selected.hoverIconId,id=>patchPoint({hoverIconId:id}),'Identique au normal')}
                 {iconStateEditor('pt-pressed','PNG au clic (optionnel)',selected.pressedIconId,id=>patchPoint({pressedIconId:id}),'Identique au survol')}
                 <label>Taille de l'icône : {selected.iconSize??28} px
