@@ -19,7 +19,7 @@ export default async function handler(req,res){
   if(!user.ok)return res.status(401).json({error:'Session expirée : reconnectez-vous au Cloud.'});
   if(!project.ok||!(await project.json()).length)return res.status(403).json({error:'Ouvrez ce projet depuis votre Cloud pour le traduire.'});
   const upstream=await fetch('https://novagen-olive.vercel.app/api/studio-translate',{
-   method:'POST',headers:{Authorization:'Bearer '+bearer[1],'x-novastudio-key':KEY,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(55000)
+   method:'POST',headers:{Authorization:'Bearer '+bearer[1],'x-novastudio-key':KEY,'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(50000)
   });
   const data=await upstream.json().catch(()=>({}));
   if(!upstream.ok)return res.status(502).json({error:'Service de traduction momentanément indisponible. Réessayez plus tard.'});

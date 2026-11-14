@@ -5,7 +5,7 @@ import {STUDIO_LANGUAGES,type StudioLanguage,type StudioProject} from './storage
 import {applyTranslationRows,translationRows,type TargetLanguage,type TranslationRow} from './projectTranslations';
 
 export function ProjectTranslations({project,onApply,onClose}:{project:StudioProject;onApply:(fn:(p:StudioProject)=>StudioProject)=>void;onClose:()=>void}){
-  const [selected,setSelected]=useState<StudioLanguage[]>(()=>['fr',...(project.languages??[]).filter(l=>l!=='fr')]);
+  const [selected,setSelected]=useState<StudioLanguage[]>(project.languages??['fr']);
   const [rows,setRows]=useState<TranslationRow[]|null>(null);
   const [replaceExisting,setReplaceExisting]=useState(false);
   const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[generationProjectId,setGenerationProjectId]=useState<string|null>(null);
@@ -41,7 +41,7 @@ export function ProjectTranslations({project,onApply,onClose}:{project:StudioPro
     <div className="nv-preparation-content nv-translate-content">
       {!rows?<>
         <p>Choisis les langues, puis génère des propositions pour les textes français de la visite : noms des panoramas et espaces, boutons, galeries et informations.</p>
-        <div className="nv-setup-languages">{STUDIO_LANGUAGES.map(l=><label key={l.code}><input type="checkbox" checked={selected.includes(l.code)} disabled={busy||l.code==='fr'} onChange={e=>setSelected(current=>e.target.checked?[...current,l.code]:current.filter(x=>x!==l.code))}/><span>{l.flag}</span>{l.name}</label>)}</div>
+        <div className="nv-setup-languages">{STUDIO_LANGUAGES.map(l=><label key={l.code}><input type="checkbox" checked={selected.includes(l.code)} disabled={busy||(selected.includes(l.code)&&selected.length===1)} onChange={e=>setSelected(current=>e.target.checked?[...current,l.code]:current.filter(x=>x!==l.code))}/><span>{l.flag}</span>{l.name}</label>)}</div>
         <small>Les traductions déjà renseignées sont conservées et pourront aussi être relues. Les pages externes, images et vidéos ne sont pas modifiées. Les textes sont envoyés au service de traduction pour créer les propositions.</small>
         <label><input type="checkbox" checked={replaceExisting} disabled={busy} onChange={e=>setReplaceExisting(e.target.checked)}/> Proposer aussi de nouvelles traductions pour les textes déjà traduits</label>
         <p>{pending.filter(r=>replaceExisting||!r.text.trim()).length} traduction{pending.filter(r=>replaceExisting||!r.text.trim()).length===1?'':'s'} à générer.</p>
