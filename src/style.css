@@ -5257,3 +5257,24 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 
 .nv-size-control{display:flex;flex-direction:column;gap:6px;margin:8px 0;font-weight:700;font-size:13px}
 .nv-size-control input[type=range]{width:100%;accent-color:#2f8fb5}
+
+
+/* Cadres de signalisation des médias cliquables : subtils, non interactifs. */
+.nv-frame-halo-gold path,.nv-frame-halo-gold polygon{filter:drop-shadow(0 0 3px rgba(224,181,100,.5))!important;animation:nv-gold-signal 4s ease-in-out infinite!important}
+.nv-frame-halo-soft path,.nv-frame-halo-soft polygon{filter:drop-shadow(0 0 3px rgba(198,231,242,.5))!important;animation:nv-soft-signal 3.8s ease-in-out infinite!important}
+.nv-frame-halo-pulse path,.nv-frame-halo-pulse polygon{filter:drop-shadow(0 0 5px rgba(220,230,255,.7))!important;animation:nv-pulse-signal 3.4s ease-in-out infinite!important}
+@keyframes nv-gold-signal{0%,100%{opacity:.28}50%{opacity:.65}}
+@keyframes nv-soft-signal{0%,100%{opacity:.16}50%{opacity:.42}}
+@keyframes nv-pulse-signal{0%,70%,100%{opacity:.20}78%{opacity:.7}86%{opacity:.28}}
+/* Le curseur doit laisser apparaître le pixel exact à déposer, sans rond central. */
+.nv-sphere-handle.is-dragging,.nv-sphere-center.is-dragging{background:transparent!important;box-shadow:none!important;outline:none!important}
+.nv-sphere-handle.is-dragging::after,.nv-sphere-center.is-dragging::after{display:none!important}
+.nv-sphere-handle.is-dragging::before,.nv-sphere-center.is-dragging::before{
+  content:"";position:absolute;left:50%;top:50%;width:90px!important;height:90px!important;
+  transform:translate(-50%,-50%);pointer-events:none;-webkit-mask:none!important;mask:none!important;
+  background:linear-gradient(90deg,transparent 0 42%,#ffdfa0 42% 46%,transparent 46% 54%,#ffdfa0 54% 58%,transparent 58%) center/100% 1px no-repeat,
+             linear-gradient(0deg,transparent 0 42%,#ffdfa0 42% 46%,transparent 46% 54%,#ffdfa0 54% 58%,transparent 58%) center/1px 100% no-repeat!important;
+  filter:drop-shadow(0 0 2px #000)!important;
+}
+.nv-frame-dragging .nv-sphere-handle:not(.is-dragging),.nv-frame-dragging .nv-sphere-center:not(.is-dragging){opacity:.08!important}
+@media(prefers-reduced-motion:reduce){.nv-frame-halo-gold path,.nv-frame-halo-gold polygon,.nv-frame-halo-soft path,.nv-frame-halo-soft polygon,.nv-frame-halo-pulse path,.nv-frame-halo-pulse polygon{animation:none!important;opacity:.45}}
