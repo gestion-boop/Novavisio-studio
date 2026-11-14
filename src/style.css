@@ -5050,3 +5050,9 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 
 .nv-check-guided{align-self:flex-start;height:40px;padding:0 16px;border-radius:10px;border:1px solid #9fdcf3;background:linear-gradient(160deg,#46aed6,#2f8fb5);color:#fff;font-weight:800;cursor:pointer}
 .nv-issue-callout .nv-issue-next{background:#fff;color:#222;border-color:#fff}
+
+.nv-issue-callout{box-shadow:0 14px 40px #000b,0 0 0 4px #0003}
+.nv-issue-callout>div>b{display:flex;align-items:center;gap:8px;font-size:14px}
+.nv-issue-step{margin-left:auto;font-size:11.5px;font-weight:800;background:#0004;border-radius:999px;padding:1px 8px}
+.nv-issue-bar{display:block;height:4px;border-radius:4px;background:#0004;overflow:hidden;margin:2px 0 4px}.nv-issue-bar>i{display:block;height:100%;background:#fff;border-radius:4px}
+.nv-issue-hint{font-style:normal;font-weight:700;background:#0003;border-radius:8px;padding:6px 8px;margin-top:2px}

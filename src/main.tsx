@@ -41,7 +41,7 @@ import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
 import {MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
-import {checkProject} from './projectCheck';
+import {checkProject,type CheckIssue} from './projectCheck';
 import {IssueCallout,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
 import {CommentsPanel} from './CommentsPanel';
@@ -1018,7 +1018,7 @@ function App(){
   const issueErrors=projectIssues.filter(i=>i.level==='error').length;
   const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
-  const [guided,setGuided]=useState<{queue:{text:string;level:'error'|'warn';sceneId?:string;hotspotId?:string}[];i:number}|null>(null);
+  const [guided,setGuided]=useState<{queue:CheckIssue[];i:number}|null>(null);
   function startGuided(){
     const queue=[...projectIssues.filter(i=>i.level==='error'),...projectIssues.filter(i=>i.level==='warn')];
     if(!queue.length)return;
@@ -1031,14 +1031,30 @@ function App(){
     if(j>=guided.queue.length){setGuided(null);setIssueFocus(null);setStatus('Tous les problèmes ont été passés en revue 🎉');return;}
     setGuided({queue:guided.queue,i:j});goToIssue(guided.queue[j]);
   }
-  function goToIssue(is:{sceneId?:string;hotspotId?:string;text:string;level:'error'|'warn'}){
+  function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
-    setIssueFocus({hotspotId:is.hotspotId,text:is.text,level:is.level});
-    if(!is.sceneId){setPanel('bar');setRightHidden(false);return;}
-    const hs=project.scenes.find(sc=>sc.id===is.sceneId)?.hotspots.find(h=>h.id===is.hotspotId);
-    if(currentSpace&&!visibleIds.has(is.sceneId))setActiveSpaceId(null);
-    setArrivedVia(null);nextArrivalRef.current=null;setActiveId(is.sceneId);setMode(null);
-    if(is.hotspotId){setSelectedId(is.hotspotId);setPanel('points');setRightHidden(true);}else setSelectedId('');
+    setIssueFocus({hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint});
+    setClassicDestinationOpen(false);
+    if(is.kind==='comments'){setCommentsOpen(true);return;}
+    if(is.kind==='bar-link'||is.kind==='bar-nav'){setPanel('bar');setSelectedBarId(is.barId??'');setSelectedId('');setRightHidden(false);return;}
+    if(!is.sceneId){setPanel('panoramas');setRightHidden(false);return;}
+    const sceneId=is.sceneId,hs=project.scenes.find(sc=>sc.id===sceneId)?.hotspots.find(h=>h.id===is.hotspotId);
+    if(currentSpace&&!visibleIds.has(sceneId))setActiveSpaceId(null);
+    setArrivedVia(null);nextArrivalRef.current=null;setActiveId(sceneId);setMode(null);
+    setPanel('points');setRightHidden(false);
+    if(is.hotspotId){
+      setSelectedId(is.hotspotId);
+      if(is.kind==='nav'){
+        setClassicDestinationSearch('');
+        setClassicDestinationPreviewId(project.scenes.find(sc=>sc.id!==sceneId)?.id??null);
+        window.setTimeout(()=>setClassicDestinationOpen(true),350);
+      }else if(is.kind==='photo'||is.kind==='video')setMediaPicker({sceneId,hotspotId:is.hotspotId,type:is.kind==='photo'?'image':'video',fresh:false});
+      else window.setTimeout(()=>document.querySelector<HTMLElement>('aside.right input[type="url"],aside.right input[type="text"],aside.right textarea')?.focus(),500);
+    }else{
+      setSelectedId('');
+      if(is.kind==='scene-name')setHubOpen(h=>({...h,scene:'name'}));
+      else setHubOpen(h=>({...h,scene:null}));
+    }
     if(hs)window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:hs.yaw,pitch:hs.pitch}),900);
   }
   // Carte « depuis ta dernière visite » (une fois par ouverture, seulement s'il y a quelque chose à dire)
@@ -3236,7 +3252,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&<IssueCallout focus={issueFocus} stillPresent={projectIssues.some(i=>i.text===issueFocus.text)} onClose={()=>{setIssueFocus(null);setGuided(null);}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {issueFocus&&<IssueCallout docked={!rightHidden} focus={issueFocus} stillPresent={projectIssues.some(i=>i.text===issueFocus.text)} onClose={()=>{setIssueFocus(null);setGuided(null);}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
     {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={i=>{setGuided(null);goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
