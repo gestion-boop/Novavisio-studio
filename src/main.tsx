@@ -1141,9 +1141,12 @@ function App(){
       const scene=project.scenes.find(sc=>sc.id===sceneId);
       if(!scene)return;
       const fav=defaultNavigationIconSet(),id=uid();
-      const point:Hotspot={id,type:'navigation',title:'Aller vers…',text:'',target:'',yaw:scene.arrivalYaw??0,pitch:scene.arrivalPitch??0,
+      // La flèche est posée là où on regarde (centre de la vue) pour qu'on la voie tout de suite, y compris en Aperçu.
+      const cam=cameraRef.current,here=cam.sceneId===sceneId;
+      const point:Hotspot={id,type:'navigation',title:'Aller vers…',text:'',target:'',yaw:here?cam.yaw:(scene.arrivalYaw??0),pitch:here?Math.max(-0.35,Math.min(0.2,cam.pitch)):(scene.arrivalPitch??0),
         ...(fav?{iconId:fav.iconId,hoverIconId:fav.hoverIconId,pressedIconId:fav.pressedIconId,iconSize:fav.iconSize}:{})};
       orphanArrow.current={sceneId,hotspotId:id,armed:true};
+      setIssueFocus(f=>f?{...f,hotspotId:id}:f);
       setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===sceneId?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
       spotId=id;
     }
