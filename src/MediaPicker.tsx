@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useState,type ReactNode} from 'react';
 import {Image as ImageIcon,Upload,Video,X,Trash2} from 'lucide-react';
 import {forgetMedia,listMedia,mediaKey,type MediaItem,type MediaKind} from './mediaLibrary';
 import type {StudioProject} from './storage';
@@ -7,9 +7,9 @@ import type {StudioProject} from './storage';
  * Choisir un média : on voit d'abord les photos / vidéos déjà utilisées (projet + mémoire du logiciel).
  * « Importer depuis l'ordinateur » ouvre le sélecteur du système ; l'annuler laisse cette fenêtre ouverte.
  */
-export function MediaPicker({kind,project,version,onPick,onImport,onClose}:{
+export function MediaPicker({kind,project,version,onPick,onImport,onClose,banner}:{
   kind:MediaKind;project:StudioProject;version:number;
-  onPick:(item:{name:string;dataUrl?:string;url?:string})=>void;onImport:()=>void;onClose:()=>void;
+  onPick:(item:{name:string;dataUrl?:string;url?:string})=>void;onImport:()=>void;onClose:()=>void;banner?:ReactNode;
 }){
   const [stored,setStored]=useState<MediaItem[]|null>(null);
   const [removed,setRemoved]=useState<Set<string>>(new Set());
@@ -31,6 +31,7 @@ export function MediaPicker({kind,project,version,onPick,onImport,onClose}:{
       <header><div><strong>{kind==='image'?<ImageIcon size={18}/>:<Video size={18}/>} Choisir une {label}</strong>
         <small>Reprends un média déjà utilisé, ou importe-en un nouveau depuis ton ordinateur.</small></div>
         <button type="button" onClick={onClose} aria-label="Fermer"><X size={20}/></button></header>
+      {banner}
       <button type="button" className="nv-mediapicker-import" onClick={onImport}><Upload size={18}/> Importer {kind==='image'?'une photo':'une vidéo'} depuis l’ordinateur</button>
       {stored===null&&<p className="nv-mediapicker-info">Chargement…</p>}
       {stored!==null&&items.length===0&&<p className="nv-mediapicker-info">Aucune {label} en mémoire pour l’instant. Celles que tu importes ici seront gardées pour les réutiliser.</p>}

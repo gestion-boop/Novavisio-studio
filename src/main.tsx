@@ -42,7 +42,7 @@ import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
 import {Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
-import {IssueCallout,type IssueFocus} from './IssueCallout';
+import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
 import {CommentsPanel} from './CommentsPanel';
 import {captureScreen,ShotEditor} from './ScreenshotTool';
@@ -912,12 +912,14 @@ function App(){
   function leaveShare(){returnTo.current='share';setShareMenuOpen(false);}
   const [notesOpen,setNotesOpen]=useState(false);
   const [dragTool,setDragTool]=useState<string|null>(null);
-  // Le rideau des outils descend TOUJOURS jusqu'à la ligne du bas (pied de page), quelle que soit la vue ou son contenu.
+  // Le rideau des outils descend TOUJOURS jusqu'à la ligne du haut de la barre du bas (ou du pied de page si elle est absente), quelle que soit la vue ou son contenu.
   useEffect(()=>{
     if(!toolsMenuOpen)return;
     const fit=()=>{
       const top=document.querySelector('.topbar')?.getBoundingClientRect().bottom??0;
-      const limit=document.querySelector('.nv-app-footer')?.getBoundingClientRect().top??window.innerHeight;
+      const bar=document.querySelector('.nv-sortable-toolbar');
+      const barTop=bar&&bar.getClientRects().length?bar.getBoundingClientRect().top:null;
+      const limit=barTop??document.querySelector('.nv-app-footer')?.getBoundingClientRect().top??window.innerHeight;
       document.documentElement.style.setProperty('--nv-curtain-max',Math.max(160,Math.floor(limit-top))+'px');
     };
     fit();const t=window.setTimeout(fit,450);window.addEventListener('resize',fit);
@@ -1057,13 +1059,13 @@ function App(){
   function nextGuided(){
     if(!guided)return;
     let j=guided.i+1;
-    while(j<guided.queue.length&&!projectIssues.some(x=>x.text===guided.queue[j].text))j++;
+    while(j<guided.queue.length&&!projectIssues.some(x=>x.id===guided.queue[j].id))j++;
     if(j>=guided.queue.length){setGuided(null);setIssueFocus(null);setStatus('Tous les problèmes ont été passés en revue 🎉');if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}return;}
     setGuided({queue:guided.queue,i:j});goToIssue(guided.queue[j]);
   }
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
-    setIssueFocus({hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
+    setIssueFocus({id:is.id,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
     setClassicDestinationOpen(false);
     if(is.kind==='comments'){setCommentsOpen(true);return;}
     if(is.kind==='bar-link'||is.kind==='bar-nav'){setPanel('bar');setSelectedBarId(is.barId??'');setSelectedId('');setRightHidden(false);return;}
@@ -1836,7 +1838,7 @@ function App(){
     setStatus((target.type==='image'?'Point photo':'Point vidéo')+' créé sans média : choisis-le avec « '+(target.type==='image'?'Choisir une photo déjà utilisée':'Choisir une vidéo déjà utilisée')+' », ou règle son icône et sa taille.');
   }
   function mediaPickerEl(){
-    return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onImport={importFromPicker} onClose={closeMediaPicker}/>:null;
+    return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onImport={importFromPicker} onClose={closeMediaPicker} banner={issueFocus?<IssueBanner focus={issueFocus}/>:undefined}/>:null;
   }
   function stopAutoNavigation(){
     setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);
@@ -3305,7 +3307,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&<IssueCallout docked={!rightHidden} focus={issueFocus} stillPresent={projectIssues.some(i=>i.text===issueFocus.text)} saving={savingManually} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
     {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
@@ -3414,6 +3416,7 @@ function App(){
             <div><small>{autoNavigation?'AUTO · ÉTAPE 2 / DESTINATION':'CHOISIR UNE DESTINATION'}</small><strong>Galerie 360°</strong></div>
             <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)} aria-label={autoNavigation?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}><XMark/></button>
           </div>
+          {issueFocus&&<IssueBanner focus={issueFocus}/>}
           <div className="nv-classic-destination-layout">
             <div className="nv-classic-destination-list-panel">
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"

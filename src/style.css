@@ -5092,3 +5092,10 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-tools-curtain{height:0}
 .nv-tools-curtain.is-open{height:var(--nv-curtain-max,calc(100dvh - 70px));max-height:none;transition:height .38s cubic-bezier(.2,.75,.2,1),opacity .25s ease,visibility 0s}
 @media(max-width:820px){.nv-tools-curtain.is-open{max-height:none;height:var(--nv-curtain-max,calc(100dvh - 120px))}}
+
+/* Bandeau de correction intégré dans la fenêtre ouverte (un seul panneau) */
+.nv-issue-banner{display:flex;gap:12px;align-items:center;margin:8px 14px 0;padding:8px 12px;border-radius:12px;color:#fff;border:1px solid #fff4;font:13.5px/1.35 system-ui,sans-serif;text-align:left}
+.nv-issue-banner.is-error{background:#b3261e}.nv-issue-banner.is-warn{background:#a86b00}
+.nv-issue-banner img{width:84px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;flex:none}
+.nv-issue-banner>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nv-issue-banner b{font-size:14px}.nv-issue-banner em{font-style:normal;font-weight:700}

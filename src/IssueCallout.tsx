@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {AlertTriangle,CheckCircle2} from 'lucide-react';
 import {XMark} from './XMark';
 
-export type IssueFocus={hotspotId?:string;text:string;level:'error'|'warn';hint?:string;thumb?:string;sceneName?:string};
+export type IssueFocus={id?:string;hotspotId?:string;text:string;level:'error'|'warn';hint?:string;thumb?:string;sceneName?:string};
 
 /** Met en évidence le point à corriger (anneau pulsant) et affiche une bulle à côté qui dit quoi corriger. */
 export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,docked,onValidate,saving}:{focus:IssueFocus;stillPresent:boolean;onClose:()=>void;onOpen?:()=>void;step?:{i:number;n:number};onNext?:()=>void;docked?:boolean;onValidate:()=>void;saving?:boolean}){
@@ -38,4 +38,12 @@ export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,dock
       <button type="button" className="nv-issue-open nv-issue-save" disabled={saving} onClick={onValidate}>💾 {saving?'Enregistrement…':(onNext?'Enregistrer et continuer':'Enregistrer')}</button></div>
       <button type="button" onClick={onClose} aria-label="Fermer l’indication"><XMark size={14}/></button></>}
   </aside>;
+}
+
+/** Version « bandeau » : intégrée en haut d'une fenêtre déjà ouverte (galerie, choix de média) pour ne montrer qu'un seul panneau. */
+export function IssueBanner({focus}:{focus:IssueFocus}){
+  return <div className={'nv-issue-banner is-'+focus.level} role="status">
+    {focus.thumb&&<img src={focus.thumb} alt=""/>}
+    <div><b>{focus.level==='error'?'À corriger':'À vérifier'}{focus.sceneName?' · '+focus.sceneName:''}</b><span>{focus.text}</span>{focus.hint&&<em>👉 {focus.hint}</em>}</div>
+  </div>;
 }
