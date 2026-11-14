@@ -59,7 +59,7 @@ import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plug
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
 import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,paletteFromLogo,type SvgIconDesign} from './svgIcons';
-import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
+import {haloMarkers,frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
@@ -156,6 +156,7 @@ function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId
   const all:MarkerConfig[]=[];
   for(const h of scene.hotspots){
     all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation));
+    if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
       h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;
     if(!preview&&selectedId===h.id&&hasMedia&&!isPopupMedia(h)){
@@ -3994,6 +3995,8 @@ function App(){
                         onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Boucle</label>
                       {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.videoOpenFullscreen!==false}
                         onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic</label>}
+                      <label className="nv-quick-check"><input type="checkbox" checked={selected.videoMasterSound!==false} onChange={e=>patchPoint({videoMasterSound:e.target.checked})}/> 🔊 Son de la télé prioritaire (la musique s'efface)</label>
+                      {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.frameHalo!==false} onChange={e=>patchPoint({frameHalo:e.target.checked})}/> ✨ Auréole discrète autour du cadre</label>}
                     </>}
                     {selected.type!=='image'&&selected.type!=='video'&&fullscreenIconSetPicker(
                       {...selected,size:selected.iconSize??28},
@@ -4227,7 +4230,7 @@ function App(){
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
-          {active && <ContinuousMusic project={project} scene={active} paused={!preview||!!videoZoom||introVisible} onEdit={!preview?()=>{setPanel('music');setRightHidden(false);setSelectedId('');setSelectedBarId('');setMode(null);}:undefined}/>}
+          {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} onEdit={!preview?()=>{setPanel('music');setRightHidden(false);setSelectedId('');setSelectedBarId('');setMode(null);}:undefined}/>}
           {preview&&galleryOpen&&(()=>{
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;
@@ -4480,6 +4483,8 @@ function App(){
                 {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.videoAutoplay!==false} onChange={e=>patchPoint({videoAutoplay:e.target.checked})}/> Démarrer automatiquement (muet)</label>}
                 <label className="toggle-row"><input type="checkbox" checked={selected.videoLoop!==false} onChange={e=>patchPoint({videoLoop:e.target.checked})}/> Répéter la vidéo en boucle</label>
                 {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.videoOpenFullscreen!==false} onChange={e=>patchPoint({videoOpenFullscreen:e.target.checked})}/> Agrandir au clic avec le son</label>}
+                <label className="toggle-row"><input type="checkbox" checked={selected.videoMasterSound!==false} onChange={e=>patchPoint({videoMasterSound:e.target.checked})}/> 🔊 Son de la télé prioritaire : la musique de fond s’efface en fondu pendant la vidéo agrandie, puis revient vite à son niveau</label>
+                {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.frameHalo!==false} onChange={e=>patchPoint({frameHalo:e.target.checked})}/> ✨ Auréole très légère autour du cadre dans l’Aperçu, pour montrer qu’on peut cliquer</label>}
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
               </> : selected.type==='navigation' ? (
                 <>

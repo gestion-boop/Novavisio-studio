@@ -7,7 +7,7 @@ import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
-import {frameWorldCorners} from './sphericalFrame';
+import {frameWorldCorners,haloMarkers} from './sphericalFrame';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {startPosterBounce} from './posterBounce';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
@@ -112,8 +112,8 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      syncMarkers(instance,current.scene.hotspots.map(h=>
-        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel())));
+      syncMarkers(instance,current.scene.hotspots.flatMap(h=>[
+        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
     let pending=0;
@@ -137,7 +137,7 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>next.hotspots.map(h=>publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel()));
+    const markersNow=()=>next.hotspots.flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),260);};
     instance.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
@@ -172,8 +172,8 @@ function Pano({scene,icons,night,nightTexture,arrival,navigate,info,linked,image
     const instance=viewer.current;
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
-    syncMarkers(instance,scene.hotspots.map(h=>
-      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel())));
+    syncMarkers(instance,scene.hotspots.flatMap(h=>[
+      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]));
   },[scene.id,scene.hotspots,icons]);
   return <div className="tour-panorama" ref={container}/>;
 }
@@ -360,7 +360,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         </button>;
       })}
     </nav>}
-    <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||!!video}/>
+    <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)}/>
     {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>

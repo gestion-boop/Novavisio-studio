@@ -22,6 +22,10 @@ export type Hotspot = {
   imageBounce?:boolean;
   imageFrameStyle?:ImageFrameStyle;
   videoDataUrl?:string;videoUrl?:string;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
+  /** Son de la télé prioritaire : la musique de fond s'efface (fondu) pendant la vidéo agrandie, puis revient. Actif par défaut. */
+  videoMasterSound?:boolean;
+  /** Auréole discrète autour d'un cadre cliquable (Aperçu et visite). Actif par défaut. */
+  frameHalo?:boolean;
   frameWidth?:number;frameHeight?:number;
   frameReferenceHeight?:number;
   frameReferenceZoom?:number;

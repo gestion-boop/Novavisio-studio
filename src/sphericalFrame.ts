@@ -85,3 +85,16 @@ export function editingFrameControls(h:Hotspot){
     }
   ];
 }
+
+/** Auréole légère autour d'un cadre photo / vidéo cliquable (affichée seulement dans l'Aperçu et la visite). */
+export function haloMarkers(h:Hotspot):{id:string;polygon:[number,number][];svgStyle:Record<string,string>;className:string;tooltip?:string}[]{
+  const media=(h.type==='image'&&!!h.imageDataUrl)||(h.type==='video'&&!!(h.videoDataUrl||h.videoUrl));
+  const clickable=h.type==='video'?h.videoOpenFullscreen!==false:true;
+  if(!media||!isFrame(h)||h.frameHalo===false||!clickable)return [];
+  const c=frameWorldCorners(h);
+  const wrap=(a:number)=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;};
+  const ref=c[0].yaw,rel=c.map(p=>({yaw:wrap(p.yaw-ref),pitch:p.pitch}));
+  const cy=rel.reduce((a,p)=>a+p.yaw,0)/4,cp=rel.reduce((a,p)=>a+p.pitch,0)/4,k=1.07,lim=Math.PI/2-0.005;
+  const polygon=rel.map(p=>[ref+cy+(p.yaw-cy)*k,Math.max(-lim,Math.min(lim,cp+(p.pitch-cp)*k))] as [number,number]);
+  return [{id:h.id+':halo',polygon,className:'nv-frame-halo',svgStyle:{fill:'none',stroke:'rgba(255,255,255,0.85)',strokeWidth:'3px'}}];
+}

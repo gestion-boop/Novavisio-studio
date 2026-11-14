@@ -32,18 +32,40 @@ export function ContinuousMusic({project,scene,paused=false,onEdit}:{project:Stu
   const volume=Math.max(0,Math.min(100,track?.volume??scene?.audioVolume??65))/100;
   const loop=track?.loop??scene?.audioLoop!==false;
 
+  const volRef=useRef(volume);volRef.current=volume;
+  const fadeRaf=useRef(0);
+  /** Fondu rapide du volume (sortie 350 ms, retour 450 ms) : la musique s'efface / revient sans coupure sèche. */
+  const fade=(el:HTMLAudioElement,to:number,ms:number,done?:()=>void)=>{
+    cancelAnimationFrame(fadeRaf.current);
+    const from=el.volume,t0=performance.now();
+    const step=(now:number)=>{
+      const k=Math.min(1,(now-t0)/ms);
+      el.volume=Math.max(0,Math.min(1,from+(to-from)*k));
+      if(k<1)fadeRaf.current=requestAnimationFrame(step);else done?.();
+    };
+    fadeRaf.current=requestAnimationFrame(step);
+  };
+  useEffect(()=>()=>cancelAnimationFrame(fadeRaf.current),[]);
+
   useEffect(()=>{
     const el=audio.current;if(!el)return;
-    el.volume=volume;el.loop=loop;
+    el.loop=loop;
+    if(!el.paused&&!paused)el.volume=volume;
   },[volume,loop]);
 
   useEffect(()=>{
     const el=audio.current;if(!el)return;
-    if(!source||paused||choice!=='on'){
-      el.pause();setPlaying(false);return;
+    if(!source||choice!=='on'){
+      cancelAnimationFrame(fadeRaf.current);el.pause();setPlaying(false);return;
+    }
+    if(paused){
+      if(el.paused){setPlaying(false);return;}
+      fade(el,0,350,()=>{el.pause();setPlaying(false);});
+      return;
     }
     let disposed=false;
-    void el.play().then(()=>{if(!disposed){setPlaying(true);setFailed(false);}})
+    if(el.paused)el.volume=0;
+    void el.play().then(()=>{if(!disposed){setPlaying(true);setFailed(false);fade(el,volRef.current,450);}})
       .catch(()=>{if(!disposed){setPlaying(false);setFailed(true);}});
     // Do not stop the same track on navigation; the next effect manages playback.
     return ()=>{disposed=true;};
@@ -55,6 +77,7 @@ export function ContinuousMusic({project,scene,paused=false,onEdit}:{project:Stu
     if(next==='off'){el?.pause();setPlaying(false);return;}
     // Called during a real user gesture: invoke play synchronously here,
     // never only in an effect, so browsers grant permission for audio.
+    if(el){el.volume=volRef.current;}
     if(el)void el.play().then(()=>{setPlaying(true);setFailed(false);})
       .catch(()=>{setPlaying(false);setFailed(true);});
   };
