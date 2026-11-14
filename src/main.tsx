@@ -1036,6 +1036,15 @@ function App(){
   const issueErrors=projectIssues.filter(i=>i.level==='error').length;
   const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
+  // Flèche provisoire créée pour un panorama sans point : supprimée si on ferme la galerie sans choisir de destination.
+  const orphanArrow=useRef<{sceneId:string;hotspotId:string;armed:boolean}|null>(null);
+  useEffect(()=>{
+    const o=orphanArrow.current;
+    if(!o||!o.armed||classicDestinationOpen)return;
+    orphanArrow.current=null;
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==o.sceneId?sc:{...sc,hotspots:sc.hotspots.filter(h=>!(h.id===o.hotspotId&&!h.target))})}));
+    setSelectedId(cur=>cur===o.hotspotId?'':cur);
+  },[classicDestinationOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const returnToCheck=useRef(false);
   const [guided,setGuided]=useState<{queue:CheckIssue[];i:number}|null>(null);
   const fixingRef=useRef(false);
@@ -1076,18 +1085,31 @@ function App(){
     if(currentSpace&&!visibleIds.has(sceneId))setActiveSpaceId(null);
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(sceneId);setMode(null);
     setPanel('points');setRightHidden(false);
-    if(is.hotspotId){
-      setSelectedId(is.hotspotId);
-      if(is.kind==='nav'){
+    let spotId=is.hotspotId,kind=is.kind;
+    if(kind==='scene-empty'){
+      // Panorama sans point : on crée une flèche provisoire et on ouvre la galerie avec le viseur pour choisir le prochain panorama.
+      const scene=project.scenes.find(sc=>sc.id===sceneId);
+      if(scene){
+        const fav=defaultNavigationIconSet(),id=uid();
+        const point:Hotspot={id,type:'navigation',title:'Aller vers…',text:'',target:'',yaw:scene.arrivalYaw??0,pitch:scene.arrivalPitch??0,
+          ...(fav?{iconId:fav.iconId,hoverIconId:fav.hoverIconId,pressedIconId:fav.pressedIconId,iconSize:fav.iconSize}:{})};
+        orphanArrow.current={sceneId,hotspotId:id,armed:false};
+        setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===sceneId?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
+        spotId=id;kind='nav';
+      }
+    }
+    if(spotId){
+      setSelectedId(spotId);
+      if(kind==='nav'){
         setClassicDestinationSearch('');
         setClassicDestinationPreviewId(project.scenes.find(sc=>sc.id!==sceneId)?.id??null);
-        window.setTimeout(()=>setClassicDestinationOpen(true),350);
-      }else if(is.kind==='photo'||is.kind==='video')setMediaPicker({sceneId,hotspotId:is.hotspotId,type:is.kind==='photo'?'image':'video',fresh:false});
+        window.setTimeout(()=>{setClassicDestinationOpen(true);if(orphanArrow.current)orphanArrow.current.armed=true;},350);
+      }else if(is.kind==='photo'||is.kind==='video')setMediaPicker({sceneId,hotspotId:spotId,type:is.kind==='photo'?'image':'video',fresh:false});
       else window.setTimeout(()=>document.querySelector<HTMLElement>('aside.right input[type="url"],aside.right input[type="text"],aside.right textarea')?.focus(),500);
     }else{
       setSelectedId('');
       if(is.kind==='scene-name')setHubOpen(h=>({...h,scene:'name'}));
-      else{setHubOpen(h=>({...h,scene:null}));setRightHidden(true);} // panorama sans point : on montre seulement la bulle, rien à ouvrir
+      else setHubOpen(h=>({...h,scene:null}));
     }
     if(hs)window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:hs.yaw,pitch:hs.pitch}),900);
   }

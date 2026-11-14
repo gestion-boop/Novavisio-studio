@@ -13,7 +13,7 @@ export function checkProject(project:StudioProject):CheckIssue[]{
     const label='« '+(scene.name||'sans nom')+' »';
     if(!scene.name.trim()||/\.(jpe?g|png|webp)$/i.test(scene.name)||/^(img|dsc|pxl|pano)[-_ ]?\d*/i.test(scene.name))
       out.push({level:'warn',kind:'scene-name',hint:'Donne un vrai nom à ce panorama dans le champ ci-contre.',text:'Panorama '+label+' : le nom ressemble à un nom de fichier, pense à le renommer.',sceneId:scene.id});
-    if(!scene.hotspots.length)out.push({level:'warn',kind:'scene-empty',hint:'Ajoute un point avec la barre du bas (Navigation, Information, Photo…).',text:'Panorama '+label+' : aucun point, c’est une impasse pour le visiteur.',sceneId:scene.id});
+    if(!scene.hotspots.length)out.push({level:'warn',kind:'scene-empty',hint:'Choisis dans la galerie le prochain panorama : une flèche sera créée ici. Tu pourras la déplacer ensuite.',text:'Panorama '+label+' : aucun point, c’est une impasse pour le visiteur.',sceneId:scene.id});
     for(const h of scene.hotspots){
       const same=scene.hotspots.filter(o=>o.type===h.type&&(o.title||'')===(h.title||''));
       const where=label+' · '+(h.title||'point sans titre')+(same.length>1?' (n°'+(same.indexOf(h)+1)+')':'');
