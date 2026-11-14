@@ -36,6 +36,24 @@ export function frameWorldCorners(h:Hotspot):FrameSphericalCorners {
   }) as FrameSphericalCorners;
 }
 
+/** En visite, n'affiche qu'une seule fois deux copies de la même vidéo placées sur le même écran.
+ * La dernière copie est conservée : elle correspond généralement au réglage le plus récent.
+ * Les points restent tous présents dans l'éditeur et dans les données du projet.
+ */
+export function visibleVideoFrames(hotspots:Hotspot[]):Hotspot[]{
+  const close=(a:Hotspot,b:Hotspot)=>{
+    if(a.type!=='video'||b.type!=='video'||!isFrame(a)||!isFrame(b))return false;
+    const source=a.videoDataUrl||a.videoUrl;
+    if(!source||source!==(b.videoDataUrl||b.videoUrl))return false;
+    const ac=frameWorldCorners(a),bc=frameWorldCorners(b);
+    return ac.every((p,i)=>{
+      const dy=Math.atan2(Math.sin(p.yaw-bc[i].yaw),Math.cos(p.yaw-bc[i].yaw));
+      return Math.abs(dy)<0.02&&Math.abs(p.pitch-bc[i].pitch)<0.02;
+    });
+  };
+  return hotspots.filter((h,i)=>!hotspots.slice(i+1).some(other=>close(h,other)));
+}
+
 export function replaceWorldCorner(h:Hotspot,key:FrameKey,position:SphericalPoint):FrameSphericalCorners {
   const corners=frameWorldCorners(h).map(p=>({...p})) as FrameSphericalCorners;
   corners[FRAME_KEYS.indexOf(key)]={yaw:position.yaw,pitch:position.pitch};
