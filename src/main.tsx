@@ -40,7 +40,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera} from 'lucide-react';
+import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
 import {captureScreen,ShotEditor,ShotInbox} from './ScreenshotTool';
 import {SectionHub} from './SectionHub';
 import {MediaPicker} from './MediaPicker';
@@ -903,6 +903,22 @@ function App(){
   const [spaceSelection,setSpaceSelection]=useState<Set<string>>(new Set());
   const [spaceAction,setSpaceAction]=useState<'share'|'transfer'|null>(null);
   const spaceImportInput=useRef<HTMLInputElement>(null);
+  const [shareMenuOpen,setShareMenuOpen]=useState(false);
+  const shareMenuRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if(!shareMenuOpen)return;
+    const outside=(e:PointerEvent)=>{if(!shareMenuRef.current?.contains(e.target as Node))setShareMenuOpen(false);};
+    const esc=(e:KeyboardEvent)=>{if(e.key==='Escape')setShareMenuOpen(false);};
+    document.addEventListener('pointerdown',outside);document.addEventListener('keydown',esc);
+    return ()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',esc);};
+  },[shareMenuOpen]);
+  /** Choisir des espaces (affiche la barre des espaces avec les cases), puis lancer l'action voulue. */
+  function startSpaceAction(action?:'share'|'transfer'){
+    setShareMenuOpen(false);
+    setSpacesDrawerOpen(true);setSpaceSelectMode(true);
+    if(action&&spaceSelection.size>0){setSpaceAction(action);return;}
+    setStatus(action?'Coche les espaces à '+(action==='share'?'partager':'envoyer')+', puis clique sur « '+(action==='share'?'Partager avec un membre…':'Envoyer vers un autre projet…')+' » dans la barre qui s’affiche.':'Coche les espaces voulus : les actions apparaissent dans la barre sous les espaces.');
+  }
   const selectedSpaces=(project.spaces??[]).filter(space=>spaceSelection.has(space.id));
   const toggleSpacePick=(id:string)=>setSpaceSelection(cur=>{const n=new Set(cur);if(n.has(id))n.delete(id);else n.add(id);return n;});
   async function importSpacesFile(file?:File){
@@ -2948,6 +2964,22 @@ function App(){
           aria-label="Nouvelle version de NovaStudio disponible : actualiser">
           <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
         </button>}
+        <div className="nv-share-wrap" ref={shareMenuRef}>
+          <button type="button" className={'nv-v3-icon-btn nv-v3-share'+(shareMenuOpen?' is-open':'')} onClick={()=>setShareMenuOpen(open=>!open)}
+            aria-haspopup="menu" aria-expanded={shareMenuOpen} aria-label="Partager" title="Partager : projet, espaces, autres projets">
+            <Share2 size={21}/>
+          </button>
+          {shareMenuOpen&&<div className="nv-share-menu" role="menu" aria-label="Partager">
+            <div className="nv-share-group">Le projet</div>
+            <button type="button" role="menuitem" onClick={()=>{setShareMenuOpen(false);setShareOpen(true);}}>🔗 Lien public et publication</button>
+            <button type="button" role="menuitem" onClick={()=>{setShareMenuOpen(false);setPrivateOpen(true);}}>🔒 Inviter un membre (lien privé)</button>
+            <div className="nv-share-group">Les espaces</div>
+            <button type="button" role="menuitem" onClick={()=>startSpaceAction()}>☑ Choisir plusieurs espaces</button>
+            <button type="button" role="menuitem" onClick={()=>startSpaceAction('share')}>👥 Partager des espaces avec un membre</button>
+            <button type="button" role="menuitem" onClick={()=>startSpaceAction('transfer')}>⭱ Envoyer des espaces vers un autre projet</button>
+            <button type="button" role="menuitem" onClick={()=>{setShareMenuOpen(false);spaceImportInput.current?.click();}}>⭳ Importer des espaces d’un autre projet</button>
+          </div>}
+        </div>
         <button type="button" className="nv-v3-icon-btn nv-v3-camera" onClick={()=>void takeShot()}
           aria-label="Capture annotée" title="Capture d’écran : entourer, écrire, envoyer à un collègue">
           <Camera size={22}/>
@@ -3023,10 +3055,7 @@ function App(){
         title="Créer une sous-visite à partir des panoramas existants">
         <Plus size={15}/> Ajouter un espace
       </button>
-      {(project.spaces?.length??0)>0&&<button type="button" className={'nv-space-select-toggle'+(spaceSelectMode?' is-on':'')} aria-pressed={spaceSelectMode}
-        title="Choisir plusieurs espaces pour les partager ou les envoyer vers un autre projet"
-        onClick={()=>{setSpaceSelectMode(on=>!on);setSpaceSelection(new Set());}}>☑ Sélection multiple</button>}
-      <button type="button" className="nv-space-select-toggle" title="Ajouter à ce projet des espaces venant d’un autre projet (fichier .nvspaces.json)" onClick={()=>spaceImportInput.current?.click()}>⭳ Importer des espaces</button>
+
       {currentSpace&&<button type="button" className="nv-space-manage" onClick={()=>setSpaceManagerOpen(true)}>
         Gérer les panoramas
       </button>}
