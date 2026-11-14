@@ -40,8 +40,8 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
-import {captureScreen,ShotEditor,ShotInbox} from './ScreenshotTool';
+import {Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
+import {captureScreen,ShotEditor} from './ScreenshotTool';
 import {SectionHub} from './SectionHub';
 import {MediaPicker} from './MediaPicker';
 import {SpacesActions} from './SpacesActions';
@@ -910,6 +910,15 @@ function App(){
   const [spaceAction,setSpaceAction]=useState<'share'|'transfer'|null>(null);
   const spaceImportInput=useRef<HTMLInputElement>(null);
   const [shareMenuOpen,setShareMenuOpen]=useState(false);
+  const [bellOpen,setBellOpen]=useState(false);
+  const bellRef=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if(!bellOpen)return;
+    const outside=(e:PointerEvent)=>{if(!bellRef.current?.contains(e.target as Node))setBellOpen(false);};
+    const esc=(e:KeyboardEvent)=>{if(e.key==='Escape')setBellOpen(false);};
+    document.addEventListener('pointerdown',outside);document.addEventListener('keydown',esc);
+    return ()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('keydown',esc);};
+  },[bellOpen]);
   const shareMenuRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     if(!shareMenuOpen)return;
@@ -963,6 +972,7 @@ function App(){
     i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
   });
   const liveInvite=useLiveInvites(inviteIdentity,true);
+  const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0);
   // Notes reçues en direct : on les garde dans les notes de ce projet (sur cet ordinateur), en plus de la carte affichée.
   const savedNoteIds=useRef(new Set<string>());
   useEffect(()=>{
@@ -2993,12 +3003,20 @@ function App(){
           aria-label="Plein écran de la création" title="Plein écran : agrandir uniquement la création 360°">
           <Maximize2 size={21}/>
         </button>
-        <button type="button" className={'nv-v3-icon-btn'+(!rightHidden?' is-open':'')}
-          aria-label={rightHidden?'Afficher les réglages':'Masquer les réglages'}
-          title={rightHidden?'Afficher les réglages':'Masquer les réglages'}
-          aria-pressed={!rightHidden} onClick={()=>setRightHidden(value=>!value)}>
-          <Menu size={22}/>
-        </button>
+        <div className="nv-share-wrap nv-bell-wrap" ref={bellRef}>
+          <button type="button" className={'nv-v3-icon-btn nv-v3-bell'+(bellOpen?' is-open':'')+(notifCount?' has-new':'')} onClick={()=>setBellOpen(o=>!o)}
+            aria-haspopup="menu" aria-expanded={bellOpen} aria-label={notifCount?'Notifications ('+notifCount+' nouvelles)':'Notifications'} title="Notifications : notes, captures, invitations, mises à jour">
+            <Bell size={21}/>{notifCount>0&&<i className="nv-bell-badge" aria-hidden="true">{notifCount>9?'9+':notifCount}</i>}
+          </button>
+          {bellOpen&&<div className="nv-share-menu nv-bell-menu" role="menu" aria-label="Notifications">
+            {!notifCount&&<p className="nv-bell-empty">Rien de nouveau. Les notes, captures et invitations de tes collègues apparaîtront ici.</p>}
+            {liveInvite.invite&&<button type="button" role="menuitem" onClick={()=>{setBellOpen(false);liveInvite.dismiss();void startLiveWith([],false);}}>🖥 <span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran<small>Cliquer pour rejoindre</small></span></button>}
+            {liveInvite.notesIn.map(n=><button type="button" role="menuitem" key={n.id} onClick={()=>{setBellOpen(false);liveInvite.dismissNote(n.id);setToolsMenuOpen(false);setRightHidden(true);setNotesOpen(true);}}>📝 <span><b>{n.fromLabel}</b> : {n.body.slice(0,70)}{n.body.length>70?'…':''}<small>Note · cliquer pour ouvrir les notes</small></span></button>)}
+            {liveInvite.shots.map(sh=><button type="button" role="menuitem" key={sh.id} onClick={()=>{setBellOpen(false);liveInvite.dismissShot(sh.id);setShotImage({image:sh.image,defaultTo:sh.fromEmail});}}>📷 <span><b>{sh.fromLabel}</b> t’envoie une capture{sh.comment?' : '+sh.comment.slice(0,60):''}<small>Cliquer pour la voir et répondre</small></span></button>)}
+            {updateAvailable&&<button type="button" role="menuitem" onClick={reloadToLatestVersion}>🔄 <span><b>Nouvelle version de NovaStudio</b><small>Enregistre ton travail, puis clique pour actualiser</small></span></button>}
+            {(liveInvite.notesIn.length+liveInvite.shots.length>1)&&<button type="button" role="menuitem" className="nv-bell-clear" onClick={()=>{liveInvite.notesIn.forEach(n=>liveInvite.dismissNote(n.id));liveInvite.shots.forEach(sh=>liveInvite.dismissShot(sh.id));}}>Tout marquer comme lu</button>}
+          </div>}
+        </div>
       </div>
     </header>
     <section id="nv-workspace-spaces" className={"nv-space-strip nv-space-drawer"+(spacesDrawerOpen?" is-open":"")} aria-label="Espaces de travail du projet" aria-hidden={!spacesDrawerOpen}>
@@ -3120,15 +3138,10 @@ function App(){
         </div>
       </section>
     </div>}
-    {liveInvite.notesIn.length>0&&<div className="nv-shot-inbox" style={{top:'auto',bottom:90}} role="region" aria-label="Notes reçues">
-      {liveInvite.notesIn.map(n=><article key={n.id} className="nv-note-in"><strong>📝 {n.fromLabel} t’envoie une note</strong><p>{n.body}</p>
-        <button type="button" className="x" onClick={()=>liveInvite.dismissNote(n.id)} aria-label="Fermer cette note"><XMark/></button></article>)}
-    </div>}
     {spaceAction&&selectedSpaces.length>0&&<SpacesActions mode={spaceAction} project={project} spaces={selectedSpaces} onClose={()=>setSpaceAction(null)} onStatus={setStatus}
       onMoved={ids=>{setProject(p=>({...p,spaces:(p.spaces??[]).filter(space=>!ids.includes(space.id))}));setSpaceSelection(new Set());if(activeSpaceId&&ids.includes(activeSpaceId)){setActiveSpaceId(null);}}}/>}
     {!creationFullscreen&&mediaPickerEl()}
     {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
-    <ShotInbox shots={liveInvite.shots} onDismiss={liveInvite.dismissShot} onReply={shot=>{liveInvite.dismissShot(shot.id);setShotImage({image:shot.image,defaultTo:shot.fromEmail});}}/>
     {updateAvailable&&Date.now()>=updateSnoozeUntil&&<div className="nv-update-banner" role="alert">
       <span className="nv-update-text"><b>Nouvelle version de NovaStudio disponible</b><small>{ready&&projectRef.current!==savedRef.current?'Enregistre ton travail avec la disquette, puis actualise.':'Actualise pour profiter des dernières nouveautés.'}</small></span>
       <button type="button" className="is-go" onClick={reloadToLatestVersion} disabled={savingManually}><RefreshCw size={16}/> Actualiser maintenant</button>

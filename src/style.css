@@ -4975,3 +4975,16 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 /* Croix centrées : boutons contenant une croix SVG */
 button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:center;line-height:0;padding-top:0;padding-bottom:0}
 .nv-xmark{display:block;flex:none}
+
+/* Cloche de notifications */
+.nv-bell-wrap{position:relative}
+.nv-v3-bell{position:relative}
+.nv-bell-badge{position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#e8453c;color:#fff;font:800 11px/19px system-ui,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 2px #0d1f2a}
+.nv-v3-bell.has-new svg{animation:nv-bell-ring 1.6s ease-in-out 2;transform-origin:50% 0}
+@keyframes nv-bell-ring{0%,100%{transform:rotate(0)}15%{transform:rotate(16deg)}30%{transform:rotate(-14deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}}
+.nv-bell-menu{width:min(380px,calc(100vw - 20px));max-height:70vh;overflow:auto}
+.nv-bell-menu>button{align-items:flex-start!important;padding:10px 12px!important;height:auto}
+.nv-bell-menu>button>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nv-bell-menu small{font-weight:500;opacity:.75;font-size:12px}
+.nv-bell-empty{margin:6px 8px;font-size:13px;opacity:.75}
+.nv-bell-clear{justify-content:center;background:transparent!important}
