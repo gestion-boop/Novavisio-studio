@@ -39,3 +39,6 @@
 .nv-navigation-edit-card label{display:flex;flex-direction:column;gap:7px;font-size:13px}
 .nv-navigation-edit-card select{width:100%;min-width:0;padding:9px;background:#0d2532;border:1px solid #537b8b;color:#e4f6f5;border-radius:7px}
 #nv-selected-point{scroll-margin-top:64px}
+
+/* Message d'enregistrement : en haut au centre, il ne cache plus les boutons de la barre du bas */
+.nv-workflow-status{top:84px;bottom:auto;left:50%;transform:translateX(-50%)}
