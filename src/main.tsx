@@ -884,6 +884,17 @@ function App(){
   const [toolsMenuOpen,setToolsMenuOpen]=useState(false);
   const [notesOpen,setNotesOpen]=useState(false);
   const [dragTool,setDragTool]=useState<string|null>(null);
+  // Le rideau des outils s'arrête à la limite de la barre de création (ou du pied de page) : il ne la recouvre jamais.
+  useEffect(()=>{
+    if(!toolsMenuOpen)return;
+    const fit=()=>{
+      const top=document.querySelector('.topbar')?.getBoundingClientRect().bottom??0;
+      const limit=document.querySelector('.nv-sortable-toolbar')?.getBoundingClientRect().top??document.querySelector('footer')?.getBoundingClientRect().top??window.innerHeight;
+      document.documentElement.style.setProperty('--nv-curtain-max',Math.max(160,Math.floor(limit-top))+'px');
+    };
+    fit();window.addEventListener('resize',fit);
+    return ()=>window.removeEventListener('resize',fit);
+  },[toolsMenuOpen]);
   const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
   const [shotImage,setShotImage]=useState<{image:string;defaultTo?:string}|null>(null);
   /** Capture annotée : photo de l'écran à l'instant T, à entourer / commenter puis envoyer à un collègue. */
