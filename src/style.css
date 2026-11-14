@@ -5242,3 +5242,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
   background:repeating-linear-gradient(90deg,#fff 0 7px,transparent 7px 12px) center/100% 1.5px no-repeat,repeating-linear-gradient(0deg,#fff 0 7px,transparent 7px 12px) center/1.5px 100% no-repeat!important;
   filter:drop-shadow(0 0 1px #000) drop-shadow(0 0 2px #000a)!important}
 .nv-frame-dragging .nv-sphere-handle:not(.is-dragging),.nv-frame-dragging .nv-sphere-center:not(.is-dragging){opacity:.2}
+
+/* Réglages d'un point sélectionné : le panneau reste étroit à droite pour laisser voir le centre du panorama */
+@media(min-width:821px){
+  .nv-studio-pro.nv-sheet-open.nv-sheet-side .workspace>.right.panel{width:clamp(400px,27%,500px)}
+  .nv-studio-pro.nv-sheet-open.nv-sheet-side .nv-creation-fullscreen-enter{right:calc(clamp(400px,27%,500px) + 24px)}
+}

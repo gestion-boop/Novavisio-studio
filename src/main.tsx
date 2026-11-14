@@ -728,6 +728,8 @@ function App(){
       if(!proceed)return;
     }
     updateReloadApproved.current=true;
+    // On mémorise où l'on était : après la mise à jour, on revient dans le même panorama (même vue), pas au début de la visite.
+    try{const cam=cameraRef.current;localStorage.setItem('nvstudio-resume',JSON.stringify({sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
     window.location.reload();
   }
   const [activeId,setActiveId]=useState('');
@@ -796,6 +798,24 @@ function App(){
   const [autoNavigation,setAutoNavigation]=useState(false);
   // Parcours guidé (Auto) : suit l'ordre des panoramas. 'forward' = poser la flèche vers le suivant, 'back' = demi-tour puis valider le retour.
   const [guide,setGuide]=useState<{phase:'forward'|'back';prevId?:string;fwdYaw:number;fwdPitch:number}|null>(null);
+  // Retour au panorama en cours d'édition après une mise à jour de l'application
+  const resumeDone=useRef(false);
+  useEffect(()=>{
+    if(!ready||resumeDone.current)return;
+    resumeDone.current=true;
+    let saved:{sceneId?:string;spaceId?:string|null;yaw?:number;pitch?:number;zoom?:number;at?:number}|null=null;
+    try{saved=JSON.parse(localStorage.getItem('nvstudio-resume')||'null');localStorage.removeItem('nvstudio-resume');}catch{saved=null;}
+    if(!saved||!saved.sceneId||Date.now()-(saved.at??0)>15*60_000)return;
+    const sceneId=saved.sceneId;
+    if(!projectRef.current.scenes.some(sc=>sc.id===sceneId))return;
+    setActiveSpaceId(saved.spaceId&&(projectRef.current.spaces??[]).some(sp=>sp.id===saved!.spaceId)?saved.spaceId:null);
+    setActiveId(sceneId);setSelectedId('');
+    if(typeof saved.yaw==='number'&&typeof saved.pitch==='number'){
+      const v={yaw:saved.yaw,pitch:saved.pitch,zoom:saved.zoom};
+      window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true}),1400);
+    }
+    setStatus('Mise à jour appliquée · tu es revenu dans le même panorama');
+  },[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null>(null);
   const [preview,setPreview]=useState(false);
   const [clientVideoPlacement,setClientVideoPlacement]=useState<(ImportedClientVideo&{sceneId:string})|null>(null);
