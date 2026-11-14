@@ -1,4 +1,5 @@
 import {MediaIconSelector} from './MediaIconSettings';
+import {BarSmartCard,barKind,recommendedType} from './BarSmartCard';
 import {InformationEditor,informationFont} from './InformationEditor';
 import {EmbeddedPage} from './EmbeddedPage';
 import {SpaceCover} from './SpaceCover';
@@ -2407,7 +2408,10 @@ function App(){
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   function triggerBar(item:BottomBarItem){
     if(!preview){
-      setSelectedBarId(current=>current===item.id?'':item.id);setPanel('bar');setSelectedId('');
+      setSelectedBarId(current=>current===item.id?'':item.id);setPanel('bar');setSelectedId('');setRightHidden(false);
+      // Bouton encore vide : on règle tout de suite le bon type d'action d'après son titre (panorama, appel, site, infos…).
+      const rec=recommendedType(barKind(item));
+      if(rec&&rec!==item.type&&!item.url&&!item.text&&!(item.gallery?.length))setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===item.id?{...b,type:rec,...(rec==='gallery'?{gallery:b.gallery??[]}:{})}:b)}));
       if(creationFullscreen){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
       return;
     }
@@ -4204,7 +4208,7 @@ function App(){
             if(!item)return null;
             return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces,sceneThumbs)}
               entries={galleryEntries(item,preview?visibleScenes.filter(sc=>!sc.excluded):visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
-              onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} onClose={()=>setGalleryOpen(null)}/>;
+              onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
           {imageZoom?.imageDataUrl && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
@@ -4629,6 +4633,7 @@ function App(){
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
             <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
+            <BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')}/>
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
               <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>

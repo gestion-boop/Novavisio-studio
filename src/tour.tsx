@@ -373,7 +373,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {galleryId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
       if(!item)return null;
-      return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={current.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
+      return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={current.id} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
         entries={galleryEntries(item,project.scenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)}))}
         onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}

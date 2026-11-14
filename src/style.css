@@ -5215,3 +5215,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-act.is-todo{border-color:#e3b341;box-shadow:0 0 0 2px #e3b34155}
 .nv-act.is-danger{color:#ffb4ab}
 .nv-act:disabled{opacity:.4;cursor:not-allowed}
+
+/* Réglage rapide d'un bouton de la barre */
+.nv-smart-card{margin:10px 0;padding:12px;border-radius:14px;border:1px solid #9fdcf3;background:linear-gradient(160deg,#16465a,#0f2f3d);color:#e6f6f8;display:flex;flex-direction:column;gap:8px}
+.nv-smart-head{display:flex;gap:10px;align-items:center}.nv-smart-head>span{font-size:22px}
+.nv-smart-head strong{display:block;font-size:15px}.nv-smart-head small{opacity:.8;font-size:12px}
+.nv-smart-card label{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:13px}
+.nv-smart-card input,.nv-smart-card textarea{padding:9px 10px;border-radius:9px;border:1px solid #5b8e98;background:#0a1e28;color:#fff;font:inherit;font-weight:500}
+.nv-smart-card small{opacity:.8;font-weight:500}
+.nv-smart-card p{margin:0;font-size:13px}
+.nv-smart-go{padding:10px;border-radius:10px;border:1px solid #9fdcf3;background:#2f8fb5;color:#fff;font-weight:800;cursor:pointer}

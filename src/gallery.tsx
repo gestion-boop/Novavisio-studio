@@ -1,5 +1,6 @@
-import {useEffect,useState,type ReactNode} from 'react';
+import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {X} from 'lucide-react';
+import {renderViewThumb,type ViewSource} from './viewThumbs';
 import type {BottomBarItem,Scene,StudioProject} from './storage';
 
 /** Entrées d'une galerie de panoramas : seulement les panoramas qui existent encore, dans l'ordre choisi. */
@@ -33,7 +34,24 @@ export function galleryBackgroundSrc(item:BottomBarItem,scenes:Scene[],spaces:St
 }
 export type GalleryCard={sceneId:string;label:string;thumb?:string;spaceId?:string};
 /** Galerie de raccourcis vers les panoramas : un clic sur une vignette emmène directement au panorama. */
-export function PanoramaGallery({title,entries,currentId,background,onPick,onClose,renderPreview}:{title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void;renderPreview?:(sceneId:string)=>ReactNode}){
+export function PanoramaGallery({title,entries,currentId,background,onPick,onClose,renderPreview,viewSource}:{title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void;renderPreview?:(sceneId:string)=>ReactNode;viewSource?:(sceneId:string)=>ViewSource|undefined}){
+  const [views,setViews]=useState<Record<string,string>>({});
+  const viewRef=useRef(viewSource),entriesRef=useRef(entries);viewRef.current=viewSource;entriesRef.current=entries;
+  const entriesKey=entries.map(e=>e.sceneId).join(',');
+  useEffect(()=>{
+    if(!viewRef.current)return;
+    let dead=false;
+    void (async()=>{
+      for(const e of entriesRef.current){
+        if(dead)return;
+        if(e.spaceId)continue;
+        const src=viewRef.current?.(e.sceneId);if(!src||!src.dataUrl)continue;
+        try{const url=await renderViewThumb(src);if(dead)return;setViews(v=>v[e.sceneId]?v:{...v,[e.sceneId]:url});}catch{/* on garde la vignette d'origine */}
+        await new Promise(r=>setTimeout(r,20));
+      }
+    })();
+    return ()=>{dead=true;};
+  },[entriesKey]);
   const [look,setLook]=useState<GalleryCard|null>(null);
   useEffect(()=>{
     const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape'){if(look)setLook(null);else onClose();}};
@@ -46,7 +64,7 @@ export function PanoramaGallery({title,entries,currentId,background,onPick,onClo
       <header><h2>{title}</h2><button type="button" className="nv-gallery-close" onClick={onClose} aria-label="Fermer la galerie"><X size={20}/></button></header>
       {entries.length?<div className="nv-gallery-grid">{entries.map(e=><div className="nv-gallery-cell" key={e.spaceId??e.sceneId}>
         <button type="button" className={'nv-gallery-card'+(e.sceneId===currentId?' is-current':'')} onClick={()=>onPick(e.sceneId,e.spaceId)}>
-          <span className="nv-gallery-thumb">{e.thumb?<img src={e.thumb} alt="" loading="lazy" decoding="async" draggable={false}/>:<span className="nv-gallery-ph"/>}</span>
+          <span className="nv-gallery-thumb">{(views[e.sceneId]||e.thumb)?<img src={views[e.sceneId]||e.thumb} alt="" loading="lazy" decoding="async" draggable={false}/>:<span className="nv-gallery-ph"/>}</span>
           <strong>{e.label}</strong>
         </button>
         {renderPreview&&!e.spaceId&&<button type="button" className="nv-gallery-360" title="Voir ce panorama en 360° pour le reconnaître" aria-label={'Voir '+e.label+' en 360°'} onClick={ev=>{ev.stopPropagation();setLook(e);}}>360°</button>}
