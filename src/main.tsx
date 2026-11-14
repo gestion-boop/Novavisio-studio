@@ -1075,10 +1075,26 @@ function App(){
     if(j>=guided.queue.length){setGuided(null);setIssueFocus(null);setStatus('Tous les problèmes ont été passés en revue 🎉');if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}return;}
     setGuided({queue:guided.queue,i:j});goToIssue(guided.queue[j]);
   }
-  /** Panoramas à proposer en premier comme destination : ceux qui ont une flèche vers ce panorama (lien retour), puis ses voisins dans l'ordre du projet. */
+  /** Numéro de scan d'un panorama (« …-PAN034 » → 34, « Entrée 1 » → 1) : les panoramas sont normalement numérotés dans l'ordre du scan. */
+  function sceneNumber(name:string):number|null{
+    const m=name.match(/PAN\s*0*(\d+)/i)??name.match(/(\d+)(?!.*\d)/);
+    return m?parseInt(m[1],10):null;
+  }
+  /** Panoramas à proposer en premier comme destination : d'abord les voisins dans la numérotation (le 14 et le 16 pour le 15, en écartant celui déjà relié),
+   *  puis ceux qui ont déjà une flèche vers ce panorama, puis les voisins dans l'ordre du projet. */
   function suggestDestinations(sceneId:string):{id:string;why:string}[]{
     const out:{id:string;why:string}[]=[];
     const add=(id:string,why:string)=>{if(id!==sceneId&&visibleIds.has(id)&&!out.some(o=>o.id===id))out.push({id,why});};
+    const cur=project.scenes.find(sc=>sc.id===sceneId);
+    const n=cur?sceneNumber(cur.name):null;
+    if(cur&&n!==null){
+      const linked=new Set(cur.hotspots.filter(h=>h.type==='navigation'&&h.target).map(h=>h.target));
+      const numbered=project.scenes.filter(sc=>sc.id!==sceneId&&visibleIds.has(sc.id)).map(sc=>({sc,num:sceneNumber(sc.name)})).filter((x):x is {sc:Scene;num:number}=>x.num!==null);
+      const next=numbered.filter(x=>x.num>n).sort((x,y)=>x.num-y.num)[0];
+      const prev=numbered.filter(x=>x.num<n).sort((x,y)=>y.num-x.num)[0];
+      for(const [cand,label] of [[next,'suivant'],[prev,'précédent']] as const)
+        if(cand&&!linked.has(cand.sc.id))add(cand.sc.id,'⭐ Suggéré · n°'+cand.num+' ('+label+' dans la numérotation)');
+    }
     for(const sc of project.scenes)if(sc.hotspots.some(h=>h.type==='navigation'&&h.target===sceneId))add(sc.id,'⭐ Suggéré · a déjà une flèche vers ce panorama');
     const i=project.scenes.findIndex(sc=>sc.id===sceneId);
     if(i>0)add(project.scenes[i-1].id,'⭐ Suggéré · juste avant dans la liste');
@@ -3461,7 +3477,7 @@ function App(){
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
                 aria-label="Rechercher un panorama" onChange={e=>setClassicDestinationSearch(e.target.value)}/>
               <div className="nv-classic-destination-list" ref={destinationListRef}>
-                {(()=>{const sugg=issueFocus&&activeId?suggestDestinations(activeId):[];const rank=(id:string)=>{const k=sugg.findIndex(x=>x.id===id);return k<0?999:k;};return [...visibleScenes].filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(classicDestinationSearch.toLocaleLowerCase('fr'))).sort((a,b)=>rank(a.id)-rank(b.id)).map(sc=>({sc,why:sugg.find(x=>x.id===sc.id)?.why}));})().map(({sc,why})=>
+                {(()=>{const sugg=issueFocus&&activeId?suggestDestinations(activeId):[];const curN=sceneNumber(project.scenes.find(x=>x.id===activeId)?.name??'');const rank=(id:string)=>{const k=sugg.findIndex(x=>x.id===id);if(k>=0)return k;const m=sceneNumber(project.scenes.find(x=>x.id===id)?.name??'');return 1000+(curN!==null&&m!==null?Math.abs(m-curN):5000);};return [...visibleScenes].filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(classicDestinationSearch.toLocaleLowerCase('fr'))).sort((a,b)=>rank(a.id)-rank(b.id)).map(sc=>({sc,why:sugg.find(x=>x.id===sc.id)?.why}));})().map(({sc,why})=>
                   <button type="button" key={sc.id} data-destination-scene={sc.id} className={'nv-classic-destination-row'+(classicDestinationPreviewId===sc.id?' is-active':'')}
                     onClick={()=>setClassicDestinationPreviewId(sc.id)}
                     aria-pressed={classicDestinationPreviewId===sc.id}>
