@@ -1036,10 +1036,17 @@ function App(){
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
   const returnToCheck=useRef(false);
   const [guided,setGuided]=useState<{queue:CheckIssue[];i:number}|null>(null);
+  const fixingRef=useRef(false);
   async function validateFix(){
-    await manualSave();
-    if(guided){nextGuided();return;}
-    setIssueFocus(null);
+    if(fixingRef.current)return;
+    fixingRef.current=true;
+    const guidedNow=guided;
+    try{
+      // On n'attend pas indéfiniment le Cloud : après 20 s l'enregistrement continue en arrière-plan et on passe à la suite.
+      await Promise.race([manualSave().catch(()=>undefined),new Promise<void>(resolve=>window.setTimeout(resolve,20000))]);
+    }finally{fixingRef.current=false;}
+    if(guidedNow){nextGuided();return;}
+    setIssueFocus(null);setGuided(null);
     if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
   }
   function startGuided(){
