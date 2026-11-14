@@ -16,7 +16,7 @@ import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
 
-import {useEffect, useRef, useState, type CSSProperties,type ReactNode} from 'react';
+import {useEffect, useMemo, useRef, useState, type CSSProperties,type ReactNode} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
@@ -40,7 +40,9 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
+import {MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
+import {checkProject} from './projectCheck';
+import {CommentsPanel} from './CommentsPanel';
 import {captureScreen,ShotEditor} from './ScreenshotTool';
 import {SectionHub} from './SectionHub';
 import {MediaPicker} from './MediaPicker';
@@ -57,7 +59,7 @@ import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,
 import {frameWorldCorners,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './media.css';
 import {XMark} from './XMark';
@@ -990,6 +992,40 @@ function App(){
     for(const sh of liveInvite.shots)pushNotif('📷',sh.fromLabel+' a envoyé une capture','shot-'+sh.id);
   },[liveInvite.notesIn,liveInvite.shots]);
   const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0);
+  // Commentaires d'équipe accrochés à un endroit du panorama
+  const [commentsOpen,setCommentsOpen]=useState(false);
+  function addComment(text:string){
+    const cam=cameraRef.current,sceneId=cam.sceneId||activeId;if(!sceneId)return;
+    const c:ProjectComment={id:uid(),sceneId,yaw:cam.yaw,pitch:cam.pitch,text,author:inviteIdentity?inviteIdentity.email.split('@')[0].slice(0,24):'Moi',at:Date.now()};
+    setProject(p=>({...p,comments:[c,...(p.comments??[])].slice(0,500)}));
+    pushNotif('💬','Commentaire ajouté sur « '+(project.scenes.find(sc=>sc.id===sceneId)?.name||'panorama')+' »');
+    setStatus('Commentaire accroché à cet endroit · enregistre pour le partager avec l’équipe');
+  }
+  function goToComment(c:ProjectComment){
+    if(!project.scenes.some(sc=>sc.id===c.sceneId)){setStatus('Ce panorama n’existe plus.');return;}
+    setCommentsOpen(false);
+    if(currentSpace&&!visibleIds.has(c.sceneId))setActiveSpaceId(null);
+    setArrivedVia(null);nextArrivalRef.current=null;setActiveId(c.sceneId);setSelectedId('');setMode(null);
+    window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:c.yaw,pitch:c.pitch}),900);
+  }
+  const toggleComment=(id:string)=>setProject(p=>({...p,comments:(p.comments??[]).map(c=>c.id===id?{...c,done:!c.done}:c)}));
+  const deleteComment=(id:string)=>setProject(p=>({...p,comments:(p.comments??[]).filter(c=>c.id!==id)}));
+  // Contrôle avant publication
+  const publishIssues=useMemo(()=>publishConfirm?checkProject(project):[],[publishConfirm]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Carte « depuis ta dernière visite » (une fois par ouverture, seulement s'il y a quelque chose à dire)
+  const [welcome,setWelcome]=useState<{since:number|null;notifs:number;comments:number;errors:number}|null>(null);
+  const welcomeDone=useRef(false);
+  useEffect(()=>{
+    if(!ready||welcomeDone.current)return;
+    welcomeDone.current=true;
+    const key='nvstudio-lastvisit:'+(project.name||'projet');
+    let since:number|null=null;try{since=Number(localStorage.getItem(key))||null;}catch{/* rien */}
+    try{localStorage.setItem(key,String(Date.now()));}catch{/* rien */}
+    const notifs=since?notifHistory.filter(h=>h.at>since!).length:0;
+    const comments=(project.comments??[]).filter(c=>!c.done).length;
+    const errors=checkProject(project).filter(i=>i.level==='error').length;
+    if(notifs||comments||errors)setWelcome({since,notifs,comments,errors});
+  },[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   // Notes reçues en direct : on les garde dans les notes de ce projet (sur cet ordinateur), en plus de la carte affichée.
   const savedNoteIds=useRef(new Set<string>());
   useEffect(()=>{
@@ -1061,7 +1097,7 @@ function App(){
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','music','client','notes'];
+  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
@@ -1077,6 +1113,7 @@ function App(){
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
+    if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);
     if(!option)return null;
     const look:Record<string,{icon:ReactNode;tone:string}>={
@@ -3169,6 +3206,21 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
+    {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
+    {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
+      <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>
+      <ul>
+        {welcome.notifs>0&&<li>{welcome.notifs} événement{welcome.notifs>1?'s':''} (enregistrements, notes, captures)</li>}
+        {welcome.comments>0&&<li>{welcome.comments} commentaire{welcome.comments>1?'s':''} d’équipe en attente</li>}
+        {welcome.errors>0&&<li>{welcome.errors} problème{welcome.errors>1?'s':''} à corriger avant de publier</li>}
+      </ul>
+      <div className="nv-welcome-actions">
+        {welcome.notifs>0&&<button type="button" onClick={()=>{setWelcome(null);setBellOpen(true);}}>Voir l’historique</button>}
+        {welcome.comments>0&&<button type="button" onClick={()=>{setWelcome(null);setCommentsOpen(true);}}>Voir les commentaires</button>}
+        {welcome.errors>0&&<button type="button" onClick={()=>{setWelcome(null);setPublishConfirm(true);}}>Contrôler le projet</button>}
+        <button type="button" onClick={()=>setWelcome(null)}>OK</button>
+      </div>
+    </aside>}
     {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>{setNotesOpen(false);backFrom();}} onOpenCloud={()=>{returnTo.current=null;setToolsMenuOpen(false);setCloudOpen(true);}}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
@@ -4486,7 +4538,12 @@ function App(){
     <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
     {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}><XMark/></button></div>}
     {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
-    {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p><div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>Confirmer la publication</button></div></section></div>}
+    {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
+      {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
+        <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>
+        <ul className="nv-publish-check">{publishIssues.slice(0,40).map((is,i)=><li key={i} className={'is-'+is.level}><span>{is.level==='error'?'⛔':'⚠️'}</span><span>{is.text}</span>
+          {is.sceneId&&<button type="button" onClick={()=>{setPublishConfirm(false);selectScene(is.sceneId!);}}>Voir</button>}</li>)}</ul></>}
+      <div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>{publishIssues.some(i=>i.level==='error')?'Publier quand même':'Confirmer la publication'}</button></div></section></div>}
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
     {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}
@@ -4506,7 +4563,7 @@ function App(){
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
-    {privateOpen&&<PrivatePanel project={projectForSpaceExport({...project,clientProfile:undefined},currentSpace)} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
+    {privateOpen&&<PrivatePanel project={projectForSpaceExport({...project,clientProfile:undefined,comments:undefined},currentSpace)} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
