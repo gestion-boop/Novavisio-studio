@@ -1284,7 +1284,7 @@ function App(){
       music:{icon:<Music size={ic}/>,tone:'#ff6fa8'},client:{icon:<Smile size={ic}/>,tone:'#7f8cff'}
     };
     const l=look[key]??{icon:<Layers size={ic}/>,tone:'#4f7cff'};
-    return {label:option.label,icon:l.icon,tone:l.tone,active:!rightHidden&&panel===key,run:()=>toggleToolPanel(key as PanelTab)};
+    return {label:key==='points'?'Scène & Points':option.label,icon:l.icon,tone:l.tone,active:!rightHidden&&panel===key,run:()=>toggleToolPanel(key as PanelTab)};
   }
   // Éditer · tous les outils · Aperçu (en-tête, et en haut du plein écran de création)
   function modeSwitch(fs:boolean){
