@@ -20,7 +20,8 @@ declare const __NV_BUILD_TIME__:string;
 import {useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,type ReactNode} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
-import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
+import {FrameLoupe} from './FrameLoupe';
+import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {exportStaticTour} from './exportTour';
 import {useLiveSession,LiveOverlay,useLiveInvites,sendLiveInvite,sendLiveShot} from './liveSession';
 import {LiveShareDialog} from './LiveShareDialog';
@@ -257,6 +258,9 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     viewer.addEventListener('zoom-updated',onZoom);
     const markers = viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
     viewer.addEventListener('before-render',()=>{const ids=frameIdsOf(actions.current.scene.hotspots);if(ids.length)straightenFrames(markers,ids);});
+    // La loupe de précision (panneau de droite) rend le cadre quasi invisible pendant qu'on règle un coin.
+    const onDim=(e:Event)=>{const d=(e as CustomEvent<{id:string;opacity:number}>).detail;try{markers.updateMarker({id:d.id,opacity:d.opacity},false);markers.renderMarkers();viewer.needsUpdate();}catch{/* cadre supprimé */}};
+    window.addEventListener('nv-frame-dim',onDim);
     markers.addEventListener('select-marker',({marker})=>{
       const a=actions.current;
       const h=a.scene.hotspots.find(item=>item.id===marker.id);
@@ -289,7 +293,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation));
     // Aperçu seulement : léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
     const stopBounce=startPosterBounce(viewer,()=>actions.current.scene,()=>actions.current.preview&&loadedSceneRef.current===actions.current.scene.id);
-    return ()=>{stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
+    return ()=>{window.removeEventListener('nv-frame-dim',onDim);stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
     const viewer=viewerRef.current;
@@ -2929,6 +2933,18 @@ function App(){
       <small>✥ Glisse la poignée à côté de la flèche pour la déplacer.</small>
     </div>;
   }
+  function frameLoupe(h:Hotspot){
+    if(!active||isPopupMedia(h))return null;
+    const hasMedia=h.type==='image'?!!h.imageDataUrl:h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;
+    if(!hasMedia)return null;
+    return <FrameLoupe hotspot={h} sceneUrl={active.dataUrl}
+      onAdjusting={on=>window.dispatchEvent(new CustomEvent('nv-frame-dim',{detail:{id:h.id,opacity:on?0.03:0.3}}))}
+      onCorners={c=>{
+        const ref=c[0].yaw;
+        const yaw=c.reduce((n,p)=>n+p.yaw+2*Math.PI*Math.round((ref-p.yaw)/(2*Math.PI)),0)/4;
+        patchPoint({frameSphericalCorners:c,yaw,pitch:c.reduce((n,p)=>n+p.pitch,0)/4});
+      }}/>;
+  }
   function patchPoint(update:Partial<Hotspot>){
     patchScene(s=>({...s,hotspots:s.hotspots.map(h=>h.id===selectedId?{...h,...update}:h)}));
   }
@@ -3978,6 +3994,7 @@ function App(){
                     </>}
                     {selected.type==='image'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {frameLoupe(selected)}
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
@@ -3998,6 +4015,7 @@ function App(){
                     </>}
                     {selected.type==='video'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {frameLoupe(selected)}
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
@@ -4456,6 +4474,7 @@ function App(){
 
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {frameLoupe(selected)}
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
@@ -4489,6 +4508,7 @@ function App(){
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
+                {frameLoupe(selected)}
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
@@ -4502,7 +4522,7 @@ function App(){
                 {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
                 {!isPopupMedia(selected)&&<>
                 <div className="section-title">ADAPTER L'ÉCRAN À LA PERSPECTIVE</div>
-                <CornerEditor width={selected.frameWidth??320} height={selected.frameHeight??200} corners={selected.frameCorners??defaultFrameCorners()} onChange={v=>patchPoint({frameCorners:v,frameSphericalCorners:undefined})}/>
+                
                 <label>Largeur : {selected.frameWidth??320} px
                   <input type="range" min="80" max="900" step="10" value={selected.frameWidth??320} onChange={e=>patchPoint({frameWidth:Number(e.target.value)})}/>
                 </label>

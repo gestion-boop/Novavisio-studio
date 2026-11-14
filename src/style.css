@@ -5291,3 +5291,27 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 }
 .nv-frame-dragging .nv-sphere-handle:not(.is-dragging),.nv-frame-dragging .nv-sphere-center:not(.is-dragging){opacity:.08!important}
 @media(prefers-reduced-motion:reduce){.nv-frame-halo-gold path,.nv-frame-halo-gold polygon,.nv-frame-halo-soft path,.nv-frame-halo-soft polygon,.nv-frame-halo-pulse path,.nv-frame-halo-pulse polygon{animation:none!important;opacity:.45}}
+
+/* Zoom de précision (loupe réelle sur le panorama) */
+.nv-loupe{display:flex;flex-direction:column;gap:8px;margin:8px 0;padding:8px;border:1px solid #365b69;border-radius:12px;background:#0b1c25}
+.nv-loupe-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px}
+.nv-loupe-zoom{display:inline-flex;gap:3px}
+.nv-loupe button{font:700 12px system-ui;cursor:pointer;border:1px solid #35606f;border-radius:8px;background:#143543;color:#e6f6f8;padding:5px 9px}
+.nv-loupe button.is-on,.nv-loupe button.is-primary{background:#1f8aa8;border-color:#7ad6ee;color:#fff}
+.nv-loupe button:disabled{opacity:.4;cursor:default}
+.nv-loupe-stage{position:relative;width:100%;border-radius:8px;overflow:hidden;background:#000;touch-action:none}
+.nv-loupe-stage canvas,.nv-loupe-stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.nv-loupe-stage svg{cursor:crosshair;outline:none}
+.nv-loupe-stage svg:focus-visible{box-shadow:inset 0 0 0 2px #7ad6ee}
+.nv-loupe-wait{position:absolute;inset:0;display:grid;place-items:center;color:#cfe;font-size:12px}
+.nv-loupe-corners{display:flex;align-items:center;gap:5px;font-size:12px}
+.nv-loupe-corners span{margin-left:6px;color:#b8cdd3}
+.nv-loupe-nudge{display:flex;align-items:center;gap:12px}
+.nv-loupe-pad{display:grid;grid-template-columns:repeat(3,34px);grid-template-areas:". up ." "left . right" ". down .";gap:3px}
+.nv-loupe-pad button:nth-child(1){grid-area:up}.nv-loupe-pad button:nth-child(2){grid-area:left}.nv-loupe-pad button:nth-child(3){grid-area:right}.nv-loupe-pad button:nth-child(4){grid-area:down}
+.nv-loupe-pad button{padding:5px 0;font-size:15px}
+.nv-loupe-opts{display:flex;flex-direction:column;gap:2px;font-size:12px}
+.nv-loupe-guide{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:7px;border-radius:9px;background:#14404f;font-size:12px}
+.nv-loupe-guide span{flex:1 1 100%}
+.nv-loupe-start{align-self:flex-start}
+.nv-loupe-note{color:#9fb7bf;font-size:11px;line-height:1.35}
