@@ -8,7 +8,7 @@ export function CreationToolbar({selected,auto,onTool,onAuto}:{selected:Creation
   </div>;
   return <div className="toolbar nv-compact-actions nv-sortable-toolbar" role="toolbar" aria-label="Outils de création">
     <div className="nv-toolbar-center"><div className="nv-toolbar-group nv-toolbar-left">{order.slice(0,3).map(render)}</div>
-      <button type="button" className={'tool nv-auto-navigation nv-auto-toolbar'+(auto?' is-active selected':'')} aria-pressed={auto} title="Auto reste au centre" onClick={onAuto}><span className="nv-auto-symbol">↪</span> {auto?'Terminer Auto':'Auto'}</button>
+      <button type="button" className={'tool nv-auto-navigation nv-auto-toolbar'+(auto?' is-active selected':'')} aria-pressed={auto} title="Auto reste au centre" onClick={onAuto}>{auto?'Terminer Auto':'Auto'}</button>
       <div className="nv-toolbar-group nv-toolbar-right">{order.slice(3).map(render)}</div>
     </div>
   </div>;

@@ -4928,3 +4928,5 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-space-tab.is-picked{box-shadow:0 0 0 2px #4bebde}
 .nv-space-select-toggle{height:40px;padding:0 14px;border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;font-weight:700;cursor:pointer;margin-left:8px;white-space:nowrap}
 .nv-space-select-toggle.is-on{background:#1d6f7e;border-color:#4bebde}
+/* Bouton Auto : même taille de texte et même hauteur que les autres outils de création */
+.nv-studio-pro .toolbar.nv-compact-actions .nv-toolbar-center .nv-auto-toolbar{font-size:12px!important;font-weight:700!important;min-height:39px!important;padding:0 18px!important;line-height:1}

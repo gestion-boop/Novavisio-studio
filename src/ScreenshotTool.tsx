@@ -115,7 +115,8 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
   const [size,setSize]=useState(SIZES[1]);
   const [shapes,setShapes]=useState<Shape[]>([]);
   const draft=useRef<Shape|null>(null);
-  const [textBox,setTextBox]=useState<{x:number;y:number;value:string;index?:number}|null>(null);
+  const [textBox,setTextBox]=useState<{x:number;y:number;value:string;color:string;size:number;index?:number}|null>(null);
+  const textRef=useRef<HTMLTextAreaElement>(null);
   const [sel,setSel]=useState<number|null>(null);                       // annotation sélectionnée (outil « Sélection »)
   const drag=useRef<{idx:number;x:number;y:number}|null>(null);
   const [people,setPeople]=useState<Person[]|null>(null);
@@ -185,7 +186,16 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
       if(idx>=0){setColor(shapes[idx].color);setSize(shapes[idx].size);drag.current={idx,x,y};(e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);}
       return;
     }
-    if(tool==='text'){commitText();setTextBox({x,y,value:''});return;}
+    if(tool==='text'){
+      commitText();
+      // clic sur un texte déjà posé : on le modifie ; sinon on en écrit un nouveau
+      const ctx=canvasRef.current!.getContext('2d')!,k=scaleOf();
+      for(let i=shapes.length-1;i>=0;i--)if(shapes[i].tool==='text'&&hitShape(ctx,shapes[i],x,y,k)){
+        setSel(i);setColor(shapes[i].color);setSize(shapes[i].size);
+        setTextBox({x:shapes[i].x1!,y:shapes[i].y1!,value:shapes[i].text??'',color:shapes[i].color,size:shapes[i].size,index:i});return;
+      }
+      setSel(null);setTextBox({x,y,value:'',color,size});return;
+    }
     (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);
     draft.current=tool==='pen'?{tool,color,size,pts:[[x,y]]}:{tool,color,size,x1:x,y1:y,x2:x,y2:y};
     render();
@@ -215,10 +225,11 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
       const value=box.value.trim();
       if(box.index!==undefined){
         // modification d'un texte existant (texte vide = suppression)
-        setShapes(list=>value?list.map((sh,i)=>i===box.index?{...sh,text:value}:sh):list.filter((_,i)=>i!==box.index));
+        setShapes(list=>value?list.map((sh,i)=>i===box.index?{...sh,text:value,color:box.color,size:box.size}:sh):list.filter((_,i)=>i!==box.index));
         if(!value)setSel(null);
       }else if(value){
-        setShapes(list=>[...list,{tool:'text',color,size,x1:box.x,y1:box.y,text:value}]);
+        // le nouveau texte reste sélectionné : on peut tout de suite le modifier ou changer sa couleur
+        setShapes(list=>{setSel(list.length);return [...list,{tool:'text',color:box.color,size:box.size,x1:box.x,y1:box.y,text:value}];});
       }
       return null;
     });
@@ -226,20 +237,20 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
   // Modifier le texte sélectionné (double-clic ou bouton)
   function editSelectedText(){
     if(sel===null||shapes[sel]?.tool!=='text')return;
-    const sh=shapes[sel];setTextBox({x:sh.x1!,y:sh.y1!,value:sh.text??'',index:sel});
+    const sh=shapes[sel];setTextBox({x:sh.x1!,y:sh.y1!,value:sh.text??'',color:sh.color,size:sh.size,index:sel});
   }
   function removeSelected(){
     if(sel===null)return;
     setShapes(list=>list.filter((_,i)=>i!==sel));setSel(null);
   }
-  function pickColor(c:string){setColor(c);if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,color:c}:sh));}
-  function pickSize(sz:number){setSize(sz);if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,size:sz}:sh));}
+  function pickColor(c:string){setColor(c);if(textBox){setTextBox(b=>b?{...b,color:c}:b);requestAnimationFrame(()=>textRef.current?.focus());}if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,color:c}:sh));}
+  function pickSize(sz:number){setSize(sz);if(textBox){setTextBox(b=>b?{...b,size:sz}:b);requestAnimationFrame(()=>textRef.current?.focus());}if(sel!==null)setShapes(list=>list.map((sh,i)=>i===sel?{...sh,size:sz}:sh));}
   function dblClick(e:RPointerEvent<HTMLCanvasElement>|React.MouseEvent<HTMLCanvasElement>){
     if(tool!=='select')return;
     const c=canvasRef.current!,r=c.getBoundingClientRect();
     const x=(e.clientX-r.left)*c.width/r.width,y=(e.clientY-r.top)*c.height/r.height;
     const ctx=c.getContext('2d')!,k=scaleOf();
-    for(let i=shapes.length-1;i>=0;i--)if(shapes[i].tool==='text'&&hitShape(ctx,shapes[i],x,y,k)){setSel(i);setTextBox({x:shapes[i].x1!,y:shapes[i].y1!,value:shapes[i].text??'',index:i});return;}
+    for(let i=shapes.length-1;i>=0;i--)if(shapes[i].tool==='text'&&hitShape(ctx,shapes[i],x,y,k)){setSel(i);setTextBox({x:shapes[i].x1!,y:shapes[i].y1!,value:shapes[i].text??'',color:shapes[i].color,size:shapes[i].size,index:i});return;}
   }
   // Touches Suppr / Retour arrière : supprime l'annotation sélectionnée
   useEffect(()=>{
@@ -313,11 +324,11 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
       <div className="nv-shot-stage">
         <div className="nv-shot-canvaswrap">
           <canvas ref={canvasRef} className={'nv-shot-canvas tool-'+tool} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={dblClick}/>
-          {textBox&&canvasRect&&canvasRef.current&&<textarea className="nv-shot-text" autoFocus rows={2} value={textBox.value} placeholder="Écris ton message…"
-            style={{left:textBox.x*canvasRect.width/canvasRef.current.width,top:textBox.y*canvasRect.height/canvasRef.current.height,color}}
+          {textBox&&canvasRect&&canvasRef.current&&<textarea ref={textRef} className="nv-shot-text" autoFocus rows={2} value={textBox.value} placeholder="Écris ton message…"
+            style={{left:textBox.x*canvasRect.width/canvasRef.current.width,top:textBox.y*canvasRect.height/canvasRef.current.height,color:textBox.color,fontSize:Math.round((10+textBox.size*2.2)*canvasRect.width/canvasRef.current.width*(canvasRef.current.width/1000>1?canvasRef.current.width/1000:1))+'px'}}
             onChange={e=>setTextBox({...textBox,value:e.target.value})}
             onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();commitText();}if(e.key==='Escape'){setTextBox(null);}}}
-            onBlur={commitText}/>}
+            onBlur={e=>{const to=e.relatedTarget as HTMLElement|null;if(to&&to.closest('.nv-shot-bar'))return;commitText();}}/>}
         </div>
       </div>
       <footer className="nv-shot-send">
