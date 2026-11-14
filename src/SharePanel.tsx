@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {cloudConfigured,supabase,readLink,writeLink,type CloudLink} from './cloud';
-import {SHARE_DAYS,createShareLink,getPublication,listShares,publicationActive,publishPermanent,revokeShare,shareStatus,shareUrl,unpublish,wrapperHtml,type Publication,type ShareDays,type ShareRow} from './share';
+import {SHARE_DAYS,autoPublishOn,setAutoPublish,createShareLink,getPublication,listShares,publicationActive,publishPermanent,revokeShare,shareStatus,shareUrl,unpublish,wrapperHtml,type Publication,type ShareDays,type ShareRow} from './share';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 import {readSpaceCloudLink,writeSpaceCloudLink,type StudioSpace} from './spaces';
@@ -108,7 +108,8 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
         {pubNote&&<small className="warning-inline">{pubNote}</small>}
         {publicationActive(pub)&&pub?<>
           <input readOnly value={shareUrl(pub.token)} onFocus={e=>e.currentTarget.select()}/>
-          <small className="hint-inline">Publiée le <b>{fmt(pub.published_at)}</b>. <b>Enregistrer sauvegarde le projet dans le Cloud. Clique sur « Publier » puis confirme pour actualiser ce même lien public.</b></small>
+          <small className="hint-inline">Publiée le <b>{fmt(pub.published_at)}</b>. <b>Chaque enregistrement met à jour ce lien automatiquement</b> (tu peux le désactiver ci-dessous).</small>
+          <label className="toggle-row"><input type="checkbox" defaultChecked={autoPublishOn()} onChange={e=>setAutoPublish(e.target.checked)}/> Mettre à jour ce lien à chaque enregistrement</label>
           <div className="cloud-actions">
             <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void publish()}>Mettre à jour maintenant</button>
             <button className="quiet" onClick={downloadWrapper}>Télécharger index.html pour NovaTour</button>

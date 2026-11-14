@@ -92,6 +92,9 @@ export async function refreshActivePublication(
   if(!publicationActive(existing))return null;
   return publishPermanent(project,link,onProgress,false);
 }
+/** Mise à jour automatique du lien permanent à chaque enregistrement (activée par défaut ; ne touche jamais aux liens temporaires). */
+export const autoPublishOn=():boolean=>{try{return localStorage.getItem('nvstudio-autopublish')!=='0';}catch{return true;}};
+export const setAutoPublish=(on:boolean)=>{try{localStorage.setItem('nvstudio-autopublish',on?'1':'0');}catch{/* stockage indisponible */}};
 export async function unpublish(projectId:string){
   const {error}=await supabase().rpc('nvstudio_unpublish',{p_project:projectId});
   if(error)throw new Error(friendly(error.message));

@@ -30,6 +30,7 @@ import {scenesInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type Stu
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
+import {settingsGlyphs} from './settingsGlyph';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
@@ -38,7 +39,7 @@ import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {cloudConfigured,confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
-import {refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
+import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
@@ -683,6 +684,7 @@ function App(){
   const [skinsOpen,setSkinsOpen]=useState(false);
   const [informationEdit,setInformationEdit]=useState<{sceneId:string;pointId:string}|null>(null);
   const [publishConfirm,setPublishConfirm]=useState(false);
+  const [publishReport,setPublishReport]=useState<{ok:boolean;text:string}[]|null>(null);
   useEffect(()=>{if(!publishConfirm)return;document.querySelector<HTMLButtonElement>('.nv-publish-warning button')?.focus();
     const close=(event:KeyboardEvent)=>{if(event.key==='Escape')setPublishConfirm(false);
       if(event.key==='Tab'){const buttons=[...document.querySelectorAll<HTMLButtonElement>('.nv-publish-warning button')];const first=buttons[0],last=buttons[buttons.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}}
@@ -1717,6 +1719,7 @@ function App(){
     setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
   },true);
+  const lastAutoPublish=useRef(0);
   async function manualSave(publishing=false,silent=false):Promise<boolean>{
     if(!ready||savingManually||savingRef.current)return false;
     if(lock?.kind==='unreadable'||lock?.kind==='conflict'){
@@ -1734,12 +1737,16 @@ function App(){
           return false;
         }
         savedRef.current=snapshot;
-        if(publishing){
+        // Enregistrer met aussi à jour les liens permanents DÉJÀ actifs (réglable dans « Lien public ») ; jamais de nouveau lien, jamais les liens temporaires.
+        const autoRefresh=!publishing&&autoPublishOn()&&!(silent&&Date.now()-lastAutoPublish.current<45_000);
+        if(autoRefresh)lastAutoPublish.current=Date.now();
+        if(publishing||autoRefresh){
         // Publier actualise explicitement les liens publics actifs :
         // le projet complet et chacun des espaces possèdent leur propre
         // publication stable. Les partages temporaires restent immuables.
         let updated=0;
         const errors:string[]=[];
+        const report:{ok:boolean;text:string}[]=[];
         const master=readLink();
         const targets=[
           {name:'Projet complet',space:null as StudioSpace|null,link:master},
@@ -1748,19 +1755,35 @@ function App(){
           }))
         ];
         for(const target of targets){
-          if(!target.link&&target.space)continue;
+          if(!target.link&&target.space){
+            if(publishing)report.push({ok:false,text:'Espace « '+target.name+' » : ignoré, aucun lien public enregistré sur cet appareil (publie-le une fois depuis « Lien public » avec cet espace ouvert).'});
+            continue;
+          }
           try{
             const scoped=projectForSpaceExport(snapshot,target.space,true);
-            const result=await (target.space?refreshActivePublication:publishPermanent)(scoped,target.link,
+            const run=(link:typeof target.link)=>(target.space||!publishing?refreshActivePublication:publishPermanent)(scoped,link,
               progress=>setStatus('Publication '+target.name+' · '+progress));
-            if(!result)continue;
+            let result;
+            try{result=await run(target.link);}
+            catch(err){
+              // Une autre personne (ou un autre appareil) a ajouté une révision entre-temps : publier ajoute simplement la suivante, rien n'est écrasé.
+              const m=err instanceof Error?/révision (\d+) alors que cette copie/.exec(err.message):null;
+              if(publishing&&m&&target.link)result=await run({...target.link,revision:Number(m[1])});else throw err;
+            }
+            if(!result){
+              if(publishing)report.push({ok:false,text:target.name+' : aucune publication active à mettre à jour (clique sur « Publier la visite » dans « Lien public »).'});
+              continue;
+            }
             if(target.space)writeSpaceCloudLink(target.space.id,'public',result.link);
             else writeLink(result.link);
             updated++;
+            report.push({ok:true,text:target.name+' : publié · révision '+result.link.revision+' · '+shareUrl(result.publication.token)});
           }catch(error){
-            errors.push(target.name+' : '+(error instanceof Error?error.message:String(error)));
+            const msg=target.name+' : '+(error instanceof Error?error.message:String(error));
+            errors.push(msg);report.push({ok:false,text:msg});
           }
         }
+        if(publishing)setPublishReport(report);
         if(errors.length){
           setStatus('Sauvegardé · Publication partielle/échouée : '+errors.join(' | '));
         }else{
@@ -4942,6 +4965,13 @@ function App(){
           {iconStateEditor('audio-off-pressed','Son coupé · Clic',project.soundOffPressedIconId,
             id=>setProject(p=>({...p,soundOffPressedIconId:id})),'🔇')}
           <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>
+          {!project.settingsIconId&&<button type="button" className="import" onClick={()=>{
+            const g=settingsGlyphs();
+            const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
+            const a=mk('Paramètres · Normal',g.normal),b=mk('Paramètres · Survol',g.hover),c=mk('Paramètres · Clic',g.pressed);
+            setProject(p=>({...p,icons:[...p.icons,a,b,c].slice(0,150),settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id}));
+            setStatus('Icône Paramètres ajoutée à la bibliothèque : tu peux la remplacer par la tienne');
+          }}>⚙ Mettre l’icône Paramètres dans ma bibliothèque (modifiable)</button>}
           {iconStateEditor('settings-normal','Paramètres · Normal',project.settingsIconId,
             id=>setProject(p=>({...p,settingsIconId:id})),'⚙')}
           {iconStateEditor('settings-hover','Paramètres · Survol',project.settingsHoverIconId,
@@ -5027,6 +5057,10 @@ function App(){
     <footer className="nv-app-footer"><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas{project.scenes.some(sc=>sc.excluded)?' ('+project.scenes.filter(sc=>sc.excluded).length+' décoché'+(project.scenes.filter(sc=>sc.excluded).length>1?'s':'')+')':''} · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
     {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}><XMark/></button></div>}
     {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
+    {publishReport&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Résultat de la publication" className="nv-publish-warning">
+      <h2>Résultat de la publication</h2>
+      <ul className="nv-publish-check">{publishReport.length?publishReport.map((r,i)=><li key={i} className={r.ok?'is-warn':'is-error'}><span>{r.ok?'✅':'⛔'}</span><span>{r.text}</span></li>):<li className="is-error"><span>⛔</span><span>Rien n’a été publié (aucun lien public trouvé).</span></li>}</ul>
+      <div><button type="button" onClick={()=>setPublishReport(null)}>OK</button></div></section></div>}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>
