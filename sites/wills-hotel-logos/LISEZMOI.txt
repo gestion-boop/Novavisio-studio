@@ -1,0 +1,11 @@
+Logos Will's Hôtel Narbonne (dérivés du logo d'origine du site de l'hôtel)
+
+reservation/  Icône « Réservation » (calendrier + coche), 3 états pour la barre du bas :
+              reservation-normal / -hover (survol) / -pressed (clic), en 512 px et 128 px, fond transparent.
+01 logo complet (couleurs)        02 logo complet blanc (fonds sombres)
+03 monogramme or                  04 monogramme blanc
+05 badge rond clair               06 badge rond sombre        07 badge rond monogramme
+08 icône carrée claire            09 icône carrée sombre
+favicon-32 / favicon-192 / favicon.ico / apple-touch-icon-180
+
+Note : la source (site de l'hôtel) est en petite définition (monogramme ~340 px) : à partir de ~500 px d'affichage il peut paraître un peu doux.
