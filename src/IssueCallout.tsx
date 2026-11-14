@@ -5,7 +5,7 @@ import {XMark} from './XMark';
 export type IssueFocus={hotspotId?:string;text:string;level:'error'|'warn';hint?:string;thumb?:string;sceneName?:string};
 
 /** Met en évidence le point à corriger (anneau pulsant) et affiche une bulle à côté qui dit quoi corriger. */
-export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,docked}:{focus:IssueFocus;stillPresent:boolean;onClose:()=>void;onOpen?:()=>void;step?:{i:number;n:number};onNext?:()=>void;docked?:boolean}){
+export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,docked,onValidate,saving}:{focus:IssueFocus;stillPresent:boolean;onClose:()=>void;onOpen?:()=>void;step?:{i:number;n:number};onNext?:()=>void;docked?:boolean;onValidate:()=>void;saving?:boolean}){
   const [pos,setPos]=useState<{x:number;y:number}|null>(null);
   const [dock,setDock]=useState<number>(92);
   const targetRef=useRef<HTMLElement|null>(null);
@@ -29,13 +29,13 @@ export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,dock
     raf=requestAnimationFrame(tick);
     return ()=>{alive=false;cancelAnimationFrame(raf);targetRef.current?.classList.remove('nv-issue-target');};
   },[focus.hotspotId]);
-  const doneRef=useRef<()=>void>(()=>{});doneRef.current=onNext??onClose;
-  useEffect(()=>{if(!stillPresent){const t=window.setTimeout(()=>doneRef.current(),onNext?1400:2200);return ()=>window.clearTimeout(t);}},[stillPresent,focus.text]); // eslint-disable-line react-hooks/exhaustive-deps
   const W=320,right=!docked&&pos&&pos.x+50+W<window.innerWidth;
   const style=docked?{right:16,top:dock+66}:pos?{left:right?pos.x+46:Math.max(8,pos.x-46-W),top:Math.max(70,Math.min(pos.y-30,window.innerHeight-170))}:{right:16,top:dock};
   return <aside className={'nv-issue-callout is-'+(stillPresent?focus.level:'ok')+(docked?' is-docked':'')+(!docked&&pos?(right?' arrow-left':' arrow-right'):'')} style={{...style,width:docked?'min(270px,calc(100vw - 24px))':W}} role="status" aria-live="polite">
     {stillPresent?<>{focus.thumb&&<figure className="nv-issue-thumb"><img src={focus.thumb} alt=""/>{focus.sceneName&&<figcaption>{focus.sceneName}</figcaption>}</figure>}<AlertTriangle size={18}/><div><b>{focus.level==='error'?'À corriger':'À vérifier'}{step&&<span className="nv-issue-step">{step.i} / {step.n}</span>}</b>{step&&<i className="nv-issue-bar"><i style={{width:(step.i/step.n*100)+'%'}}/></i>}<span>{focus.text}</span>{focus.hint&&<em className="nv-issue-hint">👉 {focus.hint}</em>}{!docked&&onOpen&&focus.hotspotId&&<button type="button" className="nv-issue-open" onClick={onOpen}>Ouvrir les réglages du point</button>}{onNext&&<button type="button" className="nv-issue-open nv-issue-next" onClick={onNext}>Passer au suivant →</button>}</div>
       <button type="button" onClick={onClose} aria-label="Fermer l’indication"><XMark size={14}/></button></>
-    :<><CheckCircle2 size={18}/><div><b>Corrigé !</b><span>Ce problème a disparu du contrôle.{onNext?' Suivant…':''}</span></div></>}
+    :<>{focus.thumb&&<figure className="nv-issue-thumb"><img src={focus.thumb} alt=""/>{focus.sceneName&&<figcaption>{focus.sceneName}</figcaption>}</figure>}<CheckCircle2 size={18}/><div><b>Corrigé !</b><span>Enregistre pour valider cette correction{onNext?' et passer à la suivante':''}.</span>
+      <button type="button" className="nv-issue-open nv-issue-save" disabled={saving} onClick={onValidate}>💾 {saving?'Enregistrement…':(onNext?'Enregistrer et continuer':'Enregistrer')}</button></div>
+      <button type="button" onClick={onClose} aria-label="Fermer l’indication"><XMark size={14}/></button></>}
   </aside>;
 }

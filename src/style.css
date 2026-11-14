@@ -5084,3 +5084,6 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-issue-thumb{margin:0;position:relative;line-height:0}
 .nv-issue-thumb img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
 .nv-issue-thumb figcaption{position:absolute;left:0;right:0;bottom:0;padding:18px 10px 6px;line-height:1.2;font-weight:800;font-size:12.5px;background:linear-gradient(transparent,#000c);overflow-wrap:anywhere}
+
+.nv-issue-callout .nv-issue-save{background:#fff;color:#14532d;border-color:#fff;font-weight:800}
+.nv-issue-callout .nv-issue-save:disabled{opacity:.6}
