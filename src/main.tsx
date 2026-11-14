@@ -72,7 +72,7 @@ import './media.css';
 import {XMark} from './XMark';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'client';
+type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -1342,6 +1342,7 @@ function App(){
     {key:'intro',label:'Intro'},
     {key:'elements',label:'Éléments'},
     {key:'music',label:'Musique'},
+    {key:'settings',label:'Bouton Paramètres'},
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
@@ -1465,6 +1466,13 @@ function App(){
     if(key==='points'){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);return;}
     if(key==='bar'){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);return;}
     void toggleCreationFullscreen().then(()=>run());
+  }
+  function editSettingsButton(){
+    const open=()=>{
+      leaveTools();setSettingsOpen(false);setPanel('settings');setRightHidden(false);
+      setSelectedId('');setSelectedBarId('');setMode(null);
+    };
+    if(creationFullscreen)runFromFullscreen('settings',open);else open();
   }
   function toggleToolPanel(next:PanelTab){
     leaveTools();
@@ -4379,9 +4387,9 @@ function App(){
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
-          {preview&&active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : son et langue" onClick={()=>setSettingsOpen(o=>!o)}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={44}/>:<SettingsIcon size={22}/>}</button>
-            {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
+          {active&&!introVisible&&<div className="nv-visitor-settings">
+            <button type="button" className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={44}/>:<SettingsIcon size={22}/>}</button>
+            {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
               <strong>Son</strong>
               <div className="nv-vs-row">
                 <button type="button" className={visitorPrefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
@@ -4392,7 +4400,7 @@ function App(){
                 <button type="button" key={l.code} title={l.name} aria-label={l.name} aria-pressed={effectiveLang(visitorPrefs,activeLanguages)===l.code} className={effectiveLang(visitorPrefs,activeLanguages)===l.code?'is-on':''} onClick={()=>setLang(l.code)}>{l.flag}</button>)}</div></>}
             </div>}
           </div>}
-          {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} onEdit={!preview?()=>{setPanel('music');setRightHidden(false);setSelectedId('');setSelectedBarId('');setMode(null);}:undefined}/>}
+          {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
           {preview&&galleryOpen&&(()=>{
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;
@@ -4947,6 +4955,25 @@ function App(){
           <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setActiveId(startSceneId(visibleScenes));setMode(null);setSelectedId('');setPreview(true);setIntroEnding(false);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
+        {panel==='settings' && <div className="properties">
+          <InspectorSection title="Personnaliser le bouton Paramètres" initiallyOpen>
+          <p className="hint">Choisis les icônes normales, au survol et au clic. Les modifications sont visibles immédiatement sur le bouton en bas à droite. Passe en aperçu pour tester son menu son et langue.</p>
+          <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>
+          {!project.settingsIconId&&<button type="button" className="import" onClick={()=>{
+            const g=settingsGlyphs();
+            const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
+            const a=mk('Paramètres · Normal',g.normal),b=mk('Paramètres · Survol',g.hover),c=mk('Paramètres · Clic',g.pressed);
+            setProject(p=>({...p,icons:[...p.icons,a,b,c].slice(0,150),settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id}));
+            setStatus('Icône Paramètres ajoutée à la bibliothèque : tu peux la remplacer par la tienne');
+          }}>⚙ Mettre l’icône Paramètres dans ma bibliothèque (modifiable)</button>}
+          {iconStateEditor('settings-normal','Paramètres · Normal',project.settingsIconId,
+            id=>setProject(p=>({...p,settingsIconId:id})),'⚙')}
+          {iconStateEditor('settings-hover','Paramètres · Survol',project.settingsHoverIconId,
+            id=>setProject(p=>({...p,settingsHoverIconId:id})),'⚙')}
+          {iconStateEditor('settings-pressed','Paramètres · Clic',project.settingsPressedIconId,
+            id=>setProject(p=>({...p,settingsPressedIconId:id})),'⚙')}
+          </InspectorSection>
+        </div>}
         {panel==='music' && <div className="properties">
           <InspectorSection title="Boutons son de la visite">
           <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
@@ -4964,20 +4991,6 @@ function App(){
             id=>setProject(p=>({...p,soundOffHoverIconId:id})),'🔇')}
           {iconStateEditor('audio-off-pressed','Son coupé · Clic',project.soundOffPressedIconId,
             id=>setProject(p=>({...p,soundOffPressedIconId:id})),'🔇')}
-          <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>
-          {!project.settingsIconId&&<button type="button" className="import" onClick={()=>{
-            const g=settingsGlyphs();
-            const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
-            const a=mk('Paramètres · Normal',g.normal),b=mk('Paramètres · Survol',g.hover),c=mk('Paramètres · Clic',g.pressed);
-            setProject(p=>({...p,icons:[...p.icons,a,b,c].slice(0,150),settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id}));
-            setStatus('Icône Paramètres ajoutée à la bibliothèque : tu peux la remplacer par la tienne');
-          }}>⚙ Mettre l’icône Paramètres dans ma bibliothèque (modifiable)</button>}
-          {iconStateEditor('settings-normal','Paramètres · Normal',project.settingsIconId,
-            id=>setProject(p=>({...p,settingsIconId:id})),'⚙')}
-          {iconStateEditor('settings-hover','Paramètres · Survol',project.settingsHoverIconId,
-            id=>setProject(p=>({...p,settingsHoverIconId:id})),'⚙')}
-          {iconStateEditor('settings-pressed','Paramètres · Clic',project.settingsPressedIconId,
-            id=>setProject(p=>({...p,settingsPressedIconId:id})),'⚙')}
           </InspectorSection>
           <div className="section-title">BIBLIOTHÈQUE MUSICALE <span className="counter">{project.audioTracks?.length??0}</span></div>
           <p className="hint">Attribue une piste à plusieurs panoramas : elle joue en continu, en boucle, sans recommencer lors du passage d’une scène à l’autre. Choisis une autre piste là où tu souhaites changer d’ambiance.</p>
