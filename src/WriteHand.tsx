@@ -1,5 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {cloudConfigured,getWriteState,readLink,setMemberRole,setWriteHolder,supabase,type WriteState} from './cloud';
+import {XMark} from './XMark';
 
 /**
  * « Qui a la main ? » — indicateur en haut de l'éditeur pour les visites partagées dans le Cloud.
@@ -75,7 +76,7 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
         <span aria-hidden="true">✍</span> La main : <b>{label}</b>
       </button>
       {open&&<div className="nv-hand-pop" role="dialog" aria-label="Qui a la main pour enregistrer ?">
-        <div className="nv-hand-head"><b>Qui enregistre ?</b><button type="button" className="quiet" onClick={()=>setOpen(false)} aria-label="Fermer">✕</button></div>
+        <div className="nv-hand-head"><b>Qui enregistre ?</b><button type="button" className="quiet" onClick={()=>setOpen(false)} aria-label="Fermer"><XMark/></button></div>
         <p>{admin?'Choisis qui peut enregistrer dans le Cloud :':'Une seule personne à la fois enregistre dans le Cloud. '+(holder===null?'Pour l’instant, tout le monde peut enregistrer.':mine?'C’est vous : les autres voient une fenêtre s’ils essaient d’enregistrer.':'Vous pouvez travailler ; vous enregistrez quand un admin vous donne la main.')}</p>
         <div className="nv-hand-choices" role="radiogroup" aria-label="Qui enregistre">
           <button type="button" role="radio" aria-checked={holder===null} className={'nv-hand-choice'+(holder===null?' is-on':'')} disabled={busy||!admin||holder===null}

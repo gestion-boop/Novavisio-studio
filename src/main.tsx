@@ -60,6 +60,7 @@ import '@photo-sphere-viewer/markers-plugin/index.css';
 import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './media.css';
+import {XMark} from './XMark';
 
 type EditMode = Hotspot['type'] | null;
 type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'client';
@@ -138,7 +139,7 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
     iconHtml||'<span class="nv-marker" style="width:100%;height:100%" aria-label="Point interactif">'+symbol+'</span>';
   const editing=!preview&&selectedId===h.id;
   const autoArrow=!preview&&autoNavigation&&h.type==='navigation';
-  const redCross='<button type="button" class="nv-marker-remove-auto" aria-label="Supprimer cet élément" title="Supprimer cet élément">×</button>';
+  const redCross='<button type="button" class="nv-marker-remove-auto" aria-label="Supprimer cet élément" title="Supprimer cet élément"><XMark/></button>';
   const html=autoArrow?'<span class="nv-drag-target nv-nav-auto-marker" data-nv-marker-id="'+h.id+'">'+content+redCross+'</span>':
     editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+
       '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button>'+redCross+'</span>':content;
@@ -2420,7 +2421,7 @@ function App(){
           <span className="icon-set-size">{set.size} px</span>
         </button>
         <button type="button" className={'nv-icon-set-favorite'+(project.favoriteNavigationIconSet===set.key?' is-active':'')} title="Flèche favorite du projet" aria-pressed={project.favoriteNavigationIconSet===set.key} onClick={()=>setNavigationIconFavorite(set.key)}>{project.favoriteNavigationIconSet===set.key?'★':'☆'}</button>
-        <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}>✕</button>
+        <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}><XMark/></button>
       </div>)}</div>
       {restoreHiddenLink()}
     </div>;
@@ -2478,7 +2479,7 @@ function App(){
         {project.icons.map(i=><span key={i.id} className="icon-choice-wrap">
           <button type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
             <img src={i.dataUrl} alt={i.name}/></button>
-          <button type="button" className="icon-delete" title={'Supprimer « '+i.name+' » de la bibliothèque'} aria-label={'Supprimer '+i.name} onClick={()=>deleteIcon(i.id)}>✕</button>
+          <button type="button" className="icon-delete" title={'Supprimer « '+i.name+' » de la bibliothèque'} aria-label={'Supprimer '+i.name} onClick={()=>deleteIcon(i.id)}><XMark/></button>
         </span>)}
         <button type="button" className="icon-choice icon-upload" title="Ajouter un nouveau PNG" onClick={()=>{stateTarget.current=apply;stateIconInput.current?.click();}}>＋</button>
       </div>}
@@ -2854,7 +2855,7 @@ function App(){
             </div>
           </div>
           <div className="nv-navigation-drawer-header"><strong>Navigation</strong>
-            <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu">×</button>
+            <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu"><XMark/></button>
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setPreparationOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Sparkles size={17}/> Préparer le projet</span></button>
@@ -3078,7 +3079,7 @@ function App(){
       <section className="nv-space-modal" role="dialog" aria-modal="true" aria-label="Gestion de l’espace">
         <div className="nv-space-modal-head">
           <div><small>PROJET : {project.name}</small><h2>Organiser cet espace</h2></div>
-          <button type="button" className="nv-space-close" onClick={()=>setSpaceManagerOpen(false)} aria-label="Fermer">✕</button>
+          <button type="button" className="nv-space-close" onClick={()=>setSpaceManagerOpen(false)} aria-label="Fermer"><XMark/></button>
         </div>
         <SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>
         <label className="nv-space-name-label">Nom de l’espace
@@ -3121,7 +3122,7 @@ function App(){
     </div>}
     {liveInvite.notesIn.length>0&&<div className="nv-shot-inbox" style={{top:'auto',bottom:90}} role="region" aria-label="Notes reçues">
       {liveInvite.notesIn.map(n=><article key={n.id} className="nv-note-in"><strong>📝 {n.fromLabel} t’envoie une note</strong><p>{n.body}</p>
-        <button type="button" className="x" onClick={()=>liveInvite.dismissNote(n.id)} aria-label="Fermer cette note">✕</button></article>)}
+        <button type="button" className="x" onClick={()=>liveInvite.dismissNote(n.id)} aria-label="Fermer cette note"><XMark/></button></article>)}
     </div>}
     {spaceAction&&selectedSpaces.length>0&&<SpacesActions mode={spaceAction} project={project} spaces={selectedSpaces} onClose={()=>setSpaceAction(null)} onStatus={setStatus}
       onMoved={ids=>{setProject(p=>({...p,spaces:(p.spaces??[]).filter(space=>!ids.includes(space.id))}));setSpaceSelection(new Set());if(activeSpaceId&&ids.includes(activeSpaceId)){setActiveSpaceId(null);}}}/>}
@@ -3144,7 +3145,7 @@ function App(){
       return <div className="overlay nv-space-overlay" onMouseDown={event=>{if(event.target===event.currentTarget)setSpaceDelete(null);}}>
         <section className="nv-space-modal" role="alertdialog" aria-modal="true" aria-label="Supprimer l’espace">
           <div className="nv-space-modal-head"><div><small>PROJET : {project.name}</small><h2>Supprimer « {sp.name} »</h2></div>
-            <button type="button" className="nv-space-close" onClick={()=>setSpaceDelete(null)} aria-label="Fermer">✕</button></div>
+            <button type="button" className="nv-space-close" onClick={()=>setSpaceDelete(null)} aria-label="Fermer"><XMark/></button></div>
           <p>Seul l’espace est supprimé : les {sp.sceneIds.length} panoramas restent dans le projet complet. Vous pouvez aussi les ajouter à un autre espace.</p>
           <label className="nv-space-name-label">Transférer ses panoramas vers
             <select value={spaceDelete.target} onChange={e=>setSpaceDelete({id:sp.id,target:e.target.value})}>
@@ -3225,7 +3226,7 @@ function App(){
           aria-label="Choix visuel du panorama de destination">
           <div className="nv-classic-destination-heading">
             <div><small>{autoNavigation?'AUTO · ÉTAPE 2 / DESTINATION':'CHOISIR UNE DESTINATION'}</small><strong>Galerie 360°</strong></div>
-            <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)} aria-label={autoNavigation?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}>✕</button>
+            <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)} aria-label={autoNavigation?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}><XMark/></button>
           </div>
           <div className="nv-classic-destination-layout">
             <div className="nv-classic-destination-list-panel">
@@ -3289,7 +3290,7 @@ function App(){
                 <div className="nv-direction-preview-inner" key={sc.id}>
                   <div className="nv-direction-preview-head">
                     <div><small>DESTINATION 360°</small><strong>{sc.name}</strong></div>
-                    <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():(setNavigationDraft(null),setDestinationEditId(null))} aria-label={autoNavigation?"Quitter Auto":"Annuler la destination"} title={autoNavigation?"Quitter le mode Auto":"Annuler"}>✕</button>
+                    <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():(setNavigationDraft(null),setDestinationEditId(null))} aria-label={autoNavigation?"Quitter Auto":"Annuler la destination"} title={autoNavigation?"Quitter le mode Auto":"Annuler"}><XMark/></button>
                   </div>
                   <div className="nv-direction-preview-viewer nv-targeted-preview">
                     <FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}
@@ -3339,7 +3340,7 @@ function App(){
             <PanelRightClose size={19}/> <span>{fullscreenCommandDrawerOpen?'Masquer':'Commandes'}</span>
           </button>}
           {active && creationFullscreen && fullscreenCommandDrawerOpen && !fullscreenToolsOpen && <div id="nv-fullscreen-command-drawer" className="nv-command-drawer" aria-label="Commandes de création">
-            <div className="nv-command-drawer-heading"><strong>{fullscreenGalleryOpen?'Galerie':'Commandes'}</strong><button type="button" onClick={()=>setFullscreenCommandDrawerOpen(false)} aria-label="Fermer le tiroir">✕</button></div>
+            <div className="nv-command-drawer-heading"><strong>{fullscreenGalleryOpen?'Galerie':'Commandes'}</strong><button type="button" onClick={()=>setFullscreenCommandDrawerOpen(false)} aria-label="Fermer le tiroir"><XMark/></button></div>
             {fullscreenGalleryOpen?null:<><div className="nv-creation-fullscreen-controls" role="toolbar" aria-label="Commandes du plein écran de création">
             <span className="nv-fullscreen-scene-name" title={active.name}>{active.name}</span>
             <button type="button" className={'nv-fullscreen-gallery-toggle'+(fullscreenGalleryOpen?' is-active':'')}
@@ -3458,7 +3459,7 @@ function App(){
             <aside id="nv-fullscreen-tools" className="nv-fullscreen-tools-panel" aria-label="Réglages en plein écran">
               <div className="nv-fullscreen-tools-head">
                 <div><small>NOVAVISIO STUDIO</small><strong>Réglages rapides</strong></div>
-                <button type="button" aria-label="Fermer les réglages" onClick={()=>setFullscreenToolsOpen(false)}>✕</button>
+                <button type="button" aria-label="Fermer les réglages" onClick={()=>setFullscreenToolsOpen(false)}><XMark/></button>
               </div>
               <div className="nv-fullscreen-tools-tabs" role="tablist">
                 <button type="button" className={fullscreenToolsTab==='point'?'is-active':''}
@@ -3707,7 +3708,7 @@ function App(){
             <aside id="nv-navigation-gallery-picker" className={"nv-navigation-gallery-picker"+(navigationPickerPreviewId?" is-preview":"")} aria-label="Choisir le panorama de destination">
               <header className="nv-navigation-gallery-header">
                 <div><small>SÉLECTION DE DESTINATION</small><strong>Galerie des panoramas</strong></div>
-                <button type="button" aria-label="Fermer la galerie de sélection" onClick={()=>{setNavigationPickerOpen(false);setNavigationPickerHover(null);setNavigationPickerPreviewId(null);}}>✕</button>
+                <button type="button" aria-label="Fermer la galerie de sélection" onClick={()=>{setNavigationPickerOpen(false);setNavigationPickerHover(null);setNavigationPickerPreviewId(null);}}><XMark/></button>
               </header>
               <p className="nv-navigation-gallery-tip">Clique sur un panorama pour l’examiner en 360°, puis confirme sa destination.</p>
               {navigationPickerPreviewId&&<div className="nv-navigation-inspect">
@@ -3816,7 +3817,7 @@ function App(){
               <div className="embed-header">
                 <span className="embed-title">{frame.title}</span>
                 <div className="embed-actions">
-                  <button type="button" onClick={()=>setFrame(null)} aria-label="Fermer le contenu intégré">✕</button>
+                  <button type="button" onClick={()=>setFrame(null)} aria-label="Fermer le contenu intégré"><XMark/></button>
                 </div>
               </div>
               <EmbeddedPage url={frame.url} title={frame.title}/>
@@ -3824,7 +3825,7 @@ function App(){
           </div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
             <div className="modal" onClick={event=>event.stopPropagation()}>
-              <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer">✕</button>
+              <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer"><XMark/></button>
               <h2>{info.title}</h2>
               <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
                 {STUDIO_LANGUAGES.filter(lang=>activeLanguages.includes(lang.code)).map(lang=><button type="button" key={lang.code} title={lang.name} aria-label={lang.name} aria-pressed={infoLanguage===lang.code} className={infoLanguage===lang.code?'is-active':''} onClick={()=>setInfoLanguage(lang.code)}>{lang.flag}</button>)}
@@ -3919,7 +3920,7 @@ function App(){
             onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
-             onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}>✕</button>:
+             onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}><XMark/></button>:
             <span className="scene-grip" aria-hidden="true" title="Glisse pour changer l’ordre">⋮⋮</span>}
         </div>)}
         {currentSpace&&!visibleScenes.length&&<div className="nv-space-empty-list">
@@ -3932,7 +3933,7 @@ function App(){
         </div>}</div>
         {galleryPreviewSceneId&&visibleScenes.some(sc=>sc.id===galleryPreviewSceneId)&&<div className="nv-side-panorama-preview nv-side-panorama-popup" onMouseEnter={()=>{if(sidePreviewTimer.current)clearTimeout(sidePreviewTimer.current);}} onMouseLeave={leaveSidePreview}>
           <div className="nv-side-preview-title"><strong>Aperçu 360°</strong>
-            <button type="button" onClick={()=>{setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}} aria-label="Fermer l'aperçu">✕</button></div>
+            <button type="button" onClick={()=>{setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);}} aria-label="Fermer l'aperçu"><XMark/></button></div>
           {visibleScenes.filter(sc=>sc.id===galleryPreviewSceneId).map(sc=><div key={sc.id} className="nv-side-preview-content">
             <strong>{sc.name}</strong>
             <div className="nv-side-preview-viewer nv-targeted-preview"><FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]} onOrientation={view=>{galleryOrientationRef.current[sc.id]=view;}}/>{autoNavigation&&!preview&&<div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>}</div>
@@ -4329,7 +4330,7 @@ function App(){
                 <span className="icon-set-size">{set.size} px</span>
               </button>
               <button type="button" className={'nv-icon-set-favorite'+(project.favoriteNavigationIconSet===set.key?' is-active':'')} title="Flèche favorite du projet" aria-pressed={project.favoriteNavigationIconSet===set.key} onClick={()=>setNavigationIconFavorite(set.key)}>{project.favoriteNavigationIconSet===set.key?'★':'☆'}</button>
-        <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}>✕</button>
+        <button type="button" className="icon-set-hide" title="Retirer ce jeu de la liste (aucun bouton ni point n'est modifié)" aria-label="Retirer ce jeu de la liste" onClick={()=>hideIconSet(set.key)}><XMark/></button>
             </div>)}</div>
             {restoreHiddenLink()}
           </>}
@@ -4378,7 +4379,7 @@ function App(){
           <p className="hint">Attribue une piste à plusieurs panoramas : elle joue en continu, en boucle, sans recommencer lors du passage d’une scène à l’autre. Choisis une autre piste là où tu souhaites changer d’ambiance.</p>
           <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une piste MP3, WAV, OGG</button>
           {(project.audioTracks??[]).map(track=><InspectorSection title={track.name} key={track.id}>
-            <div className="music-track-title"><strong>{track.name}</strong><button type="button" onClick={()=>removeTrack(track.id)} title="Supprimer cette piste">✕</button></div>
+            <div className="music-track-title"><strong>{track.name}</strong><button type="button" onClick={()=>removeTrack(track.id)} title="Supprimer cette piste"><XMark/></button></div>
             <label>Nom<input value={track.name} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,name:e.target.value}:t)}))}/></label>
             <label>Volume : {track.volume} %
               <input type="range" min="0" max="100" value={track.volume} onChange={e=>setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,volume:Number(e.target.value)}:t)}))}/>
@@ -4450,7 +4451,7 @@ function App(){
       }}
     />}
     <footer><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
-    {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}>×</button></div>}
+    {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}><XMark/></button></div>}
     {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p><div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>Confirmer la publication</button></div></section></div>}
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
@@ -4478,7 +4479,7 @@ function App(){
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
       onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(up.scenes[0]?.id??''));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
-      <button className="close" onClick={()=>setHelp(false)}>✕</button><h2>Guide NovaVisio Studio</h2>
+      <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
       <p><b>2.</b> Choisis « Navigation » ou « Information », puis clique sur l’image pour placer le point.</p>
       <p><b>3.</b> Dans « Barre du bas », ajoute des boutons et choisis leur action. Dans « Mes icônes », importe tes PNG, WebP ou GIF.</p><p><b>4.</b> Paramètre les points et boutons dans la colonne de droite, puis teste en mode « Prévisualiser ».</p>

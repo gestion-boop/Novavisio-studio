@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {galleryEntries} from './gallery';
 import type {BottomBarItem,GalleryItem,Scene,StudioProject} from './storage';
+import {XMark} from './XMark';
 
 export type BarGalleryTab='panoramas'|'spaces';
 
@@ -78,7 +79,7 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
         <input value={entry.custom} placeholder={entry.sceneName} aria-label={'Nom affiché dans la galerie pour '+entry.sceneName} onChange={event=>save(raw.map((row,i)=>i===index?{...row,label:event.target.value}:row))}/>
         <button type="button" aria-label="Monter" disabled={index===0} onClick={()=>move(index,-1)}>↑</button>
         <button type="button" aria-label="Descendre" disabled={index===list.length-1} onClick={()=>move(index,1)}>↓</button>
-        <button type="button" aria-label="Retirer de la galerie" className="is-remove" onClick={()=>save(raw.filter((_,i)=>i!==index))}>✕</button>
+        <button type="button" aria-label="Retirer de la galerie" className="is-remove" onClick={()=>save(raw.filter((_,i)=>i!==index))}><XMark/></button>
       </li>)}</ul>
       {!!others.length&&<><div className="section-title">AUTRES PANORAMAS</div>
         <ul className="gallery-rows is-others">{others.map(scene=><li key={scene.id}>

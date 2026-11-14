@@ -5,6 +5,7 @@ import {studioUrl} from './share';
 import {LoginBox} from './LoginBox';
 import type {StudioProject} from './storage';
 import {readSpaceCloudLink,writeSpaceCloudLink,type StudioSpace} from './spaces';
+import {XMark} from './XMark';
 
 const ALPHABET='abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function generatePassword(length=14):string{
@@ -113,7 +114,7 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
   }
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel private-panel" onClick={e=>e.stopPropagation()}>
-    <button className="close" onClick={onClose}>✕</button>
+    <button className="close" onClick={onClose}><XMark/></button>
     <h2>Lien privé{space?' · '+space.name:''}</h2>
     {space&&<p className="hint-inline"><b>Accès limité à l’espace : {space.name}</b> · {project.scenes.length} panoramas. Les autres espaces ne sont pas inclus. L’invité travaille sur une copie cloud indépendante.</p>}
     {!cloudConfigured?<p className="warning">Supabase n’est pas configuré sur ce déploiement : le travail à plusieurs est indisponible.</p>

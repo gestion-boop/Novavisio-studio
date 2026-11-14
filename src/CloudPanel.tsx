@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {cloudConfigured,supabase,signOut,listCloudProjects,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
+import {XMark} from './XMark';
 
 type Props={
   project:StudioProject;
@@ -76,7 +77,7 @@ export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,au
   });
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel nv-cloud-compact" onClick={e=>e.stopPropagation()}>
-    <button className="close" onClick={onClose}>✕</button>
+    <button className="close" onClick={onClose}><XMark/></button>
     <div className="nv-cloud-heading"><h2>Mes projets Cloud</h2><button type="button" className="quiet" onClick={()=>void refresh()} disabled={!!busy||!userEmail}>↻ Actualiser</button></div>
     {!cloudConfigured?<>
       <p className="warning">Supabase n’est pas configuré. Définis <code>NEXT_PUBLIC_SUPABASE_URL</code> et <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> (clé <b>publishable</b> uniquement) dans les variables d’environnement du déploiement, puis redéploie.</p>

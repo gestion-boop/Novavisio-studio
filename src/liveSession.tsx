@@ -1,4 +1,5 @@
 import {useCallback,useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
+import {XMark} from './XMark';
 
 /**
  * « Écran partagé » : deux personnes ouvrent le même projet Cloud et se voient travailler en direct.
@@ -254,7 +255,7 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
     {iHaveHand&&live.requests.map(r=><div key={r.id} className="nv-live-banner nv-live-request" role="alert"><span><b>{r.label}</b> demande la main.</span>
       <button type="button" className="is-ok" onClick={()=>live.giveTo(r.id)}>Laisser la main</button>
       <button type="button" onClick={()=>live.declineRequest(r.id)}>Garder</button></div>)}
-    {banner&&<div className="nv-live-banner" role="status"><span>{banner}</span><button type="button" onClick={()=>setBanner('')} aria-label="Fermer le message">✕</button></div>}
+    {banner&&<div className="nv-live-banner" role="status"><span>{banner}</span><button type="button" onClick={()=>setBanner('')} aria-label="Fermer le message"><XMark/></button></div>}
     <div className={'nv-live-bar'+(open?' is-open':'')+(iHaveHand?' is-pilot':leader?' is-follower':'')} role="status">
       <button type="button" className="nv-live-pill" onClick={()=>setOpen(o=>!o)}
         title="Voir les détails de l’écran partagé">
@@ -265,7 +266,7 @@ export function LiveOverlay({live,onClose}:{live:ReturnType<typeof useLiveSessio
       </button>
       <button type="button" className="nv-live-more" aria-expanded={open} aria-label="Détails de l’écran partagé" onClick={()=>setOpen(o=>!o)}>{open?'▴':'▾'}</button>
       {open&&<div className="nv-live-details">
-        <div className="nv-live-details-head"><b>Écran partagé</b><button type="button" className="nv-live-close" onClick={()=>setOpen(false)} aria-label="Fermer cette fenêtre">✕</button></div>
+        <div className="nv-live-details-head"><b>Écran partagé</b><button type="button" className="nv-live-close" onClick={()=>setOpen(false)} aria-label="Fermer cette fenêtre"><XMark/></button></div>
         <p className="nv-live-explain">{iHaveHand?'Tu es le pilote : l’autre personne voit ton écran (panorama, onglets, réglages). Toi seul décides de lui laisser la main.'
           :leader?fmtName(leader)+' est le pilote : tu vois son écran. Tu peux lui demander la main, ou décocher « Suivre » pour travailler de ton côté.'
           :'Personne ne pilote pour l’instant : tu peux prendre le pilotage.'}</p>

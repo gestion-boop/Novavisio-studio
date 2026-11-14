@@ -1,5 +1,6 @@
 import {useEffect,useRef,type ReactNode} from 'react';
 import {type BarStyle} from './storage';
+import {XMark} from './XMark';
 
 export function InspectorSection({title,children,initiallyOpen=false}:{title:string;children:ReactNode;initiallyOpen?:boolean}){
   return <details className="nv-inspector-section" open={initiallyOpen||undefined}>
@@ -35,7 +36,7 @@ export function PreparationDialog({title,children,onClose}:{title:string;childre
     document.addEventListener('keydown',key,true);return ()=>{document.removeEventListener('keydown',key,true);previous?.focus();};
   },[]);
   return <div className="nv-preparation-overlay"><section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="nv-preparation-dialog">
-    <header><div><small>NOVAVISIO STUDIO</small><h2>{title}</h2></div><button type="button" onClick={onClose} aria-label="Fermer la préparation">×</button></header>
+    <header><div><small>NOVAVISIO STUDIO</small><h2>{title}</h2></div><button type="button" onClick={onClose} aria-label="Fermer la préparation"><XMark/></button></header>
     {children}
   </section></div>;
 }

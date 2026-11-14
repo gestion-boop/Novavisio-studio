@@ -4,6 +4,7 @@ import {SHARE_DAYS,createShareLink,getPublication,listShares,publicationActive,p
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 import {readSpaceCloudLink,writeSpaceCloudLink,type StudioSpace} from './spaces';
+import {XMark} from './XMark';
 
 const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'});
 
@@ -93,7 +94,7 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
   };
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel share-panel" onClick={e=>e.stopPropagation()}>
-    <button className="close" onClick={onClose}>✕</button>
+    <button className="close" onClick={onClose}><XMark/></button>
     <h2>Lien public · {space?space.name:'Projet complet'}</h2>
     {space?
       <p className="hint-inline"><b>Espace publié : {space.name}</b> — {project.scenes.length} panoramas uniquement. Aucun autre espace ne figure dans ce lien. Les médias et icônes inutilisés sont exclus. Les publications précédentes du projet complet restent distinctes.</p>:

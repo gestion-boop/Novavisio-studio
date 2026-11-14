@@ -2,6 +2,7 @@ import {useEffect,useLayoutEffect,useRef,useState,type RefObject} from 'react';
 import {Play,Volume2,VolumeX,X} from 'lucide-react';
 import {perspectiveMatrix,escapeAttribute} from './imageFrame';
 import {defaultFrameCorners,type CustomIcon,type Hotspot,type ImageFrameStyle,type Scene} from './storage';
+import {XMark} from './XMark';
 
 export const iconById=(icons:CustomIcon[],id?:string)=>icons.find(icon=>icon.id===id)?.dataUrl;
 
@@ -107,7 +108,7 @@ export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',onCl
     <img ref={z.body} className={('nv-photo-frame nv-photo-frame-'+frameStyle+z.bodyClass).trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
   </div>;
   return <div ref={z.overlay} className={'image-lightbox'+z.overlayClass} onClick={z.requestClose}>
-    <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={z.requestClose}>✕</button>
+    <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={z.requestClose}><XMark/></button>
     <img ref={z.body} className={('nv-photo-frame nv-photo-frame-'+frameStyle+z.bodyClass).trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
   </div>;
 }

@@ -4971,3 +4971,7 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
   box-shadow:inset 0 3px 8px #0009!important}
 .nv-shot-color:hover{transform:scale(1.12)}.nv-shot-color:active{transform:scale(.9)}
 .nv-layer-main:hover{background:#2f8fb544}.nv-layer-main:active{background:#2f8fb588}
+
+/* Croix centrées : boutons contenant une croix SVG */
+button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:center;line-height:0;padding-top:0;padding-bottom:0}
+.nv-xmark{display:block;flex:none}

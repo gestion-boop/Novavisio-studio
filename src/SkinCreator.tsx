@@ -3,6 +3,7 @@ import {Plus,Trash2,X} from 'lucide-react';
 import {isSafeIconDataUrl,newProject,type BarStyle,type BottomBarItem,type CustomIcon,type StudioProject} from './storage';
 import {validateSkin,type Skin} from './skins';
 import {buildIconSets} from './IconLibrary';
+import {XMark} from './XMark';
 
 /**
  * Création de skin : on compose la barre du bas (Bouton 1 à 8), on importe l'icône de chaque bouton
@@ -148,7 +149,7 @@ export function SkinCreator({project,onSave,onClose}:{project:StudioProject;onSa
             <span className="nv-sc-state-img">{slot.icons[st]?<img src={slot.icons[st]!.dataUrl} alt=""/>:<em>—</em>}</span>
             <small>{STATE_LABEL[st]}</small>
             <label className="nv-sc-file">{slot.icons[st]?'Changer':'Importer'}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importOne(st,e)}/></label>
-            {slot.icons[st]&&<button type="button" className="nv-sc-clear" onClick={()=>setIcon(st,undefined)} aria-label={'Retirer '+STATE_LABEL[st]}>✕</button>}
+            {slot.icons[st]&&<button type="button" className="nv-sc-clear" onClick={()=>setIcon(st,undefined)} aria-label={'Retirer '+STATE_LABEL[st]}><XMark/></button>}
           </div>)}
         </div>
         <div className="nv-sc-import-row">
