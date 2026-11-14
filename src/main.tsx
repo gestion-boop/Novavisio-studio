@@ -1075,6 +1075,16 @@ function App(){
     if(j>=guided.queue.length){setGuided(null);setIssueFocus(null);setStatus('Tous les problèmes ont été passés en revue 🎉');if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}return;}
     setGuided({queue:guided.queue,i:j});goToIssue(guided.queue[j]);
   }
+  /** Panoramas à proposer en premier comme destination : ceux qui ont une flèche vers ce panorama (lien retour), puis ses voisins dans l'ordre du projet. */
+  function suggestDestinations(sceneId:string):{id:string;why:string}[]{
+    const out:{id:string;why:string}[]=[];
+    const add=(id:string,why:string)=>{if(id!==sceneId&&visibleIds.has(id)&&!out.some(o=>o.id===id))out.push({id,why});};
+    for(const sc of project.scenes)if(sc.hotspots.some(h=>h.type==='navigation'&&h.target===sceneId))add(sc.id,'⭐ Suggéré · a déjà une flèche vers ce panorama');
+    const i=project.scenes.findIndex(sc=>sc.id===sceneId);
+    if(i>0)add(project.scenes[i-1].id,'⭐ Suggéré · juste avant dans la liste');
+    if(i>=0&&i<project.scenes.length-1)add(project.scenes[i+1].id,'⭐ Suggéré · juste après dans la liste');
+    return out;
+  }
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
     setFixError('');setIssueFocus({id:is.id,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
@@ -1105,7 +1115,7 @@ function App(){
       setSelectedId(spotId);
       if(kind==='nav'){
         setClassicDestinationSearch('');
-        setClassicDestinationPreviewId(project.scenes.find(sc=>sc.id!==sceneId)?.id??null);
+        setClassicDestinationPreviewId(suggestDestinations(sceneId)[0]?.id??project.scenes.find(sc=>sc.id!==sceneId)?.id??null);
         window.setTimeout(()=>{setClassicDestinationOpen(true);if(orphanArrow.current)orphanArrow.current.armed=true;},350);
       }else if(is.kind==='photo'||is.kind==='video')setMediaPicker({sceneId,hotspotId:spotId,type:is.kind==='photo'?'image':'video',fresh:false});
       else window.setTimeout(()=>document.querySelector<HTMLElement>('aside.right input[type="url"],aside.right input[type="text"],aside.right textarea')?.focus(),500);
@@ -3451,12 +3461,12 @@ function App(){
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
                 aria-label="Rechercher un panorama" onChange={e=>setClassicDestinationSearch(e.target.value)}/>
               <div className="nv-classic-destination-list" ref={destinationListRef}>
-                {visibleScenes.filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(classicDestinationSearch.toLocaleLowerCase('fr'))).map(sc=>
+                {(()=>{const sugg=issueFocus&&activeId?suggestDestinations(activeId):[];const rank=(id:string)=>{const k=sugg.findIndex(x=>x.id===id);return k<0?999:k;};return [...visibleScenes].filter(sc=>sc.id!==activeId&&sc.name.toLocaleLowerCase('fr').includes(classicDestinationSearch.toLocaleLowerCase('fr'))).sort((a,b)=>rank(a.id)-rank(b.id)).map(sc=>({sc,why:sugg.find(x=>x.id===sc.id)?.why}));})().map(({sc,why})=>
                   <button type="button" key={sc.id} data-destination-scene={sc.id} className={'nv-classic-destination-row'+(classicDestinationPreviewId===sc.id?' is-active':'')}
                     onClick={()=>setClassicDestinationPreviewId(sc.id)}
                     aria-pressed={classicDestinationPreviewId===sc.id}>
                     {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}
-                    <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné · vue affichée':sc.id===selected.target?'✓ Destination actuelle':'Voir en 360°'}</small></span>
+                    <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné · vue affichée':sc.id===selected.target?'✓ Destination actuelle':why??'Voir en 360°'}</small></span>
                     <ChevronRight size={15}/>
                   </button>)}
               </div>
