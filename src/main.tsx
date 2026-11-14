@@ -972,6 +972,23 @@ function App(){
     i:info?.id??null,f:frame?{t:frame.title,u:frame.url}:null,im:imageZoom?.id??null,vi:videoZoom?.id??null
   });
   const liveInvite=useLiveInvites(inviteIdentity,true);
+  // Historique des notifications (mémorisé sur cet ordinateur) : enregistrements, publications, échecs, notes et captures reçues.
+  type NotifEntry={id:string;icon:string;text:string;at:number};
+  const [notifHistory,setNotifHistory]=useState<NotifEntry[]>(()=>{try{const v=JSON.parse(localStorage.getItem('nvstudio-notif-history')||'[]');return Array.isArray(v)?v.slice(0,30):[];}catch{return [];}});
+  const pushNotif=(icon:string,text:string,id=String(Date.now())+Math.random().toString(36).slice(2,6))=>setNotifHistory(list=>{
+    if(list.some(x=>x.id===id)||(list[0]&&list[0].text===text&&Date.now()-list[0].at<3000))return list;
+    const next=[{id,icon,text,at:Date.now()},...list].slice(0,30);
+    try{localStorage.setItem('nvstudio-notif-history',JSON.stringify(next));}catch{/* stockage indisponible */}
+    return next;
+  });
+  useEffect(()=>{
+    if(!/^(Enregistré dans le Cloud|Sauvegardé|Publication|Échec|Cloud déconnecté)/.test(status))return;
+    pushNotif(/^(Échec|Cloud déconnecté)/.test(status)?'⚠️':/^Publication/.test(status)?'🚀':'💾',status.slice(0,120));
+  },[status]);
+  useEffect(()=>{
+    for(const n of liveInvite.notesIn)pushNotif('📝',n.fromLabel+' : '+n.body.slice(0,80),'note-'+n.id);
+    for(const sh of liveInvite.shots)pushNotif('📷',sh.fromLabel+' a envoyé une capture','shot-'+sh.id);
+  },[liveInvite.notesIn,liveInvite.shots]);
   const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0);
   // Notes reçues en direct : on les garde dans les notes de ce projet (sur cet ordinateur), en plus de la carte affichée.
   const savedNoteIds=useRef(new Set<string>());
@@ -3009,11 +3026,14 @@ function App(){
             <Bell size={21}/>{notifCount>0&&<i className="nv-bell-badge" aria-hidden="true">{notifCount>9?'9+':notifCount}</i>}
           </button>
           {bellOpen&&<div className="nv-share-menu nv-bell-menu" role="menu" aria-label="Notifications">
-            {!notifCount&&<p className="nv-bell-empty">Rien de nouveau. Les notes, captures et invitations de tes collègues apparaîtront ici.</p>}
+            {!notifCount&&!notifHistory.length&&<p className="nv-bell-empty">Rien de nouveau. Les notes, captures et invitations de tes collègues apparaîtront ici.</p>}
             {liveInvite.invite&&<button type="button" role="menuitem" onClick={()=>{setBellOpen(false);liveInvite.dismiss();void startLiveWith([],false);}}>🖥 <span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran<small>Cliquer pour rejoindre</small></span></button>}
             {liveInvite.notesIn.map(n=><button type="button" role="menuitem" key={n.id} onClick={()=>{setBellOpen(false);liveInvite.dismissNote(n.id);setToolsMenuOpen(false);setRightHidden(true);setNotesOpen(true);}}>📝 <span><b>{n.fromLabel}</b> : {n.body.slice(0,70)}{n.body.length>70?'…':''}<small>Note · cliquer pour ouvrir les notes</small></span></button>)}
             {liveInvite.shots.map(sh=><button type="button" role="menuitem" key={sh.id} onClick={()=>{setBellOpen(false);liveInvite.dismissShot(sh.id);setShotImage({image:sh.image,defaultTo:sh.fromEmail});}}>📷 <span><b>{sh.fromLabel}</b> t’envoie une capture{sh.comment?' : '+sh.comment.slice(0,60):''}<small>Cliquer pour la voir et répondre</small></span></button>)}
             {updateAvailable&&<button type="button" role="menuitem" onClick={reloadToLatestVersion}>🔄 <span><b>Nouvelle version de NovaStudio</b><small>Enregistre ton travail, puis clique pour actualiser</small></span></button>}
+            {notifHistory.length>0&&<div className="nv-share-group">Récemment</div>}
+            {notifHistory.slice(0,10).map(h=><div key={h.id} className="nv-bell-hist"><span>{h.icon}</span><span>{h.text}<small>{new Date(h.at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small></span></div>)}
+            {notifHistory.length>0&&<button type="button" role="menuitem" className="nv-bell-clear" onClick={()=>{setNotifHistory([]);try{localStorage.removeItem('nvstudio-notif-history');}catch{/* rien */}}}>Effacer l’historique</button>}
             {(liveInvite.notesIn.length+liveInvite.shots.length>1)&&<button type="button" role="menuitem" className="nv-bell-clear" onClick={()=>{liveInvite.notesIn.forEach(n=>liveInvite.dismissNote(n.id));liveInvite.shots.forEach(sh=>liveInvite.dismissShot(sh.id));}}>Tout marquer comme lu</button>}
           </div>}
         </div>
