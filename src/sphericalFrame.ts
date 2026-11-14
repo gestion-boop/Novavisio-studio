@@ -90,11 +90,12 @@ export function editingFrameControls(h:Hotspot){
 export function haloMarkers(h:Hotspot):{id:string;polygon:[number,number][];svgStyle:Record<string,string>;className:string;tooltip?:string}[]{
   const media=(h.type==='image'&&!!h.imageDataUrl)||(h.type==='video'&&!!(h.videoDataUrl||h.videoUrl));
   const clickable=h.type==='video'?h.videoOpenFullscreen!==false:true;
-  if(!media||!isFrame(h)||h.frameHalo===false||!clickable)return [];
+  if(!media||!isFrame(h)||(h.frameHalo===false||h.frameSignalStyle==='none')||!clickable)return [];
   const c=frameWorldCorners(h);
   const wrap=(a:number)=>{while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;};
   const ref=c[0].yaw,rel=c.map(p=>({yaw:wrap(p.yaw-ref),pitch:p.pitch}));
   const cy=rel.reduce((a,p)=>a+p.yaw,0)/4,cp=rel.reduce((a,p)=>a+p.pitch,0)/4,k=1.07,lim=Math.PI/2-0.005;
   const polygon=rel.map(p=>[ref+cy+(p.yaw-cy)*k,Math.max(-lim,Math.min(lim,cp+(p.pitch-cp)*k))] as [number,number]);
-  return [{id:h.id+':halo',polygon,className:'nv-frame-halo',svgStyle:{fill:'none',stroke:'rgba(255,255,255,0.85)',strokeWidth:'3px'}}];
+  const style=h.frameSignalStyle??'gold';
+  return [{id:h.id+':halo',polygon,className:'nv-frame-halo nv-frame-halo-'+style,svgStyle:{fill:'none',stroke:style==='gold'?'rgba(215,177,102,.9)':'rgba(230,245,255,.85)',strokeWidth:style==='gold'?'1.5px':'2px'}}];
 }
