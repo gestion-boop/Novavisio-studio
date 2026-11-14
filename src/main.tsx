@@ -397,7 +397,7 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
       ghost();root.classList.add('nv-frame-dragging');
       // L'image / la vidéo devient quasi invisible pendant le geste : on voit le décor exact sous les pointillés.
       const dimFrame=(o:number)=>{try{plugin.updateMarker({id:h.id,opacity:o},false);plugin.renderMarkers();viewer.needsUpdate();}catch{/* cadre supprimé */}};
-      dimFrame(0.06);
+      dimFrame(0);
       const update=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
         pointer.preventDefault();
