@@ -1,9 +1,9 @@
 import {useEffect,useState} from 'react';
 import {Download,Share2,X} from 'lucide-react';
-import {addMember,saveToCloud,cloudConfigured} from './cloud';
+import {addMember,saveToCloud,cloudConfigured,listCloudProjects,openCloudProject,saveWorking,readLink,type CloudProject} from './cloud';
 import {loadParticipants,type Person} from './LiveShareDialog';
 import {readSpaceCloudLink,writeSpaceCloudLink,projectForSpaceExport,type StudioSpace} from './spaces';
-import {exportSpacesProject} from './spaceTransfer';
+import {exportSpacesProject,mergeImportedSpaces} from './spaceTransfer';
 import {projectJsonParts,type StudioProject} from './storage';
 
 /**
@@ -21,6 +21,16 @@ export function SpacesActions({mode,project,spaces,onClose,onStatus,onMoved}:{
   const [busy,setBusy]=useState('');
   const [done,setDone]=useState('');
   const [move,setMove]=useState(false);
+  // Envoi direct vers un autre projet du Cloud (sans fichier)
+  const [targets,setTargets]=useState<CloudProject[]|null>(null);
+  const [targetId,setTargetId]=useState('');
+  useEffect(()=>{
+    if(mode!=='transfer')return;
+    let dead=false;
+    if(!cloudConfigured){setTargets([]);return;}
+    listCloudProjects().then(list=>{if(!dead){const here=readLink()?.projectId;setTargets(list.filter(p=>p.id!==here));}}).catch(()=>{if(!dead)setTargets([]);});
+    return ()=>{dead=true;};
+  },[mode]);
   useEffect(()=>{
     if(mode!=='share')return;
     let dead=false;
@@ -50,11 +60,30 @@ export function SpacesActions({mode,project,spaces,onClose,onStatus,onMoved}:{
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy('');}
   }
+  async function sendDirect(){
+    const target=targets?.find(t=>t.id===targetId);
+    if(!target){setError('Choisis le projet de destination.');return;}
+    setError('');setDone('');
+    try{
+      const pack=exportSpacesProject(project,spaces);
+      setBusy('Ouverture du projet « '+target.name+' »…');
+      const opened=await openCloudProject(target.id,setBusy);
+      const merged=mergeImportedSpaces(opened.project,pack);
+      setBusy('Envoi des espaces dans « '+target.name+' »…');
+      await saveWorking(merged.project,opened.link,setBusy);
+      setDone(spaces.length+' espace'+(spaces.length>1?'s':'')+' ajouté'+(spaces.length>1?'s':'')+' au projet « '+target.name+' » ('+merged.scenes+' panorama'+(merged.scenes>1?'s':'')+' copié'+(merged.scenes>1?'s':'')+'). Ouvre ce projet pour les retrouver.');
+      onStatus('Espaces envoyés dans « '+target.name+' » : '+names);
+      if(move&&window.confirm('Retirer ces '+spaces.length+' espace(s) de ce projet ? Les panoramas restent dans le projet complet.'))onMoved(spaces.map(space=>space.id));
+    }catch(e){setError((e instanceof Error?e.message:String(e))+' — rien n’a été retiré de ce projet.');}
+    finally{setBusy('');}
+  }
   function transfer(){
     setError('');
     try{
       const pack=exportSpacesProject(project,spaces);
-      const url=URL.createObjectURL(new Blob(projectJsonParts(pack),{type:'application/json'}));
+      const blob=new Blob(projectJsonParts(pack),{type:'application/json'});
+      if(blob.size>450*1024*1024){setError('Ces espaces pèsent '+Math.round(blob.size/1048576)+' Mo : trop gros pour un fichier (le navigateur ne pourrait pas le relire). Utilise « Envoyer directement dans un projet du Cloud ».');return;}
+      const url=URL.createObjectURL(blob);
       const a=document.createElement('a');a.href=url;
       a.download=(names.replace(/[^a-zA-Z0-9-]+/g,'_').slice(0,60)||'espaces')+'.nvspaces.json';
       document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
@@ -77,8 +106,15 @@ export function SpacesActions({mode,project,spaces,onClose,onStatus,onMoved}:{
         <label className="nv-spacesact-extra">Ou une autre adresse e-mail<input type="email" value={extra} placeholder="prenom@exemple.fr" onChange={e=>setExtra(e.target.value)}/></label>
         <p className="nv-spacesact-info small">La personne doit avoir un compte NovaStudio (créé via Menu › Partager › Invitations et lien privé).</p>
       </>:<>
-        <p className="nv-spacesact-info">Le fichier contient les panoramas, les points et les icônes de ces espaces. Dans l’autre projet, « Importer des espaces » les ajoute sans toucher au reste.</p>
+        <p className="nv-spacesact-info"><b>Envoi direct (recommandé)</b> : choisis le projet du Cloud qui doit recevoir ces espaces. Les panoramas, points et icônes sont copiés tout seuls, sans fichier à télécharger.</p>
+        <div className="nv-spacesact-people" role="radiogroup" aria-label="Projet de destination">
+          {targets===null&&<small>Chargement de tes projets…</small>}
+          {targets&&!targets.length&&<small>Aucun autre projet dans ton Cloud (ou Cloud non connecté).</small>}
+          {targets&&targets.map(t=><button type="button" role="radio" aria-checked={targetId===t.id} key={t.id} className={'nv-liveshare-person'+(targetId===t.id?' is-on':'')} onClick={()=>setTargetId(t.id)}>
+            <span className="nv-liveshare-check" aria-hidden="true">{targetId===t.id?'●':''}</span><span><b>{t.name||'Visite sans nom'}</b><small>modifié le {new Date(t.updated_at||t.created_at).toLocaleDateString('fr-FR')}</small></span>{t.shared&&<em>partagé</em>}</button>)}
+        </div>
         <label className="nv-spacesact-check"><input type="checkbox" checked={move} onChange={e=>setMove(e.target.checked)}/> Déplacer : retirer ces espaces de ce projet après l’envoi (sinon ils sont copiés)</label>
+        <p className="nv-spacesact-info small">Pour les envoyer vers un projet d’un autre compte ou hors ligne, tu peux aussi télécharger un fichier (limité aux espaces de moins de 450 Mo).</p>
       </>}
       {error&&<p className="nv-spacesact-error" role="alert">{error}</p>}
       {busy&&<p className="nv-spacesact-info" role="status">⏳ {busy}</p>}
@@ -86,7 +122,8 @@ export function SpacesActions({mode,project,spaces,onClose,onStatus,onMoved}:{
       <div className="nv-spacesact-actions">
         <button type="button" onClick={onClose}>Fermer</button>
         {mode==='share'?<button type="button" className="is-primary" disabled={!!busy} onClick={()=>void share()}><Share2 size={16}/> Partager</button>
-          :<button type="button" className="is-primary" onClick={transfer}><Download size={16}/> Télécharger le fichier</button>}
+          :<><button type="button" disabled={!!busy} onClick={transfer}><Download size={16}/> Télécharger un fichier</button>
+            <button type="button" className="is-primary" disabled={!!busy||!targetId} onClick={()=>void sendDirect()}><Share2 size={16}/> Envoyer directement</button></>}
       </div>
     </section>
   </div>;

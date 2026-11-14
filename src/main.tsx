@@ -961,6 +961,11 @@ function App(){
   const toggleSpacePick=(id:string)=>setSpaceSelection(cur=>{const n=new Set(cur);if(n.has(id))n.delete(id);else n.add(id);return n;});
   async function importSpacesFile(file?:File){
     if(!file)return;
+    if(file.size>480*1024*1024){
+      setStatus('Ce fichier pèse '+Math.round(file.size/1048576)+' Mo : le navigateur ne peut pas le lire (limite ≈ 500 Mo). Dans le projet d’origine, utilise « Envoyer des espaces vers un autre projet » → « Envoyer directement ».');
+      if(spaceImportInput.current)spaceImportInput.current.value='';
+      return;
+    }
     try{
       setStatus('Lecture du fichier d’espaces…');
       const raw=await readProjectFile(file,pct=>setStatus('Lecture du fichier d’espaces… '+pct+' %'));
