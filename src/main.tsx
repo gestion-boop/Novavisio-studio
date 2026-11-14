@@ -1133,9 +1133,29 @@ function App(){
     if(i>=0&&i<project.scenes.length-1)add(project.scenes[i+1].id,'⭐ Suggéré · juste après dans la liste');
     return out;
   }
+  /** Ouvre la galerie 360° pour choisir le panorama d'arrivée (crée d'abord une flèche provisoire si le panorama n'a aucun point). */
+  function chooseDestination(){
+    const sceneId=issueFocus?.sceneId;if(!sceneId)return;
+    let spotId=issueFocus?.hotspotId;
+    if(issueFocus?.kind==='scene-empty'){
+      const scene=project.scenes.find(sc=>sc.id===sceneId);
+      if(!scene)return;
+      const fav=defaultNavigationIconSet(),id=uid();
+      const point:Hotspot={id,type:'navigation',title:'Aller vers…',text:'',target:'',yaw:scene.arrivalYaw??0,pitch:scene.arrivalPitch??0,
+        ...(fav?{iconId:fav.iconId,hoverIconId:fav.hoverIconId,pressedIconId:fav.pressedIconId,iconSize:fav.iconSize}:{})};
+      orphanArrow.current={sceneId,hotspotId:id,armed:true};
+      setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===sceneId?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
+      spotId=id;
+    }
+    if(!spotId)return;
+    setSelectedId(spotId);
+    setClassicDestinationSearch('');
+    setClassicDestinationPreviewId(suggestDestinations(sceneId)[0]?.id??project.scenes.find(sc=>sc.id!==sceneId)?.id??null);
+    setClassicDestinationOpen(true);
+  }
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
-    setFixError('');setNoteText('');setIssueFocus({id:is.id,position:is.sceneId?'Scène '+(project.scenes.findIndex(sc=>sc.id===is.sceneId)+1)+' / '+project.scenes.length:undefined,sceneId:is.sceneId,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
+    setFixError('');setNoteText('');setIssueFocus({id:is.id,kind:is.kind,position:is.sceneId?'Scène '+(project.scenes.findIndex(sc=>sc.id===is.sceneId)+1)+' / '+project.scenes.length:undefined,sceneId:is.sceneId,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
     // Le mode Auto crée / déplace des flèches et change de panorama après chaque validation : on le coupe pour que la correction ne touche que la flèche signalée.
     if(autoNavigation){setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);}
     setClassicDestinationOpen(false);setPreview(false);
@@ -1146,25 +1166,11 @@ function App(){
     if(currentSpace&&!visibleIds.has(sceneId))setActiveSpaceId(null);
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(sceneId);setMode(null);
     setPanel('points');setRightHidden(['nav','photo','video','scene-empty'].includes(is.kind)); // la feuille de réglages ne s'ouvre que si on doit y écrire
-    let spotId=is.hotspotId,kind=is.kind;
-    if(kind==='scene-empty'){
-      // Panorama sans point : on crée une flèche provisoire et on ouvre la galerie avec le viseur pour choisir le prochain panorama.
-      const scene=project.scenes.find(sc=>sc.id===sceneId);
-      if(scene){
-        const fav=defaultNavigationIconSet(),id=uid();
-        const point:Hotspot={id,type:'navigation',title:'Aller vers…',text:'',target:'',yaw:scene.arrivalYaw??0,pitch:scene.arrivalPitch??0,
-          ...(fav?{iconId:fav.iconId,hoverIconId:fav.hoverIconId,pressedIconId:fav.pressedIconId,iconSize:fav.iconSize}:{})};
-        orphanArrow.current={sceneId,hotspotId:id,armed:false};
-        setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===sceneId?{...sc,hotspots:[...sc.hotspots,point]}:sc)}));
-        spotId=id;kind='nav';
-      }
-    }
+    const spotId=is.hotspotId,kind=is.kind;
     if(spotId){
       setSelectedId(spotId);
       if(kind==='nav'){
-        setClassicDestinationSearch('');
-        setClassicDestinationPreviewId(suggestDestinations(sceneId)[0]?.id??project.scenes.find(sc=>sc.id!==sceneId)?.id??null);
-        window.setTimeout(()=>{setClassicDestinationOpen(true);if(orphanArrow.current)orphanArrow.current.armed=true;},350);
+        // La galerie ne s'ouvre pas toute seule : on voit d'abord le panorama et la bulle, puis on clique sur « Choisir le panorama de destination ».
       }else if(is.kind==='photo'||is.kind==='video')setMediaPicker({sceneId,hotspotId:spotId,type:is.kind==='photo'?'image':'video',fresh:false});
       else window.setTimeout(()=>document.querySelector<HTMLElement>('aside.right input[type="url"],aside.right input[type="text"],aside.right textarea')?.focus(),500);
     }else{
@@ -3401,7 +3407,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} noteText={noteText} onNoteText={setNoteText} onNote={noteIssueForLater} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} noteText={noteText} onNoteText={setNoteText} onNote={noteIssueForLater} onChoose={issueFocus.kind==='nav'||issueFocus.kind==='scene-empty'?chooseDestination:undefined} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
     {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
@@ -3510,7 +3516,7 @@ function App(){
             <div><small>{autoNavigation?'AUTO · ÉTAPE 2 / DESTINATION':'CHOISIR UNE DESTINATION'}</small><strong>Galerie 360°</strong></div>
             <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)} aria-label={autoNavigation?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}><XMark/></button>
           </div>
-          {(issueFocus||(selected&&active&&!selected.target))&&<IssueBanner focus={issueFocus??{level:'warn' as const,text:'Cette flèche n’a pas encore de panorama de destination.',hint:'Choisis dans la liste le panorama vers lequel elle doit mener, règle le viseur, puis valide.',thumb:active?sceneThumbs[active.id]:undefined,sceneName:active?.name}}/>}
+          {(issueFocus||(selected&&active&&!selected.target))&&<IssueBanner focus={issueFocus?{...issueFocus,thumb:undefined,sceneName:undefined}:{level:'warn' as const,text:'Cette flèche n’a pas encore de panorama de destination.',hint:'Choisis dans la liste le panorama vers lequel elle doit mener, règle le viseur, puis valide.',thumb:undefined,sceneName:undefined}}/>}
           <div className="nv-classic-destination-layout">
             <div className="nv-classic-destination-list-panel">
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
@@ -3548,6 +3554,12 @@ function App(){
               {!visibleScenes.some(sc=>sc.id===classicDestinationPreviewId&&sc.id!==activeId)&&
                 <div className="nv-classic-destination-empty">Sélectionne un panorama dans la liste à gauche.</div>}
             </div>
+            {active&&<aside className="nv-classic-destination-source" aria-label="Panorama de départ">
+              <small>PANORAMA DE DÉPART</small>
+              <div className="nv-classic-destination-source-view"><FullscreenGalleryHoverPreview scene={active} thumb={sceneThumbs[active.id]}/></div>
+              <strong>{active.name}</strong>
+              <span>Scène {Math.max(1,project.scenes.findIndex(sc=>sc.id===active.id)+1)} / {project.scenes.length} · la flèche à régler est ici. Glisse pour regarder autour.</span>
+            </aside>}
           </div>
           <div className="nv-classic-destination-foot">
             <span>Choisis le prochain panorama, règle la direction avec le viseur, puis valide pour continuer de panorama en panorama.</span>
