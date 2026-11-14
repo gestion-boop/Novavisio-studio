@@ -7,18 +7,19 @@ import {useEffect,useRef,useState,type CSSProperties} from 'react';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
-import {frameWorldCorners,haloMarkers,straightenFrames,frameIdsOf} from './sphericalFrame';
+import {frameWorldCorners,haloMarkers,straightenFrames,frameIdsOf,visibleVideoFrames} from './sphericalFrame';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {attachSphereLayer} from './sphereLayer';
 import {startPosterBounce} from './posterBounce';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star} from 'lucide-react';
-import {barIconSize,defaultBarStyle,defaultFrameCorners,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
+import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star,Settings} from 'lucide-react';
+import {barIconSize,defaultBarStyle,defaultFrameCorners,STUDIO_LANGUAGES,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
 import './media.css';
@@ -122,7 +123,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      syncMarkers(instance,current.scene.hotspots.flatMap(h=>[
+      syncMarkers(instance,visibleVideoFrames(current.scene.hotspots).flatMap(h=>[
         publicMarker(h,current.icons,viewHeight,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
@@ -147,7 +148,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>next.hotspots.flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]);
+    const markersNow=()=>visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),260);};
     instance.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
@@ -182,7 +183,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     const instance=viewer.current;
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
-    syncMarkers(instance,scene.hotspots.flatMap(h=>[
+    syncMarkers(instance,visibleVideoFrames(scene.hotspots).flatMap(h=>[
       publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]));
   },[scene.id,scene.hotspots,icons]);
   return <div className="tour-panorama" ref={container}/>;
@@ -203,6 +204,8 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const project=sourceProject&&chosenSpace?projectForSpaceExport(sourceProject,chosenSpace):sourceProject;
   const [sceneId,setSceneId]=useState(()=>project?.scenes[0]?.id??'');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
+  const prefs=useVisitorPrefs();
+  const [settingsOpen,setSettingsOpen]=useState(false);
   const [modal,setModal]=useState<{title:string;url?:string;text?:string;fontFamily?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
@@ -297,6 +300,10 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     '--nv-bar-height':(theme.height??82)+'px'
   } as CSSProperties;
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
+  const activeLanguages=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
+  const lang=effectiveLang(prefs,activeLanguages);
+  const settingsIcon=project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId;
+  const hasSettingsIcon=!!project.icons?.find(i=>i.id===settingsIcon&&i.dataUrl);
   const current=project.scenes.find(s=>s.id===sceneId)??project.scenes[0];
   const nightSource=project.scenes.find(sc=>sc.id===current.nightSourceSceneId);
   const nightTexture=current.nightDataUrl??nightSource?.dataUrl;
@@ -308,10 +315,14 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     const checked=checkedLink(url);
     if(!checked)return;
     if(mode==='tab'&&/^https?:/.test(checked)){window.open(checked,'_blank','noopener,noreferrer');return;}
-    if(/^https?:\/\//.test(checked))setModal({title,url:checked});
+    if(/^https?:\/\//.test(checked)){
+      const parsed=new URL(checked);
+      if(parsed.hostname.endsWith('.vercel.app')){parsed.searchParams.set('langs',activeLanguages.join(','));parsed.searchParams.set('lang',lang);}
+      setModal({title,url:parsed.toString()});
+    }
     else window.location.href=checked;
   };
-  const information=(h:Hotspot)=>setModal({title:h.title,text:h.text,fontFamily:h.fontFamily});
+  const information=(h:Hotspot)=>setModal({title:h.title,text:lang==='fr'?h.text:(h.translations?.[lang]||h.text),fontFamily:h.fontFamily});
   const act=(item:BottomBarItem)=>{
     if(item.type==='gallery'){setGalleryId(item.id);return;}
     if(item.type==='navigation'){
@@ -319,7 +330,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }else if(item.url && checkedLink(item.url)){
       openLink(item.title,item.url,item.linkMode);
     }else if(item.type==='information'){
-      setModal({title:item.title,text:item.text,fontFamily:item.fontFamily});
+      setModal({title:item.title,text:lang==='fr'?item.text:(item.translations?.[lang]||item.text),fontFamily:item.fontFamily});
     }
   };
   const enterVr=async()=>{
@@ -370,7 +381,19 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         </button>;
       })}
     </nav>}
-    <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)}/>
+    {!showIntro&&firstPanoramaReady&&<div className="nv-visitor-settings">
+      <button type="button" className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : son et langue" onClick={()=>setSettingsOpen(o=>!o)}>
+        {hasSettingsIcon?<IconStateVisual icons={project.icons??[]} normal={settingsIcon} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={48}/>:<Settings size={22}/>}
+      </button>
+      {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
+        <strong>Son</strong><div className="nv-vs-row">
+          <button type="button" className={prefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
+          <button type="button" className={prefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 Coupé</button>
+        </div>
+        {activeLanguages.length>1&&<><strong>Langue</strong><div className="nv-vs-row nv-vs-flags">{STUDIO_LANGUAGES.filter(l=>activeLanguages.includes(l.code)).map(l=><button type="button" key={l.code} title={l.name} aria-label={l.name} aria-pressed={lang===l.code} className={lang===l.code?'is-on':''} onClick={()=>setLang(l.code)}>{l.flag}</button>)}</div></>}
+      </div>}
+    </div>}
+    <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)} showToggle={false}/>
     {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
