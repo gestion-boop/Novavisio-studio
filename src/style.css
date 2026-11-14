@@ -4938,3 +4938,7 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 .nv-share-menu button{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:11px;background:#143543;color:#e6f6f8;font:600 14px system-ui,sans-serif;cursor:pointer;text-align:left;transition:transform .12s,background .15s,border-color .15s}
 .nv-share-menu button:hover{background:linear-gradient(160deg,#46aed6,#2f8fb5);border-color:#9fdcf3}
 .nv-share-menu button:active{transform:scale(.97);box-shadow:inset 0 4px 10px #0009}
+/* Capture annotée : la croix reste toujours en haut à droite du cadre */
+.nv-shot{position:relative}
+.nv-shot .nv-shot-bar{padding-right:56px}
+.nv-shot .nv-shot-bar>.nv-shot-close{position:absolute;top:10px;right:10px;margin:0;z-index:2}

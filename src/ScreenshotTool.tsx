@@ -87,15 +87,11 @@ function hitShape(ctx:CanvasRenderingContext2D,sh:Shape,x:number,y:number,scale:
   }
   if(sh.tool==='arrow')return distSeg(x,y,sh.x1!,sh.y1!,sh.x2!,sh.y2!)<=tol;
   const b=shapeBounds(ctx,sh,scale);
-  if(sh.tool==='rect'){
-    const inside=x>=b.x-tol&&x<=b.x+b.w+tol&&y>=b.y-tol&&y<=b.y+b.h+tol;
-    const inner=x>b.x+tol&&x<b.x+b.w-tol&&y>b.y+tol&&y<b.y+b.h-tol;
-    return inside&&!inner;
-  }
+  if(sh.tool==='rect')return x>=b.x-tol&&x<=b.x+b.w+tol&&y>=b.y-tol&&y<=b.y+b.h+tol;   // contour ou intérieur
   // cercle / ellipse : proche du contour
   const cx=b.x+b.w/2,cy=b.y+b.h/2,rx=Math.max(b.w/2,1),ry=Math.max(b.h/2,1);
   const d=Math.hypot((x-cx)/rx,(y-cy)/ry);
-  return Math.abs(d-1)*Math.min(rx,ry)<=tol;
+  return (d-1)*Math.min(rx,ry)<=tol;   // contour ou intérieur
 }
 const moveShape=(sh:Shape,dx:number,dy:number):Shape=>({
   ...sh,
@@ -196,6 +192,7 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
       }
       setSel(null);setTextBox({x,y,value:'',color,size});return;
     }
+    setSel(null);
     (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);
     draft.current=tool==='pen'?{tool,color,size,pts:[[x,y]]}:{tool,color,size,x1:x,y1:y,x2:x,y2:y};
     render();
@@ -217,7 +214,8 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
     const d=draft.current;draft.current=null;
     if(!d)return;
     const tiny=d.tool!=='pen'&&Math.hypot((d.x2??0)-(d.x1??0),(d.y2??0)-(d.y1??0))<6;
-    if(!tiny)setShapes(list=>[...list,d]);else render();
+    // la forme qu'on vient de tracer reste sélectionnée : couleur, épaisseur et suppression s'appliquent tout de suite
+    if(!tiny)setShapes(list=>{setSel(list.length);return [...list,d];});else render();
   }
   function commitText(){
     setTextBox(box=>{
@@ -320,7 +318,7 @@ export function ShotEditor({image,defaultTo,canSend,onSend,onClose}:{
         <button type="button" className="nv-shot-tool nv-shot-del" onClick={removeSelected} disabled={sel===null} title="Supprimer l’élément sélectionné (touche Suppr)"><Trash2 size={18}/><span>Supprimer</span></button>
         <button type="button" className="nv-shot-close" onClick={onClose} aria-label="Fermer la capture"><X size={20}/></button>
       </header>
-      <p className="nv-shot-tip">{tool==='select'?(sel!==null?'Élément sélectionné : change sa couleur ou son épaisseur, glisse-le pour le déplacer, double-clique sur un texte pour le modifier, ou supprime-le.':'Clique sur une annotation pour la sélectionner.'):'Astuce : choisis « Sélection » pour modifier, déplacer ou supprimer une annotation déjà posée.'}</p>
+      <p className="nv-shot-tip">{sel!==null?'Élément sélectionné : change sa couleur ou son épaisseur, supprime-le (bouton ou touche Suppr)'+(tool==='select'?', glisse-le pour le déplacer, double-clique sur un texte pour le modifier.':'. Choisis « Sélection » pour le déplacer ou en choisir un autre.'):(tool==='select'?'Clique sur une annotation pour la sélectionner.':'Astuce : après avoir tracé un élément, il reste sélectionné ; « Sélection » permet d’en choisir un autre.')}</p>
       <div className="nv-shot-stage">
         <div className="nv-shot-canvaswrap">
           <canvas ref={canvasRef} className={'nv-shot-canvas tool-'+tool} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={dblClick}/>
