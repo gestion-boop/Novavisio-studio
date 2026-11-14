@@ -3242,7 +3242,7 @@ function App(){
       </label>
       </div>
       <div className="nv-v3-center" ref={toolsMenuRef}>
-        {modeSwitch(false)}
+        {!creationFullscreen&&modeSwitch(false)}
         {toolsCurtain(false)}
       </div>
       <div className="nv-v3-right">
