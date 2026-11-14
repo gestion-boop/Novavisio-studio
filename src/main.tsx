@@ -307,14 +307,20 @@ function Panorama({scene,icons,mode,preview,autoNavigation,night,nightTexture,ar
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
     const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation);
-    const onLoaded=()=>{viewer.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(viewer,markersNow(),260);};
+    // Vue d'arrivée appliquée tout de suite (sans animation de zoom / rotation) : les icônes sont créées à leur vraie place et ne bougent plus,
+    // au lieu d'attendre la fin d'une animation de ~0,5 s puis de « se replacer ».
+    const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
+    const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
+    const onLoaded=()=>{
+      viewer.removeEventListener('panorama-loaded',onLoaded);
+      try{viewer.rotate(arrivalPos);viewer.zoom(arrivalZoom);}catch{/* vue indisponible : on garde la vue actuelle */}
+      fade=crossfadeMarkers(viewer,markersNow(),260);
+    };
     viewer.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
     void viewer.setPanorama(nextTexture,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
-      // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
-      position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
-      zoom:arrivalFor?.zoom??panoramaArrivalZoom(next)
+      // La vue d'arrivée (propre à la flèche utilisée, sinon celle du panorama) est posée dans onLoaded, sans animation.
     }).then(async success=>{
       if(disposed||!success)return;
       if(fade)await fade;else resetMarkers(viewer,markersNow());
