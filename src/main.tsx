@@ -3482,7 +3482,7 @@ function App(){
                     onClick={()=>setClassicDestinationPreviewId(sc.id)}
                     aria-pressed={classicDestinationPreviewId===sc.id}>
                     {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}
-                    <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné · vue affichée':sc.id===selected.target?'✓ Destination actuelle':why??'Voir en 360°'}</small></span>
+                    <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné'+(why?' · '+why.replace('⭐ Suggéré · ','suggéré : '):' · vue affichée'):sc.id===selected.target?'✓ Destination actuelle':why??'Voir en 360°'}</small></span>
                     <ChevronRight size={15}/>
                   </button>)}
               </div>

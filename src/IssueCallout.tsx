@@ -6,7 +6,6 @@ export type IssueFocus={id?:string;hotspotId?:string;text:string;level:'error'|'
 
 /** Met en évidence le point à corriger (anneau pulsant) et affiche une bulle à côté qui dit quoi corriger. */
 export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,docked,onValidate,saving,error}:{focus:IssueFocus;stillPresent:boolean;onClose:()=>void;onOpen?:()=>void;step?:{i:number;n:number};onNext?:()=>void;docked?:boolean;onValidate:()=>void;saving?:boolean;error?:string}){
-  const [pos,setPos]=useState<{x:number;y:number}|null>(null);
   const [dock,setDock]=useState<number>(92);
   const targetRef=useRef<HTMLElement|null>(null);
   useEffect(()=>{
@@ -16,12 +15,7 @@ export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,dock
       const el=focus.hotspotId?document.querySelector<HTMLElement>('[data-nv-marker-id="'+focus.hotspotId+'"]'):null;
       if(targetRef.current&&targetRef.current!==el)targetRef.current.classList.remove('nv-issue-target');
       targetRef.current=el;
-      if(el){
-        el.classList.add('nv-issue-target');
-        const r=el.getBoundingClientRect();
-        const visible=r.width>0&&r.right>0&&r.left<window.innerWidth&&r.bottom>0&&r.top<window.innerHeight;
-        setPos(p=>{const n=visible?{x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)}:null;return p&&n&&p.x===n.x&&p.y===n.y?p:n;});
-      }else setPos(p=>p?null:p);
+      if(el)el.classList.add('nv-issue-target');
       const view=document.querySelector<HTMLElement>('.psv-container');
       if(view){const t=Math.round(view.getBoundingClientRect().top)+12;setDock(d=>d===t?d:t);}
       raf=requestAnimationFrame(tick);
@@ -29,9 +23,9 @@ export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,dock
     raf=requestAnimationFrame(tick);
     return ()=>{alive=false;cancelAnimationFrame(raf);targetRef.current?.classList.remove('nv-issue-target');};
   },[focus.hotspotId]);
-  const W=320,right=!docked&&pos&&pos.x+50+W<window.innerWidth;
-  const style=docked?{right:16,top:dock+66}:pos?{left:right?pos.x+46:Math.max(8,pos.x-46-W),top:Math.max(70,Math.min(pos.y-30,window.innerHeight-170))}:{right:16,top:dock};
-  return <aside className={'nv-issue-callout is-'+(stillPresent?focus.level:'ok')+(docked?' is-docked':'')+(!docked&&pos?(right?' arrow-left':' arrow-right'):'')} style={{...style,width:docked?'min(270px,calc(100vw - 24px))':W}} role="status" aria-live="polite">
+  const W=380;
+  const style={right:16,top:dock+(docked?66:12)};
+  return <aside className={'nv-issue-callout is-'+(stillPresent?focus.level:'ok')+' is-docked'} style={{...style,width:'min('+W+'px,calc(100vw - 24px))'}} role="status" aria-live="polite">
     {stillPresent?<>{focus.thumb&&<figure className="nv-issue-thumb"><img src={focus.thumb} alt=""/>{focus.sceneName&&<figcaption>{focus.sceneName}</figcaption>}</figure>}<AlertTriangle size={18}/><div><b>{focus.level==='error'?'À corriger':'À vérifier'}{step&&<span className="nv-issue-step">{step.i} / {step.n}</span>}</b>{step&&<i className="nv-issue-bar"><i style={{width:(step.i/step.n*100)+'%'}}/></i>}<span>{focus.text}</span>{focus.hint&&<em className="nv-issue-hint">👉 {focus.hint}</em>}{!docked&&onOpen&&focus.hotspotId&&<button type="button" className="nv-issue-open" onClick={onOpen}>Ouvrir les réglages du point</button>}{onNext&&<button type="button" className="nv-issue-open nv-issue-next" onClick={onNext}>Passer au suivant →</button>}</div>
       <button type="button" onClick={onClose} aria-label="Fermer l’indication"><XMark size={14}/></button></>
     :<>{focus.thumb&&<figure className="nv-issue-thumb"><img src={focus.thumb} alt=""/>{focus.sceneName&&<figcaption>{focus.sceneName}</figcaption>}</figure>}<CheckCircle2 size={18}/><div><b>Corrigé !</b><span>Enregistre pour valider cette correction{onNext?' et passer à la suivante':''}.</span>{error&&<span className="nv-issue-err">⚠ {error}</span>}
@@ -43,7 +37,8 @@ export function IssueCallout({focus,stillPresent,onClose,onOpen,step,onNext,dock
 /** Version « bandeau » : intégrée en haut d'une fenêtre déjà ouverte (galerie, choix de média) pour ne montrer qu'un seul panneau. */
 export function IssueBanner({focus}:{focus:IssueFocus}){
   return <div className={'nv-issue-banner is-'+focus.level} role="status">
-    {focus.thumb&&<img src={focus.thumb} alt=""/>}
-    <div><b>{focus.level==='error'?'À corriger':'À vérifier'}{focus.sceneName?' · '+focus.sceneName:''}</b><span>{focus.text}</span>{focus.hint&&<em>👉 {focus.hint}</em>}</div>
+    {focus.thumb&&<figure className="nv-issue-banner-thumb"><img src={focus.thumb} alt=""/><figcaption><small>PANORAMA DE DÉPART</small>{focus.sceneName}</figcaption></figure>}
+    <div><b>{focus.level==='error'?'À corriger':'À vérifier'}</b><span>{focus.text}</span>{focus.hint&&<em>👉 {focus.hint}</em>}
+      <small>Le panorama de départ (à gauche) est celui où se trouve la flèche. Choisis dans la liste le panorama vers lequel elle doit mener, règle le viseur, puis valide.</small></div>
   </div>;
 }
