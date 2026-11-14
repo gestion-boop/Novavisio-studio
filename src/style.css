@@ -5025,3 +5025,11 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-welcome ul{margin:6px 0 10px;padding-left:18px}
 .nv-welcome .nv-welcome-actions{display:flex;gap:6px;flex-wrap:wrap}
 .nv-welcome button{padding:6px 10px;border-radius:9px;border:1px solid #35606f;background:#143543;color:inherit;font-weight:600;cursor:pointer}
+
+.nv-publish-check li{text-align:left}
+.nv-publish-check .nv-check-ic,.nv-publish-check li>span:first-child{flex:none;width:22px;text-align:center}
+.nv-publish-check li>span:nth-child(2){flex:1;min-width:0;text-align:left;overflow-wrap:anywhere}
+.nv-check-panel .nv-check-list{max-height:none;flex:1;overflow:auto}
+.nv-check-filter{display:flex;gap:6px}
+.nv-check-filter button{padding:5px 12px;border-radius:999px;border:1px solid #35606f;background:#143543;color:inherit;font-weight:600;cursor:pointer}
+.nv-check-filter button.is-on{background:#2f8fb5;border-color:#9fdcf3}

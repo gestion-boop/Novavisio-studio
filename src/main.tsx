@@ -42,6 +42,7 @@ import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
 import {MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
 import {checkProject} from './projectCheck';
+import {ProjectCheckPanel} from './ProjectCheckPanel';
 import {CommentsPanel} from './CommentsPanel';
 import {captureScreen,ShotEditor} from './ScreenshotTool';
 import {SectionHub} from './SectionHub';
@@ -991,7 +992,6 @@ function App(){
     for(const n of liveInvite.notesIn)pushNotif('📝',n.fromLabel+' : '+n.body.slice(0,80),'note-'+n.id);
     for(const sh of liveInvite.shots)pushNotif('📷',sh.fromLabel+' a envoyé une capture','shot-'+sh.id);
   },[liveInvite.notesIn,liveInvite.shots]);
-  const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0);
   // Commentaires d'équipe accrochés à un endroit du panorama
   const [commentsOpen,setCommentsOpen]=useState(false);
   function addComment(text:string){
@@ -1011,7 +1011,18 @@ function App(){
   const toggleComment=(id:string)=>setProject(p=>({...p,comments:(p.comments??[]).map(c=>c.id===id?{...c,done:!c.done}:c)}));
   const deleteComment=(id:string)=>setProject(p=>({...p,comments:(p.comments??[]).filter(c=>c.id!==id)}));
   // Contrôle avant publication
-  const publishIssues=useMemo(()=>publishConfirm?checkProject(project):[],[publishConfirm]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [checkOpen,setCheckOpen]=useState(false);
+  const projectIssues=useMemo(()=>ready?checkProject(project):[],[project,ready]);
+  const publishIssues=projectIssues;
+  const issueErrors=projectIssues.filter(i=>i.level==='error').length;
+  const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
+  function goToIssue(is:{sceneId?:string;hotspotId?:string}){
+    setCheckOpen(false);setPublishConfirm(false);
+    if(!is.sceneId)return;
+    if(currentSpace&&!visibleIds.has(is.sceneId))setActiveSpaceId(null);
+    setArrivedVia(null);nextArrivalRef.current=null;setActiveId(is.sceneId);setMode(null);
+    if(is.hotspotId){setSelectedId(is.hotspotId);setPanel('points');setRightHidden(false);}else setSelectedId('');
+  }
   // Carte « depuis ta dernière visite » (une fois par ouverture, seulement s'il y a quelque chose à dire)
   const [welcome,setWelcome]=useState<{since:number|null;notifs:number;comments:number;errors:number}|null>(null);
   const welcomeDone=useRef(false);
@@ -3063,6 +3074,7 @@ function App(){
             <Bell size={21}/>{notifCount>0&&<i className="nv-bell-badge" aria-hidden="true">{notifCount>9?'9+':notifCount}</i>}
           </button>
           {bellOpen&&<div className="nv-share-menu nv-bell-menu" role="menu" aria-label="Notifications">
+            <button type="button" role="menuitem" onClick={()=>{setBellOpen(false);setCheckOpen(true);}}>{issueErrors?'⛔':projectIssues.length?'⚠️':'✅'} <span><b>Contrôle du projet</b><small>{projectIssues.length?issueErrors+' erreur'+(issueErrors>1?'s':'')+' · '+(projectIssues.length-issueErrors)+' avertissement'+(projectIssues.length-issueErrors>1?'s':'')+' · cliquer pour corriger':'Rien d’anormal détecté'}</small></span></button>
             {!notifCount&&!notifHistory.length&&<p className="nv-bell-empty">Rien de nouveau. Les notes, captures et invitations de tes collègues apparaîtront ici.</p>}
             {liveInvite.invite&&<button type="button" role="menuitem" onClick={()=>{setBellOpen(false);liveInvite.dismiss();void startLiveWith([],false);}}>🖥 <span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran<small>Cliquer pour rejoindre</small></span></button>}
             {liveInvite.notesIn.map(n=><button type="button" role="menuitem" key={n.id} onClick={()=>{setBellOpen(false);liveInvite.dismissNote(n.id);setToolsMenuOpen(false);setRightHidden(true);setNotesOpen(true);}}>📝 <span><b>{n.fromLabel}</b> : {n.body.slice(0,70)}{n.body.length>70?'…':''}<small>Note · cliquer pour ouvrir les notes</small></span></button>)}
@@ -3206,6 +3218,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
+    {checkOpen&&<ProjectCheckPanel issues={projectIssues} onGo={goToIssue} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>
@@ -4542,7 +4555,7 @@ function App(){
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>
         <ul className="nv-publish-check">{publishIssues.slice(0,40).map((is,i)=><li key={i} className={'is-'+is.level}><span>{is.level==='error'?'⛔':'⚠️'}</span><span>{is.text}</span>
-          {is.sceneId&&<button type="button" onClick={()=>{setPublishConfirm(false);selectScene(is.sceneId!);}}>Voir</button>}</li>)}</ul></>}
+          {is.sceneId&&<button type="button" onClick={()=>goToIssue(is)}>Corriger</button>}</li>)}</ul></>}
       <div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>{publishIssues.some(i=>i.level==='error')?'Publier quand même':'Confirmer la publication'}</button></div></section></div>}
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
