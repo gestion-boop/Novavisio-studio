@@ -1181,7 +1181,7 @@ function App(){
     const sceneId=is.sceneId,hs=project.scenes.find(sc=>sc.id===sceneId)?.hotspots.find(h=>h.id===is.hotspotId);
     if(currentSpace&&!visibleIds.has(sceneId))setActiveSpaceId(null);
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(sceneId);setMode(null);
-    setPanel('points');setRightHidden(['nav','photo','video','scene-empty'].includes(is.kind)); // la feuille de réglages ne s'ouvre que si on doit y écrire
+    setPanel('points');setRightHidden(['nav','dup-nav','photo','video','scene-empty'].includes(is.kind)); // la feuille de réglages ne s'ouvre que si on doit y écrire
     const spotId=is.hotspotId,kind=is.kind;
     if(spotId){
       setSelectedId(spotId);
@@ -2074,6 +2074,7 @@ function App(){
   // Aller : la flèche part vers le panorama SUIVANT dans l'ordre, on y arrive en regardant dans le même sens (on avance).
   // Retour : dans ce panorama on fait demi-tour (180°), on valide la vue, la flèche retour est posée, puis on repart en avant.
   // Mode Auto : le clic sur la cible ouvre la galerie 360° pour choisir le panorama d'arrivée (suggestion par numéro de scan).
+  const arrivalDraftRef=useRef<{id:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [autoPending,setAutoPending]=useState<{yaw:number;pitch:number}|null>(null);
   function openAutoGallery(yaw:number,pitch:number){
     if(!active)return;
@@ -2883,7 +2884,7 @@ function App(){
           {target&&sceneThumbs[target.id]?<img src={sceneThumbs[target.id]} alt=""/>:<Images size={26}/>}<span>Destination</span></button>
         <button type="button" className="nv-act" disabled={!canGo} onClick={()=>{if(active&&selected.target)goThroughArrow(selected,active.id);}} title="Tester : aller au panorama d’arrivée"><Play size={26}/><span>Tester</span></button>
         <button type="button" className="nv-act" disabled={!canGo} onClick={()=>reverseNavigation(selected)} title={hasBack?'Ouvrir la flèche retour existante':'Créer la flèche retour vers ce panorama'}><Undo2 size={26}/><span>{hasBack?'Voir le retour':'Créer le retour'}</span></button>
-        <button type="button" className="nv-act" disabled={!canGo} onClick={()=>goThroughArrow(selected,activeId)} title="Régler la vue d’arrivée dans le panorama de destination"><Eye size={26}/><span>Vue d’arrivée</span></button>
+        <button type="button" className="nv-act" disabled={!canGo} onClick={()=>document.querySelector('.nv-arrival-inline')?.scrollIntoView({behavior:'smooth',block:'center'})} title="Régler la vue d’arrivée juste en dessous"><Eye size={26}/><span>Vue d’arrivée</span></button>
         <button type="button" className="nv-act" onClick={goIcon} title="Changer l’icône et la taille"><Star size={26}/><span>Icône</span></button>
         <button type="button" className="nv-act is-danger" onClick={()=>removeAutoNavigationArrow(selected.id)} title="Supprimer cette flèche"><Trash2 size={26}/><span>Supprimer</span></button>
       </div>
@@ -3508,7 +3509,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} noteText={noteText} onNoteText={setNoteText} onNote={noteIssueForLater} onChoose={issueFocus.kind==='nav'||issueFocus.kind==='scene-empty'?chooseDestination:undefined} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} noteText={noteText} onNoteText={setNoteText} onNote={noteIssueForLater} onChoose={issueFocus.kind==='nav'||issueFocus.kind==='scene-empty'?chooseDestination:undefined} onRemove={issueFocus.kind==='dup-nav'&&issueFocus.hotspotId?()=>{removeAutoNavigationArrow(issueFocus.hotspotId!);setStatus('Flèche en double supprimée');}:undefined} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
     {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
@@ -4459,12 +4460,32 @@ function App(){
               </> : selected.type==='navigation' ? (
                 <>
                 {/* Destination, test, retour et vue d'arrivée : voir les tuiles d'action en haut du panneau */}
-                {selected.target&&<div className="arrival-view-card is-inspector">
-                  <div className="section-title">VUE D’ARRIVÉE DE CETTE FLÈCHE</div>
-                  {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>
-                    :<small>Pas de vue propre : celle par défaut du panorama de destination est utilisée.</small>}
-                  {selected.arrivalYaw!==undefined&&<button type="button" onClick={()=>{patchPoint({arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined});setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser</button>}
-                </div>}
+                <div className="arrival-view-card is-inspector nv-arrival-inline">
+                  <div className="section-title">VUE D’ARRIVÉE · destination et orientation</div>
+                  <label className="nv-arrival-dest">Panorama de destination
+                    <select aria-label="Panorama de destination" value={selected.target||''} onChange={e=>{if(e.target.value)setNavigationDestination(e.target.value);}}>
+                      <option value="" disabled>Choisir un panorama…</option>
+                      {[...visibleScenes].filter(sc=>sc.id!==activeId).sort((x,y)=>{const sg=suggestDestinations(activeId).map(g=>g.id);const rx=sg.indexOf(x.id),ry=sg.indexOf(y.id);return (rx<0?999:rx)-(ry<0?999:ry);}).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                    </select>
+                  </label>
+                  {(()=>{
+                    const dest=project.scenes.find(sc=>sc.id===selected.target);
+                    if(!dest)return <small>Choisis d’abord le panorama de destination.</small>;
+                    const view:Scene={...dest,arrivalYaw:selected.arrivalYaw??dest.arrivalYaw,arrivalPitch:selected.arrivalPitch??dest.arrivalPitch,arrivalZoom:selected.arrivalZoom??dest.arrivalZoom,arrivalZoomModel:selected.arrivalZoomModel??dest.arrivalZoomModel};
+                    return <>
+                      <div className="nv-arrival-view" key={selected.id+':'+dest.id+':'+(selected.arrivalYaw??'d')}>
+                        <FullscreenGalleryHoverPreview scene={view} thumb={sceneThumbs[dest.id]} onOrientation={v=>{arrivalDraftRef.current={id:selected.id,...v};}}/>
+                        <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
+                      </div>
+                      <small>Tourne et zoome le panorama « {dest.name} » : au centre de la cible, c’est la vue exacte qu’aura le visiteur en arrivant.</small>
+                      <div className="nv-arrival-actions">
+                        <button type="button" className="nv-arrival-save" onClick={()=>{const d=arrivalDraftRef.current;if(!d||d.id!==selected.id){setStatus('Bouge un peu le panorama pour définir la vue');return;}patchPoint({arrivalYaw:d.yaw,arrivalPitch:d.pitch,arrivalZoom:d.zoom,arrivalZoomModel:'wide'});setStatus('Vue d’arrivée enregistrée · enregistre avec la disquette');}}>✓ Utiliser cette vue à l’arrivée</button>
+                        {selected.arrivalYaw!==undefined&&<button type="button" onClick={()=>{patchPoint({arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined});setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser</button>}
+                      </div>
+                      {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Vue enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>:<small>Pas de vue propre : la vue par défaut du panorama de destination est utilisée.</small>}
+                    </>;
+                  })()}
+                </div>
                 </>
               ) : selected.type==='lien' ? (
                 <><div className="nv-action-steps">1. Lien choisi → 2. Point placé → 3. Destination</div><label>Adresse (https://, tel:, mailto:)

@@ -1,4 +1,4 @@
-import {useEffect,useLayoutEffect,useRef,useState,type RefObject} from 'react';
+import {useEffect,useLayoutEffect,useRef,useState,type RefObject,type ReactNode} from 'react';
 import {Play,Volume2,VolumeX,X} from 'lucide-react';
 import {perspectiveMatrix,escapeAttribute} from './imageFrame';
 import {defaultFrameCorners,type CustomIcon,type Hotspot,type ImageFrameStyle,type Scene} from './storage';
@@ -103,13 +103,16 @@ export function useZoomTransition(origin:ZoomOrigin|null|undefined,enabled:boole
 
 export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',onClose}:{frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}){
   const z=useZoomTransition(origin,animate,onClose);
+  // La croix est collée au coin supérieur droit de l'image (et suit son animation), pas au coin de l'écran.
+  const wrap=(close:ReactNode)=><div ref={z.body as never} className={('nv-zoom-wrap'+z.bodyClass).trim()} onClick={e=>e.stopPropagation()}>
+    <img className={('nv-photo-frame nv-photo-frame-'+frameStyle).trim()} src={src} alt={alt}/>
+    {close}
+  </div>;
   if(variant==='tour')return <div ref={z.overlay} className={'tour-image-viewer'+z.overlayClass} onClick={z.requestClose}>
-    <button className="tour-close-image" onClick={z.requestClose} type="button" aria-label="Fermer"><X/></button>
-    <img ref={z.body} className={('nv-photo-frame nv-photo-frame-'+frameStyle+z.bodyClass).trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
+    {wrap(<button className="tour-close-image" onClick={z.requestClose} type="button" aria-label="Fermer"><X/></button>)}
   </div>;
   return <div ref={z.overlay} className={'image-lightbox'+z.overlayClass} onClick={z.requestClose}>
-    <button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={z.requestClose}><XMark/></button>
-    <img ref={z.body} className={('nv-photo-frame nv-photo-frame-'+frameStyle+z.bodyClass).trim()} src={src} alt={alt} onClick={e=>e.stopPropagation()}/>
+    {wrap(<button type="button" aria-label="Fermer l'image" className="lightbox-close" onClick={z.requestClose}><XMark/></button>)}
   </div>;
 }
 

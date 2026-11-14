@@ -5225,3 +5225,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-smart-card small{opacity:.8;font-weight:500}
 .nv-smart-card p{margin:0;font-size:13px}
 .nv-smart-go{padding:10px;border-radius:10px;border:1px solid #9fdcf3;background:#2f8fb5;color:#fff;font-weight:800;cursor:pointer}
+
+/* Vue d'arrivée intégrée au panneau de la flèche */
+.nv-arrival-inline{display:flex;flex-direction:column;gap:8px}
+.nv-arrival-dest{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:13px}
+.nv-arrival-dest select{padding:9px 10px;border-radius:9px;border:1px solid #5b8e98;background:#0a1e28;color:#fff;font:inherit}
+.nv-arrival-view{position:relative;height:260px;border-radius:12px;overflow:hidden;border:2px solid #4bebde;background:#08161f}
+.nv-arrival-view .nv-hover-preview-media,.nv-arrival-view .nv-hover-preview-viewer{position:absolute;inset:0;width:100%;height:100%}
+.nv-arrival-actions{display:flex;gap:8px;flex-wrap:wrap}
+.nv-arrival-actions button{padding:10px 14px;border-radius:10px;border:1px solid #5b8e98;background:#143543;color:#fff;font-weight:700;cursor:pointer}
+.nv-arrival-actions .nv-arrival-save{flex:1;border-color:#9fdcf3;background:linear-gradient(160deg,#2f8fb5,#1d6b8a);font-weight:800}

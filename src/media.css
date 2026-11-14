@@ -395,3 +395,10 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 .nv-gallery-card strong{font-size:14.5px!important}
 @media(max-width:700px){.nv-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}}
 @media(max-width:480px){.nv-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}}
+
+/* Croix collée au coin de l'image agrandie */
+.nv-zoom-wrap{position:relative;display:inline-flex;max-width:100%;max-height:100%;line-height:0}
+.nv-zoom-wrap>img{display:block;max-width:92vw;max-height:86vh;object-fit:contain}
+.nv-zoom-wrap>.lightbox-close,.nv-zoom-wrap>.tour-close-image{position:absolute!important;top:-16px!important;right:-16px!important;left:auto!important;bottom:auto!important;z-index:5;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;box-shadow:0 4px 14px #000a}
+@media(max-width:520px){.nv-zoom-wrap>.lightbox-close,.nv-zoom-wrap>.tour-close-image{top:-12px!important;right:-6px!important}}
+.image-lightbox .nv-zoom-wrap>img.nv-photo-frame,.tour-image-viewer .nv-zoom-wrap>img.nv-photo-frame{max-width:92vw;max-height:86vh;box-shadow:0 22px 90px #0009}

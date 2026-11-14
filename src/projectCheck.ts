@@ -1,6 +1,6 @@
 import type {StudioProject} from './storage';
 
-export type IssueKind='nav'|'photo'|'video'|'link'|'info'|'scene-name'|'scene-empty'|'bar-link'|'bar-nav'|'comments'|'other';
+export type IssueKind='nav'|'dup-nav'|'photo'|'video'|'link'|'info'|'scene-name'|'scene-empty'|'bar-link'|'bar-nav'|'comments'|'other';
 export type CheckIssue={id:string;level:'error'|'warn';text:string;kind:IssueKind;hint:string;sceneId?:string;hotspotId?:string;barId?:string};
 
 /** Contrôle avant publication : repère ce qui sera visible vide ou cassé pour les visiteurs. */
@@ -16,6 +16,13 @@ export function checkProject(project:StudioProject):CheckIssue[]{
     if(!scene.name.trim()||/\.(jpe?g|png|webp)$/i.test(scene.name)||/^(img|dsc|pxl|pano)[-_ ]?\d*/i.test(scene.name))
       out.push({level:'warn',kind:'scene-name',hint:'Donne un vrai nom à ce panorama dans le champ ci-contre.',text:'Panorama '+label+' : le nom ressemble à un nom de fichier, pense à le renommer.',sceneId:scene.id});
     if(!scene.hotspots.length)out.push({level:'warn',kind:'scene-empty',hint:'Choisis dans la galerie le prochain panorama : une flèche sera créée ici. Tu pourras la déplacer ensuite.',text:'Panorama '+label+' : aucun point, c’est une impasse pour le visiteur.',sceneId:scene.id});
+    // Deux flèches vers le même panorama dans une même scène : la seconde est probablement un doublon.
+    const seenTargets=new Map<string,number>();
+    for(const h of scene.hotspots){
+      if(h.type!=='navigation'||!h.target||!ids.has(h.target))continue;
+      const n=(seenTargets.get(h.target)??0)+1;seenTargets.set(h.target,n);
+      if(n>1)out.push({level:'warn',kind:'dup-nav',hint:'Supprime cette flèche en double (elle mène au même panorama qu’une autre).',text:label+' : deux flèches mènent à « '+nameOf(h.target)+' » (doublon n°'+n+').',sceneId:scene.id,hotspotId:h.id});
+    }
     for(const h of scene.hotspots){
       const same=scene.hotspots.filter(o=>o.type===h.type&&(o.title||'')===(h.title||''));
       const where=label+' · '+(h.title||'point sans titre')+(same.length>1?' (n°'+(same.indexOf(h)+1)+')':'');
