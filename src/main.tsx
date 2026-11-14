@@ -16,7 +16,7 @@ import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
 
-import {useEffect, useMemo, useRef, useState, type CSSProperties,type ReactNode} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,type ReactNode} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {CornerEditor,imageMarkerHtml,responsiveFrameSize} from './imageFrame';
@@ -40,7 +40,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
+import {Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {IssueCallout,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
@@ -623,7 +623,23 @@ function App(){
       setStudioFallback(true);setStudioFullscreen(true);
     }
   }
-  const [project,setProject]=useState<StudioProject>(newProject());
+  const [project,setProjectRaw]=useState<StudioProject>(newProject());
+  // Historique Annuler / Rétablir (Ctrl+Z · Ctrl+Maj+Z · Ctrl+Y) : des modifications rapprochées comptent pour une seule action.
+  const histRef=useRef<{past:StudioProject[];future:StudioProject[];last:number}>({past:[],future:[],last:0});
+  const [,setHistTick]=useState(0);
+  const setProject=useCallback((update:React.SetStateAction<StudioProject>)=>{
+    setProjectRaw(prev=>{
+      const next=typeof update==='function'?(update as (p:StudioProject)=>StudioProject)(prev):update;
+      if(next===prev)return prev;
+      const h=histRef.current,now=Date.now();
+      if(now-h.last>700||!h.past.length){h.past.push(prev);if(h.past.length>60)h.past.shift();}
+      h.last=now;h.future=[];
+      return next;
+    });
+    setHistTick(t=>t+1);
+  },[]);
+  /** Remplace tout le projet (ouverture, nouveau projet…) : l'historique repart de zéro. */
+  const resetProject=useCallback((p:StudioProject)=>{histRef.current={past:[],future:[],last:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
   const [svgWorkshopOpen,setSvgWorkshopOpen]=useState(true);
   const [svgPreset,setSvgPreset]=useState<string>('info');
   const [svgDesign,setSvgDesign]=useState<SvgIconDesign>({
@@ -1352,13 +1368,34 @@ function App(){
   const channelRef=useRef<BroadcastChannel|null>(null);
   const [lock,setLock]=useState<{kind:'unreadable';reason:string}|{kind:'conflict'}|{kind:'saveError';reason:string}|null>(null);
   projectRef.current=project;
+  function applyHistory(target:StudioProject,label:string){
+    setProjectRaw(target);setHistTick(t=>t+1);histRef.current.last=0;
+    if(!target.scenes.some(sc=>sc.id===activeId))setActiveId(target.scenes[0]?.id??'');
+    if(selectedId&&!target.scenes.some(sc=>sc.hotspots.some(h=>h.id===selectedId)))setSelectedId('');
+    setStatus(label);
+  }
+  function undo(){const h=histRef.current,prev=h.past.pop();if(!prev)return;h.future.push(projectRef.current);applyHistory(prev,'Action annulée · Ctrl+Maj+Z pour la rétablir');}
+  function redo(){const h=histRef.current,nxt=h.future.pop();if(!nxt)return;h.past.push(projectRef.current);applyHistory(nxt,'Action rétablie');}
+  const undoRef=useRef(undo),redoRef=useRef(redo);undoRef.current=undo;redoRef.current=redo;
+  useEffect(()=>{
+    const onKey=(e:KeyboardEvent)=>{
+      if(!(e.ctrlKey||e.metaKey)||e.altKey)return;
+      const t=e.target as HTMLElement|null;
+      if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable))return;
+      if(document.querySelector('.nv-shot-overlay'))return;
+      const k=e.key.toLowerCase();
+      if(k==='z'&&!e.shiftKey){e.preventDefault();undoRef.current();}
+      else if((k==='z'&&e.shiftKey)||k==='y'){e.preventDefault();redoRef.current();}
+    };
+    window.addEventListener('keydown',onKey);return ()=>window.removeEventListener('keydown',onKey);
+  },[]);
   lockRef.current=lock;
   function adopt(p:StudioProject,stamp:string|null){
     setPreparationOpen(false);
     setActiveSpaceId(null);setSpaceManagerOpen(false);
     const upgraded=ensureFrameReferences(validateProject(p),viewAreaRef.current?.clientHeight||550);
     savedRef.current=upgraded;baseRef.current=stamp;
-    setProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');setSelectedId('');setMode(null);
+    resetProject(upgraded);setActiveId(upgraded.scenes[0]?.id ?? '');setSelectedId('');setMode(null);
   }
   useEffect(()=>{
     let cancelled=false;
@@ -1472,7 +1509,7 @@ function App(){
   // Cloud en mode manuel : aucun envoi au fil des modifications.
   const cloud=useCloudSync(project,ready&&!lock,(remote,by)=>{
     const up=ensureFrameReferences(remote,viewAreaRef.current?.clientHeight||550);
-    setProject(up);
+    resetProject(up);
     setActiveId(id=>up.scenes.some(sc=>sc.id===id)?id:up.scenes[0]?.id??'');
     setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
@@ -2914,7 +2951,7 @@ function App(){
   }
   function startFresh(){
     if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
-    setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
+    setActiveSpaceId(null);setSpaceManagerOpen(false);resetProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
     cloud.unlink();
   }
   function addClientLink(item:ClientLink){
@@ -3078,6 +3115,8 @@ function App(){
           aria-label="Nouvelle version de NovaStudio disponible : actualiser">
           <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
         </button>}
+        <button type="button" className="nv-v3-icon-btn nv-v3-undo" onClick={undo} disabled={!histRef.current.past.length} aria-label="Annuler la dernière action" title="Annuler (Ctrl+Z)"><Undo2 size={20}/></button>
+        <button type="button" className="nv-v3-icon-btn nv-v3-redo" onClick={redo} disabled={!histRef.current.future.length} aria-label="Rétablir l’action annulée" title="Rétablir (Ctrl+Maj+Z ou Ctrl+Y)"><Redo2 size={20}/></button>
         <div className="nv-share-wrap" ref={shareMenuRef}>
           <button type="button" className={'nv-v3-icon-btn nv-v3-share'+(shareMenuOpen?' is-open':'')} onClick={()=>setShareMenuOpen(open=>!open)}
             aria-haspopup="menu" aria-expanded={shareMenuOpen} aria-label="Partager" title="Partager : projet, espaces, autres projets">
@@ -4615,7 +4654,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);setProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(up.scenes[0]?.id??''));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(up.scenes[0]?.id??''));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
