@@ -1066,6 +1066,8 @@ function App(){
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
     setIssueFocus({id:is.id,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
+    // Le mode Auto crée / déplace des flèches et change de panorama après chaque validation : on le coupe pour que la correction ne touche que la flèche signalée.
+    if(autoNavigation){setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);}
     setClassicDestinationOpen(false);setPreview(false);
     if(is.kind==='comments'){setCommentsOpen(true);return;}
     if(is.kind==='bar-link'||is.kind==='bar-nav'){setPanel('bar');setSelectedBarId(is.barId??'');setSelectedId('');setRightHidden(false);return;}
