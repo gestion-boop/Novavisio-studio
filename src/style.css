@@ -5130,3 +5130,13 @@ button:has(>.nv-xmark){display:inline-flex;align-items:center;justify-content:ce
 .nv-issue-callout .nv-issue-note{background:#fff3;color:#fff;border-color:#fff8}
 .nv-check-note{font-size:11.5px;background:#2f8fb5;border-radius:999px;padding:1px 8px;white-space:nowrap}
 .nv-comment-tag{font-size:10.5px;background:#2f8fb5;border-radius:999px;padding:0 7px;margin-left:6px}
+
+/* Pastille « correctif à faire » sur les vignettes de panoramas */
+button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-scene-option{position:relative}
+.nv-todo-pin{position:absolute;top:5px;left:5px;z-index:3;display:inline-flex;align-items:center;gap:2px;min-width:22px;height:22px;padding:0 5px;border-radius:999px;background:#e3b341;color:#2a1d00;font-size:12px;line-height:1;box-shadow:0 2px 6px #0008;pointer-events:none}
+.nv-todo-pin b{font-size:11px}
+
+.nv-issue-locator{position:fixed;left:16px;z-index:100004;display:flex;align-items:baseline;gap:8px;background:#0b2432ee;border:1px solid #6eb2ac;border-radius:12px;padding:8px 14px;color:#e6f6f8;font:14px/1.2 system-ui,sans-serif;box-shadow:0 8px 26px #0009;max-width:min(520px,60vw)}
+.nv-issue-locator b{font-size:16px;overflow-wrap:anywhere}.nv-issue-locator small{opacity:.75;white-space:nowrap}
+.nv-issue-notebox{width:100%;box-sizing:border-box;margin-top:4px;border-radius:8px;border:1px solid #fff6;background:#0004;color:#fff;padding:6px 8px;font:inherit;resize:vertical}
+.nv-issue-notebox::placeholder{color:#ffffffb0}

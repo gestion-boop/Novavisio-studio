@@ -1042,18 +1042,25 @@ function App(){
     const stale=(project.comments??[]).filter(c=>c.issueId&&!c.done&&!present.has(c.issueId));
     if(stale.length)setProject(p=>({...p,comments:(p.comments??[]).map(c=>c.issueId&&!c.done&&!present.has(c.issueId)?{...c,done:true}:c)}));
   },[projectIssues,ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Pastille 📝 sur les vignettes des panoramas qui ont un correctif « à faire » en attente.
+  const todoByScene=useMemo(()=>{const m=new Map<string,number>();for(const c of project.comments??[])if(c.issueId&&!c.done)m.set(c.sceneId,(m.get(c.sceneId)??0)+1);return m;},[project.comments]);
+  const todoPin=(sceneId:string)=>{const n=todoByScene.get(sceneId);return n?<span className="nv-todo-pin" title={n+' correctif'+(n>1?'s':'')+' à faire dans ce panorama'}>📝{n>1?<b>{n}</b>:null}</span>:null;};
   function noteIssueForLater(){
     if(!issueFocus?.id)return;
     const is=projectIssues.find(x=>x.id===issueFocus.id);
     const sceneId=issueFocus.sceneId??is?.sceneId;
-    if(sceneId&&!notedIds.has(issueFocus.id)){
+    const mine=noteText.trim();
+    if(sceneId&&(mine||!notedIds.has(issueFocus.id))){
       const hs=project.scenes.find(sc=>sc.id===sceneId)?.hotspots.find(h=>h.id===issueFocus.hotspotId);
       const cam=cameraRef.current;
-      const c:ProjectComment={id:uid(),sceneId,yaw:hs?.yaw??cam.yaw,pitch:hs?.pitch??cam.pitch,text:'À faire : '+issueFocus.text+(issueFocus.hint?' — '+issueFocus.hint:''),author:inviteIdentity?inviteIdentity.email.split('@')[0].slice(0,24):'Moi',at:Date.now(),issueId:issueFocus.id};
+      const c:ProjectComment={id:uid(),sceneId,yaw:hs?.yaw??cam.yaw,pitch:hs?.pitch??cam.pitch,
+        text:mine?mine+'\n(à corriger : '+issueFocus.text+')':'À faire : '+issueFocus.text+(issueFocus.hint?' — '+issueFocus.hint:''),
+        author:inviteIdentity?inviteIdentity.email.split('@')[0].slice(0,24):'Moi',at:Date.now(),issueId:issueFocus.id};
       setProject(p=>({...p,comments:[c,...(p.comments??[])].slice(0,500)}));
-      pushNotif('📝','Noté « à faire » : '+issueFocus.text.slice(0,80));
-      setStatus('Correctif noté dans les commentaires du panorama · enregistre pour le partager');
+      pushNotif('📝',(mine?'Note : '+mine:'Noté « à faire » : '+issueFocus.text).slice(0,90));
+      setStatus('Note enregistrée dans les commentaires du panorama · enregistre pour la partager');
     }
+    setNoteText('');
     if(guided){nextGuided();return;}
     setIssueFocus(null);
     if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
@@ -1073,6 +1080,7 @@ function App(){
   const [guided,setGuided]=useState<{queue:CheckIssue[];i:number}|null>(null);
   const fixingRef=useRef(false);
   const [fixError,setFixError]=useState('');
+  const [noteText,setNoteText]=useState('');
   async function validateFix(){
     if(fixingRef.current)return;
     fixingRef.current=true;setFixError('');
@@ -1127,7 +1135,7 @@ function App(){
   }
   function goToIssue(is:CheckIssue){
     setCheckOpen(false);setPublishConfirm(false);
-    setFixError('');setIssueFocus({id:is.id,sceneId:is.sceneId,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
+    setFixError('');setNoteText('');setIssueFocus({id:is.id,position:is.sceneId?'Scène '+(project.scenes.findIndex(sc=>sc.id===is.sceneId)+1)+' / '+project.scenes.length:undefined,sceneId:is.sceneId,hotspotId:is.hotspotId,text:is.text,level:is.level,hint:is.hint,thumb:is.sceneId?sceneThumbs[is.sceneId]:undefined,sceneName:is.sceneId?project.scenes.find(sc=>sc.id===is.sceneId)?.name:undefined});
     // Le mode Auto crée / déplace des flèches et change de panorama après chaque validation : on le coupe pour que la correction ne touche que la flèche signalée.
     if(autoNavigation){setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);}
     setClassicDestinationOpen(false);setPreview(false);
@@ -1137,7 +1145,7 @@ function App(){
     const sceneId=is.sceneId,hs=project.scenes.find(sc=>sc.id===sceneId)?.hotspots.find(h=>h.id===is.hotspotId);
     if(currentSpace&&!visibleIds.has(sceneId))setActiveSpaceId(null);
     setArrivedVia(null);nextArrivalRef.current=null;setActiveId(sceneId);setMode(null);
-    setPanel('points');setRightHidden(false);
+    setPanel('points');setRightHidden(['nav','photo','video','scene-empty'].includes(is.kind)); // la feuille de réglages ne s'ouvre que si on doit y écrire
     let spotId=is.hotspotId,kind=is.kind;
     if(kind==='scene-empty'){
       // Panorama sans point : on crée une flèche provisoire et on ouvre la galerie avec le viseur pour choisir le prochain panorama.
@@ -2771,6 +2779,13 @@ function App(){
     setDestinationEditId(null);setClassicDestinationOpen(false);setNavigationPickerOpen(false);
     setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
     if(creationFullscreen){setFullscreenToolsTab('point');setFullscreenToolsOpen(true);}
+    // Flèche sans destination : on ouvre directement la galerie 360° pour choisir le panorama d'arrivée.
+    const hs=active?.hotspots.find(h=>h.id===id);
+    if(!creationFullscreen&&!preview&&active&&hs?.type==='navigation'&&(!hs.target||!project.scenes.some(sc=>sc.id===hs.target))){
+      setClassicDestinationSearch('');
+      setClassicDestinationPreviewId(suggestDestinations(active.id)[0]?.id??project.scenes.find(sc=>sc.id!==active.id)?.id??null);
+      setClassicDestinationOpen(true);
+    }
   }
   function navigationEditor(){
     if(!selected||selected.type!=='navigation')return null;
@@ -3356,7 +3371,7 @@ function App(){
           {project.scenes.map(scene=><label key={scene.id} className="nv-space-scene-option">
             <input type="checkbox" checked={currentSpace.sceneIds.includes(scene.id)}
               onChange={e=>setSceneInSpace(currentSpace.id,scene.id,e.target.checked)}/>
-            {sceneThumbs[scene.id]?<img src={sceneThumbs[scene.id]} alt="" draggable={false}/>:<span className="nv-space-no-thumb">◎</span>}
+            {sceneThumbs[scene.id]?<img src={sceneThumbs[scene.id]} alt="" draggable={false}/>:<span className="nv-space-no-thumb">◎</span>}{todoPin(scene.id)}
             <span>{scene.name}</span>
           </label>)}
         </div>
@@ -3386,7 +3401,7 @@ function App(){
     </div>}
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
-    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} onNote={noteIssueForLater} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
+    {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} noteText={noteText} onNoteText={setNoteText} onNote={noteIssueForLater} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
     {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
@@ -3495,7 +3510,7 @@ function App(){
             <div><small>{autoNavigation?'AUTO · ÉTAPE 2 / DESTINATION':'CHOISIR UNE DESTINATION'}</small><strong>Galerie 360°</strong></div>
             <button type="button" onClick={()=>autoNavigation?stopAutoNavigation():setClassicDestinationOpen(false)} aria-label={autoNavigation?"Quitter l'assistant Auto":"Fermer la galerie"} title={autoNavigation?"Quitter l'assistant Auto":"Fermer"}><XMark/></button>
           </div>
-          {issueFocus&&<IssueBanner focus={issueFocus}/>}
+          {(issueFocus||(selected&&active&&!selected.target))&&<IssueBanner focus={issueFocus??{level:'warn' as const,text:'Cette flèche n’a pas encore de panorama de destination.',hint:'Choisis dans la liste le panorama vers lequel elle doit mener, règle le viseur, puis valide.',thumb:active?sceneThumbs[active.id]:undefined,sceneName:active?.name}}/>}
           <div className="nv-classic-destination-layout">
             <div className="nv-classic-destination-list-panel">
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
@@ -3505,7 +3520,7 @@ function App(){
                   <button type="button" key={sc.id} data-destination-scene={sc.id} className={'nv-classic-destination-row'+(classicDestinationPreviewId===sc.id?' is-active':'')}
                     onClick={()=>setClassicDestinationPreviewId(sc.id)}
                     aria-pressed={classicDestinationPreviewId===sc.id}>
-                    {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}
+                    {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} alt="" draggable={false}/>:<span>◎</span>}{todoPin(sc.id)}
                     <span><strong>{sc.name}</strong><small>{sc.id===classicDestinationPreviewId?'✓ Sélectionné'+(why?' · '+why.replace('⭐ Suggéré · ','suggéré : '):' · vue affichée'):sc.id===selected.target?'✓ Destination actuelle':why??'Voir en 360°'}</small></span>
                     <ChevronRight size={15}/>
                   </button>)}
@@ -3697,7 +3712,7 @@ function App(){
                 aria-pressed={scene.id===fullscreenSelectedDestinationId}
                 aria-current={scene.id===activeId?'true':undefined}>
                 {sceneThumbs[scene.id]?<img alt="" draggable={false} src={sceneThumbs[scene.id]} decoding="async"/>:
-                  <span className="nv-fullscreen-gallery-placeholder">◎</span>}
+                  <span className="nv-fullscreen-gallery-placeholder">◎</span>}{todoPin(scene.id)}
                 <span className="nv-fullscreen-gallery-scene-details">
                   <strong>{scene.name}</strong>
                   <small>Panorama {index+1}{scene.id===activeId?' · En cours':''}</small>
@@ -4002,7 +4017,7 @@ function App(){
                     onMouseLeave={()=>setNavigationPickerHover(null)}
                     onFocus={()=>setNavigationPickerHover(sc.id)}
                     onClick={()=>{setNavigationPickerPreviewId(sc.id);setNavigationPickerHover(null);}}>
-                    {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} draggable={false} alt=""/>:<span className="nv-fullscreen-gallery-placeholder">◎</span>}
+                    {sceneThumbs[sc.id]?<img src={sceneThumbs[sc.id]} draggable={false} alt=""/>:<span className="nv-fullscreen-gallery-placeholder">◎</span>}{todoPin(sc.id)}
                     <span className="nv-fullscreen-gallery-scene-details">
                       <strong>{sc.name}</strong><small>{sc.id===selected.target?'✓ Destination sélectionnée':'Choisir cette destination'}</small>
                     </span><ChevronRight size={15}/>
@@ -4177,7 +4192,7 @@ function App(){
               setDestinationEditId(null);
               setStatus('Panorama '+s.name+' ouvert dans la grande vue.');
             }}>
-            {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}
+            {sceneThumbs[s.id]?<img src={sceneThumbs[s.id]} alt="Miniature du panorama" draggable={false} decoding="async"/>:<span className="scene-thumb-ph" aria-hidden="true"/>}{todoPin(s.id)}
             <span className="nv-scene-description">
               <strong title={s.name}>{s.name}</strong>
               <small>Scène {visibleScenes.findIndex(scene=>scene.id===s.id)+1}
