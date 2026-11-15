@@ -1,6 +1,6 @@
 import {
-  CanvasTexture,Color,LinearFilter,DoubleSide,Group,BufferGeometry,Float32BufferAttribute,Mesh,MeshBasicMaterial,
-  PerspectiveCamera,PlaneGeometry,Quaternion,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
+  CanvasTexture,Color,LinearFilter,DoubleSide,Group,Line,LineBasicMaterial,BufferGeometry,Float32BufferAttribute,Mesh,MeshBasicMaterial,
+  PerspectiveCamera,PlaneGeometry,Quaternion,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
 } from 'three';
 import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -426,7 +426,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(area){ctx.font='bold 48px sans-serif';ctx.fillStyle='#eec464';ctx.fillText(area,550,151);}
     });
     addPlane(headerGroup,1.12,.215,tex,6,0,0);
-    placeInFront(headerGroup,1.65,-.53);
+    // Plus loin de l'utilisateur : moins intrusif dans le champ de vision du casque.
+    placeInFront(headerGroup,2.25,-.70);
   };
   const buildBar=async()=>{
     // Pas de barre en bas en VR. Le panneau est fermé à l'entrée ;
@@ -474,7 +475,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       control(.91,-.09,'▧',()=>{void showFloorPlan(plan??planAction);});
       control(.91,-.29,'?',()=>showText('Navigation VR','Vise une icône et presse la gâchette. A ou B (manette droite) : afficher ou masquer la nouvelle interface VR.'));
       control(.91,-.49,'✕',()=>{void session.end();});
-      placeInFront(barGroup,1.75,.3);
+      // Colonnes à la même profondeur et hauteur que le panneau central.
+      placeInFront(barGroup,1.55,0);
       barPlacedPhi=headForward().phi;
       return;
     }
@@ -942,13 +944,41 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     setNotice(tt('buttonClassic'));
   }
 
-  // ---- télécommande de l'agent immobilier ------------------------------------
-  // Aucun laser, point bleu ou viseur n'est créé dans le casque.
+  // ---- télécommande gauche + laser de pointage droit --------------------------
+  // Joystick gauche : télécommande sans rayon. Laser précis seulement à droite.
   const controllers=[0,1].map(i=>{
     const controller=renderer.xr.getController(i);
     scene.add(controller);
     return controller;
   });
+  // Le contrôleur droit peut pointer et sélectionner directement les boutons,
+  // même lorsque l'agent préfère la télécommande gauche.
+  const laserRaycaster=new Raycaster();
+  const rightLaserGeometry=new BufferGeometry();
+  rightLaserGeometry.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-2.3],3));
+  const rightLaserLine=new Line(rightLaserGeometry,new LineBasicMaterial({
+    color:0xbad9e9,transparent:true,opacity:.67,depthTest:false,depthWrite:false
+  }));
+  rightLaserLine.renderOrder=9;
+  const rightLaserDot=new Mesh(new SphereGeometry(.004,12,8),
+    new MeshBasicMaterial({color:0x5ccaff,depthTest:false,depthWrite:false}));
+  rightLaserDot.visible=false;rightLaserDot.renderOrder=11;scene.add(rightLaserDot);
+  disposables.push(rightLaserGeometry,rightLaserLine.material as LineBasicMaterial,rightLaserDot.geometry,rightLaserDot.material as MeshBasicMaterial);
+  const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null}=>{
+    const pos=new Vector3(),dir=new Vector3(0,0,-1);
+    controller.updateMatrixWorld(true);
+    controller.getWorldPosition(pos);
+    dir.transformDirection(controller.matrixWorld);
+    laserRaycaster.set(pos,dir);
+    const shown=(item:Object3D)=>{let p:Object3D|null=item;while(p){if(!p.visible)return false;p=p.parent;}return true;};
+    const buttons=clickables.filter(item=>item.parent&&shown(item)&&!!item.userData.onSelect);
+    const blockers=[...panelGroup.children,...barGroup.children].filter(item=>shown(item)&&!item.userData.onSelect);
+    const intersections=laserRaycaster.intersectObjects([...buttons,...blockers],false);
+    if(!intersections.length)return {target:null,point:null};
+    // Surface interactive la plus proche ; le laser ne traverse pas les panneaux.
+    const hit=intersections[0];
+    return {target:hit.object.userData.onSelect?hit.object as Clickable:null,point:hit.point};
+  };
   let remoteTarget:Clickable|null=null;
   let remoteAxisArmed=true;
   // Cadre doré autour du contrôle sélectionné. La bordure suit la cible,
@@ -1005,19 +1035,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       controller.userData.source=(event as unknown as {data?:unknown}).data;
     });
     controller.addEventListener('selectstart',()=>{
-      // La gâchette de la manette GAUCHE valide le choix en surbrillance.
       const source=controller.userData.source as {handedness?:string}|undefined;
-      if(source?.handedness!=='left'||uiHidden||!referenceMode)return;
-      const target=remoteCandidates().find(item=>item===remoteTarget);
+      if(uiHidden)return;
+      // À droite : gâchette sur le rayon. À gauche : sélection au joystick.
+      const target=source?.handedness==='right'?pointable(controller).target:
+        source?.handedness==='left'&&referenceMode?remoteCandidates().find(item=>item===remoteTarget):null;
       if(!target?.userData.onSelect)return;
       target.userData.pressedUntil=performance.now()+260;
       const states=target.userData.vrIconStates as {pressed?:Texture|null;pressedUntil:number}|undefined;
       if(states){
         states.pressedUntil=performance.now()+260;
-        if(states.pressed){
-          const mat=(target as Mesh).material as MeshBasicMaterial;
-          mat.map=states.pressed;mat.needsUpdate=true;
-        }
+        if(states.pressed){const mat=(target as Mesh).material as MeshBasicMaterial;mat.map=states.pressed;mat.needsUpdate=true;}
       }
       pulse(controller,.75,60);
       target.userData.onSelect();
@@ -1138,6 +1166,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
+    // Laser visible exclusivement depuis la manette droite. Son extrémité
+    // est placée au point d'intersection réel, sans dépasser le bouton.
+    const right=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness==='right');
+    if(right){
+      if(rightLaserLine.parent!==right)right.add(rightLaserLine);
+      const impact=pointable(right);
+      const tip=impact.point?right.worldToLocal(impact.point.clone()):new Vector3(0,0,-2.3);
+      const attr=rightLaserGeometry.getAttribute('position') as Float32BufferAttribute;
+      attr.setXYZ(1,tip.x,tip.y,tip.z);attr.needsUpdate=true;rightLaserGeometry.computeBoundingSphere();
+      rightLaserLine.visible=!uiHidden;
+      rightLaserDot.visible=!uiHidden&&!!impact.point;
+      if(impact.point)rightLaserDot.position.copy(impact.point);
+    }else{rightLaserLine.visible=false;rightLaserDot.visible=false;}
     // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
     const choices=remoteCandidates();
     if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
