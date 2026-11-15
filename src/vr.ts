@@ -189,13 +189,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // finir de charger après la création des icônes WebXR.
         const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
         if(live.type==='information'){
-          // Pour les points i, privilégier le texte et sa traduction.
           const detail=(live.text||'').trim();
+          const url=live.url||((detail.match(/https?:\/\/[^\s]+/i)||[])[0]);
+          if(url){showWebLink(live.title||'Informations',url,detail);return;}
           showText(live.title||'Informations',detail||'Aucune information renseignée.');
           return;
         }
         if(live.type==='image'){void showPhoto(live);return;}
-        if(live.type==='lien'){showText(live.title||'Lien',live.url||'Aucun lien renseigné.');return;}
+        if(live.type==='lien'){showWebLink(live.title||'Lien',live.url||'',live.text);return;}
         setNotice('Cette vidéo est disponible dans la visite classique.');
       }
     }};
@@ -377,6 +378,49 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     placeInFront(panelGroup,1.5,-.0);
   };
 
+  // Les pages web ne peuvent pas être rendues comme un panneau HTML dans
+  // WebXR. Un vrai bouton ouvre la destination dans le navigateur du Quest
+  // après sortie explicite de la session immersive.
+  const safeWebUrl=(candidate:string):string|null=>{
+    try{
+      const u=new URL(candidate.trim());
+      return u.protocol==='https:'||u.protocol==='http:'?u.href:null;
+    }catch{return null;}
+  };
+  const showWebLink=(title:string,url:string,description='')=>{
+    closePanels();
+    const valid=safeWebUrl(url);
+    const W=1.24,H=.80;
+    const tex=canvasTexture(1240,800,c=>{
+      roundRect(c,8,8,1224,784,52);c.fillStyle=panelBg;c.fill();
+      c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
+      c.fillStyle='#17232b';c.textAlign='left';c.textBaseline='top';
+      c.font='bold 54px sans-serif';c.fillText(title||'Lien internet',65,54,1110);
+      c.font='37px sans-serif';
+      const caption=description.trim()||'Ouvrir cette page dans le navigateur du casque.';
+      wrapText(c,caption,1100).slice(0,5).forEach((line,i)=>c.fillText(line,65,155+i*58));
+      c.font='31px sans-serif';
+      if(valid)c.fillText(new URL(valid).hostname,65,535,1100);
+      else c.fillText('Adresse web indisponible',65,535);
+    });
+    addPlane(panelGroup,W,H,tex,5,0,0);
+    if(valid){
+      const action=canvasTexture(650,150,c=>{
+        roundRect(c,8,8,634,134,45);c.fillStyle=btnBg;c.fill();
+        c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
+        c.fillStyle=iconColor;c.font='bold 49px sans-serif';c.textAlign='center';c.textBaseline='middle';
+        c.fillText('↗ Ouvrir le site',325,78);
+      });
+      addPanelButton(.58,.135,action,0,-.19,()=>{
+        // Le navigateur conserve la destination après la sortie WebXR.
+        void session.end().then(()=>window.location.assign(valid))
+          .catch(()=>window.location.assign(valid));
+      });
+    }
+    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.055,closePanels);
+    placeInFront(panelGroup,1.5,0);
+  };
+
   // Photos cliquables (ex. cafetière) : vraie fenêtre-image en 3D, sans
   // quitter WebXR, fermable avec la gâchette sur « Fermer ».
   const showPhoto=async(h:Hotspot)=>{
@@ -466,11 +510,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       void showGallery({...item,type:'gallery',galleryTitle:item.title||'Espaces',gallery:project().scenes.map(scene=>({sceneId:scene.id,label:scene.name})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
     if(item.type==='information'){
-      const detail=(item.text||'').trim()||(item.url||'').trim();
-      showText(item.title||'Informations',detail||'Aucune information renseignée.');
+      const detail=(item.text||'').trim();
+      const url=item.url||((detail.match(/https?:\/\/[^\s]+/i)||[])[0]);
+      if(url)showWebLink(item.title||'Informations',url,detail);
+      else showText(item.title||'Informations',detail||'Aucune information renseignée.');
       return;
     }
-    if(item.type==='lien'){showText(item.title,item.url||'Aucun lien renseigné.');return;}
+    if(item.type==='lien'){showWebLink(item.title||'Lien',item.url||'',item.text);return;}
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
 
@@ -533,7 +579,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }
     if(Math.abs(turn)<.25)turnArmed=true;
     else if(Math.abs(turn)>.72&&turnArmed&&!alignPending&&!busy){
-      root.rotation.y-=Math.sign(turn)*Math.PI/2;
+      root.rotation.y+=Math.sign(turn)*Math.PI/2;
       turnArmed=false;
     }
     const now=performance.now();
