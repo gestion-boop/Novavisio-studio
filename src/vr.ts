@@ -254,28 +254,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     roundRect(c,6,6,c.canvas.width-12,c.canvas.height-12,36);
     c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
   });
-  const buttonTexture=async(label:string,iconSrc:string|undefined,glyph:string,wide=false,iconOnly=false):Promise<CanvasTexture>=>{
-    const img=iconSrc?await loadImage(iconSrc):null;
-    const W=wide?420:300,H=360;
-    return canvasTexture(W,H,c=>{
-      if(iconOnly&&img){
-        const size=Math.min(W,H)-12;
-        c.drawImage(img,(W-size)/2,(H-size)/2,size,size);
-        return;
-      }
-      roundRect(c,8,8,W-16,H-16,48);c.fillStyle=btnBg;c.fill();c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
-      if(img){
-        const size=Math.min(190,Math.min(W,H)*.60);
-        const scale=Math.min(size/img.width,size/img.height);
-        c.drawImage(img,(W-img.width*scale)/2,40+(size-img.height*scale)/2,img.width*scale,img.height*scale);
-      }else{
-        c.fillStyle=iconColor;c.font='bold 150px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(glyph,W/2,135);
-      }
-      c.fillStyle=iconColor;c.font='bold 38px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
-      let t=label;while(c.measureText(t).width>W-36&&t.length>2)t=t.slice(0,-2);
-      c.fillText(t===label?t:t.trimEnd()+'…',W/2,H-50);
-    });
-  };
   // Icônes de la barre Quest : mêmes boutons ronds que la visite NovaStudio.
   // Les PNG personnalisés conservent leur charte, mais leurs angles carrés
   // sont masqués par une découpe circulaire dans la texture WebXR.
