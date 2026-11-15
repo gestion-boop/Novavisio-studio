@@ -419,6 +419,15 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       let coords=frameWorldCorners(h);
       let center={yaw:h.yaw,pitch:h.pitch};
       let touched=false;
+      const cornerLabel:Record<string,string>={tl:'Coin Haut-Gauche',tr:'Coin Haut-Droit',br:'Coin Bas-Droit',bl:'Coin Bas-Gauche'};
+      const hudPrefix=movingCenter?'✥ Cadre entier':(key&&cornerLabel[key]?`✥ ${cornerLabel[key]}`:'✥ Coin');
+      const startRect=root.getBoundingClientRect();
+      const hudEl=document.createElement('div');
+      hudEl.className='nv-pano-drag-hud';
+      hudEl.textContent=hudPrefix;
+      hudEl.style.left=`${event.clientX-startRect.left}px`;
+      hudEl.style.top=`${Math.max(24,event.clientY-startRect.top-42)}px`;
+      root.appendChild(hudEl);
       // Pendant le déplacement, la poignée devient un anneau transparent avec un réticule : on voit exactement où le coin se pose.
       const ghost=()=>{const el=root.querySelector<HTMLElement>(movingCenter?'.nv-sphere-center[data-frame-id="'+id+'"]':'[data-frame-id="'+id+'"][data-corner="'+key+'"]');el?.classList.add('is-dragging');};
       ghost();root.classList.add('nv-frame-dragging');
@@ -431,8 +440,10 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         pointer.stopImmediatePropagation();
         const rect=root.getBoundingClientRect();
         if(!rect.width||!rect.height)return;
+        const relX=pointer.clientX-rect.left;
+        const relY=pointer.clientY-rect.top;
         const point=viewer.dataHelper.viewerCoordsToSphericalCoords({
-          x:pointer.clientX-rect.left,y:pointer.clientY-rect.top
+          x:relX,y:relY
         });
         if(!point)return;
         if(movingCenter){
@@ -447,6 +458,11 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
           coords=coords.map((p,i)=>i===FRAME_KEYS.indexOf(key)?{yaw:point.yaw,pitch:point.pitch}:p) as FrameSphericalCorners;
         }
         touched=true;
+        const yawDeg=Math.round((point.yaw*180)/Math.PI);
+        const pitchDeg=Math.round((point.pitch*180)/Math.PI);
+        hudEl.textContent=`${hudPrefix} · ${yawDeg}° · ${pitchDeg>=0?'+':''}${pitchDeg}°`;
+        hudEl.style.left=`${relX}px`;
+        hudEl.style.top=`${Math.max(24,relY-42)}px`;
         try {
           plugin.updateMarker({id:h.id,position:coords},false);
           FRAME_KEYS.forEach((corner,i)=>{
@@ -462,6 +478,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       };
       const cleanup=()=>{
         dimFrame(0.3);
+        hudEl.remove();
         root.classList.remove('nv-frame-dragging');root.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
         document.removeEventListener('pointermove',update,true);
         document.removeEventListener('pointerup',finish,true);
@@ -469,8 +486,20 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       };
       const finish=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
-        update(pointer);cleanup();
-        if(touched)actions.current.onWorldFrameChange(h.id,coords,movingCenter?center:undefined);
+        update(pointer);
+        const rect=root.getBoundingClientRect();
+        const dropX=pointer.clientX-rect.left;
+        const dropY=pointer.clientY-rect.top;
+        cleanup();
+        if(touched){
+          const ripple=document.createElement('div');
+          ripple.className='nv-pano-drop-ripple';
+          ripple.style.left=`${dropX}px`;
+          ripple.style.top=`${dropY}px`;
+          root.appendChild(ripple);
+          window.setTimeout(()=>ripple.remove(),700);
+          actions.current.onWorldFrameChange(h.id,coords,movingCenter?center:undefined);
+        }
       };
       const cancel=(pointer:PointerEvent)=>{
         if(pointer.pointerId===event.pointerId)cleanup();
