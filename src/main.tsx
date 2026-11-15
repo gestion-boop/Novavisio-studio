@@ -14,7 +14,7 @@ import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisp
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
-import {defaultSkinId,newProjectFromDefaultSkin} from './skins';
+import {cloudHasDefaultSkin,cloudNewProjectFromDefault} from './cloudSkins';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
@@ -3910,13 +3910,20 @@ function App(){
   }
   async function startFresh(){
     if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
-    // Charger le modèle AVANT de vider l'éditeur : la visite ouverte reste intacte
-    // en cas d'indisponibilité du stockage local.
-    const defaultChosen=!!defaultSkinId();
-    const fresh=await newProjectFromDefaultSkin();
+    // Toujours charger le modèle Supabase AVANT de quitter la visite active.
+    // En cas d'échec réseau, conserver l'ancien projet pour éviter toute perte.
+    let fresh:StudioProject,hasModel:boolean;
+    try{
+      hasModel=await cloudHasDefaultSkin();
+      fresh=await cloudNewProjectFromDefault();
+    }catch(e){
+      setStatus('Impossible de préparer la nouvelle visite depuis le Cloud : '+String(e));
+      window.alert('Le modèle Cloud n’a pas pu être chargé. La visite actuelle est conservée. Vérifie ta connexion Supabase.');
+      return;
+    }
     setActiveSpaceId(null);setSpaceManagerOpen(false);resetProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
     cloud.unlink();
-    if(defaultChosen)setStatus('Nouveau projet préparé avec ton modèle par défaut : vérifie les icônes, les réglages et la VR, puis ajoute les panoramas.');
+    if(hasModel)setStatus('Modèle Cloud appliqué au nouveau projet : packs d’icônes, charte, barre et VR. Ajoute les panoramas puis sauvegarde.');
   }
   function addClientLink(item:ClientLink){
     const next:BottomBarItem={id:uid(),title:item.label,type:item.kind==='info'?'information':'lien',target:'',text:'',url:item.url,builtinIcon:item.label==='Appeler'?'phone':item.label==='Itinéraire'?'grid':'info'};
