@@ -1,6 +1,6 @@
 import {
   CanvasTexture,Color,LinearFilter,DoubleSide,Group,Line,BufferGeometry,LineBasicMaterial,Float32BufferAttribute,Mesh,MeshBasicMaterial,
-  PerspectiveCamera,PlaneGeometry,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
+  PerspectiveCamera,PlaneGeometry,Quaternion,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
 } from 'three';
 import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -69,10 +69,14 @@ async function loadReduced(src:string,maxWidth:number):Promise<HTMLCanvasElement
 function roundRect(c:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,r:number){
   c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();
 }
+/** Facteur de définition des textures de panneaux : le casque a une résolution élevée, un panneau 1×1 px par pixel paraîtrait flou. */
+const TEX_Q=2;
 function canvasTexture(w:number,h:number,draw:(c:CanvasRenderingContext2D)=>void):CanvasTexture{
-  const k=document.createElement('canvas');k.width=w;k.height=h;
-  draw(k.getContext('2d')!);
-  const t=new CanvasTexture(k);t.colorSpace=SRGBColorSpace;return t;
+  const k=document.createElement('canvas');k.width=Math.round(w*TEX_Q);k.height=Math.round(h*TEX_Q);
+  const c=k.getContext('2d')!;
+  c.scale(TEX_Q,TEX_Q);            // on dessine toujours en coordonnées « logiques » w × h
+  draw(c);
+  const t=new CanvasTexture(k);t.colorSpace=SRGBColorSpace;t.anisotropy=8;return t;
 }
 function loadImage(src:string):Promise<HTMLImageElement|null>{
   return new Promise(ok=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=src;});
@@ -100,8 +104,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const renderer=new WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
   renderer.xr.enabled=true;
   renderer.setPixelRatio(1);
+  // Netteté dans le casque : tampon d'image plus grand (avant le début de la session) et pas de dégradé de définition sur les bords.
+  try{renderer.xr.setFramebufferScaleFactor(1.5);}catch{/* non pris en charge */}
   const maxTex=Math.min(VR_MAX_TEXTURE,renderer.capabilities.maxTextureSize);
   await renderer.xr.setSession(session);
+  try{renderer.xr.setFoveation(0);}catch{/* non pris en charge */}
 
   const scene=new ThreeScene();scene.background=new Color(0x000000);
   const camera=new PerspectiveCamera(70,1,0.05,50);
@@ -194,14 +201,21 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
         if(live.type==='information'){
           const detail=(live.text||'').trim();
-          if(!detail&&(live.imageDataUrl||live.imageUrl)){void showPhoto(live);return;}
-          const url=live.url||((detail.match(/https?:\/\/[^\s]+/i)||[])[0]);
-          if(url){void showWebContent(live.title||'Informations',url,detail);return;}
+          const body=infoText(live);
+          if(!body&&(live.imageDataUrl||live.imageUrl)){void showPhoto(live);return;}
+          const url=live.url||((body.match(/https?:\/\/[^\s]+/i)||[])[0]);
+          if(body){showInfo(live.title||'Informations',body,url);return;}
+          if(url){void showWebContent(live.title||'Informations',url,'');return;}
           showText(live.title||'Informations',detail||'Aucune information renseignée.');
           return;
         }
         if(live.type==='image'){void showPhoto(live);return;}
-        if(live.type==='lien'){void showWebContent(live.title||'Lien',live.url||'',live.text);return;}
+        if(live.type==='lien'){
+          const body=infoText(live);
+          if(body)showInfo(live.title||'Lien',body,live.url);
+          else void showWebContent(live.title||'Lien',live.url||'','');
+          return;
+        }
         if(live.type==='video'){
           const direct=live.videoDataUrl||live.videoUrl;
           if(direct)void showVideoPanel(direct,live.title||'Vidéo');
@@ -274,7 +288,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     m.renderOrder=order;m.position.set(x,y,z);parent.add(m);return m;
   };
   const backdrop=(w:number,h:number)=>canvasTexture(Math.round(w*600),Math.round(h*600),c=>{
-    roundRect(c,6,6,c.canvas.width-12,c.canvas.height-12,36);
+    roundRect(c,6,6,Math.round(w*600)-12,Math.round(h*600)-12,36);
     c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
   });
   // Icônes de la barre Quest : mêmes boutons ronds que la visite NovaStudio.
@@ -350,6 +364,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     barPlacedPhi=headForward().phi;
   };
 
+  // Les fenêtres gardent leur place quand on passe de l'une à l'autre (photo suivante, page, retour galerie) : elles ne suivent plus le regard.
+  let panelAnchor:{pos:Vector3;quat:Quaternion}|null=null;
+  let panelReplace=false;
+  const placePanel=(distance:number,drop:number)=>{
+    if(panelReplace&&panelAnchor){panelGroup.position.copy(panelAnchor.pos);panelGroup.quaternion.copy(panelAnchor.quat);return;}
+    placeInFront(panelGroup,distance,drop);
+    panelAnchor={pos:panelGroup.position.clone(),quat:panelGroup.quaternion.clone()};
+  };
   let activeVideo:{el:HTMLVideoElement;tex:VideoTexture}|null=null;
   const stopVideo=()=>{
     if(!activeVideo)return;
@@ -357,6 +379,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     activeVideo.tex.dispose();activeVideo=null;
   };
   function closePanels(){
+    panelReplace=panelGroup.children.length>0;
     stopVideo();
     clearGroup(panelGroup);
     for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
@@ -386,7 +409,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     roundRect(c,6,6,w-12,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
     c.fillStyle=iconColor;c.font='bold 52px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,w/2,58);
   });
-  const showPages=(title:string,pages:{title?:string;text:string}[])=>{
+  const showPages=(title:string,pages:{title?:string;text:string}[],extra?:{label:string;onSelect:()=>void})=>{
     closePanels();
     const measure=document.createElement('canvas').getContext('2d')!;
     measure.font='40px sans-serif';
@@ -418,12 +441,29 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         addPanelButton(.2,.11,navTexture('◀'),-.5,-H/2+.1,()=>{page=(page-1+chunks.length)%chunks.length;render();});
         addPanelButton(.2,.11,navTexture('▶'),.5,-H/2+.1,()=>{page=(page+1)%chunks.length;render();});
       }
-      addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
+      if(extra){
+        addPanelButton(.24,.11,closeButtonTexture(),-.14,-H/2+.1,closePanels);
+        addPanelButton(.38,.11,navTexture(extra.label,380),.2,-H/2+.1,extra.onSelect);
+      }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
     };
     render();
-    placeInFront(panelGroup,1.5,-.0);
+    placePanel(1.5,-.0);
   };
   const showText=(title:string,text:string)=>showPages(title,[{text}]);
+  /** Texte d'un point « i » dans la langue du visiteur (réglage Paramètres), avec le texte français en repli. */
+  const infoText=(h:{text?:string;translations?:Partial<Record<string,string>>}):string=>{
+    const lang=getPrefs().lang??project().languages?.[0]??'fr';
+    return ((lang==='fr'?h.text:(h.translations?.[lang]||h.text))||'').trim();
+  };
+  const openSiteOutside=(title:string,url:string)=>{
+    // Une page web ne peut pas être dessinée dans la scène immersive : on quitte le casque puis la page s'affiche dans NovaStudio.
+    void session.end().then(()=>opts.onOpenEmbedded?.(title||'Page web',url)).catch(()=>opts.onOpenEmbedded?.(title||'Page web',url));
+  };
+  /** Point d'information : le contenu s'affiche TOUJOURS dans la fenêtre du casque ; s'il y a un site lié, un bouton « ↗ Site » est proposé en plus. */
+  const showInfo=(title:string,text:string,url?:string)=>{
+    const valid=url?safeWebUrl(url):null;
+    showPages(title,[{text}],valid?{label:'↗ Site',onSelect:()=>openSiteOutside(title,valid)}:undefined);
+  };
 
   /** Pages d'un mini-site NovaVisio (convention : /vr.json à côté de la page). Retourne null si le site n'en propose pas. */
   const fetchVrDoc=async(url:string):Promise<{title:string;pages:{title?:string;text:string}[]}|null>=>{
@@ -487,7 +527,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.055,closePanels);
-    placeInFront(panelGroup,1.5,0);
+    placePanel(1.5,0);
   };
 
   /** Contenu d'une page web : lu directement dans le casque si le site propose /vr.json, sinon panneau « Ouvrir le site » (sortie du casque puis page affichée dans NovaStudio). */
@@ -505,7 +545,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(!src){setNotice('Photo en cours de chargement…');opts.ensureScene?.(currentId);return;}
     const shownFor=currentId;
     let bitmap:HTMLCanvasElement;
-    try{bitmap=await loadReduced(src,1400);}
+    try{bitmap=await loadReduced(src,2048);}
     catch{setNotice('Impossible de charger cette photo.');return;}
     if(ended||shownFor!==currentId)return;
     closePanels();
@@ -541,7 +581,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }),-.2,-H/2+.08,nav.back);
       addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.08,closePanels);
     }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
-    placeInFront(panelGroup,1.55,0);
+    placePanel(1.55,0);
   };
   const showPhoto=(h:Hotspot)=>showImagePanel(h.imageDataUrl||h.imageUrl,h.title||'Photo');
 
@@ -595,7 +635,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         addPanelButton(.2,.11,navTexture('▶'),.6,-H/2+.1,()=>{page=(page+1)%pages;void renderGrid();});
       }
       addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
-      placeInFront(panelGroup,1.7,-.0);
+      placePanel(1.7,-.0);
     };
     await renderGrid();
   };
@@ -619,7 +659,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const toggle=addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.2,-H/2+.09,()=>{if(el.paused)void el.play().catch(()=>setNotice('Lecture impossible.'));else el.pause();});
     void toggle;
     addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.09,closePanels);
-    placeInFront(panelGroup,1.7,0);
+    placePanel(1.7,0);
     void el.play().catch(()=>setNotice('Touche ❚❚ / ▶ pour lancer la vidéo.'));
   };
 
@@ -665,7 +705,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         nav('◀',-.55,page-1);nav('▶',.55,page+1);
       }
       addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
-      placeInFront(panelGroup,1.6,-.0);
+      placePanel(1.6,-.0);
     };
     await render();
   };
@@ -679,13 +719,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }
     if(item.type==='photos'){void showPhotoGallery(item);return;}
     if(item.type==='information'){
-      const detail=(item.text||'').trim();
-      const url=item.url||((detail.match(/https?:\/\/[^\s]+/i)||[])[0]);
-      if(url)void showWebContent(item.title||'Informations',url,detail);
-      else showText(item.title||'Informations',detail||'Aucune information renseignée.');
+      const body=infoText(item);
+      const url=item.url||((body.match(/https?:\/\/[^\s]+/i)||[])[0]);
+      if(body)showInfo(item.title||'Informations',body,url);
+      else if(url)void showWebContent(item.title||'Informations',url,'');
+      else showText(item.title||'Informations','Aucune information renseignée.');
       return;
     }
-    if(item.type==='lien'){void showWebContent(item.title||'Lien',item.url||'',item.text);return;}
+    if(item.type==='lien'){
+      const body=infoText(item);
+      if(body)showInfo(item.title||'Lien',body,item.url);
+      else void showWebContent(item.title||'Lien',item.url||'','');
+      return;
+    }
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
 
