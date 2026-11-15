@@ -1,6 +1,6 @@
 import {newProject,validateProject,type StudioProject,type BottomBarItem} from './storage';
 
-const globalIcons=['closeIconId','soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId','settingsIconId','settingsHoverIconId','settingsPressedIconId'] as const;
+const globalIcons=['closeIconId','closeIconHoverId','closeIconPressedId','soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId','settingsIconId','settingsHoverIconId','settingsPressedIconId'] as const;
 export type Skin={version:1;id:string;name:string;updatedAt:string;appearance:StudioProject};
 
 export function captureSkin(project:StudioProject,name:string,id:string=crypto.randomUUID()):Skin {
@@ -10,7 +10,9 @@ export function captureSkin(project:StudioProject,name:string,id:string=crypto.r
   for(const item of [...appearances,...(nav?[nav]:[]),...(project.buttonSets??[]),...[project.defaultPhotoIcon,project.defaultVideoIcon].filter((v):v is NonNullable<typeof v>=>!!v)])for(const key of ['iconId','hoverIconId','pressedIconId'] as const){if(item[key])used.add(item[key]!);}
   for(const key of globalIcons)if(project[key])used.add(project[key]!);
   const appearance:StudioProject={...newProject(),name:'Skin',vrEnabled:project.vrEnabled,defaultPhotoIcon:project.defaultPhotoIcon,defaultVideoIcon:project.defaultVideoIcon,barStyle:{...project.barStyle},bottomBar:appearances,
-    icons:project.icons.filter(icon=>used.has(icon.id)),buttonSets:project.buttonSets,languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId};
+    icons:project.icons,buttonSets:project.buttonSets,languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId,
+    barIconTrim:project.barIconTrim,settingsIconSize:project.settingsIconSize,settingsIconZoom:project.settingsIconZoom,
+    settingsColor:project.settingsColor,settingsIconColor:project.settingsIconColor};
   for(const key of globalIcons)appearance[key]=project[key];
   return validateSkin({version:1,id,name:name.trim(),updatedAt:new Date().toISOString(),appearance});
 }
@@ -36,6 +38,8 @@ export function validateSkin(value:unknown):Skin {
     vrEnabled:source.vrEnabled,
     bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery','plan'] as const).find(t=>t===item.type)??'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
     defaultPhotoIcon:source.defaultPhotoIcon,defaultVideoIcon:source.defaultVideoIcon,languages:source.languages,buttonSets:source.buttonSets,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
+    barIconTrim:source.barIconTrim,settingsIconSize:source.settingsIconSize,settingsIconZoom:source.settingsIconZoom,
+    settingsColor:source.settingsColor,settingsIconColor:source.settingsIconColor,
     ...Object.fromEntries(globalIcons.map(key=>[key,source[key]]))});
   return {version:1,id:skin.id,name:skin.name.trim(),updatedAt:typeof skin.updatedAt==='string'?skin.updatedAt:new Date().toISOString(),appearance};
 }
@@ -69,6 +73,8 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
   const mediaDefaults=Object.fromEntries((['defaultPhotoIcon','defaultVideoIcon'] as const).map(key=>{const value=source[key];return [key,value?{...value,iconId:remap(value.iconId)!,hoverIconId:remap(value.hoverIconId),pressedIconId:remap(value.pressedIconId)}:undefined]}));
   const nav=source.defaultNavigationIcon;
   const next={...project,...mediaDefaults,icons,bottomBar,buttonSets,barStyle:{...source.barStyle},languages:source.languages,vrEnabled:source.vrEnabled,iconPackId:source.iconPackId,
+    barIconTrim:source.barIconTrim,settingsIconSize:source.settingsIconSize,settingsIconZoom:source.settingsIconZoom,
+    settingsColor:source.settingsColor,settingsIconColor:source.settingsIconColor,
     defaultNavigationIcon:nav?{...nav,iconId:remap(nav.iconId)!,hoverIconId:remap(nav.hoverIconId),pressedIconId:remap(nav.pressedIconId)}:undefined,
     favoriteNavigationIconSet:undefined};
   for(const key of globalIcons)next[key]=remap(source[key]);
