@@ -183,9 +183,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     mesh.position.copy(pos);
     mesh.userData={baseScale:1,hoverScale:1.25,onSelect:()=>{
       if(h.type==='navigation')void goTo(h.target,h);
-      else if(h.type==='information')showText(h.title||'Informations',h.text);
-      else if(h.type==='lien')showText(h.title||'Lien',h.url||'Ouvrir cette ressource dans la visite classique.');
-      else setNotice('Photo ou vidéo : disponible dans la visite classique.');
+      else {
+        // Toujours lire la dernière version du point : les médias Cloud peuvent
+        // finir de charger après la création des icônes WebXR.
+        const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
+        if(live.type==='image'||(live.type==='information'&&(live.imageDataUrl||live.imageUrl))){
+          void showPhoto(live);return;
+        }
+        if(live.type==='information'){showText(live.title||'Informations',live.text);return;}
+        if(live.type==='lien'){showText(live.title||'Lien',live.url||'Aucun lien renseigné.');return;}
+        setNotice('Cette vidéo est disponible dans la visite classique.');
+      }
     }};
     return mesh;
   };
@@ -355,6 +363,40 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     placeInFront(panelGroup,1.5,-.0);
   };
 
+  // Photos cliquables (ex. cafetière) : vraie fenêtre-image en 3D, sans
+  // quitter WebXR, fermable avec la gâchette sur « Fermer ».
+  const showPhoto=async(h:Hotspot)=>{
+    const src=h.imageDataUrl||h.imageUrl;
+    if(!src){setNotice('Photo en cours de chargement…');opts.ensureScene?.(currentId);return;}
+    const shownFor=currentId;
+    let bitmap:HTMLCanvasElement;
+    try{bitmap=await loadReduced(src,1400);}
+    catch{setNotice('Impossible de charger cette photo.');return;}
+    if(ended||shownFor!==currentId)return;
+    closePanels();
+    const ratio=bitmap.width/Math.max(1,bitmap.height);
+    const maxW=1.42,maxH=.92;
+    const w=Math.min(maxW,maxH*ratio);
+    const hgt=Math.min(maxH,maxW/ratio);
+    const W=Math.max(.65,w+.1),H=hgt+.24;
+    const frame=canvasTexture(1024,1024,c=>{
+      roundRect(c,8,8,1008,1008,56);c.fillStyle=panelBg;c.fill();
+      c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
+    });
+    addPlane(panelGroup,W,H,frame,5,0,0);
+    const photoTex=new CanvasTexture(bitmap);photoTex.colorSpace=SRGBColorSpace;
+    photoTex.minFilter=LinearFilter;
+    addPlane(panelGroup,w,hgt,photoTex,6,0,.055);
+    const titleTex=canvasTexture(960,120,c=>{
+      c.fillStyle='#17232b';c.font='bold 47px sans-serif';c.textAlign='center';c.textBaseline='middle';
+      let title=h.title||'Photo';while(c.measureText(title).width>900&&title.length>3)title=title.slice(0,-2);
+      c.fillText(title===h.title?title:title+'…',480,60);
+    });
+    addPlane(panelGroup,Math.min(W-.10,1.25),.10,titleTex,7,0,H/2-.08);
+    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
+    placeInFront(panelGroup,1.55,0);
+  };
+
   const showGallery=async(item:BottomBarItem)=>{
     closePanels();
     const entries=galleryEntries(item,project().scenes,project().spaces);
@@ -410,7 +452,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       void showGallery({...item,type:'gallery',galleryTitle:item.title||'Espaces',gallery:project().scenes.map(scene=>({sceneId:scene.id,label:scene.name})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
     if(item.type==='information'){showText(item.title,item.text);return;}
-    if(item.type==='lien'){showText(item.title,item.url||'Cette action est disponible depuis la visite classique.');return;}
+    if(item.type==='lien'){showText(item.title,item.url||'Aucun lien renseigné.');return;}
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
 
