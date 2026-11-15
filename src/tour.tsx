@@ -5,6 +5,7 @@ import {projectForSpaceExport} from './spaces';
 import {isPopupMedia,popupMediaMarkerHtml} from './mediaDisplay';
 import {framedPhotoSource} from './photoFrame';
 import {useEffect,useRef,useState,type CSSProperties} from 'react';
+import {ui,pick} from './i18n';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -38,7 +39,7 @@ function checkedLink(raw:string):string|null {
     return ['https:','http:','tel:','mailto:'].includes(parsed.protocol)?parsed.href:null;
   }catch{return null;}
 }
-function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):MarkerConfig {
+function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lang:string='fr'):MarkerConfig {
   if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
     return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
   }
@@ -53,13 +54,13 @@ function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number):Ma
   const w=isSphere?Math.max(40,Math.min(120,h.iconSize??90)):size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28)));
   const hh=size?.height??w;
   const custom=icons.find(icon=>icon.id===h.iconId);
-  const html=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,h.title):
+  const html=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,pick(h.title,h.titleTranslations,lang)):
     h.type==='video'?videoMarkerHtml(h,w,hh):
     isSphere?'<span class="nv-sphere-hit"></span>':
     custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
     '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},
-    anchor:'center center',html,tooltip:h.title,
+    anchor:'center center',html,tooltip:pick(h.title,h.titleTranslations,lang),
     ...(isSphere?{data:{nvSphere:{size:w,target:h.target}}}:{})};
 }
 type ViewerProps={
@@ -76,7 +77,8 @@ type ViewerProps={
   video:(h:Hotspot,from?:ZoomOrigin|null)=>void;
   onReady:(sceneId:string)=>void;
 };
-function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,linked,image,video,onReady}:ViewerProps){
+function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,linked,image,video,onReady,lang='fr'}:ViewerProps&{lang?:string}){
+  const langRef=useRef(lang);langRef.current=lang;
   const container=useRef<HTMLDivElement>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic : point de départ du zoom photo/vidéo
   useEffect(()=>{
@@ -127,7 +129,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
       syncMarkers(instance,visibleVideoFrames(current.scene.hotspots).flatMap(h=>[
-        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
     let pending=0;
@@ -151,7 +153,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]);
+    const markersNow=()=>visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),260);};
     instance.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
@@ -187,8 +189,8 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
     syncMarkers(instance,visibleVideoFrames(scene.hotspots).flatMap(h=>[
-      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel()),...(haloMarkers(h) as unknown as MarkerConfig[])]));
-  },[scene.id,scene.hotspots,icons]);
+      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+  },[scene.id,scene.hotspots,icons,lang]);
   return <div className="tour-panorama" ref={container}/>;
 }
 /**
@@ -342,7 +344,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }
     else window.location.href=checked;
   };
-  const information=(h:Hotspot)=>setModal({title:h.title,text:lang==='fr'?h.text:(h.translations?.[lang]||h.text),fontFamily:h.fontFamily});
+  const information=(h:Hotspot)=>setModal({title:pick(h.title,h.titleTranslations,lang),text:lang==='fr'?h.text:(h.translations?.[lang]||h.text),fontFamily:h.fontFamily});
   const act=(item:BottomBarItem)=>{
     if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryId(item.id);return;}
@@ -352,7 +354,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }else if(item.url && checkedLink(item.url)){
       openLink(item.title,item.url,item.linkMode);
     }else if(item.type==='information'){
-      setModal({title:item.title,text:lang==='fr'?item.text:(item.translations?.[lang]||item.text),fontFamily:item.fontFamily});
+      setModal({title:pick(item.title,item.titleTranslations,lang),text:lang==='fr'?item.text:(item.translations?.[lang]||item.text),fontFamily:item.fontFamily});
     }
   };
   const enterVr=async()=>{
@@ -390,7 +392,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     setMobileExpanded(true);
   };
   return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
-    {current.dataUrl?<Pano sphereImage={id=>project.scenes.find(x=>x.id===id)?.dataUrl} scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
+    {current.dataUrl?<Pano lang={lang} sphereImage={id=>project.scenes.find(x=>x.id===id)?.dataUrl} scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
       <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
       <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(current.id)}>☾ <span>Nuit</span></button>
@@ -419,44 +421,44 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {project.bottomBar?.length>0&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
         const icon=project.icons?.find(i=>i.id===item.iconId);
-        return <button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={item.title} title={item.title}>
+        return <button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={pick(item.title,item.titleTranslations,lang)} title={pick(item.title,item.titleTranslations,lang)}>
           <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
         </button>;
       })}
     </nav>}
     {!showIntro&&firstPanoramaReady&&<div className="nv-visitor-settings">
-      <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : plan, son et langue" onClick={()=>setSettingsOpen(o=>!o)}>
+      <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label={ui('settings',lang)} aria-expanded={settingsOpen} title={ui('settingsTitle',lang)} onClick={()=>setSettingsOpen(o=>!o)}>
         {hasSettingsIcon?<IconStateVisual icons={project.icons??[]} normal={settingsIcon} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<Settings size={Math.round(settingsSize(project)*0.42)}/>}
       </button>
-      {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
-        {project.floorPlan&&<button type="button" className="nv-open-floor-plan" onClick={()=>{setSettingsOpen(false);setFloorPlanOpen(true);}}>⌖ Afficher le plan</button>}
-        <strong>Son</strong><div className="nv-vs-row">
-          <button type="button" className={prefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
-          <button type="button" className={prefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 Coupé</button>
+      {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label={ui('settings',lang)}>
+        {project.floorPlan&&<button type="button" className="nv-open-floor-plan" onClick={()=>{setSettingsOpen(false);setFloorPlanOpen(true);}}>⌖ {ui('showPlan',lang)}</button>}
+        <strong>{ui('sound',lang)}</strong><div className="nv-vs-row">
+          <button type="button" className={prefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 {ui('soundOn',lang)}</button>
+          <button type="button" className={prefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 {ui('soundOff',lang)}</button>
         </div>
-        {activeLanguages.length>1&&<><strong>Langue</strong><div className="nv-vs-row nv-vs-flags">{STUDIO_LANGUAGES.filter(l=>activeLanguages.includes(l.code)).map(l=><button type="button" key={l.code} title={l.name} aria-label={l.name} aria-pressed={lang===l.code} className={lang===l.code?'is-on':''} onClick={()=>setLang(l.code)}>{l.flag}</button>)}</div></>}
+        {activeLanguages.length>1&&<><strong>{ui('language',lang)}</strong><div className="nv-vs-row nv-vs-flags">{STUDIO_LANGUAGES.filter(l=>activeLanguages.includes(l.code)).map(l=><button type="button" key={l.code} title={l.name} aria-label={l.name} aria-pressed={lang===l.code} className={lang===l.code?'is-on':''} onClick={()=>setLang(l.code)}>{l.flag}</button>)}</div></>}
       </div>}
     </div>}
     <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)} showToggle={false}/>
     {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
-        <header><h2>{modal.title}</h2><button type="button" aria-label="Fermer" onClick={()=>setModal(null)}><X/></button></header>
-        {modal.url?<EmbeddedPage url={modal.url} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||'Aucune information renseignée.'}</p>}
+        <header><h2>{modal.title}</h2><button type="button" aria-label={ui('close',lang)} onClick={()=>setModal(null)}><X/></button></header>
+        {modal.url?<EmbeddedPage url={modal.url} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||ui('noInfo',lang)}</p>}
 
       </section>
     </div>}
     {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
-    {floorPlanOpen&&<FloorPlanDialog plan={project.floorPlan} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
+    {floorPlanOpen&&<FloorPlanDialog lang={lang} plan={project.floorPlan} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
     {photosId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===photosId&&b.type==='photos');
-      return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotosId(null)}/>:null;
+      return item?<PhotoGallery title={pick(item.title,item.titleTranslations,lang)||ui('photos',lang)} items={item.photos??[]} onClose={()=>setPhotosId(null)}/>:null;
     })()}
     {galleryId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
       if(!item)return null;
-      return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={current.id} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
-        entries={galleryEntries(item,project.scenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)}))}
+      return <PanoramaGallery title={item.galleryTitle||pick(item.title,item.titleTranslations,lang)||ui('panoramas',lang)} currentId={current.id} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
+        entries={galleryEntries(item,project.scenes,project.spaces).map(e=>{const sc=project.scenes.find(x=>x.id===e.sceneId);return {sceneId:e.sceneId,spaceId:e.spaceId,label:sc&&sc.name===e.label?pick(sc.name,sc.nameTranslations,lang):e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)};})}
         onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
     {(photo?.imageDataUrl||photo?.imageUrl)&&<ZoomImage variant="tour" frameStyle={photo.imageFrameStyle} src={(photo.imageDataUrl||photo.imageUrl)!} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}

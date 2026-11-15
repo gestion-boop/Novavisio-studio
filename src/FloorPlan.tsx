@@ -2,6 +2,7 @@ import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {Map,Maximize2,X,Eye} from 'lucide-react';
 import {isSafeFrameImage,type FloorPlan,type Scene} from './storage';
+import {ui,pick} from './i18n';
 import './floorPlan.css';
 
 const visiblePoints=(plan:FloorPlan,scenes:Scene[])=>{
@@ -43,7 +44,7 @@ export function PlanModal({children,title,onClose,wide=false,icon,closeLabel='Fe
 }
 
 /** The image determines the canvas size: markers never drift into letterboxing. */
-function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs}:{onRemove?:(id:string)=>void;plan:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onPlace?:(x:number,y:number)=>void;onMove?:(id:string,x:number,y:number)=>void;thumbs?:Record<string,string>}){
+function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,lang='fr'}:{lang?:string;onRemove?:(id:string)=>void;plan:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onPlace?:(x:number,y:number)=>void;onMove?:(id:string,x:number,y:number)=>void;thumbs?:Record<string,string>}){
   const drag=useRef<{x:number;y:number;moved:boolean;dx:number;dy:number}|null>(null);
   const suppressClick=useRef(false);
   const [dragOverPos,setDragOverPos]=useState<{x:number;y:number}|null>(null);
@@ -81,7 +82,7 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs}
       const isHovered=hoveredSceneId===point.sceneId&&!movingPointId;
       return <Fragment key={point.sceneId}>
         <button type="button" className={'nv-plan-point nv-no-fx'+(current?' is-current':'')+(isMoving?' is-moving':'')} style={{left:point.x+'%',top:point.y+'%'}}
-          aria-label={(onPlace?'Sélectionner : ':'Aller à : ')+scene.name} aria-current={current?'location':undefined} title={scene.name}
+          aria-label={(onPlace?ui('select',lang):ui('goTo',lang))+pick(scene.name,scene.nameTranslations,lang)} aria-current={current?'location':undefined} title={pick(scene.name,scene.nameTranslations,lang)}
           onMouseEnter={()=>setHoveredSceneId(point.sceneId)}
           onMouseLeave={()=>setHoveredSceneId(id=>id===point.sceneId?null:id)}
           onPointerDown={onMove?e=>{if(e.button!==0)return;e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,moved:false,dx:e.clientX-rect.left-rect.width/2,dy:e.clientY-rect.top-rect.height/2};suppressClick.current=false;setMovingPointId(point.sceneId);e.currentTarget.setPointerCapture(e.pointerId);onPick(point.sceneId);}:undefined}
@@ -93,23 +94,23 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs}
           aria-label={'Retirer le point : '+scene.name} title={'Retirer le point : '+scene.name} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onRemove(point.sceneId);}}><X size={13}/></button>}
         {isHovered&&<div className="nv-plan-point-tooltip" style={{left:point.x+'%',top:point.y+'%'}}>
           {thumbs?.[point.sceneId]&&<img src={thumbs[point.sceneId]} alt="" draggable={false}/>}
-          <strong>{scene.name}</strong>
+          <strong>{pick(scene.name,scene.nameTranslations,lang)}</strong>
         </div>}
       </Fragment>;
     })}
   </div>;
 }
 
-export function FloorPlanDialog({plan,scenes,currentId,onPick,onClose,thumbs}:{plan?:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onClose:()=>void;thumbs?:Record<string,string>}){
+export function FloorPlanDialog({plan,scenes,currentId,onPick,onClose,thumbs,lang='fr'}:{plan?:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onClose:()=>void;thumbs?:Record<string,string>;lang?:string}){
   const points=plan?visiblePoints(plan,scenes):[];
-  return <PlanModal animated title="Plan de la visite" onClose={onClose}>
+  return <PlanModal animated title={ui('planTitle',lang)} closeLabel={ui('close',lang)} onClose={onClose}>
     {plan?.imageDataUrl?<>
-      <p className="nv-plan-help">Cliquez sur un point pour rejoindre son panorama. Le point en couleur indique votre position.</p>
-      <div className="nv-plan-view"><PlanImage plan={plan} scenes={scenes} currentId={currentId} onPick={onPick} thumbs={thumbs}/></div>
+      <p className="nv-plan-help">{ui('planHelp',lang)}</p>
+      <div className="nv-plan-view"><PlanImage plan={plan} scenes={scenes} currentId={currentId} onPick={onPick} thumbs={thumbs} lang={lang}/></div>
       {points.length?<nav className="nv-plan-destinations" aria-label="Destinations du plan">{points.map((point,index)=>{
         const scene=scenes.find(scene=>scene.id===point.sceneId)!;
-        return <button key={scene.id} type="button" aria-current={scene.id===currentId?'location':undefined} onClick={()=>onPick(scene.id)}>{index+1}. {scene.name}</button>;
-      })}</nav>:<p role="status" className="nv-plan-help">Aucun panorama accessible n’est placé sur ce plan.</p>}
+        return <button key={scene.id} type="button" aria-current={scene.id===currentId?'location':undefined} onClick={()=>onPick(scene.id)}>{index+1}. {pick(scene.name,scene.nameTranslations,lang)}</button>;
+      })}</nav>:<p role="status" className="nv-plan-help">{ui('noPlanPoint',lang)}</p>}
     </>:<p role="status" className="nv-plan-help">{plan?"Chargement du plan… S’il ne s’affiche pas, rechargez la visite.":"Le plan de cette visite n’a pas encore été configuré."}</p>}
   </PlanModal>;
 }
