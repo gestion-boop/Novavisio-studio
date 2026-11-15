@@ -5717,3 +5717,15 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-iconset-del{opacity:1;z-index:2;background:#243744;color:#f7e5e5;border:1px solid #647783}
 .nv-iconset-del:hover{background:#9c3545}
 @media(max-width:400px){.nv-iconset-create-panel{padding:9px}.nv-iconset-create-states{gap:5px}.nv-iconset-create-state{padding:5px 3px}.nv-iconset-create-file{font-size:10px;padding:6px 3px}}
+
+
+/* Import direct des trois états dans le sélecteur d'icône d'un popup */
+.nv-media-icon-import{margin-top:12px;padding-top:12px;border-top:1px solid #355968;min-width:0}
+.nv-media-icon-import .nv-iconset-create-toggle{width:100%;min-height:42px;justify-content:center;box-sizing:border-box}
+.nv-media-icon-import>small{display:block;margin-top:8px;color:#aac9d0;font-size:11px;line-height:1.45}
+.nv-media-icon-import .nv-iconset-create-panel{padding:10px;min-width:0}
+.nv-media-icon-import .nv-iconset-create-states{gap:5px}
+.nv-media-icon-import .nv-iconset-create-state{padding:7px 4px}
+.nv-media-icon-import .nv-iconset-create-preview{max-width:72px}
+.nv-media-icon-import .nv-iconset-create-file{padding:7px 3px;font-size:11px}
+.nv-media-icon-import .nv-iconset-create-actions .nv-iconset-create-save{flex:1}

@@ -3274,21 +3274,32 @@ function App(){
   }
   function deleteIcon(id:string,confirmed=false){deleteIcons([id],confirmed);}
 
-  async function createLibraryIconSet(name:string,images:IconSetImages):Promise<void>{
+  // Création d'un pack depuis la bibliothèque ou directement depuis « Icône du popup ».
+  // L'import et l'application au point se font dans UNE mise à jour du projet.
+  async function createLibraryIconSet(
+    name:string,images:IconSetImages,applyTo?:{sceneId:string;pointId:string}
+  ):Promise<void>{
     const label=name.trim().replace(/[\\/]/g,' ').trim();
     if(!label||label.length>100)throw Error('Donne un nom au pack (100 caractères maximum).');
     if(buildIconSets(project.icons).some(set=>set.name.toLocaleLowerCase('fr')===label.toLocaleLowerCase('fr'))){
       throw Error('Un pack porte déjà ce nom. Choisis un autre nom pour éviter de mélanger les états.');
     }
     if(project.icons.length+3>150)throw Error('La bibliothèque est pleine (150 icônes maximum). Supprime un ancien pack avant de continuer.');
+    if(applyTo&&!project.scenes.some(sc=>sc.id===applyTo.sceneId&&sc.hotspots.some(h=>h.id===applyTo.pointId&&(h.type==='image'||h.type==='video')))){
+      throw Error('Le point photo ou vidéo sélectionné est introuvable.');
+    }
     const suffixes=[['normal','Normal'],['hover','Survol'],['pressed','Pressé']] as const;
     const added:CustomIcon[]=suffixes.map(([state,suffix])=>({
       id:uid(),name:label+' · '+suffix,dataUrl:images[state]
     }));
-    // Contrôle de sécurité avant insertion, identique à celui de la sauvegarde.
-    validateProject({...project,icons:[...project.icons,...added]});
-    setProject(p=>({...p,icons:[...p.icons,...added]}));
-    setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé. Sauvegarde avec la disquette.');
+    const patch={iconId:added[0].id,hoverIconId:added[1].id,pressedIconId:added[2].id};
+    const updateScenes=(scenes:Scene[])=>applyTo?scenes.map(sc=>sc.id!==applyTo.sceneId?sc:{
+      ...sc,hotspots:sc.hotspots.map(h=>h.id===applyTo.pointId?{...h,...patch}:h)
+    }):scenes;
+    const nextIcons=[...project.icons,...added];
+    validateProject({...project,icons:nextIcons,scenes:updateScenes(project.scenes)});
+    setProject(p=>({...p,icons:[...p.icons,...added],scenes:updateScenes(p.scenes)}));
+    setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé'+(applyTo?' et appliqué au popup sélectionné':'')+'. Enregistre avec la disquette.');
   }
   // Jeux d'icônes déjà utilisés dans le projet (barre + points) : la même combinaison normal / survol / clic n'apparaît qu'une fois.
   type IconSet={key:string;iconId:string;hoverIconId?:string;pressedIconId?:string;size:number;users:string[]};
@@ -4673,7 +4684,7 @@ function App(){
                     {selected.type==='image'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onImportPack={(name,images)=>createLibraryIconSet(name,images,{sceneId:activeId,pointId:selected.id})}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
@@ -4694,7 +4705,7 @@ function App(){
                     {selected.type==='video'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onImportPack={(name,images)=>createLibraryIconSet(name,images,{sceneId:activeId,pointId:selected.id})}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <label>URL de la vidéo
@@ -5177,7 +5188,7 @@ function App(){
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onImportPack={(name,images)=>createLibraryIconSet(name,images,{sceneId:activeId,pointId:selected.id})}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
@@ -5212,7 +5223,7 @@ function App(){
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onImportPack={(name,images)=>createLibraryIconSet(name,images,{sceneId:activeId,pointId:selected.id})}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Choisir dans ma bibliothèque Photos & Vidéos (Drive, kDrive…)</button>
