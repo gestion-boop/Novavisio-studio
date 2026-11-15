@@ -254,26 +254,29 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     roundRect(c,6,6,c.canvas.width-12,c.canvas.height-12,36);
     c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
   });
-  const buttonTexture=async(label:string,iconSrc:string|undefined,glyph:string,wide=false,iconOnly=false):Promise<CanvasTexture>=>{
+  // Icônes de la barre Quest : mêmes boutons ronds que la visite NovaStudio.
+  // Les PNG personnalisés conservent leur charte, mais leurs angles carrés
+  // sont masqués par une découpe circulaire dans la texture WebXR.
+  const barCircleTexture=async(iconSrc:string|undefined,glyph:string):Promise<CanvasTexture>=>{
     const img=iconSrc?await loadImage(iconSrc):null;
-    const W=wide?420:300,H=360;
-    return canvasTexture(W,H,c=>{
-      if(iconOnly&&img){
-        const size=Math.min(W,H)-12;
-        c.drawImage(img,(W-size)/2,(H-size)/2,size,size);
-        return;
-      }
-      roundRect(c,8,8,W-16,H-16,48);c.fillStyle=btnBg;c.fill();c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
+    return canvasTexture(320,320,c=>{
+      const cx=160,cy=160,r=151;
+      c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
+      c.fillStyle=btnBg;c.fill();
+      c.save();
+      c.beginPath();c.arc(cx,cy,r-6,0,Math.PI*2);c.clip();
       if(img){
-        const size=Math.min(190,Math.min(W,H)*.60);
-        const scale=Math.min(size/img.width,size/img.height);
-        c.drawImage(img,(W-img.width*scale)/2,40+(size-img.height*scale)/2,img.width*scale,img.height*scale);
+        const scale=Math.min(286/img.width,286/img.height);
+        const w=img.width*scale,h=img.height*scale;
+        c.drawImage(img,(320-w)/2,(320-h)/2,w,h);
       }else{
-        c.fillStyle=iconColor;c.font='bold 150px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(glyph,W/2,135);
+        c.fillStyle=iconColor;
+        c.font='bold 168px sans-serif';c.textAlign='center';c.textBaseline='middle';
+        c.fillText(glyph,cx,cy+6);
       }
-      c.fillStyle=iconColor;c.font='bold 38px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
-      let t=label;while(c.measureText(t).width>W-36&&t.length>2)t=t.slice(0,-2);
-      c.fillText(t===label?t:t.trimEnd()+'…',W/2,H-50);
+      c.restore();
+      c.beginPath();c.arc(cx,cy,r-4,0,Math.PI*2);
+      c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
     });
   };
   const addButton=(parent:Group,w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void,order=4)=>{
@@ -302,10 +305,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(e.item){
         const item=e.item;
         const icon=project().icons?.find(i=>i.id===item.iconId);
-        const tex=await buttonTexture(item.title,icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i',false,!!icon?.dataUrl);
+        const tex=await barCircleTexture(icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i');
         addButton(barGroup,bw,bh,tex,x,0,()=>onBarItem(item));
       }else{
-        const tex=await buttonTexture('Quitter la VR',undefined,'✕');
+        const tex=await barCircleTexture(undefined,'✕');
         addButton(barGroup,bw,bh,tex,x,0,()=>{void session.end();});
       }
       x+=bw+gap;
