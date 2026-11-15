@@ -51,7 +51,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
@@ -78,7 +78,7 @@ import './media.css';
 import {XMark} from './XMark';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client';
+type PanelTab = 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -1345,6 +1345,7 @@ function App(){
   const fsToolsRef=useRef<HTMLDivElement>(null);
   const toolOptions:Array<{key:PanelTab;label:string}>=[
     {key:'panoramas',label:'Panoramas'},
+    {key:'plan',label:'Plan de la visite'},
     {key:'points',label:selectedId?'Inspecteur · Scène & Points':'Scène & Points'},
     {key:'bar',label:'Barre du bas'},
     {key:'icons',label:'Mes icônes'},
@@ -1356,12 +1357,12 @@ function App(){
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['settings','spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
+  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
       const known=Array.isArray(saved)?saved.filter((k):k is string=>typeof k==='string'&&TOOL_KEYS.includes(k)):[];
-      return [...new Set([...(known.includes('settings')?[]:['settings']),...known,...TOOL_KEYS])];
+      return [...new Set([...(known.includes('settings')?[]:['settings']),...(known.includes('plan')?[]:['plan']),...known,...TOOL_KEYS])];
     }catch{return TOOL_KEYS;}
   });
   const saveToolOrder=(order:string[])=>{try{localStorage.setItem('nvstudio-tools-order',JSON.stringify(order));}catch{/* ordre non mémorisé */}};
@@ -1371,12 +1372,14 @@ function App(){
     const ic=22;
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
+    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:project.floorPlan?1:undefined,
+      run:()=>toggleToolPanel('plan' as PanelTab)};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);
     if(!option)return null;
     const look:Record<string,{icon:ReactNode;tone:string}>={
-      settings:{icon:<SettingsIcon size={ic}/>,tone:'#42c6b7'},panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
+      settings:{icon:<SettingsIcon size={ic}/>,tone:'#42c6b7'},plan:{icon:<MapIcon size={ic}/>,tone:'#20b2aa'},panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
       icons:{icon:<Star size={ic}/>,tone:'#f0b429'},intro:{icon:<Play size={ic}/>,tone:'#ef5b7b'},elements:{icon:<Plus size={ic}/>,tone:'#2bb3d6'},
       medialib:{icon:<Images size={ic}/>,tone:'#3ec6a8'},music:{icon:<Music size={ic}/>,tone:'#ff6fa8'},client:{icon:<Smile size={ic}/>,tone:'#7f8cff'}
     };
@@ -4917,8 +4920,8 @@ function App(){
               <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
             </div>
             {selectedBar.type==='plan'?<><p className="hint">Ce bouton affiche le plan interactif en grand. Les points ouvrent les panoramas correspondants.</p>
-              {!project.floorPlan&&<p role="status">Importe d’abord un plan dans les paramètres de la visite.</p>}
-              <button type="button" onClick={()=>{setPanel('settings');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+              {!project.floorPlan&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
+              <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
@@ -5043,6 +5046,14 @@ function App(){
           <small className="hint-inline">La transition s'effectue automatiquement à la durée réglée, indépendamment de la durée de la vidéo et sans attendre de clic.</small>
           <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setActiveId(startSceneId(visibleScenes));setMode(null);setSelectedId('');setPreview(true);setIntroEnding(false);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
+        </div>}
+        {panel==='plan' && <div className="properties">
+          <InspectorSection title="Plan interactif de la visite" initiallyOpen>
+            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+              hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
+              onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
+              onPreview={()=>{setPreview(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
+          </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
