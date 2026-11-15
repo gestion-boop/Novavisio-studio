@@ -4589,6 +4589,9 @@ function App(){
             onPointerDown={e=>e.stopPropagation()}
             onClick={e=>{e.stopPropagation();setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===s.id?{...sc,excluded:sc.excluded?undefined:true}:sc)}));}}>
             {s.excluded?'':'✓'}</button>
+          {!preview&&<label className="nv-scene-rename" onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>Nom du panorama
+            <input aria-label={'Renommer le panorama '+s.name} maxLength={150} value={s.name} onChange={e=>{const name=e.target.value;setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===s.id?{...sc,name}:sc)}));}}/>
+          </label>}
           {!preview&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
             onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
@@ -4922,7 +4925,7 @@ function App(){
             </div>
             {selectedBar.type==='plan'?<><p className="hint">Ce bouton affiche le plan interactif en grand. Les points ouvrent les panoramas correspondants.</p>
               {!project.floorPlan&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
-              <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+              <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
@@ -5050,7 +5053,7 @@ function App(){
         </div>}
         {panel==='plan' && <div className="properties">
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
-            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
+            <FloorPlanEditor startExpanded onRenameScene={(id,name)=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===id?{...sc,name}:sc)}))} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
               renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
@@ -5059,7 +5062,7 @@ function App(){
         </div>}
         {panel==='settings' && <div className="properties">
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
-            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
+            <FloorPlanEditor onRenameScene={(id,name)=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===id?{...sc,name}:sc)}))} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
               renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}

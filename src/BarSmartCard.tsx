@@ -1,3 +1,4 @@
+import {PhotoGalleryPicker} from './PhotoGalleryPicker';
 import {useEffect,useRef} from 'react';
 import type {BottomBarItem,MediaLinkItem} from './storage';
 import {resolveLink} from './mediaLinks';
@@ -41,6 +42,7 @@ export function BarSmartCard({item,onPatch,onChooseGallery,library=[],onOpenLibr
       const all=library.length>0&&library.every(m=>chosen.has(m.id));
       const set=(ids:Set<string>)=>onPatch({type:'photos',photos:library.filter(m=>ids.has(m.id))});
       return <>
+        <PhotoGalleryPicker library={library} selected={item.photos??[]} onChange={photos=>onPatch({type:'photos',photos})}/>
         <p>Ce bouton ouvre une <b>galerie de photos</b> : choisis ci-dessous celles à afficher (elles viennent de ta bibliothèque Photos &amp; Vidéos).</p>
         {library.length===0
           ?<><small>Ta bibliothèque est vide : importe d’abord tes photos depuis ton ordinateur.</small>

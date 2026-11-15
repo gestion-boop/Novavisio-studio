@@ -9,7 +9,7 @@ const visiblePoints=(plan:FloorPlan,scenes:Scene[])=>{
   return plan.points.filter(point=>visible.has(point.sceneId));
 };
 
-function PlanModal({children,title,onClose,wide=false}:{children:ReactNode;title:string;onClose:()=>void;wide?:boolean}){
+export function PlanModal({children,title,onClose,wide=false,icon}:{children:ReactNode;title:string;onClose:()=>void;wide?:boolean;icon?:ReactNode}){
   const root=useRef<HTMLElement>(null),close=useRef(onClose);
   close.current=onClose;
   const titleId=useId();
@@ -30,7 +30,7 @@ function PlanModal({children,title,onClose,wide=false}:{children:ReactNode;title
   },[]);
   return createPortal(<div className="nv-plan-overlay" onClick={e=>{e.stopPropagation();if(e.target===e.currentTarget)onClose();}}>
     <section className={'nv-plan-dialog'+(wide?' nv-plan-dialog-editor':'')} ref={root} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-      <header><h2 id={titleId}><Map size={22}/>{title}</h2><button type="button" aria-label="Fermer le plan" onClick={onClose}><X/></button></header>
+      <header><h2 id={titleId}>{icon??<Map size={22}/>}{title}</h2><button type="button" aria-label="Fermer le plan" onClick={onClose}><X/></button></header>
       {children}
     </section>
   </div>,document.fullscreenElement??document.body);
@@ -38,7 +38,7 @@ function PlanModal({children,title,onClose,wide=false}:{children:ReactNode;title
 
 /** The image determines the canvas size: markers never drift into letterboxing. */
 function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove}:{plan:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onPlace?:(x:number,y:number)=>void;onMove?:(id:string,x:number,y:number)=>void}){
-  const drag=useRef<{x:number;y:number;moved:boolean}|null>(null);
+  const drag=useRef<{x:number;y:number;moved:boolean;dx:number;dy:number}|null>(null);
   const suppressClick=useRef(false);
   const position=(clientX:number,clientY:number,rect:DOMRect)=>({x:Math.max(0,Math.min(100,(clientX-rect.left)/rect.width*100)),y:Math.max(0,Math.min(100,(clientY-rect.top)/rect.height*100))});
   return <div className={'nv-plan-image'+(onPlace?' is-editing':'')}
@@ -54,9 +54,9 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove}:{plan:FloorPlan
       const current=scene.id===currentId;
       return <button type="button" key={point.sceneId} className={'nv-plan-point'+(current?' is-current':'')} style={{left:point.x+'%',top:point.y+'%'}}
         aria-label={(onPlace?'Sélectionner : ':'Aller à : ')+scene.name} aria-current={current?'location':undefined} title={scene.name}
-        onPointerDown={onMove?e=>{if(e.button!==0)return;e.stopPropagation();drag.current={x:e.clientX,y:e.clientY,moved:false};suppressClick.current=false;e.currentTarget.setPointerCapture(e.pointerId);onPick(point.sceneId);}:undefined}
-        onPointerMove={onMove?e=>{if(!drag.current)return;if(Math.hypot(e.clientX-drag.current.x,e.clientY-drag.current.y)>4)drag.current.moved=true;if(drag.current.moved){const p=position(e.clientX,e.clientY,e.currentTarget.parentElement!.getBoundingClientRect());e.currentTarget.style.left=p.x+'%';e.currentTarget.style.top=p.y+'%';}}:undefined}
-        onPointerUp={onMove?e=>{if(!drag.current)return;const moved=drag.current.moved;drag.current=null;suppressClick.current=moved;if(moved){const p=position(e.clientX,e.clientY,e.currentTarget.parentElement!.getBoundingClientRect());onMove(point.sceneId,p.x,p.y);}}:undefined}
+        onPointerDown={onMove?e=>{if(e.button!==0)return;e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,moved:false,dx:e.clientX-rect.left-rect.width/2,dy:e.clientY-rect.top-rect.height/2};suppressClick.current=false;e.currentTarget.setPointerCapture(e.pointerId);onPick(point.sceneId);}:undefined}
+        onPointerMove={onMove?e=>{if(!drag.current)return;if(Math.hypot(e.clientX-drag.current.x,e.clientY-drag.current.y)>4)drag.current.moved=true;if(drag.current.moved){const p=position(e.clientX-drag.current.dx,e.clientY-drag.current.dy,e.currentTarget.parentElement!.getBoundingClientRect());e.currentTarget.style.left=p.x+'%';e.currentTarget.style.top=p.y+'%';}}:undefined}
+        onPointerUp={onMove?e=>{if(!drag.current)return;const {moved,dx,dy}=drag.current;drag.current=null;suppressClick.current=moved;if(moved){const p=position(e.clientX-dx,e.clientY-dy,e.currentTarget.parentElement!.getBoundingClientRect());onMove(point.sceneId,p.x,p.y);}}:undefined}
         onPointerCancel={e=>{drag.current=null;e.currentTarget.style.left=point.x+'%';e.currentTarget.style.top=point.y+'%';}}
         onClick={e=>{e.stopPropagation();if(suppressClick.current){suppressClick.current=false;return;}onPick(point.sceneId);}}><span>{index+1}</span></button>;
     })}
@@ -96,8 +96,8 @@ async function importPlan(file:File):Promise<string>{
   }finally{bitmap.close();}
 }
 
-export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview}:{thumbs?:Record<string,string>;renderPreview?:(sceneId:string)=>ReactNode;plan?:FloorPlan;scenes:Scene[];onChange:(plan:FloorPlan|undefined)=>void;hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void}){
-  const [selectedId,setSelectedId]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[expanded,setExpanded]=useState(false);
+export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview,onRenameScene,startExpanded=false}:{startExpanded?:boolean;onRenameScene?:(id:string,name:string)=>void;thumbs?:Record<string,string>;renderPreview?:(sceneId:string)=>ReactNode;plan?:FloorPlan;scenes:Scene[];onChange:(plan:FloorPlan|undefined)=>void;hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void}){
+  const [selectedId,setSelectedId]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[expanded,setExpanded]=useState(startExpanded&&!!plan);
   const fileInput=useRef<HTMLInputElement>(null),importing=useRef(false);
   const available=scenes.filter(scene=>!scene.excluded);
   const selected=available.find(scene=>scene.id===selectedId)??available[0];
@@ -124,7 +124,7 @@ export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,
           </select></label>
           {selected&&<section className="nv-plan-selected-preview" aria-label={'Aperçu de '+selected.name}>
             <div className="nv-plan-selected-view" key={selected.id}>{renderPreview?renderPreview(selected.id):thumbs[selected.id]?<img src={thumbs[selected.id]} alt={selected.name}/>:<span>Aperçu en préparation…</span>}</div>
-            <strong>{selected.name}</strong><small>Glisse dans l’aperçu pour regarder autour de toi.</small>
+            {onRenameScene?<label>Nom du panorama<input aria-label="Renommer le panorama sélectionné" maxLength={150} value={selected.name} onChange={e=>onRenameScene(selected.id,e.target.value)}/></label>:<strong>{selected.name}</strong>}<small>Glisse dans l’aperçu pour regarder autour de toi.</small>
           </section>}
           <div className="nv-plan-source-list" role="group" aria-label="Panoramas à glisser sur le plan">{available.map(scene=>{
             const index=visiblePoints(plan,available).findIndex(point=>point.sceneId===scene.id);
@@ -156,7 +156,7 @@ export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,
       // Replacing a drawing clears positions because its layout may be different.
       if(plan&&!window.confirm('Remplacer le plan ? Les points devront être replacés sur la nouvelle image.'))return;
       importing.current=true;setBusy(true);setError('');
-      try{onChange({imageDataUrl:await importPlan(file),name:file.name.slice(0,200),points:[]});}
+      try{onChange({imageDataUrl:await importPlan(file),name:file.name.slice(0,200),points:[]});setExpanded(true);}
       catch(error){setError(error instanceof Error?error.message:'Import impossible.');}
       finally{importing.current=false;setBusy(false);}
     }}/>

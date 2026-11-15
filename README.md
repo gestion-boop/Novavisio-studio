@@ -166,3 +166,7 @@ Ajouter un bouton **Plan** depuis cette section, ou choisir l’action **Plan** 
 Le plan est propre au projet et accompagne les sauvegardes locales, les sauvegardes cloud, les liens publics et les exports HTML. Les points des panoramas décochés ou extérieurs à un espace exporté sont retirés de la publication. Remplacer le dessin efface ses positions après confirmation ; supprimer le plan conserve les panoramas.
 
 Vérification : `npm run build`, `node scripts/check-export.mjs`, puis `node scripts/check-floor-plan.mjs` (validation, sauvegarde JSON, espaces, skins, médias cloud et contenu réel de l’export ZIP).
+
+L’outil **Plan** ouvre directement l’éditeur agrandi : dessin à gauche, vignettes et aperçu 360° à droite. Les noms des panoramas sont modifiables dans cet éditeur et dans la liste **Panoramas**. Les paramètres du visiteur proposent **Afficher le plan** dès qu’un dessin est importé.
+
+La configuration des galeries propose **Agrandir la galerie avec les aperçus** : photos et vidéos ont une grande visionneuse à côté de leur liste de sélection ; la galerie des panoramas permet de consulter chaque vue 360° en cliquant sur sa vignette et de modifier le nom affiché sur ses cartes.
