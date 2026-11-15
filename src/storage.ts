@@ -38,7 +38,7 @@ export type Hotspot = {
   arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
 };
 /** Lien vers une photo ou une vidéo hébergée hors Supabase (Google Drive, kDrive…). */
-export type MediaLinkItem = {id:string;kind:'photo'|'video';name:string;url:string;provider:'gdrive'|'kdrive'|'web'};
+export type MediaLinkItem = {id:string;kind:'photo'|'video';name:string;url:string;provider:'local'|'gdrive'|'kdrive'|'web';/** Fichier importé depuis l'ordinateur (provider « local ») : données du média. */data?:string};
 export type CustomIcon = { id: string; name: string; dataUrl: string };
 export type MusicTrack = {
   id:string; name:string; dataUrl?:string; url?:string;
@@ -230,7 +230,9 @@ export function validateProject(value:unknown):StudioProject {
   }
   if(p.barIconTrim!==undefined&&typeof p.barIconTrim!=='boolean')throw new Error('Réglage des icônes de la barre invalide');
   if(p.mediaLibrary!==undefined){
-    if(!Array.isArray(p.mediaLibrary)||p.mediaLibrary.length>300||p.mediaLibrary.some(m=>!m||typeof m.id!=='string'||!['photo','video'].includes(m.kind)||typeof m.name!=='string'||m.name.length>200||!isSafeMediaUrl(m.url)||!['gdrive','kdrive','web'].includes(m.provider)))
+    const okItem=(m:MediaLinkItem)=>!!m&&typeof m.id==='string'&&['photo','video'].includes(m.kind)&&typeof m.name==='string'&&m.name.length<=200&&['local','gdrive','kdrive','web'].includes(m.provider)&&
+      (m.provider==='local'?(m.kind==='photo'?isSafeFrameImage(m.data)&&m.data.length<=12_000_000:isSafeVideoData(m.data)&&m.data.length<=Math.ceil(VIDEO_MAX_BYTES/3)*4+64):isSafeMediaUrl(m.url));
+    if(!Array.isArray(p.mediaLibrary)||p.mediaLibrary.length>300||!p.mediaLibrary.every(okItem))
       throw new Error('Bibliothèque Photos et Vidéos invalide');
   }
   if((p.settingsIconSize!==undefined&&(!Number.isFinite(p.settingsIconSize)||p.settingsIconSize<32||p.settingsIconSize>120))||

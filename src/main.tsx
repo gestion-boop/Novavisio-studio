@@ -4931,7 +4931,13 @@ function App(){
             <MediaLibraryPanel items={project.mediaLibrary??[]} onChange={items=>setProject(p=>({...p,mediaLibrary:items}))} selected={selected}
               onApply={item=>{
                 const r=resolveLink(item);
-                if(item.kind==='photo'&&r.image)patchPoint({imageUrl:r.image,imageDataUrl:undefined,mediaDisplay:'popup',...(selected&&(!selected.title||/^(photo|image)/i.test(selected.title))?{title:item.name}:{})});
+                const retitle=selected&&(!selected.title||/^(photo|image|vid)/i.test(selected.title))?{title:item.name}:{};
+                if(item.provider==='local'&&item.data){
+                  // Fichier importé : il est copié dans le point (affichage en fenêtre ou en incrustation, comme avant).
+                  if(item.kind==='photo')patchPoint({imageDataUrl:item.data,imageUrl:undefined,...retitle});
+                  else patchPoint({videoDataUrl:item.data,videoUrl:'',videoEmbed:undefined,...retitle});
+                }
+                else if(item.kind==='photo'&&r.image)patchPoint({imageUrl:r.image,imageDataUrl:undefined,mediaDisplay:'popup',...retitle});
                 else if(item.kind==='video')patchPoint(r.video?{videoUrl:r.video,videoEmbed:undefined,videoDataUrl:undefined,mediaDisplay:'popup',videoOpenFullscreen:true}:{videoEmbed:r.embed,videoUrl:'',videoDataUrl:undefined,mediaDisplay:'popup',videoOpenFullscreen:true});
                 setStatus('« '+item.name+' » appliqué au point sélectionné');
               }}/>

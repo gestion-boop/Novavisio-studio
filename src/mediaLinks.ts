@@ -29,7 +29,11 @@ export type Resolved={
   /** Vidéo à afficher dans un lecteur intégré (iframe). */ embed?:string;
   problem?:string;
 };
-export function resolveLink(item:Pick<MediaLinkItem,'kind'|'url'|'provider'>):Resolved{
+export function resolveLink(item:Pick<MediaLinkItem,'kind'|'url'|'provider'|'data'>):Resolved{
+  if(item.provider==='local'){
+    if(!item.data)return {problem:'Fichier absent'};
+    return item.kind==='photo'?{image:item.data,thumb:item.data}:{video:item.data};
+  }
   const url=item.url.trim();
   if(!/^https:\/\/\S+$/i.test(url))return {problem:'L’adresse doit commencer par https://'};
   if(item.provider==='gdrive'){
@@ -44,4 +48,4 @@ export function resolveLink(item:Pick<MediaLinkItem,'kind'|'url'|'provider'>):Re
   if(item.kind==='photo')return {image:url,thumb:url};
   return VIDEO_EXT.test(url)?{video:url}:{embed:url};
 }
-export const providerLabel:Record<MediaProvider,string>={gdrive:'Google Drive',kdrive:'kDrive',web:'Lien web'};
+export const providerLabel:Record<MediaProvider,string>={local:'Mon ordinateur',gdrive:'Google Drive',kdrive:'kDrive',web:'Lien web'};

@@ -50,6 +50,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
       buttonSets:undefined,defaultPhotoIcon:undefined,defaultVideoIcon:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
     clientProfile:undefined, // never publish private customer records
       comments:undefined, // commentaires d'équipe : jamais publiés
+      mediaLibrary:undefined, // la bibliothèque est un outil d'édition : les médias utilisés sont déjà dans les points
       icons:relevantIcons(project,project.scenes),
       audioTracks:project.audioTracks.filter(track=>project.scenes.some(scene=>scene.musicTrackId===track.id))
     };
@@ -72,6 +73,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     buttonSets:undefined,defaultPhotoIcon:undefined,defaultVideoIcon:undefined,defaultNavigationIcon:undefined,defaultMusicTrackId:undefined,
     clientProfile:undefined, // only Studio editors receive customer details
     comments:undefined,
+    mediaLibrary:undefined,
     name:project.name+' - '+space.name,
     scenes:scenes.map(scene=>({
       ...scene,
