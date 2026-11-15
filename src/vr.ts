@@ -877,7 +877,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     raycaster.set(origin,dir);
     // Les fonds de fenêtres et de la barre arrêtent aussi le laser (il ne traverse plus les panneaux) ; seuls les boutons sont sélectionnables.
     const blockers=[...panelGroup.children,...barGroup.children].filter(m=>m.visible&&m.userData.onSelect===undefined) as Clickable[];
-    const live=[...clickables.filter(m=>m.parent&&m.visible),...blockers];
+    const shown=(o:Object3D)=>{let x:Object3D|null=o;while(x){if(!x.visible)return false;x=x.parent;}return true;};
+    const live=[...clickables.filter(m=>m.parent&&shown(m)),...blockers.filter(shown)];
     // Les panneaux devant les yeux doivent passer avant les hotspots plus
     // éloignés. Parmi des cibles de même plan, on choisit la plus proche.
     const found=raycaster.intersectObjects(live,false);
@@ -915,12 +916,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let lastRefreshCheck=0;
   let turnArmed=true;
+  // Clic sur le joystick : masque toute l'interface (barre, fenêtres, repères) ; un second clic la fait réapparaître.
+  let uiHidden=false;
+  const thumbDown:Record<string,boolean>={};
   let lastTick=performance.now();
   const tick=()=>{
     const tnow=performance.now();const dt=Math.min(.1,(tnow-lastTick)/1000);lastTick=tnow;
     // Rotation instantanée d'un quart de tour pour réduire le mal des yeux.
     // Une nouvelle impulsion exige d'abord le retour du joystick au neutre.
     const inputs=renderer.xr.getSession()?.inputSources??[];
+    for(const source of inputs){
+      const pressed=!!source.gamepad?.buttons?.[3]?.pressed;
+      const key=source.handedness||'x';
+      if(pressed&&!thumbDown[key])uiHidden=!uiHidden;
+      thumbDown[key]=pressed;
+    }
+    barGroup.visible=!uiHidden;panelGroup.visible=!uiHidden;noticeGroup.visible=!uiHidden;
     let turn=0;
     for(const source of inputs){
       const axes=source.gamepad?.axes;
@@ -957,7 +968,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     fade+=(fadeTarget-fade)*.35;
     if(Math.abs(fadeTarget-fade)<.01)fade=fadeTarget;
     if(panoTexture)sphereMat.color.setScalar(fade);
-    hotspotGroup.visible=fade>.6;
+    hotspotGroup.visible=fade>.6&&!uiHidden;
     // Flèches toujours face au spectateur.
     const cam=renderer.xr.getCamera();const camPos=new Vector3();cam.getWorldPosition(camPos);
     for(const m of hotspotGroup.children)if(!m.userData.isFrame)m.lookAt(camPos);
@@ -988,7 +999,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const isPressed=(m.userData.pressedUntil??0)>now;
       const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
       // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
-      if(m.userData.spin&&m.userData.dir){const want=hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
+      if(m.userData.spin&&m.userData.dir){const want=isPressed?HOTSPOT_R-4.2:hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
         const mm=(m as Mesh).material as MeshBasicMaterial;
