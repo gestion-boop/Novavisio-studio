@@ -360,7 +360,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
       x+=bw+gap;
     }
-    placeInFront(barGroup,1.55,1.08);
+    placeInFront(barGroup,1.55,1.22);
     barPlacedPhi=headForward().phi;
   };
 
@@ -788,7 +788,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(target){
         const states=target.userData.vrIconStates as {pressedUntil:number}|undefined;
         if(states)states.pressedUntil=performance.now()+180;
-        if(target.userData.onSelect){pulse(c,.85,45);target.userData.onSelect();}
+        if(target.userData.onSelect){pulse(c,.5,30);target.userData.onSelect();}
       }
     });
     // Prise (gâchette latérale) : ramène la barre devant soi.
@@ -851,10 +851,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     controllers.forEach(c=>{
       const hit=hits(c),pointer=c.userData.vrPointer as {geo:BufferGeometry;dot:Mesh}|undefined;
       if(hit.target)hovered.add(hit.target);
-      // Légère vibration quand le laser arrive sur une cible sélectionnable.
-      const selectable=hit.target&&hit.target.userData.onSelect?hit.target:null;
-      if(selectable&&c.userData.lastSelectable!==selectable)pulse(c,.2,12);
-      c.userData.lastSelectable=selectable;
       if(pointer){
         // Le faisceau va jusqu'à la cible, même lointaine (flèches du panorama), et pas plus loin ; sans cible il reste court.
         const length=hit.target?hit.distance:POINTER_MAX;
