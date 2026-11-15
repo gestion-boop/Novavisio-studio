@@ -5548,6 +5548,17 @@ function App(){
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties nv-icons-panel">
+          <InspectorSection title="Croix de fermeture">
+            <p className="hint">Choisis une croix personnalisée pour fermer toutes les fenêtres interactives : photos, vidéos, informations, galerie, plan et autres popups.</p>
+            <div className="nv-close-current">
+              <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
+              <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Aucune croix personnalisée sélectionnée'}</small></div>
+            </div>
+            {iconStateEditor('global-close-icon','Croix globale',project.closeIconId,
+              id=>setProject(p=>({...p,closeIconId:id})),'Croix classique')}
+            {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
+            <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
+          </InspectorSection>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
             onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer le jeu « '+name+' » ('+ids.length+' icône'+(ids.length>1?'s':'')+') de la bibliothèque et de ses utilisations ?'))return;ids.forEach(id=>deleteIcon(id,true));}}
             applyLabel={selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
@@ -5557,18 +5568,7 @@ function App(){
               else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
             }:undefined}/>
           <details className="nv-icons-advanced">
-            <summary>Autres réglages : croix de fermeture, créateur d’icônes</summary>
-          <InspectorSection title="Croix de fermeture des fenêtres">
-          <p className="hint">Une seule icône pour fermer les photos, vidéos, informations et popups de tous les panoramas. Le changement s’applique à l’ensemble de cette visite, y compris à l’export.</p>
-          <div className="nv-close-current">
-            <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
-            <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>Actuellement appliquée partout</small></div>
-          </div>
-          {iconStateEditor('global-close-icon','Icône de fermeture (toutes les fenêtres)',project.closeIconId,
-            id=>setProject(p=>({...p,closeIconId:id})),'✕')}
-          {closeIcon&&<button type="button" className="tool" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG dans toute la bibliothèque</button>}
-          <p className="hint">Après avoir choisi la croix, clique sur « Enregistrer » en haut de NovaStudio. Les autres icônes de navigation ne sont pas modifiées.</p>
-          </InspectorSection>
+            <summary>Autres réglages : créateur d’icônes</summary>
             {svgIconWorkshop()}
           </details>
         </div>}
