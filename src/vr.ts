@@ -371,6 +371,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Les fenêtres gardent leur place quand on passe de l'une à l'autre (photo suivante, page, retour galerie) : elles ne suivent plus le regard.
   let panelAnchor:{pos:Vector3;quat:Quaternion}|null=null;
   let panelReplace=false;
+  // Le plan doit rester lisible devant le regard : contrairement aux fenêtres
+  // d'information, il se recentre avec la tête afin que ses points ne sortent
+  // pas du champ quand l'utilisateur lève ou tourne la tête.
+  let panelFollowsHead=false;
   const placePanel=(distance:number,drop:number)=>{
     if(panelReplace&&panelAnchor){panelGroup.position.copy(panelAnchor.pos);panelGroup.quaternion.copy(panelAnchor.quat);return;}
     placeInFront(panelGroup,distance,drop);
@@ -386,6 +390,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   function closePanels(){
     panelGen++;
     panelReplace=panelGroup.children.length>0;
+    panelFollowsHead=false;
     stopVideo();
     clearGroup(panelGroup);
     for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
@@ -747,6 +752,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     try{bitmap=await loadReduced(plan.imageDataUrl,2048);}catch{setNotice('Impossible de charger le plan.');return;}
     if(ended)return;
     closePanels();
+    panelFollowsHead=true;
     const ratio=bitmap.width/Math.max(1,bitmap.height);
     const maxW=1.48,maxH=1.02;
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
@@ -904,6 +910,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const m of hotspotGroup.children)m.lookAt(camPos);
     // Barre : suit doucement le regard quand on s'en détourne trop.
     const hf=headForward();
+    if(panelFollowsHead&&panelGroup.children.length){
+      // Recalage direct, sans conserver l'ancien ancrage monde du panneau.
+      // Le plan et ses numéros restent ainsi dans le même repère visuel.
+      panelReplace=false;panelAnchor=null;placePanel(1.55,0);
+    }
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
     // Survol.
