@@ -47,6 +47,7 @@ export function mediaSlots(p:StudioProject):Slot[]{
     get:()=>{const v=o[key];return typeof v==='string'?v:undefined;},
     set:v=>{(o as Record<keyof T,unknown>)[key]=v;}
   });
+  if(p.floorPlan)add(p.floorPlan,'imageDataUrl','frame');
   p.icons.forEach(i=>add(i,'dataUrl','icon'));
   p.audioTracks.forEach(t=>add(t,'dataUrl','audio'));
   p.bottomBar?.forEach(b=>{if(b.galleryBackgroundImage)add(b,'galleryBackgroundImage','frame');});

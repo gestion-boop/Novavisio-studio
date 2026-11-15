@@ -69,7 +69,7 @@ export type BottomBarItem = {
   /** Zoom de l'icône dans son bouton (100–250 %) : compense les marges transparentes de l'image. */
   iconZoom?: number;
   title: string;
-  type: 'navigation' | 'information' | 'lien' | 'gallery' | 'photos';
+  type: 'navigation' | 'information' | 'lien' | 'gallery' | 'photos' | 'plan';
   /** Type « photos » : galerie de photos / vidéos affichée en grand (copies des éléments choisis dans la bibliothèque Photos & Vidéos). */
   photos?: MediaLinkItem[];
   gallery?: GalleryItem[];
@@ -141,7 +141,10 @@ export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIc
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 /** Commentaire d'équipe accroché à un endroit d'un panorama (jamais publié dans la visite). */
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
-export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+/** Positions in percentages of the plan image, independent of screen size. */
+export type FloorPlanPoint = {sceneId:string;x:number;y:number};
+export type FloorPlan = {imageDataUrl:string;name:string;points:FloorPlanPoint[]};
+export type StudioProject = { version: 1; floorPlan?:FloorPlan; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -208,6 +211,19 @@ export function validateProject(value:unknown):StudioProject {
   if (!value || typeof value !== 'object') throw new Error('Format de projet incorrect');
   const p = value as Partial<StudioProject>;
   if (p.version !== 1 || typeof p.name !== 'string' || !Array.isArray(p.scenes) || p.scenes.length > 500) throw new Error('Projet non reconnu');
+  if(p.floorPlan!==undefined){
+    const plan=p.floorPlan;
+    if(!plan||typeof plan!=='object'||!isSafeFrameImage(plan.imageDataUrl)||plan.imageDataUrl.length>6_000_000||
+      typeof plan.name!=='string'||plan.name.length>200||!Array.isArray(plan.points)||plan.points.length>500)
+      throw new Error('Plan de la visite invalide');
+    const placed=new Set<string>();
+    for(const point of plan.points){
+      if(!point||typeof point.sceneId!=='string'||!p.scenes.some(scene=>scene.id===point.sceneId)||placed.has(point.sceneId)||
+        !Number.isFinite(point.x)||!Number.isFinite(point.y)||point.x<0||point.x>100||point.y<0||point.y>100)
+        throw new Error('Position de panorama sur le plan invalide');
+      placed.add(point.sceneId);
+    }
+  }
   // Les anciens projets V0.1 n'ont pas encore de bibliothèque d'icônes.
   const icons = p.icons ?? [];
   if (!Array.isArray(icons) || icons.length > 150) throw new Error('Bibliothèque d’icônes non valide');
@@ -282,7 +298,7 @@ export function validateProject(value:unknown):StudioProject {
   if(!Array.isArray(bottomBar) || bottomBar.length > 30) throw new Error('Barre d’icônes non valide');
   for(const item of bottomBar) {
     if (!item || typeof item.id !== 'string' || typeof item.title !== 'string' || item.title.length > 120 ||
-      !['navigation','information','lien','gallery','photos'].includes(item.type) ||
+      !['navigation','information','lien','gallery','photos','plan'].includes(item.type) ||
       (item.photos !== undefined && (!Array.isArray(item.photos) || item.photos.length > 300 || !item.photos.every(isSafeMediaLinkItem))) ||
       (item.gallery !== undefined && (!Array.isArray(item.gallery) || item.gallery.length > 200 ||
         !item.gallery.every(g => g && typeof g.sceneId === 'string' && typeof g.label === 'string' && g.label.length <= 100))) ||

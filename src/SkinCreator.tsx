@@ -14,7 +14,7 @@ const MEANINGS=[
   {key:'accueil',label:'Accueil',type:'navigation' as const,glyph:'home',title:'Accueil'},
   {key:'galerie',label:'Galerie des panoramas',type:'gallery' as const,glyph:'images',title:'Panoramas'},
   {key:'espaces',label:'Espaces',type:'gallery' as const,glyph:'grid',title:'Espaces'},
-  {key:'plan',label:'Plan / itinéraire',type:'lien' as const,glyph:'map',title:'Plan'},
+  {key:'plan',label:'Plan interactif',type:'plan' as const,glyph:'map',title:'Plan'},
   {key:'appeler',label:'Appeler',type:'lien' as const,glyph:'phone',title:'Appeler'},
   {key:'information',label:'Information',type:'information' as const,glyph:'info',title:'Infos'},
   {key:'web',label:'Site web',type:'lien' as const,glyph:'web',title:'Site web'},
