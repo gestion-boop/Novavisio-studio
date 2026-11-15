@@ -8,7 +8,9 @@ import type {CustomIcon} from './storage';
  */
 type State='normal'|'hover'|'pressed';
 export type IconSet={key:string;name:string;normal?:CustomIcon;hover?:CustomIcon;pressed?:CustomIcon;ids:string[]};
-const STATE_RE=/[_\s-]+(normal|survol|hover|presse|pressed|press|clic|click|active)$/i;
+// Accepte les noms importés classiques et ceux générés par l'éditeur
+// (« Nom · Normal », « Nom · Survol », « Nom · Pressé »).
+const STATE_RE=/[\s_\-·•]+(normal|survol|hover|pressé|presse|pressed|press|clic|click|active)$/i;
 const stateOf=(raw:string):State=>{const w=raw.toLowerCase();return w==='survol'||w==='hover'?'hover':w==='normal'?'normal':'pressed';};
 const cleanName=(n:string)=>n.replace(/\.(png|webp|svg|jpe?g|gif)$/i,'');
 
