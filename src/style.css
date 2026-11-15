@@ -1128,7 +1128,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-marker-move-grip:active{cursor:grabbing;transform:none!important;background:#4bebde;color:#08222b;}
 
 /* ── Point 3 : Retours visuels Drag & Drop dans le Panorama 360° ── */
-.panorama{position:relative;}
 .panorama.is-icon-drag-over::after{
   content:'';
   position:absolute;
