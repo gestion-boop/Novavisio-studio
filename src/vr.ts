@@ -507,6 +507,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
 
   // Les fenêtres gardent leur place quand on passe de l'une à l'autre (photo suivante, page, retour galerie) : elles ne suivent plus le regard.
+  // Distance des panneaux (galeries, textes, photos) : assez loin pour ne pas occuper tout le champ de vision.
+  const PANEL_DIST=2.25;
   let panelAnchor:{pos:Vector3;quat:Quaternion}|null=null;
   let panelReplace=false;
   const placePanel=(distance:number,drop:number)=>{
@@ -562,8 +564,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       roundRect(c,6,6,888,148,40);c.fillStyle='rgba(20,20,24,.85)';c.fill();
       c.fillStyle='#fff';c.font='bold 44px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(text,450,82);
     });
-    addPlane(noticeGroup,.9,.16,tex,7,0,0);
-    placeInFront(noticeGroup,1.4,-.25);
+    addPlane(noticeGroup,.62,.11,tex,7,0,0);
+    placeInFront(noticeGroup,2.1,-.4);
     clearTimeout(noticeTimer);noticeTimer=window.setTimeout(()=>clearGroup(noticeGroup),2600);
   };
 
@@ -635,7 +637,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
     };
     render();
-    placePanel(1.5,-.0);
+    placePanel(PANEL_DIST,-.0);
   };
   const showText=(title:string,text:string)=>showPages(title,[{text}]);
   /** Texte d'un point « i » dans la langue du visiteur (réglage Paramètres), avec le texte français en repli. */
@@ -715,7 +717,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.055,closePanels);
-    placePanel(1.5,0);
+    placePanel(PANEL_DIST,0);
   };
 
   /** Contenu d'une page web : lu directement dans le casque si le site propose /vr.json, sinon panneau « Ouvrir le site » (sortie du casque puis page affichée dans NovaStudio). */
@@ -753,12 +755,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     photoTex.minFilter=LinearFilter;
     addPlane(panelGroup,w,hgt,photoTex,6,0,.055);
     const titleTex=canvasTexture(960,120,c=>{
-      c.fillStyle='#17232b';c.font='bold 47px sans-serif';c.textAlign='center';c.textBaseline='middle';
+      c.fillStyle='#17232b';c.font='bold 36px sans-serif';c.textAlign='center';c.textBaseline='middle';
       const label=nav?title+'  ·  '+(nav.index+1)+'/'+nav.count:title;
       let t=label;while(c.measureText(t).width>900&&t.length>3)t=t.slice(0,-2);
       c.fillText(t===label?t:t+'…',480,60);
     });
-    addPlane(panelGroup,Math.min(W-.10,1.25),.10,titleTex,7,0,H/2-.08);
+    addPlane(panelGroup,Math.min(W-.10,1.0),.07,titleTex,7,0,H/2-.06);
     if(nav){
       // Flèches près de l'image (de part et d'autre), « Retour » à la galerie en bas.
       if(nav.count>1){
@@ -771,7 +773,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }),-.2,-H/2+.08,nav.back);
       addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.08,closePanels);
     }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
-    placePanel(1.55,0);
+    placePanel(PANEL_DIST,0);
   };
   const showPhoto=(h:Hotspot)=>showImagePanel(h.imageDataUrl||h.imageUrl,pick(h.title,h.titleTranslations,vlang())||'Photo');
 
@@ -812,7 +814,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           c.fillText(t===e.m.name?t:t.trimEnd()+'…',170,258);
         },cw,ch,x,y,()=>{void open(page*perPageP+k);});
       }
-      placePanel(1.7,-.0);
+      placePanel(PANEL_DIST,-.0);
     };
     await renderGrid();
   };
@@ -836,7 +838,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const toggle=addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.2,-H/2+.09,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
     void toggle;
     addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.09,closePanels);
-    placePanel(1.7,0);
+    placePanel(PANEL_DIST,0);
     void el.play().catch(()=>setNotice(tt('videoPlayHint')));
   };
 
@@ -870,7 +872,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           c.fillText(t===e.label?t:t.trimEnd()+'…',310,303);
         },cw,ch,x,y,()=>{void goTo(e.sceneId);});
       }
-      placePanel(1.6,-.0);
+      placePanel(PANEL_DIST,-.0);
     };
     await render();
   };
@@ -911,7 +913,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       addPanelButton(.105,.105,pointTexture(String(index+1),target.id===currentId),x,y,()=>{void goTo(target.id);},8);
     });
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.075,closePanels);
-    placePanel(1.55,0);
+    placePanel(PANEL_DIST,0);
   };
 
   function onBarItem(item:BottomBarItem){
