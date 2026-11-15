@@ -1,16 +1,18 @@
 import {
   CanvasTexture,Color,LinearFilter,DoubleSide,Group,Line,BufferGeometry,LineBasicMaterial,Float32BufferAttribute,Mesh,MeshBasicMaterial,
-  PerspectiveCamera,PlaneGeometry,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
+  PerspectiveCamera,PlaneGeometry,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
 } from 'three';
 import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
+import {resolveLink} from './mediaLinks';
+import {getPrefs} from './visitorPrefs';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
  * avec la manette, barre flottante, galerie de panoramas. Les panoramas sont allégés (4096 px max) pour le casque.
- * Les cadres photo/vidéo en perspective et la musique ne font pas encore partie de cette version.
- * Les points d'information texte, le style de barre et la galerie restent accessibles.
+ * Dans le casque : points d'information (texte en pages, ou pages d'un mini-site via /vr.json), photos, vidéos MP4/WebM, galerie de photos de la barre.
+ * Les cadres photo/vidéo en perspective dans le panorama ne sont pas encore affichés ; la musique continue de jouer via la page.
  */
 export const VR_MAX_TEXTURE=4096;
 const SPHERE_R=10,HOTSPOT_R=6;
@@ -191,12 +193,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         if(live.type==='information'){
           // Pour les points i, privilégier le texte et sa traduction.
           const detail=(live.text||'').trim();
+          if(!detail&&(live.imageDataUrl||live.imageUrl)){void showPhoto(live);return;}
+          if(!detail&&live.url){void showWebContent(live.title||'Informations',live.url);return;}
           showText(live.title||'Informations',detail||'Aucune information renseignée.');
           return;
         }
         if(live.type==='image'){void showPhoto(live);return;}
-        if(live.type==='lien'){showText(live.title||'Lien',live.url||'Aucun lien renseigné.');return;}
-        setNotice('Cette vidéo est disponible dans la visite classique.');
+        if(live.type==='lien'){void showWebContent(live.title||'Lien',live.url||'');return;}
+        if(live.type==='video'){
+          const direct=live.videoDataUrl||live.videoUrl;
+          if(direct)void showVideoPanel(direct,live.title||'Vidéo');
+          else setNotice('Cette vidéo se lit dans la visite classique.');
+          return;
+        }
       }
     }};
     return mesh;
@@ -339,7 +348,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     barPlacedPhi=headForward().phi;
   };
 
+  let activeVideo:{el:HTMLVideoElement;tex:VideoTexture}|null=null;
+  const stopVideo=()=>{
+    if(!activeVideo)return;
+    try{activeVideo.el.pause();activeVideo.el.removeAttribute('src');activeVideo.el.load();}catch{/* déjà arrêtée */}
+    activeVideo.tex.dispose();activeVideo=null;
+  };
   function closePanels(){
+    stopVideo();
     clearGroup(panelGroup);
     for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
   }
@@ -363,24 +379,81 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     clearTimeout(noticeTimer);noticeTimer=window.setTimeout(()=>clearGroup(noticeGroup),2600);
   };
 
-  const showText=(title:string,text:string)=>{
+  /** Texte en pages : chaque page tient dans le panneau, avec ◀ ▶ quand le contenu est long (plus de coupure à 10 lignes). */
+  const navTexture=(label:string,w=200)=>canvasTexture(w,110,c=>{
+    roundRect(c,6,6,w-12,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
+    c.fillStyle=iconColor;c.font='bold 52px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,w/2,58);
+  });
+  const showPages=(title:string,pages:{title?:string;text:string}[])=>{
     closePanels();
-    const W=1.1,H=.8;
-    const tex=canvasTexture(1100,800,c=>{
-      roundRect(c,6,6,1088,788,50);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-      c.fillStyle='#1b1b1f';c.font='bold 56px sans-serif';c.textAlign='left';c.textBaseline='top';c.fillText(title,60,50);
-      c.font='40px sans-serif';
-      wrapText(c,text||'Aucune information renseignée.',980).slice(0,10).forEach((l,i)=>c.fillText(l,60,150+i*54));
-    });
-    addPlane(panelGroup,W,H,tex,5,0,0);
-    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
+    const measure=document.createElement('canvas').getContext('2d')!;
+    measure.font='40px sans-serif';
+    const LINES=10;
+    // Découpe chaque page de texte en blocs de 10 lignes.
+    const chunks:{title:string;lines:string[]}[]=[];
+    for(const pg of pages){
+      const lines=wrapText(measure,(pg.text||'').trim()||'Aucune information renseignée.',980);
+      for(let i=0;i<lines.length;i+=LINES)chunks.push({title:pg.title||title,lines:lines.slice(i,i+LINES)});
+    }
+    if(!chunks.length)chunks.push({title,lines:['Aucune information renseignée.']});
+    let page=0;
+    const W=1.1,H=.82;
+    const render=()=>{
+      clearGroup(panelGroup);
+      for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
+      const chunk=chunks[page];
+      const tex=canvasTexture(1100,820,c=>{
+        roundRect(c,6,6,1088,808,50);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
+        c.fillStyle='#1b1b1f';c.font='bold 56px sans-serif';c.textAlign='left';c.textBaseline='top';
+        let t=chunk.title;while(c.measureText(t).width>980&&t.length>3)t=t.slice(0,-2);
+        c.fillText(t,60,46);
+        c.font='40px sans-serif';
+        chunk.lines.forEach((l,i)=>c.fillText(l,60,140+i*54));
+        if(chunks.length>1){c.font='32px sans-serif';c.fillStyle='#4a4a52';c.textAlign='right';c.fillText((page+1)+' / '+chunks.length,1040,52);}
+      });
+      addPlane(panelGroup,W,H,tex,5,0,0);
+      if(chunks.length>1){
+        addPanelButton(.2,.11,navTexture('◀'),-.5,-H/2+.1,()=>{page=(page-1+chunks.length)%chunks.length;render();});
+        addPanelButton(.2,.11,navTexture('▶'),.5,-H/2+.1,()=>{page=(page+1)%chunks.length;render();});
+      }
+      addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
+    };
+    render();
     placeInFront(panelGroup,1.5,-.0);
   };
+  const showText=(title:string,text:string)=>showPages(title,[{text}]);
 
-  // Photos cliquables (ex. cafetière) : vraie fenêtre-image en 3D, sans
-  // quitter WebXR, fermable avec la gâchette sur « Fermer ».
-  const showPhoto=async(h:Hotspot)=>{
-    const src=h.imageDataUrl||h.imageUrl;
+  /** Pages d'un mini-site NovaVisio (convention : /vr.json à côté de la page). Retourne null si le site n'en propose pas. */
+  const fetchVrDoc=async(url:string):Promise<{title:string;pages:{title?:string;text:string}[]}|null>=>{
+    try{
+      const base=new URL(url);
+      if(base.protocol!=='https:')return null;
+      const doc=new URL('vr.json',base);
+      const ctl=new AbortController();const timer=window.setTimeout(()=>ctl.abort(),6000);
+      const res=await fetch(doc.href,{signal:ctl.signal,referrerPolicy:'no-referrer'});
+      clearTimeout(timer);
+      if(!res.ok)return null;
+      type Doc={title?:string;pages?:{title?:string;text?:string}[];languages?:Record<string,Doc>};
+      const data=await res.json() as Doc;
+      // Plusieurs langues : on prend celle du visiteur (réglage Paramètres), sinon la première langue du projet, sinon le français.
+      const wanted=getPrefs().lang??project().languages?.[0]??'fr';
+      const pick=data.languages?(data.languages[wanted]??data.languages.fr??Object.values(data.languages)[0]):data;
+      const pages=(pick?.pages??[]).filter(p=>p&&typeof p.text==='string').map(p=>({title:typeof p.title==='string'?p.title:undefined,text:p.text as string}));
+      return pages.length?{title:typeof pick?.title==='string'?pick.title:'',pages}:null;
+    }catch{return null;}
+  };
+  /** Contenu qui se trouve sur une page web : lu dans le casque si le site propose /vr.json, sinon on explique et on donne l'adresse. */
+  const showWebContent=async(title:string,url:string)=>{
+    if(!url){showText(title||'Lien','Aucun lien renseigné.');return;}
+    setNotice('Chargement…');
+    const doc=await fetchVrDoc(url);
+    if(ended)return;
+    if(doc){showPages(doc.title||title,doc.pages);return;}
+    showText(title||'Page web','Ce contenu est une page web, qui ne peut pas s’afficher dans le casque.\nOuvre-la sur ton téléphone ou ton ordinateur :\n'+url);
+  };
+
+  // Image en grand dans un panneau 3D (fermable avec la gâchette). `nav` ajoute précédent / suivant / retour à la galerie.
+  const showImagePanel=async(src:string|undefined,title:string,nav?:{index:number;count:number;prev:()=>void;next:()=>void;back:()=>void})=>{
     if(!src){setNotice('Photo en cours de chargement…');opts.ensureScene?.(currentId);return;}
     const shownFor=currentId;
     let bitmap:HTMLCanvasElement;
@@ -392,7 +465,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const maxW=1.42,maxH=.92;
     const w=Math.min(maxW,maxH*ratio);
     const hgt=Math.min(maxH,maxW/ratio);
-    const W=Math.max(.65,w+.1),H=hgt+.24;
+    const W=Math.max(.95,w+.1),H=hgt+.24;
     const frame=canvasTexture(1024,1024,c=>{
       roundRect(c,8,8,1008,1008,56);c.fillStyle=panelBg;c.fill();
       c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
@@ -403,12 +476,103 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     addPlane(panelGroup,w,hgt,photoTex,6,0,.055);
     const titleTex=canvasTexture(960,120,c=>{
       c.fillStyle='#17232b';c.font='bold 47px sans-serif';c.textAlign='center';c.textBaseline='middle';
-      let title=h.title||'Photo';while(c.measureText(title).width>900&&title.length>3)title=title.slice(0,-2);
-      c.fillText(title===h.title?title:title+'…',480,60);
+      const label=nav?title+'  ·  '+(nav.index+1)+'/'+nav.count:title;
+      let t=label;while(c.measureText(t).width>900&&t.length>3)t=t.slice(0,-2);
+      c.fillText(t===label?t:t+'…',480,60);
     });
     addPlane(panelGroup,Math.min(W-.10,1.25),.10,titleTex,7,0,H/2-.08);
-    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
+    if(nav){
+      // Flèches près de l'image (de part et d'autre), « Retour » à la galerie en bas.
+      if(nav.count>1){
+        addPanelButton(.13,.2,navTexture('◀',130),-(w/2+.1),0,nav.prev);
+        addPanelButton(.13,.2,navTexture('▶',130),(w/2+.1),0,nav.next);
+      }
+      addPanelButton(.34,.11,canvasTexture(340,110,c=>{
+        roundRect(c,6,6,328,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
+        c.fillStyle=iconColor;c.font='bold 42px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('Galerie',170,58);
+      }),-.2,-H/2+.08,nav.back);
+      addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.08,closePanels);
+    }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
     placeInFront(panelGroup,1.55,0);
+  };
+  const showPhoto=(h:Hotspot)=>showImagePanel(h.imageDataUrl||h.imageUrl,h.title||'Photo');
+
+  // Galerie de photos / vidéos d'un bouton de la barre (type « photos ») : vignettes puis image en grand.
+  const showPhotoGallery=async(item:BottomBarItem)=>{
+    closePanels();
+    const entries=(item.photos??[]).map(m=>({m,r:resolveLink(m)})).filter(e=>e.r.image||e.r.video||e.r.embed);
+    if(!entries.length){showText(item.title||'Photos','Aucune photo dans cette galerie.');return;}
+    const perPage=8,cols=4;
+    let page=0;
+    const open=async(i:number)=>{
+      const e=entries[i];
+      const count=entries.length;
+      const nav={index:i,count,prev:()=>{void open((i-1+count)%count);},next:()=>{void open((i+1)%count);},back:()=>{void renderGrid();}};
+      if(e.m.kind==='photo')await showImagePanel(e.r.image,e.m.name,nav);
+      else if(e.r.video)await showVideoPanel(e.r.video,e.m.name);
+      else setNotice('Cette vidéo se lit dans la visite classique.');
+    };
+    const renderGrid=async()=>{
+      closePanels();
+      const slice=entries.slice(page*perPage,page*perPage+perPage);
+      const W=1.7,H=1.12;
+      const bgTex=canvasTexture(1700,1120,c=>{
+        roundRect(c,6,6,1688,1108,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
+        c.fillStyle='#1b1b1f';c.font='bold 60px sans-serif';c.textAlign='left';c.textBaseline='top';c.fillText(item.title||'Photos',70,48);
+        c.font='34px sans-serif';c.fillStyle='#4a4a52';c.textAlign='right';c.fillText(entries.length+' éléments',1630,62);
+      });
+      addPlane(panelGroup,W,H,bgTex,5,0,0);
+      for(let k=0;k<slice.length;k++){
+        const e=slice[k];
+        const col=k%cols,row=Math.floor(k/cols);
+        const cw=.38,ch=.34;
+        const x=(col-1.5)*(cw+.04),y=.17-row*(ch+.05);
+        let thumb:HTMLCanvasElement|null=null;
+        const src=e.r.thumb??e.r.image;
+        if(e.m.kind==='photo'&&src){try{thumb=await loadReduced(src,320);}catch{thumb=null;}}
+        const tex=canvasTexture(380,340,c=>{
+          roundRect(c,6,6,368,328,30);c.fillStyle=btnBg;c.fill();c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
+          c.save();roundRect(c,20,20,340,226,22);c.clip();
+          if(thumb)c.drawImage(thumb,20,20,340,226);else{c.fillStyle='#222';c.fillRect(20,20,340,226);c.fillStyle='#fff';c.font='bold 90px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',190,134);}
+          c.restore();
+          c.fillStyle=iconColor;c.font='bold 32px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
+          let t=e.m.name;while(c.measureText(t).width>330&&t.length>2)t=t.slice(0,-2);
+          c.fillText(t===e.m.name?t:t.trimEnd()+'…',190,296);
+        });
+        addPanelButton(cw,ch,tex,x,y,()=>{void open(page*perPage+k);});
+      }
+      const pages=Math.max(1,Math.ceil(entries.length/perPage));
+      if(pages>1){
+        addPanelButton(.2,.11,navTexture('◀'),-.6,-H/2+.1,()=>{page=(page-1+pages)%pages;void renderGrid();});
+        addPanelButton(.2,.11,navTexture('▶'),.6,-H/2+.1,()=>{page=(page+1)%pages;void renderGrid();});
+      }
+      addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
+      placeInFront(panelGroup,1.7,-.0);
+    };
+    await renderGrid();
+  };
+
+  // Vidéo lue dans le casque (fichier MP4/WebM du projet) : panneau 16:9 avec lecture / pause.
+  const showVideoPanel=async(src:string|undefined,title:string)=>{
+    if(!src){setNotice('Cette vidéo se lit dans la visite classique.');return;}
+    closePanels();
+    const el=document.createElement('video');
+    el.src=src;el.crossOrigin='anonymous';el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');
+    el.preload='auto';
+    const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
+    activeVideo={el,tex};
+    const W=1.6,Hv=W*9/16,H=Hv+.3;
+    addPlane(panelGroup,W+.1,H,canvasTexture(1100,700,c=>{roundRect(c,8,8,1084,684,50);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();}),5,0,0);
+    addPlane(panelGroup,W,Hv,tex,6,0,.06);
+    addPlane(panelGroup,1.2,.09,canvasTexture(960,72,c=>{
+      c.fillStyle='#17232b';c.font='bold 40px sans-serif';c.textAlign='center';c.textBaseline='middle';
+      let t=title;while(c.measureText(t).width>900&&t.length>3)t=t.slice(0,-2);c.fillText(t,480,38);
+    }),7,0,H/2-.07);
+    const toggle=addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.2,-H/2+.09,()=>{if(el.paused)void el.play().catch(()=>setNotice('Lecture impossible.'));else el.pause();});
+    void toggle;
+    addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.09,closePanels);
+    placeInFront(panelGroup,1.7,0);
+    void el.play().catch(()=>setNotice('Touche ❚❚ / ▶ pour lancer la vidéo.'));
   };
 
   const showGallery=async(item:BottomBarItem)=>{
@@ -465,12 +629,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Bouton Espaces sans cible : affiche la liste des panoramas et espaces.
       void showGallery({...item,type:'gallery',galleryTitle:item.title||'Espaces',gallery:project().scenes.map(scene=>({sceneId:scene.id,label:scene.name})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
+    if(item.type==='photos'){void showPhotoGallery(item);return;}
     if(item.type==='information'){
-      const detail=(item.text||'').trim()||(item.url||'').trim();
+      const detail=(item.text||'').trim();
+      if(!detail&&item.url){void showWebContent(item.title||'Informations',item.url);return;}
       showText(item.title||'Informations',detail||'Aucune information renseignée.');
       return;
     }
-    if(item.type==='lien'){showText(item.title,item.url||'Aucun lien renseigné.');return;}
+    if(item.type==='lien'){void showWebContent(item.title,item.url||'');return;}
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
 
