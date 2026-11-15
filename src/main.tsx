@@ -65,6 +65,7 @@ import {mergeImportedSpaces} from './spaceTransfer';
 import {rememberMedia} from './mediaLibrary';
 import {IconLibrary,buildIconSets} from './IconLibrary';
 import type {IconSetImages} from './IconSetCreator';
+import {ExistingIconPackPicker} from './ExistingIconPackPicker';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -5595,6 +5596,10 @@ function App(){
             setProject(p=>({...p,icons:[...p.icons,a,b,c].slice(0,150),settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id}));
             setStatus('Icône Paramètres ajoutée à la bibliothèque : tu peux la remplacer par la tienne');
           }}>⚙ Mettre l’icône Paramètres dans ma bibliothèque (modifiable)</button>}
+          <ExistingIconPackPicker project={project}
+            value={{iconId:project.settingsIconId,hoverIconId:project.settingsHoverIconId,pressedIconId:project.settingsPressedIconId}}
+            preferred="settings" label="Choisir un pack de 3 pour Paramètres"
+            onSelect={pack=>{setProject(p=>({...p,settingsIconId:pack.iconId,settingsHoverIconId:pack.hoverIconId,settingsPressedIconId:pack.pressedIconId}));setStatus('Pack Paramètres appliqué : '+pack.name);}}/>
           {iconStateEditor('settings-normal','Paramètres · Normal',project.settingsIconId,
             id=>setProject(p=>({...p,settingsIconId:id})),'⚙')}
           {iconStateEditor('settings-hover','Paramètres · Survol',project.settingsHoverIconId,
@@ -5618,6 +5623,10 @@ function App(){
           <InspectorSection title="Boutons son de la visite">
           <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
           <div className="section-title">SON ACTIVÉ — 3 ICÔNES</div>
+          <ExistingIconPackPicker project={project}
+            value={{iconId:project.soundOnIconId,hoverIconId:project.soundOnHoverIconId,pressedIconId:project.soundOnPressedIconId}}
+            preferred="audio" label="Choisir un pack de 3 pour Son activé"
+            onSelect={pack=>{setProject(p=>({...p,soundOnIconId:pack.iconId,soundOnHoverIconId:pack.hoverIconId,soundOnPressedIconId:pack.pressedIconId}));setStatus('Pack Son activé appliqué : '+pack.name);}}/>
           {iconStateEditor('audio-on-normal','Son activé · Normal',project.soundOnIconId,
             id=>setProject(p=>({...p,soundOnIconId:id})),'🔊')}
           {iconStateEditor('audio-on-hover','Son activé · Survol',project.soundOnHoverIconId,
@@ -5625,6 +5634,10 @@ function App(){
           {iconStateEditor('audio-on-pressed','Son activé · Clic',project.soundOnPressedIconId,
             id=>setProject(p=>({...p,soundOnPressedIconId:id})),'🔊')}
           <div className="section-title">SON COUPÉ — 3 ICÔNES</div>
+          <ExistingIconPackPicker project={project}
+            value={{iconId:project.soundOffIconId,hoverIconId:project.soundOffHoverIconId,pressedIconId:project.soundOffPressedIconId}}
+            preferred="audio" label="Choisir un pack de 3 pour Son coupé"
+            onSelect={pack=>{setProject(p=>({...p,soundOffIconId:pack.iconId,soundOffHoverIconId:pack.hoverIconId,soundOffPressedIconId:pack.pressedIconId}));setStatus('Pack Son coupé appliqué : '+pack.name);}}/>
           {iconStateEditor('audio-off-normal','Son coupé · Normal',project.soundOffIconId,
             id=>setProject(p=>({...p,soundOffIconId:id})),'🔇')}
           {iconStateEditor('audio-off-hover','Son coupé · Survol',project.soundOffHoverIconId,
@@ -5661,6 +5674,14 @@ function App(){
               <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
               <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Aucune croix personnalisée sélectionnée'}</small></div>
             </div>
+            <ExistingIconPackPicker project={project}
+              value={{iconId:project.closeIconId,hoverIconId:project.closeIconHoverId,pressedIconId:project.closeIconPressedId}}
+              preferred="close" label="Choisir une croix dans mes packs de 3"
+              onSelect={pack=>{
+                setProject(p=>({...p,closeIconId:pack.iconId,closeIconHoverId:pack.hoverIconId,closeIconPressedId:pack.pressedIconId}));
+                setStatus('Pack « '+pack.name+' » appliqué à la croix : Normal, Survol et Pressé. Sauvegarde avec la disquette.');
+              }}/>
+            <details className="nv-icon-single-states"><summary>Modifier les 3 images séparément (facultatif)</summary>
             {iconStateEditor('global-close-icon','Croix globale',project.closeIconId,
               id=>setProject(p=>({...p,closeIconId:id})),'Croix classique')}
             {iconStateEditor('global-close-hover-icon','Croix · Survol',project.closeIconHoverId,
@@ -5668,6 +5689,7 @@ function App(){
             {iconStateEditor('global-close-pressed-icon','Croix · Pressé',project.closeIconPressedId,
               id=>setProject(p=>({...p,closeIconPressedId:id})),'Identique au survol')}
             {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
+            </details>
             <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
           </InspectorSection>
           <details className="nv-icons-library" open>
