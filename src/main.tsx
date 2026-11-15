@@ -33,6 +33,7 @@ import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
 import {autoIconZoom} from './iconFit';
 import {MediaLibraryPanel} from './MediaLibraryPanel';
+import {PhotoGallery} from './PhotoGallery';
 import {resolveLink} from './mediaLinks';
 import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
@@ -768,6 +769,7 @@ function App(){
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
   const visitorPrefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [photoGalleryId,setPhotoGalleryId]=useState<string|null>(null);
   const sphereImage=(id:string)=>projectRef.current.scenes.find(sc=>sc.id===id)?.dataUrl;
   const settingsIconSrc=project.icons.find(i=>i.id===(project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId))?.dataUrl;
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
@@ -2526,7 +2528,7 @@ function App(){
   function chooseBarAction(type:BottomBarItem['type'],tab?:BarGalleryTab){
     if(tab)setBarGalleryTab(tab);
     // Keep existing selections and content when changing the button's action.
-    patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:{type});
+    patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:type==='photos'?{type,photos:selectedBar?.photos??[]}:{type});
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
@@ -2541,6 +2543,7 @@ function App(){
       return;
     }
     if(item.type==='gallery'){setGalleryOpen(item.id);return;}
+    if(item.type==='photos'){setPhotoGalleryId(item.id);return;}
     if(item.type==='navigation'){
       const dest=item.target && visibleIds.has(item.target)?item.target:visibleScenes[0]?.id;
       if(dest)selectScene(dest);
@@ -4426,6 +4429,10 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
+          {preview&&photoGalleryId&&(()=>{
+            const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
+            return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
+          })()}
           {preview&&galleryOpen&&(()=>{
             const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!item)return null;
@@ -4868,12 +4875,13 @@ function App(){
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
             <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
-            <BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')}/>
+            <BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
               <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
               <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
               <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
+              <button type="button" aria-pressed={selectedBar.type==='photos'} onClick={()=>chooseBarAction('photos')}>▣ Photos</button>
               <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
               <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
             </div>

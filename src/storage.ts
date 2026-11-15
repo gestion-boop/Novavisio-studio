@@ -69,7 +69,9 @@ export type BottomBarItem = {
   /** Zoom de l'icône dans son bouton (100–250 %) : compense les marges transparentes de l'image. */
   iconZoom?: number;
   title: string;
-  type: 'navigation' | 'information' | 'lien' | 'gallery';
+  type: 'navigation' | 'information' | 'lien' | 'gallery' | 'photos';
+  /** Type « photos » : galerie de photos / vidéos affichée en grand (copies des éléments choisis dans la bibliothèque Photos & Vidéos). */
+  photos?: MediaLinkItem[];
   gallery?: GalleryItem[];
   galleryTitle?: string;
   /** Photo de fond du panneau d'espaces : « scene:<id> » (un panorama) ou « space:<id> » (la couverture d'un espace). */
@@ -127,6 +129,8 @@ export const isSafeVideoData = (s:unknown):s is string =>
   typeof s==='string' && /^data:video\/(?:mp4|webm);base64,[A-Za-z0-9+/=]+$/.test(s);
 export const isSafeAudioData = (s:unknown):s is string =>
   typeof s==='string' && /^data:audio\/(?:mpeg|mp3|ogg|wav|webm|mp4|x-wav);base64,[A-Za-z0-9+/=]+$/.test(s);
+export const isSafeMediaLinkItem=(m:MediaLinkItem):boolean=>!!m&&typeof m.id==='string'&&['photo','video'].includes(m.kind)&&typeof m.name==='string'&&m.name.length<=200&&['local','gdrive','kdrive','web'].includes(m.provider)&&
+  (m.provider==='local'?(m.kind==='photo'?isSafeFrameImage(m.data)&&m.data.length<=12_000_000:isSafeVideoData(m.data)&&m.data.length<=Math.ceil(VIDEO_MAX_BYTES/3)*4+64):isSafeMediaUrl(m.url));
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
 export type ClientProfile = {novagenId:string;name:string;category:string;address:string;city:string;phone:string;email:string;website:string;facebook:string;instagram:string;otherLinks:string;description:string; bookingUrl?:string; openingHours?:string; services?:string; logoUrl?:string; photoUrls?:string[]; sourceNotes?:string[]};
@@ -230,9 +234,8 @@ export function validateProject(value:unknown):StudioProject {
   }
   if(p.barIconTrim!==undefined&&typeof p.barIconTrim!=='boolean')throw new Error('Réglage des icônes de la barre invalide');
   if(p.mediaLibrary!==undefined){
-    const okItem=(m:MediaLinkItem)=>!!m&&typeof m.id==='string'&&['photo','video'].includes(m.kind)&&typeof m.name==='string'&&m.name.length<=200&&['local','gdrive','kdrive','web'].includes(m.provider)&&
-      (m.provider==='local'?(m.kind==='photo'?isSafeFrameImage(m.data)&&m.data.length<=12_000_000:isSafeVideoData(m.data)&&m.data.length<=Math.ceil(VIDEO_MAX_BYTES/3)*4+64):isSafeMediaUrl(m.url));
-    if(!Array.isArray(p.mediaLibrary)||p.mediaLibrary.length>300||!p.mediaLibrary.every(okItem))
+
+    if(!Array.isArray(p.mediaLibrary)||p.mediaLibrary.length>300||!p.mediaLibrary.every(isSafeMediaLinkItem))
       throw new Error('Bibliothèque Photos et Vidéos invalide');
   }
   if((p.settingsIconSize!==undefined&&(!Number.isFinite(p.settingsIconSize)||p.settingsIconSize<32||p.settingsIconSize>120))||
@@ -279,7 +282,8 @@ export function validateProject(value:unknown):StudioProject {
   if(!Array.isArray(bottomBar) || bottomBar.length > 30) throw new Error('Barre d’icônes non valide');
   for(const item of bottomBar) {
     if (!item || typeof item.id !== 'string' || typeof item.title !== 'string' || item.title.length > 120 ||
-      !['navigation','information','lien','gallery'].includes(item.type) ||
+      !['navigation','information','lien','gallery','photos'].includes(item.type) ||
+      (item.photos !== undefined && (!Array.isArray(item.photos) || item.photos.length > 300 || !item.photos.every(isSafeMediaLinkItem))) ||
       (item.gallery !== undefined && (!Array.isArray(item.gallery) || item.gallery.length > 200 ||
         !item.gallery.every(g => g && typeof g.sceneId === 'string' && typeof g.label === 'string' && g.label.length <= 100))) ||
       (item.gallerySpaceIds!==undefined&&(!Array.isArray(item.gallerySpaceIds)||item.gallerySpaceIds.length>80||item.gallerySpaceIds.some(id=>typeof id!=='string'))) ||

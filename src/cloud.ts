@@ -51,6 +51,7 @@ export function mediaSlots(p:StudioProject):Slot[]{
   p.audioTracks.forEach(t=>add(t,'dataUrl','audio'));
   p.bottomBar?.forEach(b=>{if(b.galleryBackgroundImage)add(b,'galleryBackgroundImage','frame');});
   (p.mediaLibrary??[]).forEach(m=>{if(m.data)add(m,'data',m.kind==='photo'?'frame':'video');});
+  p.bottomBar?.forEach(b=>(b.photos??[]).forEach(m=>{if(m.data)add(m,'data',m.kind==='photo'?'frame':'video');}));
   p.scenes.forEach(s=>{
     add(s,'dataUrl','panorama');add(s,'nightDataUrl','panorama');add(s,'audioDataUrl','audio');
     s.hotspots.forEach(h=>{add(h,'imageDataUrl','frame');add(h,'videoDataUrl','video');});

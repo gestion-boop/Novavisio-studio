@@ -32,6 +32,7 @@ function hydrate(snapshot:StudioProject,loaded:Map<string,string>):StudioProject
   const swap=(v?:string)=>isRef(v)?loaded.get(v):v;
   p.icons.forEach(i=>{i.dataUrl=swap(i.dataUrl)??'';});
   p.audioTracks.forEach(t=>{t.dataUrl=swap(t.dataUrl);});
+  p.bottomBar?.forEach(b=>(b.photos??[]).forEach(m=>{m.data=swap(m.data);}));
   p.scenes.forEach(scene=>{
     // A 360° scene no longer waits for big framed images, videos or audio.
     scene.dataUrl=swap(scene.dataUrl)??'';
@@ -120,6 +121,13 @@ function Share(){
           await Promise.allSettled(snap.audioTracks.filter(t=>isRef(t.dataUrl)).map(t=>fetchRef(t.dataUrl!)));
           if(alive.current)setVersion(v=>v+1);
         };
+        const fetchBarPhotos=async()=>{
+          const refs=(snap.bottomBar??[]).flatMap(b=>(b.photos??[]).map(m=>m.data)).filter(isRef);
+          for(const ref of refs){
+            if(!alive.current)return;
+            try{await fetchRef(ref);if(alive.current)setVersion(v=>v+1);}catch{/* photo indisponible : tuile vide */}
+          }
+        };
         void fetchIcons();
         void fetchAudio();
         // The first 360° picture has network priority. Others follow without blocking the intro.
@@ -129,6 +137,7 @@ function Share(){
             if(!alive.current)return;
             await ensureScene(scene.id);
           }
+          void fetchBarPhotos(); // les photos de la galerie viennent après les panoramas
         })();
       }catch(e){
         if(alive.current)setPhase({kind:'error',message:e instanceof Error?e.message:'Impossible de charger la visite'});

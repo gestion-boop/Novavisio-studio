@@ -19,6 +19,7 @@ import {barIconSize,barHeightFor,defaultBarStyle,defaultFrameCorners,STUDIO_LANG
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
@@ -214,6 +215,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [photo,setPhoto]=useState<Hotspot|null>(null);
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
   const [galleryId,setGalleryId]=useState<string|null>(null);
+  const [photosId,setPhotosId]=useState<string|null>(null);
   const [arrival,setArrival]=useState<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [video,setVideo]=useState<Hotspot|null>(null);
   const [showIntro,setShowIntro]=useState(()=>Boolean(
@@ -337,6 +339,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const information=(h:Hotspot)=>setModal({title:h.title,text:lang==='fr'?h.text:(h.translations?.[lang]||h.text),fontFamily:h.fontFamily});
   const act=(item:BottomBarItem)=>{
     if(item.type==='gallery'){setGalleryId(item.id);return;}
+    if(item.type==='photos'){setPhotosId(item.id);return;}
     if(item.type==='navigation'){
       move(item.target||project.scenes[0].id);
     }else if(item.url && checkedLink(item.url)){
@@ -431,6 +434,10 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       </section>
     </div>}
     {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
+    {photosId&&(()=>{
+      const item=project.bottomBar?.find(b=>b.id===photosId&&b.type==='photos');
+      return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotosId(null)}/>:null;
+    })()}
     {galleryId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
       if(!item)return null;

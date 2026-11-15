@@ -32,6 +32,7 @@ function addSoundOrVideo(zip:JSZip,dataUrl:string,path:string):string {
 }
 function publicProject(zip:JSZip,source:StudioProject):StudioProject {
   return {...source,
+    bottomBar:source.bottomBar?.map((b,bi)=>b.photos?.length?{...b,photos:b.photos.map((m,mi)=>m.data?{...m,data:m.kind==='photo'?addImage(zip,m.data,'media/galerie/bouton-'+(bi+1)+'-'+String(mi+1).padStart(3,'0')+'-'+m.id):addSoundOrVideo(zip,m.data,'media/galerie/bouton-'+(bi+1)+'-'+String(mi+1).padStart(3,'0')+'-'+m.id)}:m)}:b),
     scenes:source.scenes.map((scene,i)=>({
       ...scene,
       dataUrl:addImage(zip,scene.dataUrl,'media/panoramas/pano-'+String(i+1).padStart(3,'0')+'-'+scene.id),
