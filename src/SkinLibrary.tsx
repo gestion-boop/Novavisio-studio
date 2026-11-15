@@ -1,6 +1,6 @@
 import {useEffect,useState,type Dispatch,type SetStateAction} from 'react';
 import type {StudioProject} from './storage';
-import {applySkin,captureSkin,deleteSkin,exportSkin,listSkins,storeSkin,validateSkin,type Skin} from './skins';
+import {applySkin,captureSkin,chooseDefaultSkin,defaultSkinId,deleteSkin,exportSkin,listSkins,storeSkin,validateSkin,type Skin} from './skins';
 import {PreparationDialog} from './PreparationControls';
 import {SkinCreator} from './SkinCreator';
 
@@ -8,16 +8,17 @@ type Props={project:StudioProject;setProject:Dispatch<SetStateAction<StudioProje
 export function SkinChoices({project,setProject,onApplied}:Props){
   const [skins,setSkins]=useState<Skin[]>([]),[name,setName]=useState('Skin '+project.name.slice(0,65));
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[creating,setCreating]=useState(false);
+  const [selectedDefault,setSelectedDefault]=useState<string|null>(()=>defaultSkinId());
   const refresh=async()=>setSkins(await listSkins());
   useEffect(()=>{void refresh().catch(()=>setMessage('La bibliothèque locale est indisponible. Tu peux exporter ton skin en fichier.'));},[]);
   async function run(action:()=>Promise<void>,success:string){setBusy(true);setMessage('');try{await action();await refresh();setMessage(success);}catch(error){setMessage(error instanceof Error?error.message:'Action impossible');}finally{setBusy(false);}}
   const current=()=>captureSkin(project,name);
   return <div className="nv-skin-library">
-    <p className="nv-setup-note">Un skin conserve les couleurs, les dimensions, les langues et les icônes. Les liens, les textes, les panoramas et la musique du projet restent en place.</p>
+    <p className="nv-setup-note">Un modèle (skin) conserve ta charte, la barre, tous les packs de trois icônes et le choix VR. Les photos, vidéos, panoramas, coordonnées, liens et textes du client précédent ne sont jamais copiés. Un modèle peut être appliqué automatiquement aux nouvelles visites.</p>
     <button type="button" className="nv-skin-new" onClick={()=>setCreating(true)}>＋ Création de skin</button>
     {creating&&<SkinCreator project={project} onClose={()=>setCreating(false)} onSave={async skin=>{await storeSkin(skin);await refresh();setMessage('Skin « '+skin.name+' » créé : tu peux le choisir à la création de n’importe quel projet.');}}/>}
     <div className="nv-skin-create"><label>Nom du skin<input maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></label>
-      <button type="button" disabled={busy||!name.trim()} onClick={()=>void run(async()=>{await storeSkin(current());},'Skin enregistré dans ce navigateur.')}>Enregistrer ce skin</button>
+      <button type="button" disabled={busy||!name.trim()} onClick={()=>void run(async()=>{await storeSkin(current());},'Modèle enregistré dans ce navigateur. Active « Par défaut » pour le réutiliser automatiquement.')}>Enregistrer ce skin</button>
       <button type="button" disabled={busy||!name.trim()} onClick={()=>{try{exportSkin(current());}catch(e){setMessage(String(e));}}}>Exporter le style actuel</button>
     </div>
     <div className="nv-skin-toolbar"><label className="nv-file-button">Importer un skin<input type="file" accept=".json,.nvskin.json,application/json" disabled={busy} onChange={e=>{
@@ -27,20 +28,22 @@ export function SkinChoices({project,setProject,onApplied}:Props){
     <p role="status" className="nv-setup-message">{message}</p>
     {!skins.length&&<p className="nv-setup-empty">Aucun skin enregistré. Prépare ton apparence, puis enregistre-la ici.</p>}
     <div className="nv-skin-grid">{skins.map(skin=><SkinCard key={skin.id} skin={skin} busy={busy}
+      isDefault={selectedDefault===skin.id}
+      onSetDefault={()=>{try{const id=selectedDefault===skin.id?null:skin.id;chooseDefaultSkin(id);setSelectedDefault(id);setMessage(id?'Modèle « '+skin.name+' » défini par défaut : il sera appliqué aux nouveaux projets.':'Modèle par défaut désactivé.');}catch(error){setMessage(String(error));}}}
       onApply={()=>{try{setProject(applySkin(project,skin));setMessage('Skin « '+skin.name+' » appliqué.');onApplied?.();}catch(error){setMessage(String(error));}}}
       onRename={name=>void run(()=>storeSkin({...skin,name,updatedAt:new Date().toISOString()}),'Skin renommé.')}
       onUpdate={()=>{if(window.confirm('Remplacer l’apparence du skin « '+skin.name+' » par celle du projet actuel ?'))void run(()=>storeSkin(captureSkin(project,skin.name,skin.id)),'Skin mis à jour.');}}
-      onDelete={()=>{if(window.confirm('Supprimer le skin « '+skin.name+' » de la bibliothèque ?'))void run(()=>deleteSkin(skin.id),'Skin supprimé.');}}/>)}</div>
+      onDelete={()=>{if(window.confirm('Supprimer le skin « '+skin.name+' » de la bibliothèque ?'))void run(async()=>{await deleteSkin(skin.id);if(selectedDefault===skin.id){chooseDefaultSkin(null);setSelectedDefault(null);}},'Skin supprimé.');}}/>)}</div>
   </div>;
 }
-function SkinCard({skin,busy,onApply,onRename,onUpdate,onDelete}:{skin:Skin;busy:boolean;onApply:()=>void;onRename:(name:string)=>void;onUpdate:()=>void;onDelete:()=>void}){
+function SkinCard({skin,busy,isDefault,onSetDefault,onApply,onRename,onUpdate,onDelete}:{skin:Skin;busy:boolean;isDefault:boolean;onSetDefault:()=>void;onApply:()=>void;onRename:(name:string)=>void;onUpdate:()=>void;onDelete:()=>void}){
   const [name,setName]=useState(skin.name);
   return <article className="nv-skin-card"><div className="nv-skin-preview" style={{background:skin.appearance.barStyle.background,borderColor:skin.appearance.barStyle.outline}}>
     {skin.appearance.bottomBar.slice(0,5).map(item=><span key={item.id} style={{background:skin.appearance.barStyle.button,color:skin.appearance.barStyle.icon}}>
       {item.iconId?<img src={skin.appearance.icons.find(i=>i.id===item.iconId)?.dataUrl} alt=""/>:'✦'}
     </span>)}
   </div><label>Nom<input aria-label={'Renommer '+skin.name} maxLength={80} value={name} onChange={e=>setName(e.target.value)}/></label>
-    <div className="nv-skin-card-actions"><button type="button" disabled={busy} onClick={onApply}>Appliquer</button>
+    <div className="nv-skin-card-actions"><button type="button" disabled={busy} onClick={onSetDefault} aria-pressed={isDefault}>{isDefault?'★ Modèle par défaut':'☆ Utiliser par défaut'}</button><button type="button" disabled={busy} onClick={onApply}>Appliquer</button>
       <button type="button" disabled={busy||!name.trim()||name===skin.name} onClick={()=>onRename(name)}>Renommer</button>
       <button type="button" disabled={busy} onClick={onUpdate}>Mettre à jour</button>
       <button type="button" disabled={busy} onClick={()=>exportSkin(skin)}>Exporter</button>
