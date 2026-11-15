@@ -3,6 +3,7 @@ import {Image,Play} from 'lucide-react';
 import {IconStateVisual} from './media';
 import {buildIconSets} from './IconLibrary';
 import {IconSetCreator,type IconSetImages} from './IconSetCreator';
+import {ExistingIconPackPicker} from './ExistingIconPackPicker';
 import type {DefaultNavigationIcon,StudioProject} from './storage';
 import type {Dispatch,SetStateAction} from 'react';
 const KIND_NAME={image:/photo|image|picto|galerie|gallery|camera|appareil|diapo/i,video:/vid[eé]o|film|play|lecture|cin[eé]ma|clip/i};
@@ -39,6 +40,9 @@ export function MediaIconSelector({project,value,onChange,label,kind,onImportPac
       onClick={()=>pick({iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})}>
       <span><img alt="" src={thumb(item.iconId)}/></span><small>{item.name}</small></button>)}
    </div>
+   <ExistingIconPackPicker project={project} value={value} preferred={kind}
+     label="Choisir un pack de 3 déjà créé"
+     onSelect={pack=>pick({iconId:pack.iconId,hoverIconId:pack.hoverIconId,pressedIconId:pack.pressedIconId})}/>
    {onImportPack&&<div className="nv-media-icon-import">
      <IconSetCreator toggleLabel="Importer mon pack de 3 ici" onCreate={async(name,images)=>{
        await onImportPack(name,images);
