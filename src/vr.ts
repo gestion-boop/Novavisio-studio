@@ -451,6 +451,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       clearGroup(barGroup);clearGroup(vrShellGroup);
       return;
     }
+    if(referenceMode){
     clearGroup(barGroup);clearGroup(vrShellGroup);
     // Une plaque commune (fond + bord fin) soude les trois colonnes,
     // au lieu de les laisser flotter à des profondeurs indépendantes.
@@ -502,7 +503,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
     }
     barPlacedPhi=headForward().phi;
-  };
+    return;
+    }
     const items=project().bottomBar??[];
     const bw=.145,bh=.145,gap=.013;
     const entries:{item?:BottomBarItem;label:string}[]=[...items.map(item=>({item,label:pick(item.title,item.titleTranslations,vlang())})),{label:tt('quitVr')}];
