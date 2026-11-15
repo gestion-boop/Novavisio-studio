@@ -187,10 +187,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Toujours lire la dernière version du point : les médias Cloud peuvent
         // finir de charger après la création des icônes WebXR.
         const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
-        if(live.type==='image'||(live.type==='information'&&(live.imageDataUrl||live.imageUrl))){
-          void showPhoto(live);return;
+        if(live.type==='information'){
+          // Un point « i » est d'abord une fiche de renseignements : ne pas
+          // remplacer son texte par l'image associée.
+          const detail=(live.text||'').trim();
+          if(detail){showText(live.title||'Informations',detail);return;}
+          if(live.imageDataUrl||live.imageUrl){void showPhoto(live);return;}
+          showText(live.title||'Informations','Aucune information renseignée.');return;
         }
-        if(live.type==='information'){showText(live.title||'Informations',live.text);return;}
+        if(live.type==='image'){void showPhoto(live);return;}
         if(live.type==='lien'){showText(live.title||'Lien',live.url||'Aucun lien renseigné.');return;}
         setNotice('Cette vidéo est disponible dans la visite classique.');
       }
@@ -265,7 +270,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Icônes de la barre Quest : mêmes boutons ronds que la visite NovaStudio.
   // Les PNG personnalisés conservent leur charte, mais leurs angles carrés
   // sont masqués par une découpe circulaire dans la texture WebXR.
-  const barCircleTexture=async(iconSrc:string|undefined,glyph:string):Promise<CanvasTexture>=>{
+  const barCircleTexture=async(iconSrc:string|undefined,glyph:string,zoom=100):Promise<CanvasTexture>=>{
     const img=iconSrc?await loadImage(iconSrc):null;
     return canvasTexture(320,320,c=>{
       const cx=160,cy=160,r=151;
@@ -274,7 +279,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       c.save();
       c.beginPath();c.arc(cx,cy,r-6,0,Math.PI*2);c.clip();
       if(img){
-        const scale=Math.min(286/img.width,286/img.height);
+        // Respecte les proportions du vrai logo NovaStudio et son zoom défini
+        // dans l'éditeur, plutôt que de le forcer dans une image carrée.
+        const factor=Math.max(1,Math.min(2.5,zoom/100));
+        const scale=Math.min(268/img.width,268/img.height)*factor;
         const w=img.width*scale,h=img.height*scale;
         c.drawImage(img,(320-w)/2,(320-h)/2,w,h);
       }else{
@@ -313,8 +321,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(e.item){
         const item=e.item;
         const icon=project().icons?.find(i=>i.id===item.iconId);
-        const tex=await barCircleTexture(icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i');
-        addButton(barGroup,bw,bh,tex,x,0,()=>onBarItem(item));
+        const tex=await barCircleTexture(icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i',item.iconZoom??100);
+        const hover=project().icons?.find(i=>i.id===item.hoverIconId);
+        const pressed=project().icons?.find(i=>i.id===item.pressedIconId);
+        const hoverTex=hover?.dataUrl?await barCircleTexture(hover.dataUrl,GLYPH[item.builtinIcon??'info']??'i',item.iconZoom??100):null;
+        const pressedTex=pressed?.dataUrl?await barCircleTexture(pressed.dataUrl,GLYPH[item.builtinIcon??'info']??'i',item.iconZoom??100):null;
+        const btn=addButton(barGroup,bw,bh,tex,x,0,()=>onBarItem(item));
+        btn.userData.vrIconStates={normal:tex,hover:hoverTex,pressed:pressedTex,pressedUntil:0};
       }else{
         const tex=await barCircleTexture(undefined,'✕');
         addButton(barGroup,bw,bh,tex,x,0,()=>{void session.end();});
@@ -476,21 +489,53 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     dir.transformDirection(c.matrixWorld);
     raycaster.set(origin,dir);
     const live=clickables.filter(m=>m.parent&&m.visible);
-    // Ordre de priorité : panneaux (devant) avant les flèches.
+    // Les panneaux devant les yeux doivent passer avant les hotspots plus
+    // éloignés. Parmi des cibles de même plan, on choisit la plus proche.
     const found=raycaster.intersectObjects(live,false);
     if(!found.length)return {target:null,point:null,distance:POINTER_MAX};
-    found.sort((a,b)=>((b.object as Mesh).renderOrder-(a.object as Mesh).renderOrder)||a.distance-b.distance);
+    found.sort((a,b)=>{
+      const aPanel=Boolean(a.object.userData.panel),bPanel=Boolean(b.object.userData.panel);
+      return Number(bPanel)-Number(aPanel)||a.distance-b.distance;
+    });
     return {target:found[0].object as Clickable,point:found[0].point,distance:found[0].distance};
   };
   controllers.forEach(c=>{
-    c.addEventListener('selectstart',()=>{const h=hits(c);h.target?.userData.onSelect?.();});
+    c.addEventListener('selectstart',()=>{
+      const h=hits(c),target=h.target;
+      if(target){
+        const states=target.userData.vrIconStates as {pressedUntil:number}|undefined;
+        if(states)states.pressedUntil=performance.now()+180;
+        target.userData.onSelect?.();
+      }
+    });
     // Prise (gâchette latérale) : ramène la barre devant soi.
     c.addEventListener('squeezestart',()=>{void buildBar();});
   });
 
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let lastRefreshCheck=0;
+  let lastFrameAt=0;
   const tick=()=>{
+    // Rotation du panorama au joystick (Meta Quest Touch) sans bouger
+    // physiquement le visiteur. Les hotspots pivotent avec le panorama.
+    const frameAt=performance.now();
+    const dt=lastFrameAt?Math.min(.05,(frameAt-lastFrameAt)/1000):0;
+    lastFrameAt=frameAt;
+    const inputs=renderer.xr.getSession()?.inputSources??[];
+    let turn=0;
+    for(const source of inputs){
+      const axes=source.gamepad?.axes;
+      if(!axes||axes.length<2)continue;
+      const horizontal=axes.length>=4?axes[2]:axes[0];
+      if(typeof horizontal==='number'&&Math.abs(horizontal)>.2){
+        turn=horizontal;
+        break;
+      }
+    }
+    if(turn&&dt&&!alignPending&&!busy){
+      const direction=Math.sign(turn)*(Math.abs(turn)-.2)/.8;
+      root.rotation.y-=direction*dt*1.15;
+    }
     const now=performance.now();
     if(now-lastRefreshCheck>900&&!refreshBusy&&!ended){
       lastRefreshCheck=now;
@@ -539,6 +584,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const m of clickables){
       const base=m.userData.baseScale??1,wanted=hovered.has(m)?(m.userData.hoverScale??1):base;
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
+      const states=m.userData.vrIconStates as {normal:Texture;hover:Texture|null;pressed:Texture|null;pressedUntil:number}|undefined;
+      if(states){
+        const selected=states.pressedUntil>now&&states.pressed
+          ?states.pressed:hovered.has(m)&&states.hover?states.hover:states.normal;
+        const material=(m as Mesh).material as MeshBasicMaterial;
+        if(material.map!==selected){material.map=selected;material.needsUpdate=true;}
+      }
     }
     renderer.render(scene,camera);
   };
