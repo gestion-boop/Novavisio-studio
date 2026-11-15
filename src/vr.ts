@@ -4,6 +4,7 @@ import {
 } from 'three';
 import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
+import {trimIcon} from './iconFit';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
@@ -187,10 +188,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Toujours lire la dernière version du point : les médias Cloud peuvent
         // finir de charger après la création des icônes WebXR.
         const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
-        if(live.type==='image'||(live.type==='information'&&(live.imageDataUrl||live.imageUrl))){
-          void showPhoto(live);return;
+        if(live.type==='information'){
+          // Pour les points i, privilégier le texte et sa traduction.
+          const detail=(live.text||'').trim();
+          showText(live.title||'Informations',detail||'Aucune information renseignée.');
+          return;
         }
-        if(live.type==='information'){showText(live.title||'Informations',live.text);return;}
+        if(live.type==='image'){void showPhoto(live);return;}
         if(live.type==='lien'){showText(live.title||'Lien',live.url||'Aucun lien renseigné.');return;}
         setNotice('Cette vidéo est disponible dans la visite classique.');
       }
@@ -265,8 +269,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Icônes de la barre Quest : mêmes boutons ronds que la visite NovaStudio.
   // Les PNG personnalisés conservent leur charte, mais leurs angles carrés
   // sont masqués par une découpe circulaire dans la texture WebXR.
-  const barCircleTexture=async(iconSrc:string|undefined,glyph:string):Promise<CanvasTexture>=>{
-    const img=iconSrc?await loadImage(iconSrc):null;
+  const barCircleTexture=async(iconSrc:string|undefined,glyph:string,zoom=100):Promise<CanvasTexture>=>{
+    // Même recadrage transparent que la visite 360 classique.
+    const trimmed=iconSrc&&project().barIconTrim!==false?await trimIcon(iconSrc):iconSrc;
+    const img=trimmed?await loadImage(trimmed):null;
     return canvasTexture(320,320,c=>{
       const cx=160,cy=160,r=151;
       c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
@@ -274,7 +280,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       c.save();
       c.beginPath();c.arc(cx,cy,r-6,0,Math.PI*2);c.clip();
       if(img){
-        const scale=Math.min(286/img.width,286/img.height);
+        // Respecte les proportions du vrai logo NovaStudio et son zoom défini
+        // dans l'éditeur, plutôt que de le forcer dans une image carrée.
+        const factor=Math.max(1,Math.min(2.5,zoom/100));
+        const scale=Math.min(268/img.width,268/img.height)*factor;
         const w=img.width*scale,h=img.height*scale;
         c.drawImage(img,(320-w)/2,(320-h)/2,w,h);
       }else{
@@ -313,8 +322,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(e.item){
         const item=e.item;
         const icon=project().icons?.find(i=>i.id===item.iconId);
-        const tex=await barCircleTexture(icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i');
-        addButton(barGroup,bw,bh,tex,x,0,()=>onBarItem(item));
+        const tex=await barCircleTexture(icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i',item.iconZoom??100);
+        const hover=project().icons?.find(i=>i.id===item.hoverIconId);
+        const pressed=project().icons?.find(i=>i.id===item.pressedIconId);
+        const hoverTex=hover?.dataUrl?await barCircleTexture(hover.dataUrl,GLYPH[item.builtinIcon??'info']??'i',item.iconZoom??100):null;
+        const pressedTex=pressed?.dataUrl?await barCircleTexture(pressed.dataUrl,GLYPH[item.builtinIcon??'info']??'i',item.iconZoom??100):null;
+        const btn=addButton(barGroup,bw,bh,tex,x,0,()=>onBarItem(item));
+        btn.userData.vrIconStates={normal:tex,hover:hoverTex,pressed:pressedTex,pressedUntil:0};
       }else{
         const tex=await barCircleTexture(undefined,'✕');
         addButton(barGroup,bw,bh,tex,x,0,()=>{void session.end();});
@@ -451,7 +465,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Bouton Espaces sans cible : affiche la liste des panoramas et espaces.
       void showGallery({...item,type:'gallery',galleryTitle:item.title||'Espaces',gallery:project().scenes.map(scene=>({sceneId:scene.id,label:scene.name})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
-    if(item.type==='information'){showText(item.title,item.text);return;}
+    if(item.type==='information'){
+      const detail=(item.text||'').trim()||(item.url||'').trim();
+      showText(item.title||'Informations',detail||'Aucune information renseignée.');
+      return;
+    }
     if(item.type==='lien'){showText(item.title,item.url||'Aucun lien renseigné.');return;}
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
@@ -476,21 +494,48 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     dir.transformDirection(c.matrixWorld);
     raycaster.set(origin,dir);
     const live=clickables.filter(m=>m.parent&&m.visible);
-    // Ordre de priorité : panneaux (devant) avant les flèches.
+    // Les panneaux devant les yeux doivent passer avant les hotspots plus
+    // éloignés. Parmi des cibles de même plan, on choisit la plus proche.
     const found=raycaster.intersectObjects(live,false);
     if(!found.length)return {target:null,point:null,distance:POINTER_MAX};
-    found.sort((a,b)=>((b.object as Mesh).renderOrder-(a.object as Mesh).renderOrder)||a.distance-b.distance);
+    found.sort((a,b)=>{
+      const aPanel=Boolean(a.object.userData.panel),bPanel=Boolean(b.object.userData.panel);
+      return Number(bPanel)-Number(aPanel)||a.distance-b.distance;
+    });
     return {target:found[0].object as Clickable,point:found[0].point,distance:found[0].distance};
   };
   controllers.forEach(c=>{
-    c.addEventListener('selectstart',()=>{const h=hits(c);h.target?.userData.onSelect?.();});
+    c.addEventListener('selectstart',()=>{
+      const h=hits(c),target=h.target;
+      if(target){
+        const states=target.userData.vrIconStates as {pressedUntil:number}|undefined;
+        if(states)states.pressedUntil=performance.now()+180;
+        target.userData.onSelect?.();
+      }
+    });
     // Prise (gâchette latérale) : ramène la barre devant soi.
     c.addEventListener('squeezestart',()=>{void buildBar();});
   });
 
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let lastRefreshCheck=0;
+  let turnArmed=true;
   const tick=()=>{
+    // Rotation instantanée d'un quart de tour pour réduire le mal des yeux.
+    // Une nouvelle impulsion exige d'abord le retour du joystick au neutre.
+    const inputs=renderer.xr.getSession()?.inputSources??[];
+    let turn=0;
+    for(const source of inputs){
+      const axes=source.gamepad?.axes;
+      if(!axes||axes.length<2)continue;
+      const horizontal=axes.length>=4?axes[2]:axes[0];
+      if(typeof horizontal==='number'&&Math.abs(horizontal)>Math.abs(turn))turn=horizontal;
+    }
+    if(Math.abs(turn)<.25)turnArmed=true;
+    else if(Math.abs(turn)>.72&&turnArmed&&!alignPending&&!busy){
+      root.rotation.y-=Math.sign(turn)*Math.PI/2;
+      turnArmed=false;
+    }
     const now=performance.now();
     if(now-lastRefreshCheck>900&&!refreshBusy&&!ended){
       lastRefreshCheck=now;
@@ -539,6 +584,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const m of clickables){
       const base=m.userData.baseScale??1,wanted=hovered.has(m)?(m.userData.hoverScale??1):base;
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
+      const states=m.userData.vrIconStates as {normal:Texture;hover:Texture|null;pressed:Texture|null;pressedUntil:number}|undefined;
+      if(states){
+        const selected=states.pressedUntil>now&&states.pressed
+          ?states.pressed:hovered.has(m)&&states.hover?states.hover:states.normal;
+        const material=(m as Mesh).material as MeshBasicMaterial;
+        if(material.map!==selected){material.map=selected;material.needsUpdate=true;}
+      }
     }
     renderer.render(scene,camera);
   };
