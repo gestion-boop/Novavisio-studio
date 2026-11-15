@@ -1,6 +1,6 @@
 import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
-import {Map,Maximize2,X} from 'lucide-react';
+import {Map,Maximize2,X,Eye} from 'lucide-react';
 import {isSafeFrameImage,type FloorPlan,type Scene} from './storage';
 import './floorPlan.css';
 
@@ -9,14 +9,19 @@ const visiblePoints=(plan:FloorPlan,scenes:Scene[])=>{
   return plan.points.filter(point=>visible.has(point.sceneId));
 };
 
-export function PlanModal({children,title,onClose,wide=false,icon}:{children:ReactNode;title:string;onClose:()=>void;wide?:boolean;icon?:ReactNode}){
+// Only the top dialog handles Escape / Tab when a 360 preview is open above the plan.
+const modalStack:HTMLElement[]=[];
+export function PlanModal({children,title,onClose,wide=false,icon,closeLabel='Fermer le plan'}:{children:ReactNode;title:string;onClose:()=>void;wide?:boolean;icon?:ReactNode;closeLabel?:string}){
   const root=useRef<HTMLElement>(null),close=useRef(onClose);
   close.current=onClose;
   const titleId=useId();
   useEffect(()=>{
     const previous=document.activeElement as HTMLElement|null;
-    root.current?.focus();
+    const element=root.current;
+    if(element)modalStack.push(element);
+    element?.focus();
     const key=(event:KeyboardEvent)=>{
+      if(modalStack[modalStack.length-1]!==element)return;
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close.current();}
       if(event.key==='Tab'){
         const nodes=Array.from(root.current?.querySelectorAll<HTMLElement>('button,input,select,[tabindex="0"]')??[]).filter(el=>!el.hasAttribute('disabled')&&el.getClientRects().length);
@@ -26,11 +31,11 @@ export function PlanModal({children,title,onClose,wide=false,icon}:{children:Rea
       }
     };
     document.addEventListener('keydown',key,true);
-    return ()=>{document.removeEventListener('keydown',key,true);previous?.focus();};
+    return ()=>{document.removeEventListener('keydown',key,true);if(element){const index=modalStack.indexOf(element);if(index>=0)modalStack.splice(index,1);}previous?.focus();};
   },[]);
   return createPortal(<div className="nv-plan-overlay" onClick={e=>{e.stopPropagation();if(e.target===e.currentTarget)onClose();}}>
     <section className={'nv-plan-dialog'+(wide?' nv-plan-dialog-editor':'')} ref={root} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-      <header><h2 id={titleId}>{icon??<Map size={22}/>}{title}</h2><button type="button" aria-label="Fermer le plan" onClick={onClose}><X/></button></header>
+      <header><h2 id={titleId}>{icon??<Map size={22}/>}{title}</h2><button type="button" aria-label={closeLabel} onClick={onClose}><X/></button></header>
       {children}
     </section>
   </div>,document.fullscreenElement??document.body);
@@ -99,8 +104,10 @@ async function importPlan(file:File):Promise<string>{
   }finally{bitmap.close();}
 }
 
-export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={}}:{thumbs?:Record<string,string>;plan?:FloorPlan;scenes:Scene[];onChange:(plan:FloorPlan|undefined)=>void;hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void}){
+export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview}:{renderPreview?:(id:string)=>ReactNode;thumbs?:Record<string,string>;plan?:FloorPlan;scenes:Scene[];onChange:(plan:FloorPlan|undefined)=>void;hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void}){
   const [selectedId,setSelectedId]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[expanded,setExpanded]=useState(!!plan);
+  const [previewId,setPreviewId]=useState<string|null>(null);
+  const previewScene=scenes.find(scene=>scene.id===previewId);
   const fileInput=useRef<HTMLInputElement>(null),importing=useRef(false);
   const available=scenes.filter(scene=>!scene.excluded);
   const selected=available.find(scene=>scene.id===selectedId)??available[0];
@@ -123,15 +130,22 @@ export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,
           <strong>Panoramas</strong>
           <div className="nv-plan-source-list" role="group" aria-label="Panoramas à glisser sur le plan">{available.map(scene=>{
             const index=visiblePoints(plan,available).findIndex(point=>point.sceneId===scene.id);
-            return <button type="button" key={scene.id} draggable aria-label={scene.name} aria-pressed={selected?.id===scene.id}
+            return <div className="nv-plan-source-row" key={scene.id}><button type="button" className="nv-plan-source-card" draggable aria-label={scene.name} aria-pressed={selected?.id===scene.id}
               onClick={()=>setSelectedId(scene.id)} onDragStart={e=>{e.dataTransfer.setData('text/plain',scene.id);e.dataTransfer.effectAllowed='move';setSelectedId(scene.id);}}>
               {thumbs[scene.id]?<img src={thumbs[scene.id]} alt="" loading="lazy" draggable={false}/>:<span className="nv-plan-thumb-placeholder">360°</span>}
               <span className="nv-plan-source-copy"><strong>{scene.name}</strong><small>{index>=0?'✓ Point '+(index+1)+' sur le plan':'À placer sur le plan'}</small></span>
-            </button>;
+            </button>
+              {renderPreview&&<button type="button" className="nv-plan-preview-eye" aria-label={'Voir '+scene.name+' en 360°'} title="Aperçu 360°" draggable={false}
+                onPointerDown={e=>e.stopPropagation()} onDragStart={e=>e.preventDefault()} onClick={e=>{e.stopPropagation();setPreviewId(scene.id);}}><Eye size={18}/></button>}
+            </div>;
           })}</div>
         </aside>
       </div>
     </>}
+    {previewScene&&renderPreview&&<PlanModal title={'Aperçu 360° · '+previewScene.name} icon={<Eye size={22}/>} closeLabel="Fermer l’aperçu 360°" onClose={()=>setPreviewId(null)}>
+      <div className="nv-plan-popup-preview" key={previewScene.id}>{renderPreview(previewScene.id)}</div>
+      <p className="nv-plan-help">Glisse pour regarder à 360° et utilise la molette pour zoomer.</p>
+    </PlanModal>}
   </div>;
   return <div className="nv-plan-editor">
     <p>Importe le plan de cette visite (PNG, JPG ou WebP), puis associe chaque point à un panorama.</p>
