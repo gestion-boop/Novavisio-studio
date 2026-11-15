@@ -2,11 +2,17 @@ import {useState} from 'react';
 import {Image,Play} from 'lucide-react';
 import {IconStateVisual} from './media';
 import {buildIconSets} from './IconLibrary';
+import {IconSetCreator,type IconSetImages} from './IconSetCreator';
 import type {DefaultNavigationIcon,StudioProject} from './storage';
 import type {Dispatch,SetStateAction} from 'react';
 const KIND_NAME={image:/photo|image|picto|galerie|gallery|camera|appareil|diapo/i,video:/vid[eé]o|film|play|lecture|cin[eé]ma|clip/i};
 /** Choix visuel de l'icône d'un popup : uniquement des icônes du bon type (photo ou vidéo), sans les variantes survol / pressé. */
-export function MediaIconSelector({project,value,onChange,label,kind}:{project:StudioProject;value?:Partial<DefaultNavigationIcon>;onChange:(value:Partial<DefaultNavigationIcon>)=>void;label:string;kind:'image'|'video'}){
+export function MediaIconSelector({project,value,onChange,label,kind,onImportPack}:{
+ project:StudioProject;value?:Partial<DefaultNavigationIcon>;
+ onChange:(value:Partial<DefaultNavigationIcon>)=>void;
+ label:string;kind:'image'|'video';
+ onImportPack?:(name:string,images:IconSetImages)=>Promise<void>;
+}){
  const [open,setOpen]=useState(false);
  const match=KIND_NAME[kind];
  // Toutes les icônes de la bibliothèque, regroupées en jeux (normal / survol / pressé reconnus d'après le nom du fichier) : une icône ajoutée apparaît tout de suite ici.
@@ -24,8 +30,8 @@ export function MediaIconSelector({project,value,onChange,label,kind}:{project:S
    <span className="nv-media-icon-preview">{value?.iconId?<IconStateVisual icons={project.icons} normal={value.iconId} hover={value.hoverIconId} pressed={value.pressedIconId} size={40}/>:kind==='image'?<Image size={29}/>:<Play size={29}/>}</span>
    <span className="nv-icon-picker-name">{current}</span><span aria-hidden="true">{open?'▴':'▾'}</span>
   </button>
-  {open&&<div className="nv-icon-picker-panel" role="listbox" aria-label={label}>
-   <div className="nv-icon-picker-grid">
+  {open&&<div className="nv-icon-picker-panel">
+   <div className="nv-icon-picker-grid" role="listbox" aria-label={label}>
     <button type="button" role="option" aria-selected={!value?.iconId} className={'nv-icon-tile'+(!value?.iconId?' is-selected':'')} onClick={()=>pick({iconId:undefined,hoverIconId:undefined,pressedIconId:undefined,iconSize:42})}>
      <span>{kind==='image'?<Image size={30}/>:<Play size={30}/>}</span><small>Standard</small>
     </button>
@@ -33,6 +39,13 @@ export function MediaIconSelector({project,value,onChange,label,kind}:{project:S
       onClick={()=>pick({iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})}>
       <span><img alt="" src={thumb(item.iconId)}/></span><small>{item.name}</small></button>)}
    </div>
+   {onImportPack&&<div className="nv-media-icon-import">
+     <IconSetCreator toggleLabel="Importer mon pack de 3 ici" onCreate={async(name,images)=>{
+       await onImportPack(name,images);
+       setOpen(false);
+     }}/>
+     <small>Les images Normal, Survol et Pressé seront enregistrées ensemble et appliquées à ce point. Pour les utiliser partout, clique ensuite sur « Remplacer tous les points ».</small>
+   </div>}
   </div>}
  </div>;
 }
