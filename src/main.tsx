@@ -485,6 +485,22 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
   useEffect(()=>{
     const root=box.current;
     if(!root)return;
+    let reticleEl:HTMLDivElement|null=null;
+
+    const removeReticle=()=>{
+      root.classList.remove('is-icon-drag-over');
+      if(reticleEl){reticleEl.remove();reticleEl=null;}
+    };
+
+    const spawnPanoRipple=(x:number,y:number)=>{
+      const ripple=document.createElement('div');
+      ripple.className='nv-pano-drop-ripple';
+      ripple.style.left=`${x}px`;
+      ripple.style.top=`${y}px`;
+      root.appendChild(ripple);
+      window.setTimeout(()=>ripple.remove(),700);
+    };
+
     const onDown=(e:PointerEvent)=>{
       const t=e.target;
       if(!(t instanceof HTMLElement)||t.closest('.nv-direct-corner'))return;
@@ -509,33 +525,97 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       if(!autoDrag&&(a.mode||id!==a.selectedId))return;
       const viewer=viewerRef.current;
       if(!viewer||!id)return;
+
+      const startX=e.clientX;
+      const startY=e.clientY;
+      let hudEl:HTMLDivElement|null=null;
+
+      const getMarkerNode=()=>root.querySelector<HTMLElement>(`.nv-drag-target[data-nv-marker-id="${CSS.escape(id)}"]`)??item;
+
+      const activateDragVisuals=()=>{
+        const node=getMarkerNode();
+        node.classList.remove('is-hold-charging');
+        node.classList.add('is-marker-dragging');
+        root.classList.add('is-dragging-hotspot');
+        if(!hudEl){
+          hudEl=document.createElement('div');
+          hudEl.className='nv-pano-drag-hud';
+          hudEl.textContent='✥ Déplacement libre';
+          const rect=root.getBoundingClientRect();
+          hudEl.style.left=`${startX-rect.left}px`;
+          hudEl.style.top=`${startY-rect.top-38}px`;
+          root.appendChild(hudEl);
+        }
+      };
+
       // En mode classique la poignée déplace directement. En Auto, appui maintenu
       // 320 ms sur la flèche : clic bref = navigation, maintien = déplacement.
       let dragging=!autoDrag;
-      if(!autoDrag){e.preventDefault();e.stopImmediatePropagation();}
+      if(!autoDrag){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        activateDragVisuals();
+      }else{
+        item.classList.add('is-hold-charging');
+      }
+
       let timer:ReturnType<typeof setTimeout>|null=autoDrag?setTimeout(()=>{
-        dragging=true;suppressMarkerClick.current=id;
+        dragging=true;
+        suppressMarkerClick.current=id;
+        activateDragVisuals();
       },320):null;
+
       let final:{yaw:number;pitch:number}|null=null;
       const move=(p:PointerEvent)=>{
-        if(p.pointerId!==e.pointerId||!dragging)return;
+        if(p.pointerId!==e.pointerId)return;
+        if(!dragging){
+          // Si l'utilisateur bouge la caméra avant la fin des 320 ms, on annule la charge
+          if(Math.hypot(p.clientX-startX,p.clientY-startY)>10){
+            clear();
+          }
+          return;
+        }
         p.preventDefault();p.stopImmediatePropagation();
         const rect=root.getBoundingClientRect();
-        const at=viewer.dataHelper.viewerCoordsToSphericalCoords({x:p.clientX-rect.left,y:p.clientY-rect.top});
+        const relX=p.clientX-rect.left;
+        const relY=p.clientY-rect.top;
+        const at=viewer.dataHelper.viewerCoordsToSphericalCoords({x:relX,y:relY});
         if(!at)return;
         final=at;
         try{(viewer.getPlugin(MarkersPlugin) as MarkersPlugin).updateMarker({id,position:at});}catch{}
+        const node=getMarkerNode();
+        node.classList.add('is-marker-dragging');
+        if(hudEl){
+          const yawDeg=Math.round((at.yaw*180)/Math.PI);
+          const pitchDeg=Math.round((at.pitch*180)/Math.PI);
+          hudEl.textContent=`✥ ${yawDeg}° · ${pitchDeg>=0?'+':''}${pitchDeg}°`;
+          hudEl.style.left=`${relX}px`;
+          hudEl.style.top=`${Math.max(24,relY-42)}px`;
+        }
       };
       const clear=()=>{
-        if(timer)clearTimeout(timer);
+        if(timer){clearTimeout(timer);timer=null;}
+        const node=getMarkerNode();
+        node.classList.remove('is-hold-charging','is-marker-dragging');
+        item.classList.remove('is-hold-charging','is-marker-dragging');
+        root.classList.remove('is-dragging-hotspot');
+        if(hudEl){hudEl.remove();hudEl=null;}
         document.removeEventListener('pointermove',move,true);
         document.removeEventListener('pointerup',up,true);
         document.removeEventListener('pointercancel',cancel,true);
       };
       const up=(p:PointerEvent)=>{
         if(p.pointerId!==e.pointerId)return;
-        move(p);clear();
-        if(final)actions.current.onMarkerMove(id,final.yaw,final.pitch);
+        if(dragging)move(p);
+        const wasDragging=dragging&&!!final;
+        const rect=root.getBoundingClientRect();
+        const dropX=p.clientX-rect.left;
+        const dropY=p.clientY-rect.top;
+        clear();
+        if(final){
+          actions.current.onMarkerMove(id,final.yaw,final.pitch);
+          if(wasDragging)spawnPanoRipple(dropX,dropY);
+        }
         if(autoDrag&&dragging)setTimeout(()=>{if(suppressMarkerClick.current===id)suppressMarkerClick.current=null;},350);
       };
       const cancel=(p:PointerEvent)=>{if(p.pointerId===e.pointerId){clear();suppressMarkerClick.current=null;}};
@@ -543,18 +623,53 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       document.addEventListener('pointerup',up,true);
       document.addEventListener('pointercancel',cancel,true);
     };
-    const over=(e:DragEvent)=>{if(e.dataTransfer?.types.includes('application/x-nv-icon'))e.preventDefault();};
+    const over=(e:DragEvent)=>{
+      if(!e.dataTransfer?.types.includes('application/x-nv-icon')||actions.current.preview)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect='copy';
+      root.classList.add('is-icon-drag-over');
+      const rect=root.getBoundingClientRect();
+      const x=e.clientX-rect.left;
+      const y=e.clientY-rect.top;
+      if(!reticleEl){
+        reticleEl=document.createElement('div');
+        reticleEl.className='nv-pano-reticle';
+        reticleEl.innerHTML='<span class="nv-pano-reticle-ring"></span><span class="nv-pano-reticle-dot"></span><span class="nv-pano-reticle-label">Déposer dans le 360°</span>';
+        root.appendChild(reticleEl);
+      }
+      reticleEl.style.left=`${x}px`;
+      reticleEl.style.top=`${y}px`;
+    };
+    const leave=(e:DragEvent)=>{
+      if(e.relatedTarget instanceof Node&&root.contains(e.relatedTarget))return;
+      removeReticle();
+    };
     const drop=(e:DragEvent)=>{
       const icon=e.dataTransfer?.getData('application/x-nv-icon');
+      removeReticle();
       if(!icon||actions.current.preview)return;
       const viewer=viewerRef.current;if(!viewer)return;
       e.preventDefault();
       const rect=root.getBoundingClientRect();
-      const pos=viewer.dataHelper.viewerCoordsToSphericalCoords({x:e.clientX-rect.left,y:e.clientY-rect.top});
-      if(pos)actions.current.onAssetDrop(icon,pos.yaw,pos.pitch);
+      const x=e.clientX-rect.left;
+      const y=e.clientY-rect.top;
+      const pos=viewer.dataHelper.viewerCoordsToSphericalCoords({x,y});
+      if(pos){
+        spawnPanoRipple(x,y);
+        actions.current.onAssetDrop(icon,pos.yaw,pos.pitch);
+      }
     };
-    root.addEventListener('pointerdown',onDown,true);root.addEventListener('dragover',over);root.addEventListener('drop',drop);
-    return ()=>{root.removeEventListener('pointerdown',onDown,true);root.removeEventListener('dragover',over);root.removeEventListener('drop',drop);};
+    root.addEventListener('pointerdown',onDown,true);
+    root.addEventListener('dragover',over);
+    root.addEventListener('dragleave',leave);
+    root.addEventListener('drop',drop);
+    return ()=>{
+      removeReticle();
+      root.removeEventListener('pointerdown',onDown,true);
+      root.removeEventListener('dragover',over);
+      root.removeEventListener('dragleave',leave);
+      root.removeEventListener('drop',drop);
+    };
   },[]);
   return <div ref={box} className="panorama" />;
 }
