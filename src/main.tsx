@@ -5592,13 +5592,6 @@ function App(){
           <div className="section-title">INTRODUCTION DE LA VISITE</div>
           <p className="hint">Chaque visite possède son URL d’introduction. L’introduction apparaît au lancement puis passe automatiquement au premier panorama, sans bouton supplémentaire.</p>
           <label className="toggle-row"><input type="checkbox" checked={project.introEnabled} onChange={e=>setProject(p=>({...p,introEnabled:e.target.checked}))}/> Activer l’introduction</label>
-          <div className="section-title">ANIMATION DES FENÊTRES</div>
-          <p className="hint">Style d’ouverture des fenêtres d’information dans la visite. Choisis-en un, puis teste-le dans l’aperçu.</p>
-          <label>Style
-            <select value={project.windowAnimation??'fade'} onChange={e=>setProject(p=>({...p,windowAnimation:e.target.value as WindowAnimation}))}>
-              {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
-            </select>
-          </label>
           <label>Adresse HTTPS de l'introduction
             <input type="url" value={project.introUrl} placeholder="https://intro-au-bureau-narbonne.vercel.app/" onChange={e=>setProject(p=>({...p,introUrl:e.target.value}))}/>
           </label>
@@ -5620,6 +5613,14 @@ function App(){
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Animation des fenêtres (info, photo, vidéo, galeries, plan)" initiallyOpen>
+            <p className="hint">Ce style s’applique à toutes les fenêtres de la visite : informations, photos, vidéos, galeries et plan. Il s’applique aussi à l’aperçu.</p>
+            <label>Style
+              <select value={project.windowAnimation??'fade'} onChange={e=>setProject(p=>({...p,windowAnimation:e.target.value as WindowAnimation}))}>
+                {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
+              </select>
+            </label>
+          </InspectorSection>
           <InspectorSection title="Visite immersive 360° et VR (facultatif)" initiallyOpen>
             <p className="hint">La visite fonctionne toujours sur mobile, ordinateur et tablette. Le mode casque VR est une option à activer uniquement pour les clients qui le souhaitent.</p>
             <label className="toggle-row"><input type="checkbox" checked={project.vrEnabled!==false}
