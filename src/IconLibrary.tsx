@@ -37,7 +37,6 @@ const FAMILIES:Family[]=[
   {id:'violet',label:'Violet',swatch:'#8b5cf6',order:7},{id:'rose',label:'Rose',swatch:'#ec6aa5',order:8},{id:'marron',label:'Marron',swatch:'#9a6b43',order:9},
   {id:'noir',label:'Noir',swatch:'#1d232b',order:10},{id:'gris',label:'Gris',swatch:'#9aa5ae',order:11},{id:'blanc',label:'Blanc',swatch:'#f2f4f5',order:12}
 ];
-const familyById=new Map(FAMILIES.map(f=>[f.id,f]));
 function classify(r:number,g:number,b:number):string{
   const max=Math.max(r,g,b)/255,min=Math.min(r,g,b)/255,l=(max+min)/2,d=max-min;
   const s=d===0?0:d/(1-Math.abs(2*l-1));
@@ -100,8 +99,10 @@ export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
     return ()=>{dead=true;};
   },[sets]);
   const present=useMemo(()=>FAMILIES.filter(f=>sets.some(set=>families[set.key]===f.id)),[sets,families]);
+  // La recherche visuelle reste filtrable par couleur, mais l'ordre principal
+  // est toujours alphabétique pour retrouver rapidement un jeu d'icônes.
   const shown=useMemo(()=>sets.filter(set=>!filter||families[set.key]===filter)
-    .sort((a,b)=>(familyById.get(families[a.key])?.order??99)-(familyById.get(families[b.key])?.order??99)||a.name.localeCompare(b.name,'fr')),[sets,families,filter]);
+    .sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})||a.key.localeCompare(b.key)),[sets,families,filter]);
   return <div className="nv-iconlib">
     <div className="nv-iconlib-bar">
       <button type="button" className="nv-iconlib-import" onClick={onImport}><Plus size={17}/> Importer des icônes</button>

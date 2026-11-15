@@ -3132,7 +3132,7 @@ function App(){
           <strong>Recolorer une icône déjà importée</strong>
           <select value={svgExistingIcon} onChange={e=>setSvgExistingIcon(e.target.value)}>
             <option value="">Choisir une icône…</option>
-            {project.icons.map(icon=><option key={icon.id} value={icon.id}>{icon.name}</option>)}
+            {[...project.icons].sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})).map(icon=><option key={icon.id} value={icon.id}>{icon.name}</option>)}
           </select>
           <div className="nv-svg-create-actions">
             <button type="button" disabled={!svgExistingIcon||svgGenerating||project.icons.length>=150}
@@ -3335,7 +3335,7 @@ function App(){
         </div>
       </div>
       {open&&<div className="icon-choice-row">
-        {project.icons.map(i=><span key={i.id} className="icon-choice-wrap">
+        {[...project.icons].sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})).map(i=><span key={i.id} className="icon-choice-wrap">
           <button type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
             <img src={i.dataUrl} alt={i.name}/></button>
           <button type="button" className="icon-delete" title={'Supprimer « '+i.name+' » de la bibliothèque'} aria-label={'Supprimer '+i.name} onClick={()=>deleteIcon(i.id)}><XMark/></button>
