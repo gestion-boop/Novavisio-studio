@@ -5769,3 +5769,12 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-media-icon-import .nv-existing-pack-toggle>b{background:#f6e1bf;color:#563718}
 .nv-media-icon-import .nv-existing-pack-picker{margin:0}
 .nv-media-icon-import .nv-existing-pack-panel{margin-top:8px}
+
+
+/* Trois aperçus Paramètres, exactement comme dans les packs de la bibliothèque */
+.nv-settings-three-previews{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;padding:10px;margin:8px 0;border:1px solid #365968;border-radius:12px;background:#102d39}
+.nv-settings-three-previews>div{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0}
+.nv-settings-three-previews>div>span{display:grid;place-items:center;width:100%;max-width:90px;aspect-ratio:1/1;border-radius:50%;background:#08212b}
+.nv-settings-three-previews img{width:100%;height:100%;object-fit:contain}
+.nv-settings-three-previews i{font-size:28px;color:#d3b17c}
+.nv-settings-three-previews small{color:#c5e0e5;font-weight:650;font-size:12px}

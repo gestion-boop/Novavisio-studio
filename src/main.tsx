@@ -5603,13 +5603,25 @@ function App(){
           <InspectorSection title="Personnaliser le bouton Paramètres" initiallyOpen>
           <p className="hint">Choisis les icônes normales, au survol et au clic. Les modifications sont visibles immédiatement sur le bouton en bas à droite. Passe en aperçu pour tester son menu son et langue.</p>
           <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>
-          {!project.settingsIconId&&<button type="button" className="import" onClick={()=>{
-            const g=settingsGlyphs();
-            const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
-            const a=mk('Paramètres · Normal',g.normal),b=mk('Paramètres · Survol',g.hover),c=mk('Paramètres · Clic',g.pressed);
-            setProject(p=>({...p,icons:[...p.icons,a,b,c].slice(0,150),settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id}));
-            setStatus('Icône Paramètres ajoutée à la bibliothèque : tu peux la remplacer par la tienne');
-          }}>⚙ Mettre l’icône Paramètres dans ma bibliothèque (modifiable)</button>}
+          <button type="button" className="import" disabled={project.icons.length>147} onClick={()=>{
+            if(project.icons.length>147){setStatus('Bibliothèque pleine : supprime un ancien pack avant d’en ajouter un autre.');return;}
+            try{
+              const g=settingsGlyphs();
+              const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
+              const existing=buildIconSets(project.icons).map(p=>p.name.toLocaleLowerCase('fr'));
+              let label='Paramètres doré 3D',n=2;
+              while(existing.includes(label.toLocaleLowerCase('fr')))label='Paramètres doré 3D '+n++;
+              const a=mk(label+' · Normal',g.normal),b=mk(label+' · Survol',g.hover),c=mk(label+' · Pressé',g.pressed);
+              const next=validateProject({...project,icons:[...project.icons,a,b,c],
+                settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id});
+              setProject(next);
+              setStatus('Pack « '+label+' » créé : Normal, Survol, Pressé. Il est appliqué au bouton Paramètres et disponible dans la bibliothèque. Sauvegarde avec la disquette.');
+            }catch(e){setStatus('Impossible de créer le pack Paramètres : '+String(e));}
+          }}>⚙ Créer et utiliser mon pack Paramètres doré 3D (Normal · Survol · Pressé)</button>
+          {project.settingsIconId&&<div className="nv-settings-three-previews">
+            {([['Normal',project.settingsIconId],['Survol',project.settingsHoverIconId],['Pressé',project.settingsPressedIconId]] as const).map(([label,id])=>
+              <div key={label}><span>{id&&project.icons.some(i=>i.id===id)?<img src={project.icons.find(i=>i.id===id)!.dataUrl} alt={'Paramètres '+label}/>:<i>⚙</i>}</span><small>{label}</small></div>)}
+          </div>}
           <ExistingIconPackPicker project={project}
             value={{iconId:project.settingsIconId,hoverIconId:project.settingsHoverIconId,pressedIconId:project.settingsPressedIconId}}
             preferred="settings" label="Choisir un pack de 3 pour Paramètres"
