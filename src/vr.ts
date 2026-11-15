@@ -950,7 +950,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     line.renderOrder=9;c.add(line);scene.add(c);
     const dot=new Mesh(new SphereGeometry(.0035,12,8),new MeshBasicMaterial({color:0x13c7ff,depthTest:false,depthWrite:false}));
     dot.renderOrder=12;dot.visible=false;scene.add(dot);
-    c.userData.vrPointer={geo,dot};
+    c.userData.vrPointer={geo,dot,line};
     disposables.push(dot.geometry,dot.material as MeshBasicMaterial);
     disposables.push(geo,line.material as LineBasicMaterial);
     return c;
@@ -1105,7 +1105,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Survol.
     const hovered=new Set<Clickable>();
     controllers.forEach(c=>{
-      const hit=hits(c),pointer=c.userData.vrPointer as {geo:BufferGeometry;dot:Mesh}|undefined;
+      const hit=hits(c),pointer=c.userData.vrPointer as {geo:BufferGeometry;dot:Mesh;line:Line}|undefined;
       const target=hit.target?.userData.onSelect?hit.target:null;
       const old=hoveredByController.get(c);
       if(target){
@@ -1119,6 +1119,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         }
       }else hoveredByController.delete(c);
       if(pointer){
+        pointer.line.visible=!uiHidden;
+        if(uiHidden){pointer.dot.visible=false;return;}
         const pos=pointer.geo.getAttribute('position') as Float32BufferAttribute;
         if(hit.point){
           // Point d'impact exact en coordonnées locales de la manette.
