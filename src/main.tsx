@@ -19,7 +19,7 @@ import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
 
-import {useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,type ReactNode} from 'react';
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties,type ReactNode} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {FrameLoupe} from './FrameLoupe';
@@ -52,7 +52,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
@@ -993,7 +993,6 @@ function App(){
   function leaveTools(){returnTo.current='tools';setToolsMenuOpen(false);}
   function leaveShare(){returnTo.current='share';setShareMenuOpen(false);}
   const [notesOpen,setNotesOpen]=useState(false);
-  const [dragTool,setDragTool]=useState<string|null>(null);
   // Le rideau des outils descend TOUJOURS jusqu'à la ligne du haut de la barre du bas (ou du pied de page si elle est absente), quelle que soit la vue ou son contenu.
   useEffect(()=>{
     if(!toolsMenuOpen)return;
@@ -1416,34 +1415,145 @@ function App(){
       </div>
     );
   }
+  // Grille des tuiles d'outils avec drag & drop fluide, animations FLIP et accessibilité clavier
+  function ToolTilesGrid({fs}:{fs:boolean}){
+    const containerRef=useRef<HTMLDivElement>(null);
+    const prevPositionsRef=useRef<Map<string,DOMRect>>(new Map());
+    const [dragTool,setDragTool]=useState<string|null>(null);
+    const [dragTarget,setDragTarget]=useState<string|null>(null);
+    const [justDropped,setJustDropped]=useState<string|null>(null);
+    const lastSwapTimeRef=useRef<number>(0);
+
+    // FLIP : transition douce à chaque réordonnancement des tuiles
+    useLayoutEffect(()=>{
+      if(!containerRef.current)return;
+      const container=containerRef.current;
+      const wraps=container.querySelectorAll<HTMLElement>('.nv-tile-wrap[data-tool-key]');
+      const prevs=prevPositionsRef.current;
+
+      wraps.forEach(wrap=>{
+        const key=wrap.dataset.toolKey;
+        if(!key)return;
+        const currentRect=wrap.getBoundingClientRect();
+        const prevRect=prevs.get(key);
+
+        if(prevRect&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+          const dx=prevRect.left-currentRect.left;
+          const dy=prevRect.top-currentRect.top;
+          if(Math.abs(dx)>1||Math.abs(dy)>1){
+            wrap.animate([
+              {transform:`translate3d(${dx}px,${dy}px,0)`},
+              {transform:'translate3d(0,0,0)'}
+            ],{
+              duration:240,
+              easing:'cubic-bezier(0.2,0,0,1)'
+            });
+          }
+        }
+        prevs.set(key,currentRect);
+      });
+    },[toolOrder]);
+
+    const handleDragOver=(e:React.DragEvent<HTMLDivElement>,targetKey:string)=>{
+      if(!dragTool||dragTool===targetKey)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect='move';
+
+      // Anti-jitter : vérifie que le curseur est dans la zone intérieure de la tuile (60% central)
+      const rect=e.currentTarget.getBoundingClientRect();
+      const innerX=(e.clientX-rect.left)/rect.width;
+      const innerY=(e.clientY-rect.top)/rect.height;
+      if(innerX<0.15||innerX>0.85||innerY<0.15||innerY>0.85)return;
+
+      const now=Date.now();
+      if(now-lastSwapTimeRef.current<150)return; // Limite la fréquence des permutations
+      lastSwapTimeRef.current=now;
+      setDragTarget(targetKey);
+
+      setToolOrder(order=>reorderItems(order,dragTool,targetKey,k=>k));
+    };
+
+    const handleDragEnd=()=>{
+      if(dragTool){
+        const dropped=dragTool;
+        setJustDropped(dropped);
+        setTimeout(()=>setJustDropped(null),450);
+      }
+      setDragTool(null);
+      setDragTarget(null);
+      setToolOrder(order=>{saveToolOrder(order);return order;});
+    };
+
+    const handleKeyDown=(e:React.KeyboardEvent,key:string)=>{
+      if(!canDragTools)return;
+      if(e.altKey||e.ctrlKey){
+        let delta=0;
+        if(e.key==='ArrowLeft'||e.key==='ArrowUp')delta=-1;
+        else if(e.key==='ArrowRight'||e.key==='ArrowDown')delta=1;
+
+        if(delta!==0){
+          e.preventDefault();
+          const currentIndex=toolOrder.indexOf(key);
+          const targetIndex=currentIndex+delta;
+          if(targetIndex>=0&&targetIndex<toolOrder.length){
+            const targetKey=toolOrder[targetIndex];
+            setToolOrder(order=>{
+              const next=reorderItems(order,key,targetKey,k=>k);
+              saveToolOrder(next);
+              return next;
+            });
+            setJustDropped(key);
+            setTimeout(()=>setJustDropped(null),450);
+          }
+        }
+      }
+    };
+
+    return (
+      <div ref={containerRef} className={'nv-tiles'+(dragTool?' nv-tiles-is-dragging':'')} role="list">
+        {toolOrder.map(key=>{
+          const meta=toolMeta(key);
+          if(!meta)return null;
+          const isDragging=dragTool===key;
+          const isTarget=dragTarget===key;
+          const isDropped=justDropped===key;
+
+          return (
+            <div key={key} data-tool-key={key} role="listitem"
+              className={'nv-tile-wrap'+(isDragging?' is-dragging':'')+(isTarget?' is-drag-target':'')+(isDropped?' is-just-dropped':'')}
+              draggable={canDragTools}
+              onDragStart={e=>{
+                setDragTool(key);
+                e.dataTransfer.effectAllowed='move';
+                e.dataTransfer.setData('text/plain',key);
+              }}
+              onDragOver={e=>handleDragOver(e,key)}
+              onDragLeave={()=>{if(dragTarget===key)setDragTarget(null);}}
+              onDrop={e=>{e.preventDefault();handleDragEnd();}}
+              onDragEnd={handleDragEnd}
+              onKeyDown={e=>handleKeyDown(e,key)}>
+              <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active}
+                onClick={()=>fs?runFromFullscreen(key,meta.run):meta.run()} tabIndex={toolsMenuOpen?0:-1}
+                style={{'--tile-tone':meta.tone} as CSSProperties}
+                title={canDragTools?`${meta.label} · Glisser pour déplacer (ou Alt+Flèches)`:meta.label}>
+                {canDragTools&&<span className="nv-tile-drag-handle" aria-hidden="true" title="Glisser pour réorganiser"><GripVertical size={13}/></span>}
+                <span className="nv-app-tile-icon">{meta.icon}</span>
+                <span className="nv-app-tile-label">{meta.label}</span>
+                {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   // Rideau des outils (tuiles) : sous l'en-tête, ou dans le plein écran de création.
   function toolsCurtain(fs:boolean){
     return (
         <div id={fs?'nv-fs-tools-options':'nv-header-tools-options'} className={'nv-tools-curtain'+(toolsMenuOpen?' is-open':'')+(fs?' nv-in-fullscreen':'')} role="dialog" aria-label="Tous les outils" aria-hidden={!toolsMenuOpen}>
           <div className="nv-tools-curtain-inner">
-            <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux':'Touche une tuile pour l’ouvrir'}</small></div>
-            <div className="nv-tiles" role="list">
-              {toolOrder.map(key=>{
-                const meta=toolMeta(key);
-                if(!meta)return null;
-                return <div key={key} role="listitem" className={'nv-tile-wrap'+(dragTool===key?' is-dragging':'')} draggable={canDragTools}
-                  onDragStart={e=>{setDragTool(key);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key);}}
-                  onDragOver={e=>{
-                    if(!dragTool||dragTool===key)return;
-                    e.preventDefault();
-                    setToolOrder(order=>reorderItems(order,dragTool,key,k=>k));
-                  }}
-                  onDrop={e=>e.preventDefault()}
-                  onDragEnd={()=>{setDragTool(null);setToolOrder(order=>{saveToolOrder(order);return order;});}}>
-                  <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active} onClick={()=>fs?runFromFullscreen(key,meta.run):meta.run()} tabIndex={toolsMenuOpen?0:-1}
-                    style={{'--tile-tone':meta.tone} as CSSProperties}>
-                    <span className="nv-app-tile-icon">{meta.icon}</span>
-                    <span className="nv-app-tile-label">{meta.label}</span>
-                    {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
-                  </button>
-                </div>;
-              })}
-            </div>
+            <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux (ou Alt + Flèches)':'Touche une tuile pour l’ouvrir'}</small></div>
+            <ToolTilesGrid fs={fs}/>
             {!fs&&<>
             <div className="nv-tiles-title nv-tiles-title-second">Fichier et équipe</div>
             <div className="nv-tiles">
