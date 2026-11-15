@@ -2,6 +2,7 @@ import {useRef,useState} from 'react';
 import {ExternalLink,Trash2,Copy} from 'lucide-react';
 import {uid,readImage,VIDEO_MAX_BYTES,type Hotspot,type MediaLinkItem} from './storage';
 import {detectProvider,providerLabel,resolveLink} from './mediaLinks';
+import {reorderItems,useGripSort} from './gripSort';
 
 /** Bibliothèque Photos et Vidéos d'UNE visite : des liens (Google Drive, kDrive…), sans stockage dans Supabase. */
 /** Réduit une photo (max 2400 px, JPEG) pour garder le projet léger. */
@@ -21,8 +22,10 @@ export function MediaLibraryPanel({items,onChange,selected,onApply}:{
   const [url,setUrl]=useState('');
   const [error,setError]=useState('');
   const [filter,setFilter]=useState<'all'|'photo'|'video'>('all');
+  const [dragHover,setDragHover]=useState(false);
   const fileInput=useRef<HTMLInputElement>(null);
   const [busy,setBusy]=useState('');
+  const mediaSort=useGripSort('nv-medialib',items.map(i=>i.id),(from,to)=>onChange(reorderItems(items,from,to,i=>i.id)));
   const targetKind=selected&&(selected.type==='image'||selected.type==='video')?(selected.type==='image'?'photo':'video'):null;
   const add=()=>{
     const link=url.trim();
@@ -61,8 +64,13 @@ export function MediaLibraryPanel({items,onChange,selected,onApply}:{
   };
   const shown=items.filter(i=>filter==='all'||i.kind===filter);
   return <div className="nv-medialib">
-    <p className="hint">Chaque visite a sa propre bibliothèque. Importe des photos et des vidéos depuis ton ordinateur, ou colle un lien (Google Drive…).</p>
-    <button type="button" className="import" disabled={!!busy} onClick={()=>fileInput.current?.click()}>{busy||'⬆ Importer depuis mon ordinateur (photos, vidéos)'}</button>
+    <p className="hint">Chaque visite a sa propre bibliothèque. Importe ou fais glisser des photos et vidéos depuis ton ordinateur, ou glisse un média sur le panorama 360° pour le placer directement.</p>
+    <button type="button" className={'import nv-pano-import-dropzone'+(dragHover?' drag-hover':'')} disabled={!!busy} onClick={()=>fileInput.current?.click()}
+      onDragOver={e=>{if(e.dataTransfer?.types.includes('Files')){e.preventDefault();setDragHover(true);}}}
+      onDragLeave={()=>setDragHover(false)}
+      onDrop={e=>{if(e.dataTransfer?.files?.length){e.preventDefault();setDragHover(false);void importFiles(e.dataTransfer.files);}}}>
+      {busy||'⬆ Importer ou glisser ici (photos, vidéos)'}
+    </button>
     <input ref={fileInput} type="file" multiple hidden accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.webm" onChange={e=>void importFiles(e.target.files)}/>
     <small className="hint-inline">Photos : JPG, PNG, WebP (réduites à 2400 px). Vidéos : MP4 ou WebM, 45 Mo maximum.</small>
     <div className="nv-medialib-add">
@@ -79,12 +87,17 @@ export function MediaLibraryPanel({items,onChange,selected,onApply}:{
       {(['all','photo','video'] as const).map(f=><button key={f} type="button" className={filter===f?'is-on':''} onClick={()=>setFilter(f)}>{f==='all'?'Tout ('+items.length+')':f==='photo'?'Photos':'Vidéos'}</button>)}
     </div>
     {shown.length===0&&<p className="hint-inline">Aucun élément pour le moment.</p>}
-    <ul className="nv-medialib-list">
+    <ul className="nv-medialib-list" data-sort-scope="nv-medialib">
       {shown.map(item=>{
         const r=resolveLink(item);
         const canApply=targetKind===item.kind&&!r.problem;
-        return <li key={item.id}>
-          <div className="nv-medialib-thumb">{item.kind==='photo'&&r.thumb?<img src={r.thumb} alt="" loading="lazy" referrerPolicy="no-referrer"/>:<span>{item.kind==='photo'?'▣':'▶'}</span>}</div>
+        return <li key={item.id} {...(filter==='all'?mediaSort.itemProps(item.id):{})}>
+          {filter==='all'&&mediaSort.grip(item.id,item.name)}
+          <div className="nv-medialib-thumb" draggable={!r.problem}
+            title="Glisser sur le panorama 360° pour placer ce média directement"
+            onDragStart={e=>{e.dataTransfer.setData('application/x-nv-icon','media:'+item.id);e.dataTransfer.effectAllowed='copy';}}>
+            {item.kind==='photo'&&r.thumb?<img src={r.thumb} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer"/>:<span>{item.kind==='photo'?'▣':'▶'}</span>}
+          </div>
           <div className="nv-medialib-info">
             <input value={item.name} aria-label="Nom" onChange={e=>onChange(items.map(i=>i.id===item.id?{...i,name:e.target.value.slice(0,200)}:i))}/>
             <small>{providerLabel[item.provider]} · {item.kind==='photo'?'Photo':'Vidéo'}{r.embed?' · lecteur intégré':''}</small>
@@ -99,6 +112,6 @@ export function MediaLibraryPanel({items,onChange,selected,onApply}:{
         </li>;})}
     </ul>
     {targetKind?<small className="hint-inline">Point sélectionné : <b>{selected!.title||'(sans titre)'}</b> — touche « Utiliser » pour lui donner ce {targetKind==='photo'?'photo':'vidéo'}.</small>
-      :<small className="hint-inline">Sélectionne un point Photo ou Vidéo dans le panorama pour y utiliser un élément de la bibliothèque.</small>}
+      :<small className="hint-inline">Astuce : fais glisser la vignette d’une photo ou vidéo directement dans le panorama 360° pour créer son point !</small>}
   </div>;
 }

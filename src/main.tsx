@@ -1,3 +1,5 @@
+import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
+import {FloorPlanEditor,FloorPlanDialog} from './FloorPlan';
 import {MediaIconSelector} from './MediaIconSettings';
 import {BarSmartCard,barKind,recommendedType} from './BarSmartCard';
 import {InformationEditor,informationFont} from './InformationEditor';
@@ -50,7 +52,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
@@ -62,6 +64,7 @@ import {SpacesActions} from './SpacesActions';
 import {mergeImportedSpaces} from './spaceTransfer';
 import {rememberMedia} from './mediaLibrary';
 import {IconLibrary,buildIconSets} from './IconLibrary';
+import type {IconSetImages} from './IconSetCreator';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -77,7 +80,7 @@ import './media.css';
 import {XMark} from './XMark';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client';
+type PanelTab = 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -417,6 +420,15 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       let coords=frameWorldCorners(h);
       let center={yaw:h.yaw,pitch:h.pitch};
       let touched=false;
+      const cornerLabel:Record<string,string>={tl:'Coin Haut-Gauche',tr:'Coin Haut-Droit',br:'Coin Bas-Droit',bl:'Coin Bas-Gauche'};
+      const hudPrefix=movingCenter?'✥ Cadre entier':(key&&cornerLabel[key]?`✥ ${cornerLabel[key]}`:'✥ Coin');
+      const startRect=root.getBoundingClientRect();
+      const hudEl=document.createElement('div');
+      hudEl.className='nv-pano-drag-hud';
+      hudEl.textContent=hudPrefix;
+      hudEl.style.left=`${event.clientX-startRect.left}px`;
+      hudEl.style.top=`${Math.max(24,event.clientY-startRect.top-42)}px`;
+      root.appendChild(hudEl);
       // Pendant le déplacement, la poignée devient un anneau transparent avec un réticule : on voit exactement où le coin se pose.
       const ghost=()=>{const el=root.querySelector<HTMLElement>(movingCenter?'.nv-sphere-center[data-frame-id="'+id+'"]':'[data-frame-id="'+id+'"][data-corner="'+key+'"]');el?.classList.add('is-dragging');};
       ghost();root.classList.add('nv-frame-dragging');
@@ -429,8 +441,10 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         pointer.stopImmediatePropagation();
         const rect=root.getBoundingClientRect();
         if(!rect.width||!rect.height)return;
+        const relX=pointer.clientX-rect.left;
+        const relY=pointer.clientY-rect.top;
         const point=viewer.dataHelper.viewerCoordsToSphericalCoords({
-          x:pointer.clientX-rect.left,y:pointer.clientY-rect.top
+          x:relX,y:relY
         });
         if(!point)return;
         if(movingCenter){
@@ -445,6 +459,11 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
           coords=coords.map((p,i)=>i===FRAME_KEYS.indexOf(key)?{yaw:point.yaw,pitch:point.pitch}:p) as FrameSphericalCorners;
         }
         touched=true;
+        const yawDeg=Math.round((point.yaw*180)/Math.PI);
+        const pitchDeg=Math.round((point.pitch*180)/Math.PI);
+        hudEl.textContent=`${hudPrefix} · ${yawDeg}° · ${pitchDeg>=0?'+':''}${pitchDeg}°`;
+        hudEl.style.left=`${relX}px`;
+        hudEl.style.top=`${Math.max(24,relY-42)}px`;
         try {
           plugin.updateMarker({id:h.id,position:coords},false);
           FRAME_KEYS.forEach((corner,i)=>{
@@ -460,6 +479,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       };
       const cleanup=()=>{
         dimFrame(0.3);
+        hudEl.remove();
         root.classList.remove('nv-frame-dragging');root.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
         document.removeEventListener('pointermove',update,true);
         document.removeEventListener('pointerup',finish,true);
@@ -467,8 +487,20 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       };
       const finish=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
-        update(pointer);cleanup();
-        if(touched)actions.current.onWorldFrameChange(h.id,coords,movingCenter?center:undefined);
+        update(pointer);
+        const rect=root.getBoundingClientRect();
+        const dropX=pointer.clientX-rect.left;
+        const dropY=pointer.clientY-rect.top;
+        cleanup();
+        if(touched){
+          const ripple=document.createElement('div');
+          ripple.className='nv-pano-drop-ripple';
+          ripple.style.left=`${dropX}px`;
+          ripple.style.top=`${dropY}px`;
+          root.appendChild(ripple);
+          window.setTimeout(()=>ripple.remove(),700);
+          actions.current.onWorldFrameChange(h.id,coords,movingCenter?center:undefined);
+        }
       };
       const cancel=(pointer:PointerEvent)=>{
         if(pointer.pointerId===event.pointerId)cleanup();
@@ -483,6 +515,22 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
   useEffect(()=>{
     const root=box.current;
     if(!root)return;
+    let reticleEl:HTMLDivElement|null=null;
+
+    const removeReticle=()=>{
+      root.classList.remove('is-icon-drag-over');
+      if(reticleEl){reticleEl.remove();reticleEl=null;}
+    };
+
+    const spawnPanoRipple=(x:number,y:number)=>{
+      const ripple=document.createElement('div');
+      ripple.className='nv-pano-drop-ripple';
+      ripple.style.left=`${x}px`;
+      ripple.style.top=`${y}px`;
+      root.appendChild(ripple);
+      window.setTimeout(()=>ripple.remove(),700);
+    };
+
     const onDown=(e:PointerEvent)=>{
       const t=e.target;
       if(!(t instanceof HTMLElement)||t.closest('.nv-direct-corner'))return;
@@ -507,33 +555,97 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       if(!autoDrag&&(a.mode||id!==a.selectedId))return;
       const viewer=viewerRef.current;
       if(!viewer||!id)return;
+
+      const startX=e.clientX;
+      const startY=e.clientY;
+      let hudEl:HTMLDivElement|null=null;
+
+      const getMarkerNode=()=>root.querySelector<HTMLElement>(`.nv-drag-target[data-nv-marker-id="${CSS.escape(id)}"]`)??item;
+
+      const activateDragVisuals=()=>{
+        const node=getMarkerNode();
+        node.classList.remove('is-hold-charging');
+        node.classList.add('is-marker-dragging');
+        root.classList.add('is-dragging-hotspot');
+        if(!hudEl){
+          hudEl=document.createElement('div');
+          hudEl.className='nv-pano-drag-hud';
+          hudEl.textContent='✥ Déplacement libre';
+          const rect=root.getBoundingClientRect();
+          hudEl.style.left=`${startX-rect.left}px`;
+          hudEl.style.top=`${startY-rect.top-38}px`;
+          root.appendChild(hudEl);
+        }
+      };
+
       // En mode classique la poignée déplace directement. En Auto, appui maintenu
       // 320 ms sur la flèche : clic bref = navigation, maintien = déplacement.
       let dragging=!autoDrag;
-      if(!autoDrag){e.preventDefault();e.stopImmediatePropagation();}
+      if(!autoDrag){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        activateDragVisuals();
+      }else{
+        item.classList.add('is-hold-charging');
+      }
+
       let timer:ReturnType<typeof setTimeout>|null=autoDrag?setTimeout(()=>{
-        dragging=true;suppressMarkerClick.current=id;
+        dragging=true;
+        suppressMarkerClick.current=id;
+        activateDragVisuals();
       },320):null;
+
       let final:{yaw:number;pitch:number}|null=null;
       const move=(p:PointerEvent)=>{
-        if(p.pointerId!==e.pointerId||!dragging)return;
+        if(p.pointerId!==e.pointerId)return;
+        if(!dragging){
+          // Si l'utilisateur bouge la caméra avant la fin des 320 ms, on annule la charge
+          if(Math.hypot(p.clientX-startX,p.clientY-startY)>10){
+            clear();
+          }
+          return;
+        }
         p.preventDefault();p.stopImmediatePropagation();
         const rect=root.getBoundingClientRect();
-        const at=viewer.dataHelper.viewerCoordsToSphericalCoords({x:p.clientX-rect.left,y:p.clientY-rect.top});
+        const relX=p.clientX-rect.left;
+        const relY=p.clientY-rect.top;
+        const at=viewer.dataHelper.viewerCoordsToSphericalCoords({x:relX,y:relY});
         if(!at)return;
         final=at;
         try{(viewer.getPlugin(MarkersPlugin) as MarkersPlugin).updateMarker({id,position:at});}catch{}
+        const node=getMarkerNode();
+        node.classList.add('is-marker-dragging');
+        if(hudEl){
+          const yawDeg=Math.round((at.yaw*180)/Math.PI);
+          const pitchDeg=Math.round((at.pitch*180)/Math.PI);
+          hudEl.textContent=`✥ ${yawDeg}° · ${pitchDeg>=0?'+':''}${pitchDeg}°`;
+          hudEl.style.left=`${relX}px`;
+          hudEl.style.top=`${Math.max(24,relY-42)}px`;
+        }
       };
       const clear=()=>{
-        if(timer)clearTimeout(timer);
+        if(timer){clearTimeout(timer);timer=null;}
+        const node=getMarkerNode();
+        node.classList.remove('is-hold-charging','is-marker-dragging');
+        item.classList.remove('is-hold-charging','is-marker-dragging');
+        root.classList.remove('is-dragging-hotspot');
+        if(hudEl){hudEl.remove();hudEl=null;}
         document.removeEventListener('pointermove',move,true);
         document.removeEventListener('pointerup',up,true);
         document.removeEventListener('pointercancel',cancel,true);
       };
       const up=(p:PointerEvent)=>{
         if(p.pointerId!==e.pointerId)return;
-        move(p);clear();
-        if(final)actions.current.onMarkerMove(id,final.yaw,final.pitch);
+        if(dragging)move(p);
+        const wasDragging=dragging&&!!final;
+        const rect=root.getBoundingClientRect();
+        const dropX=p.clientX-rect.left;
+        const dropY=p.clientY-rect.top;
+        clear();
+        if(final){
+          actions.current.onMarkerMove(id,final.yaw,final.pitch);
+          if(wasDragging)spawnPanoRipple(dropX,dropY);
+        }
         if(autoDrag&&dragging)setTimeout(()=>{if(suppressMarkerClick.current===id)suppressMarkerClick.current=null;},350);
       };
       const cancel=(p:PointerEvent)=>{if(p.pointerId===e.pointerId){clear();suppressMarkerClick.current=null;}};
@@ -541,18 +653,53 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       document.addEventListener('pointerup',up,true);
       document.addEventListener('pointercancel',cancel,true);
     };
-    const over=(e:DragEvent)=>{if(e.dataTransfer?.types.includes('application/x-nv-icon'))e.preventDefault();};
+    const over=(e:DragEvent)=>{
+      if(!e.dataTransfer?.types.includes('application/x-nv-icon')||actions.current.preview)return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect='copy';
+      root.classList.add('is-icon-drag-over');
+      const rect=root.getBoundingClientRect();
+      const x=e.clientX-rect.left;
+      const y=e.clientY-rect.top;
+      if(!reticleEl){
+        reticleEl=document.createElement('div');
+        reticleEl.className='nv-pano-reticle';
+        reticleEl.innerHTML='<span class="nv-pano-reticle-ring"></span><span class="nv-pano-reticle-dot"></span><span class="nv-pano-reticle-label">Déposer dans le 360°</span>';
+        root.appendChild(reticleEl);
+      }
+      reticleEl.style.left=`${x}px`;
+      reticleEl.style.top=`${y}px`;
+    };
+    const leave=(e:DragEvent)=>{
+      if(e.relatedTarget instanceof Node&&root.contains(e.relatedTarget))return;
+      removeReticle();
+    };
     const drop=(e:DragEvent)=>{
       const icon=e.dataTransfer?.getData('application/x-nv-icon');
+      removeReticle();
       if(!icon||actions.current.preview)return;
       const viewer=viewerRef.current;if(!viewer)return;
       e.preventDefault();
       const rect=root.getBoundingClientRect();
-      const pos=viewer.dataHelper.viewerCoordsToSphericalCoords({x:e.clientX-rect.left,y:e.clientY-rect.top});
-      if(pos)actions.current.onAssetDrop(icon,pos.yaw,pos.pitch);
+      const x=e.clientX-rect.left;
+      const y=e.clientY-rect.top;
+      const pos=viewer.dataHelper.viewerCoordsToSphericalCoords({x,y});
+      if(pos){
+        spawnPanoRipple(x,y);
+        actions.current.onAssetDrop(icon,pos.yaw,pos.pitch);
+      }
     };
-    root.addEventListener('pointerdown',onDown,true);root.addEventListener('dragover',over);root.addEventListener('drop',drop);
-    return ()=>{root.removeEventListener('pointerdown',onDown,true);root.removeEventListener('dragover',over);root.removeEventListener('drop',drop);};
+    root.addEventListener('pointerdown',onDown,true);
+    root.addEventListener('dragover',over);
+    root.addEventListener('dragleave',leave);
+    root.addEventListener('drop',drop);
+    return ()=>{
+      removeReticle();
+      root.removeEventListener('pointerdown',onDown,true);
+      root.removeEventListener('dragover',over);
+      root.removeEventListener('dragleave',leave);
+      root.removeEventListener('drop',drop);
+    };
   },[]);
   return <div ref={box} className="panorama" />;
 }
@@ -769,6 +916,7 @@ function App(){
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
   const visitorPrefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [floorPlanOpen,setFloorPlanOpen]=useState(false);
   const [photoGalleryId,setPhotoGalleryId]=useState<string|null>(null);
   const [panoModalId,setPanoModalId]=useState<string|null>(null);
   const sphereImage=(id:string)=>projectRef.current.scenes.find(sc=>sc.id===id)?.dataUrl;
@@ -865,6 +1013,8 @@ function App(){
   },[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null>(null);
   const [preview,setPreview]=useState(false);
+  useEffect(()=>{if(preview||panel!=='panoramas')setPanoModalId(null);},[preview,panel]);
+
   const [clientVideoPlacement,setClientVideoPlacement]=useState<(ImportedClientVideo&{sceneId:string})|null>(null);
   useEffect(()=>{
     if(mode!=='video'||preview||clientVideoPlacement?.sceneId!==activeId)setClientVideoPlacement(null);
@@ -988,7 +1138,6 @@ function App(){
   function leaveTools(){returnTo.current='tools';setToolsMenuOpen(false);}
   function leaveShare(){returnTo.current='share';setShareMenuOpen(false);}
   const [notesOpen,setNotesOpen]=useState(false);
-  const [dragTool,setDragTool]=useState<string|null>(null);
   // Le rideau des outils descend TOUJOURS jusqu'à la ligne du haut de la barre du bas (ou du pied de page si elle est absente), quelle que soit la vue ou son contenu.
   useEffect(()=>{
     if(!toolsMenuOpen)return;
@@ -1343,6 +1492,7 @@ function App(){
   const fsToolsRef=useRef<HTMLDivElement>(null);
   const toolOptions:Array<{key:PanelTab;label:string}>=[
     {key:'panoramas',label:'Panoramas'},
+    {key:'plan',label:'Plan de la visite'},
     {key:'points',label:selectedId?'Inspecteur · Scène & Points':'Scène & Points'},
     {key:'bar',label:'Barre du bas'},
     {key:'icons',label:'Mes icônes'},
@@ -1350,16 +1500,16 @@ function App(){
     {key:'elements',label:'Éléments'},
     {key:'medialib',label:'Photos & Vidéos'},
     {key:'music',label:'Musique'},
-    {key:'settings',label:'Bouton Paramètres'},
+    {key:'settings',label:'Paramètres de la visite'},
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
+  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
       const known=Array.isArray(saved)?saved.filter((k):k is string=>typeof k==='string'&&TOOL_KEYS.includes(k)):[];
-      return [...new Set([...known,...TOOL_KEYS])];
+      return [...new Set([...(known.includes('settings')?[]:['settings']),...(known.includes('plan')?[]:['plan']),...known,...TOOL_KEYS])];
     }catch{return TOOL_KEYS;}
   });
   const saveToolOrder=(order:string[])=>{try{localStorage.setItem('nvstudio-tools-order',JSON.stringify(order));}catch{/* ordre non mémorisé */}};
@@ -1369,12 +1519,14 @@ function App(){
     const ic=22;
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
+    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:project.floorPlan?1:undefined,
+      run:()=>toggleToolPanel('plan' as PanelTab)};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);
     if(!option)return null;
     const look:Record<string,{icon:ReactNode;tone:string}>={
-      panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
+      settings:{icon:<SettingsIcon size={ic}/>,tone:'#42c6b7'},plan:{icon:<MapIcon size={ic}/>,tone:'#20b2aa'},panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
       icons:{icon:<Star size={ic}/>,tone:'#f0b429'},intro:{icon:<Play size={ic}/>,tone:'#ef5b7b'},elements:{icon:<Plus size={ic}/>,tone:'#2bb3d6'},
       medialib:{icon:<Images size={ic}/>,tone:'#3ec6a8'},music:{icon:<Music size={ic}/>,tone:'#ff6fa8'},client:{icon:<Smile size={ic}/>,tone:'#7f8cff'}
     };
@@ -1408,32 +1560,286 @@ function App(){
       </div>
     );
   }
+  // Glisser-déposer des tuiles d'outils : état et références au niveau racine pour éviter tout démontage React
+  const [dragTool,setDragTool]=useState<string|null>(null);
+  const [justDroppedTool,setJustDroppedTool]=useState<string|null>(null);
+  const latestToolOrderRef=useRef<string[]>(toolOrder);
+  latestToolOrderRef.current=toolOrder;
+  const hasDraggedToolRef=useRef(false);
+  const disposeToolDragRef=useRef<(()=>void)|null>(null);
+  useEffect(()=>()=>disposeToolDragRef.current?.(),[]);
+
+  function handleToolPointerDown(event:React.PointerEvent<HTMLDivElement>,id:string){
+    if(event.button!==0||!canDragTools||disposeToolDragRef.current)return;
+    const tileWrap=event.currentTarget;
+    const container=tileWrap.closest<HTMLElement>('.nv-tiles');
+    if(!container)return;
+
+    const original=[...latestToolOrderRef.current];
+    let liveOrder=[...original];
+    const initial=tileWrap.getBoundingClientRect();
+    const startX=event.clientX;
+    const startY=event.clientY;
+    const offsetX=startX-initial.left;
+    const offsetY=startY-initial.top;
+
+    const items=()=>[...container.querySelectorAll<HTMLElement>(':scope > .nv-tile-wrap[data-tool-key]')];
+    // Capture la géométrie fixe des cases de la grille avant tout mouvement
+    let slotRects=items().map(el=>el.getBoundingClientRect());
+
+    let moved=false;
+    let ghost:HTMLElement|null=null;
+    let disposed=false;
+    let currentX=startX;
+    let currentY=startY;
+
+    const moveTilesToIndex=(targetIdx:number)=>{
+      const currentIdx=liveOrder.indexOf(id);
+      if(currentIdx<0||targetIdx<0||currentIdx===targetIdx)return;
+      const targetKey=liveOrder[targetIdx];
+      if(!targetKey||targetKey===id)return;
+
+      // 1. Mesure la position visuelle exacte de chaque tuile à cet instant précis
+      const beforeMap=new Map<string,DOMRect>();
+      for(const it of items()){
+        const k=it.dataset.toolKey;
+        if(k)beforeMap.set(k,it.getBoundingClientRect());
+      }
+
+      // 2. Met à jour l'ordre de manière synchrone (sans clignotement d'image)
+      liveOrder=reorderItems(liveOrder,id,targetKey,k=>k);
+      latestToolOrderRef.current=liveOrder;
+      flushSync(()=>{
+        setToolOrder(liveOrder);
+      });
+
+      // 3. Anime en douceur (FLIP) chaque tuile déplacée depuis son ancienne position visuelle
+      if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        for(const item of items()){
+          const k=item.dataset.toolKey;
+          if(!k||k===id)continue;
+          item.getAnimations().forEach(a=>a.cancel());
+          const oldRect=beforeMap.get(k);
+          if(!oldRect)continue;
+          const newRect=item.getBoundingClientRect();
+          const dx=oldRect.left-newRect.left;
+          const dy=oldRect.top-newRect.top;
+          if(Math.abs(dx)>1||Math.abs(dy)>1){
+            item.animate([
+              {transform:`translate3d(${dx}px,${dy}px,0)`},
+              {transform:'translate3d(0,0,0)'}
+            ],{
+              duration:220,
+              easing:'cubic-bezier(0.2,0,0,1)'
+            });
+          }
+        }
+      }
+    };
+
+    const update=()=>{
+      if(!moved||disposed)return;
+      if(ghost){
+        ghost.style.transform=`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`;
+      }
+
+      // Détecte dans quelle case fixe de la grille se trouve le pointeur (zone centrale 72% pour éviter toute oscillation)
+      let targetIdx=-1;
+      for(let i=0;i<slotRects.length;i++){
+        const r=slotRects[i];
+        const padX=r.width*0.14;
+        const padY=r.height*0.14;
+        if(
+          currentX>=r.left+padX&&
+          currentX<=r.right-padX&&
+          currentY>=r.top+padY&&
+          currentY<=r.bottom-padY
+        ){
+          targetIdx=i;
+          break;
+        }
+      }
+
+      if(targetIdx!==-1&&targetIdx!==liveOrder.indexOf(id)){
+        moveTilesToIndex(targetIdx);
+      }
+    };
+
+    const handlePointerMove=(e:PointerEvent)=>{
+      currentX=e.clientX;
+      currentY=e.clientY;
+
+      if(!moved&&Math.hypot(currentX-startX,currentY-startY)>5){
+        moved=true;
+        hasDraggedToolRef.current=true;
+        // Recalcule les cases au démarrage effectif du glissement
+        slotRects=items().map(el=>{
+          el.getAnimations().forEach(a=>a.cancel());
+          return el.getBoundingClientRect();
+        });
+
+        const tileBtn=tileWrap.querySelector('.nv-app-tile') as HTMLElement;
+        ghost=(tileBtn?tileBtn.cloneNode(true):tileWrap.cloneNode(true)) as HTMLElement;
+        ghost.className='nv-app-tile nv-tile-ghost';
+        ghost.removeAttribute('id');
+        ghost.setAttribute('aria-hidden','true');
+        Object.assign(ghost.style,{
+          position:'fixed',
+          left:'0',
+          top:'0',
+          width:`${initial.width}px`,
+          height:`${initial.height}px`,
+          transform:`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`,
+          pointerEvents:'none',
+          zIndex:'99999',
+          margin:'0',
+          boxShadow:'0 20px 48px rgba(0,0,0,0.8), 0 0 0 2px #4bebde, 0 0 24px rgba(75,235,222,0.45)',
+          borderRadius:'22px',
+          willChange:'transform'
+        });
+        document.body.appendChild(ghost);
+        document.body.classList.add('nv-is-sorting');
+        setDragTool(id);
+      }
+
+      if(moved){
+        e.preventDefault();
+        update();
+      }
+    };
+
+    const cleanup=()=>{
+      disposed=true;
+      disposeToolDragRef.current=null;
+      window.removeEventListener('pointermove',handlePointerMove,{capture:true});
+      window.removeEventListener('pointerup',handlePointerUp,true);
+      window.removeEventListener('pointercancel',handlePointerCancel,true);
+      window.removeEventListener('keydown',handleKeyDownGlobal,true);
+      document.body.classList.remove('nv-is-sorting');
+    };
+
+    const finish=(rollback=false)=>{
+      if(disposed)return;
+      cleanup();
+
+      if(!moved){
+        hasDraggedToolRef.current=false;
+        return;
+      }
+
+      if(rollback){
+        liveOrder=[...original];
+        latestToolOrderRef.current=liveOrder;
+        setToolOrder(liveOrder);
+        ghost?.remove();
+        setDragTool(null);
+        hasDraggedToolRef.current=false;
+        return;
+      }
+
+      const finalIdx=liveOrder.indexOf(id);
+      const finalRect=slotRects[finalIdx]??container.querySelector<HTMLElement>(`.nv-tile-wrap[data-tool-key="${id}"]`)?.getBoundingClientRect();
+      if(ghost&&finalRect){
+        const g=ghost;
+        const land=g.animate([
+          {transform:`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`},
+          {transform:`translate3d(${finalRect.left}px,${finalRect.top}px,0) scale(1)`}
+        ],{
+          duration:160,
+          easing:'cubic-bezier(0.2,0,0,1)'
+        });
+        land.onfinish=()=>{
+          g.remove();
+          setDragTool(null);
+          setJustDroppedTool(id);
+          setTimeout(()=>{
+            setJustDroppedTool(null);
+            hasDraggedToolRef.current=false;
+          },380);
+        };
+      }else{
+        ghost?.remove();
+        setDragTool(null);
+        hasDraggedToolRef.current=false;
+      }
+
+      saveToolOrder(liveOrder);
+    };
+
+    const handlePointerUp=()=>finish(false);
+    const handlePointerCancel=()=>finish(true);
+    const handleKeyDownGlobal=(e:KeyboardEvent)=>{
+      if(e.key==='Escape'){
+        e.preventDefault();
+        finish(true);
+      }
+    };
+
+    disposeToolDragRef.current=cleanup;
+    window.addEventListener('pointermove',handlePointerMove,{capture:true,passive:false});
+    window.addEventListener('pointerup',handlePointerUp,true);
+    window.addEventListener('pointercancel',handlePointerCancel,true);
+    window.addEventListener('keydown',handleKeyDownGlobal,true);
+  }
+
+  function handleToolKeyDown(e:React.KeyboardEvent,key:string){
+    if(!canDragTools)return;
+    if(e.altKey||e.ctrlKey){
+      let delta=0;
+      if(e.key==='ArrowLeft'||e.key==='ArrowUp')delta=-1;
+      else if(e.key==='ArrowRight'||e.key==='ArrowDown')delta=1;
+
+      if(delta!==0){
+        e.preventDefault();
+        const currentIndex=toolOrder.indexOf(key);
+        const targetIndex=currentIndex+delta;
+        if(targetIndex>=0&&targetIndex<toolOrder.length){
+          const targetKey=toolOrder[targetIndex];
+          setToolOrder(order=>{
+            const next=reorderItems(order,key,targetKey,k=>k);
+            saveToolOrder(next);
+            return next;
+          });
+          setJustDroppedTool(key);
+          setTimeout(()=>setJustDroppedTool(null),450);
+        }
+      }
+    }
+  }
+
   // Rideau des outils (tuiles) : sous l'en-tête, ou dans le plein écran de création.
   function toolsCurtain(fs:boolean){
     return (
         <div id={fs?'nv-fs-tools-options':'nv-header-tools-options'} className={'nv-tools-curtain'+(toolsMenuOpen?' is-open':'')+(fs?' nv-in-fullscreen':'')} role="dialog" aria-label="Tous les outils" aria-hidden={!toolsMenuOpen}>
           <div className="nv-tools-curtain-inner">
-            <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux':'Touche une tuile pour l’ouvrir'}</small></div>
-            <div className="nv-tiles" role="list">
+            <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux (ou Alt + Flèches)':'Touche une tuile pour l’ouvrir'}</small></div>
+            <div className={'nv-tiles'+(dragTool?' nv-tiles-is-dragging':'')} role="list">
               {toolOrder.map(key=>{
                 const meta=toolMeta(key);
                 if(!meta)return null;
-                return <div key={key} role="listitem" className={'nv-tile-wrap'+(dragTool===key?' is-dragging':'')} draggable={canDragTools}
-                  onDragStart={e=>{setDragTool(key);e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key);}}
-                  onDragOver={e=>{
-                    if(!dragTool||dragTool===key)return;
-                    e.preventDefault();
-                    setToolOrder(order=>reorderItems(order,dragTool,key,k=>k));
-                  }}
-                  onDrop={e=>e.preventDefault()}
-                  onDragEnd={()=>{setDragTool(null);setToolOrder(order=>{saveToolOrder(order);return order;});}}>
-                  <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active} onClick={()=>fs?runFromFullscreen(key,meta.run):meta.run()} tabIndex={toolsMenuOpen?0:-1}
-                    style={{'--tile-tone':meta.tone} as CSSProperties}>
-                    <span className="nv-app-tile-icon">{meta.icon}</span>
-                    <span className="nv-app-tile-label">{meta.label}</span>
-                    {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
-                  </button>
-                </div>;
+                const isDragging=dragTool===key;
+                const isDropped=justDroppedTool===key;
+                return (
+                  <div key={key} data-tool-key={key} role="listitem"
+                    className={'nv-tile-wrap'+(isDragging?' is-dragging':'')+(isDropped?' is-just-dropped':'')}
+                    onPointerDown={e=>handleToolPointerDown(e,key)}
+                    onKeyDown={e=>handleToolKeyDown(e,key)}>
+                    <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active}
+                      onClick={()=>{
+                        if(hasDraggedToolRef.current)return;
+                        if(fs)runFromFullscreen(key,meta.run);
+                        else meta.run();
+                      }}
+                      tabIndex={toolsMenuOpen?0:-1}
+                      style={{'--tile-tone':meta.tone} as CSSProperties}
+                      title={canDragTools?`${meta.label} · Glisser pour déplacer (ou Alt+Flèches)`:meta.label}>
+                      {canDragTools&&<span className="nv-tile-drag-handle" aria-hidden="true" title="Glisser pour réorganiser"><GripVertical size={13}/></span>}
+                      <span className="nv-app-tile-icon">{meta.icon}</span>
+                      <span className="nv-app-tile-label">{meta.label}</span>
+                      {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
+                    </button>
+                  </div>
+                );
               })}
             </div>
             {!fs&&<>
@@ -1513,6 +1919,8 @@ function App(){
   const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
   const [panoramasLayout,setPanoramasLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-panorama-layout')==='grid'?'grid':'list';}catch{return 'list';}});
   const [showArrivalCrosshair,setShowArrivalCrosshair]=useState(false);
+  const [arrivalSaving,setArrivalSaving]=useState(false);
+  const arrivalSavingRef=useRef(false);
   useEffect(()=>{try{localStorage.setItem('nvstudio-gallery-layout',fullscreenGalleryLayout);}catch{}},[fullscreenGalleryLayout]);
   useEffect(()=>{try{localStorage.setItem('nvstudio-panorama-layout',panoramasLayout);}catch{}},[panoramasLayout]);
   useEffect(()=>{if(fullscreenToolsOpen&&fullscreenCommandDrawerOpen)setFullscreenCommandDrawerOpen(false);},[fullscreenToolsOpen,fullscreenCommandDrawerOpen]);
@@ -1913,9 +2321,12 @@ function App(){
     }
   },[ready,lock,project.preparationComplete,project.scenes.length]);
   const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
+  const liveBarSort=useHorizontalSort(project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const spaceSort=useHorizontalSort((project.spaces??[]).map(sp=>sp.id),(from,to)=>setProject(p=>({...p,spaces:reorderItems(p.spaces??[],from,to,sp=>sp.id)})));
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
+    '--nv-close-icon-hover-image':project.closeIconHoverId?`url("${project.icons.find(i=>i.id===project.closeIconHoverId)?.dataUrl??''}")`:'none',
+    '--nv-close-icon-pressed-image':project.closeIconPressedId?`url("${project.icons.find(i=>i.id===project.closeIconPressedId)?.dataUrl??''}")`:'none',
     '--nv-bar-bg':project.barStyle.background,
     '--nv-daynight-color':project.barStyle.dayNightColor??'#2f72b4',
     '--nv-bar-outline':project.barStyle.outline,
@@ -2353,6 +2764,25 @@ function App(){
       <small className="hint-inline">Pour un fondu parfaitement aligné, utilise deux photos prises depuis le même point et orientées de la même façon.</small>
     </div></InspectorSection>;
   }
+  async function saveArrivalImmediately(){
+    if(arrivalSavingRef.current||savingManually||savingRef.current)return;
+    if(!active||lock){setStatus('Échec : enregistrement de la vue indisponible');return;}
+    const {sceneId,yaw,pitch,zoom}=cameraRef.current;
+    if(sceneId!==active.id){setStatus('Échec : attends le chargement du panorama puis réessaie');return;}
+    const snapshot:StudioProject={...projectRef.current,scenes:projectRef.current.scenes.map(sc=>sc.id===sceneId?
+      {...sc,arrivalYaw:yaw,arrivalPitch:pitch,arrivalZoom:zoom,arrivalZoomModel:'wide'}:sc)};
+    const name=active.name;
+    arrivalSavingRef.current=true;setArrivalSaving(true);
+    flushSync(()=>setProject(snapshot));
+    try{
+      if(!await persist(snapshot))return;
+      if(cloud.signedIn&&!await manualSave(false,true)){
+        setStatus('Sauvegardé localement · Vue d’arrivée de '+name+' · Cloud non synchronisé, réessaie l’enregistrement.');return;
+      }
+      setStatus('Sauvegardé · Vue d’arrivée enregistrée pour '+name);
+    }catch(error){setStatus('Échec de sauvegarde de la vue : '+(error instanceof Error?error.message:String(error)));}
+    finally{arrivalSavingRef.current=false;setArrivalSaving(false);}
+  }
   function saveArrivalView(){
     if(!active)return;
     const view=cameraRef.current;
@@ -2370,6 +2800,23 @@ function App(){
     patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch}:h)}));
   }
   function dropIcon(payload:string,yaw:number,pitch:number){
+    if(payload.startsWith('media:')){
+      if(!active)return;
+      const mediaId=payload.slice(6);
+      const item=(project.mediaLibrary??[]).find(m=>m.id===mediaId);
+      if(!item)return;
+      const r=resolveLink(item);
+      if(r.problem)return;
+      const h:Hotspot=item.kind==='photo'
+        ?{id:uid(),type:'image',title:item.name,text:'',target:'',yaw,pitch,mediaDisplay:'popup',
+          ...(item.provider==='local'&&item.data?{imageDataUrl:item.data}:{imageUrl:r.image})}
+        :{id:uid(),type:'video',title:item.name,text:'',target:'',yaw,pitch,mediaDisplay:'popup',videoOpenFullscreen:true,
+          ...(item.provider==='local'&&item.data?{videoDataUrl:item.data}:r.video?{videoUrl:r.video}:{videoEmbed:r.embed,videoUrl:''})};
+      patchScene(sc=>({...sc,hotspots:[...sc.hotspots,h]}));
+      setPanel('points');setSelectedId(h.id);setMode(null);
+      setStatus((item.kind==='photo'?'Photo':'Vidéo')+' « '+item.name+' » positionnée dans le panorama');
+      return;
+    }
     // `payload` = identifiant d'une icône seule, ou JSON d'un jeu complet (normal + survol + clic).
     let set:{iconId:string;hoverIconId?:string;pressedIconId?:string;size?:number}|null=null;
     if(payload.startsWith('{')){
@@ -2395,43 +2842,62 @@ function App(){
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
   }
-  // Glisser-déposer des scènes : suit le pointeur en direct (transformations CSS, aucun rendu React pendant le glissement),
-  // décale les autres scènes avec une animation, fait défiler la liste près des bords. Souris, stylet et tactile (via la poignée ⋮⋮).
+  // Glisser-déposer des scènes (1D liste et 2D grille) : suit le pointeur en direct en 2D (aucun rendu React pendant le glissement),
+  // décale les autres scènes sur les axes X/Y avec une animation fluide, et fait défiler la liste près des bords.
   function startSceneDrag(e:React.PointerEvent<HTMLDivElement>,index:number){
     if(e.button!==0||sortBusy.current)return;
-    if(e.pointerType==='touch'&&!(e.target as HTMLElement).closest('.scene-grip'))return;
+    const targetEl=e.target as HTMLElement;
+    if(targetEl.closest('.nv-scene-include,.nv-scene-360-preview-btn,.nv-space-exclude'))return;
+    if(e.pointerType==='touch'&&!targetEl.closest('.scene-grip'))return;
     const container=scenesRef.current;
     if(!container)return;
     const slots=Array.from(container.querySelectorAll<HTMLElement>(':scope > .scene-slot'));
     const el=slots[index];
     const id=project.scenes[index]?.id;
     if(!el||!id)return;
-    const pointerId=e.pointerId,startY=e.clientY,startScroll=container.scrollTop;
-    const tops=slots.map(n=>n.offsetTop),heights=slots.map(n=>n.offsetHeight);
-    const gap=parseFloat(getComputedStyle(container).rowGap)||8;
-    const step=heights[index]+gap;
-    const crect=container.getBoundingClientRect(); // la liste ne bouge pas pendant le glissement
-    let started=false,to=index,lastY=startY,raf=0,zoneSince=0;
+    const pointerId=e.pointerId,startX=e.clientX,startY=e.clientY,startScroll=container.scrollTop;
+    const lefts=slots.map(n=>n.offsetLeft),tops=slots.map(n=>n.offsetTop);
+    const widths=slots.map(n=>n.offsetWidth),heights=slots.map(n=>n.offsetHeight);
+    const crect=container.getBoundingClientRect();
+    let started=false,to=index,lastX=startX,lastY=startY,raf=0,zoneSince=0;
     const layout=()=>{
-      const last=slots.length-1;
-      const raw=lastY-startY+(container.scrollTop-startScroll);
-      const dy=Math.max(tops[0]-tops[index],Math.min(tops[last]+heights[last]-tops[index]-heights[index],raw));
-      el.style.transform='translateY('+dy+'px)';
-      const center=tops[index]+heights[index]/2+dy;
-      let target=index;
+      const dx=lastX-startX;
+      const dy=lastY-startY+(container.scrollTop-startScroll);
+      el.style.transform=`translate3d(${dx}px,${dy}px,0) scale(1.04)`;
+
+      const curRect=container.getBoundingClientRect();
+      const curX=lastX-curRect.left+container.scrollLeft;
+      const curY=lastY-curRect.top+container.scrollTop;
+
+      for(let k=0;k<slots.length;k++){
+        const padX=widths[k]*0.12;
+        const padY=heights[k]*0.12;
+        if(
+          curX>=lefts[k]+padX&&
+          curX<=lefts[k]+widths[k]-padX&&
+          curY>=tops[k]+padY&&
+          curY<=tops[k]+heights[k]-padY
+        ){
+          to=k;
+          break;
+        }
+      }
+
       slots.forEach((n,j)=>{
         if(j===index)return;
-        const c=tops[j]+heights[j]/2;
-        let shift=0;
-        // 1 px de tolérance : une scène collée au bord haut/bas doit bien passer devant/derrière la dernière.
-        if(j<index&&c>center-1){shift=step;target=Math.min(target,j);}
-        else if(j>index&&c<center+1){shift=-step;target=Math.max(target,j);}
-        n.style.transform=shift?'translateY('+shift+'px)':'';
+        let destIdx=j;
+        if(index<to&&j>index&&j<=to)destIdx=j-1;
+        else if(index>to&&j>=to&&j<index)destIdx=j+1;
+        if(destIdx!==j){
+          const sx=lefts[destIdx]-lefts[j];
+          const sy=tops[destIdx]-tops[j];
+          n.style.transform=`translate3d(${sx}px,${sy}px,0)`;
+        }else{
+          n.style.transform='';
+        }
       });
-      to=target;
     };
     const tick=(now:number)=>{
-      // Défilement doux : zone étroite, délai avant démarrage, vitesse progressive (jamais de saut brusque).
       const edge=30;
       const depth=lastY<crect.top+edge?crect.top+edge-lastY:lastY>crect.bottom-edge?lastY-(crect.bottom-edge):0;
       if(!depth)zoneSince=0;
@@ -2448,12 +2914,14 @@ function App(){
     };
     const move=(ev:PointerEvent)=>{
       if(ev.pointerId!==pointerId)return;
+      lastX=ev.clientX;
       lastY=ev.clientY;
       if(!started){
-        if(Math.abs(ev.clientY-startY)<5)return;
+        if(Math.hypot(ev.clientX-startX,ev.clientY-startY)<5)return;
         started=true;
         el.classList.add('is-dragging');
         container.classList.add('is-sorting');
+        document.body.classList.add('nv-is-sorting');
         raf=requestAnimationFrame(tick);
       }
       ev.preventDefault();
@@ -2464,23 +2932,24 @@ function App(){
       document.removeEventListener('pointerup',up);
       document.removeEventListener('pointercancel',cancel);
       document.removeEventListener('keydown',key);
+      document.body.classList.remove('nv-is-sorting');
       cancelAnimationFrame(raf);
       if(!started)return;
       suppressClick.current=true;
       window.setTimeout(()=>{suppressClick.current=false;},0);
       sortBusy.current=true;
-      // La scène glisse jusqu'à sa place (au lieu de sauter), puis l'ordre est appliqué sans aucun saut à l'écran.
       const apply=commit&&to!==index;
-      const finalTop=to>index?tops[to]+heights[to]-heights[index]:tops[to];
+      const finalX=apply?lefts[to]-lefts[index]:0;
+      const finalY=apply?tops[to]-tops[index]:0;
       el.classList.add('is-settling');
-      el.style.transform='translateY('+(apply?finalTop-tops[index]:0)+'px)';
+      el.style.transform=`translate3d(${finalX}px,${finalY}px,0) scale(1)`;
       if(!apply)slots.forEach(n=>{if(n!==el)n.style.transform='';});
       window.setTimeout(()=>{
         if(apply)flushSync(()=>moveScene(id,to>index?to+1:to));
         slots.forEach(n=>{n.style.transition='none';n.style.transform='';n.classList.remove('is-dragging','is-settling');});
         container.classList.remove('is-sorting');
         requestAnimationFrame(()=>{slots.forEach(n=>{n.style.transition='';});sortBusy.current=false;});
-      },160);
+      },170);
     };
     const up=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(true);};
     const cancel=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(false);};
@@ -2529,6 +2998,7 @@ function App(){
   function chooseBarAction(type:BottomBarItem['type'],tab?:BarGalleryTab){
     if(tab)setBarGalleryTab(tab);
     // Keep existing selections and content when changing the button's action.
+    if(type==='plan'){patchBar({type,builtinIcon:'map'});return;}
     patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:type==='photos'?{type,photos:selectedBar?.photos??[]}:{type});
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
@@ -2539,10 +3009,11 @@ function App(){
       setSelectedBarId(current=>current===item.id?'':item.id);setPanel('bar');setSelectedId('');setRightHidden(false);
       // Bouton encore vide : on règle tout de suite le bon type d'action d'après son titre (panorama, appel, site, infos…).
       const rec=recommendedType(barKind(item));
-      if(rec&&rec!==item.type&&!item.url&&!item.text&&!(item.gallery?.length))setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===item.id?{...b,type:rec,...(rec==='gallery'?{gallery:b.gallery??[]}:{})}:b)}));
+      if(item.type!=='plan'&&rec&&rec!==item.type&&!item.url&&!item.text&&!(item.gallery?.length))setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===item.id?{...b,type:rec,...(rec==='gallery'?{gallery:b.gallery??[]}:{})}:b)}));
       if(creationFullscreen){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
       return;
     }
+    if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryOpen(item.id);return;}
     if(item.type==='photos'){setPhotoGalleryId(item.id);return;}
     if(item.type==='navigation'){
@@ -2710,7 +3181,7 @@ function App(){
           <strong>Recolorer une icône déjà importée</strong>
           <select value={svgExistingIcon} onChange={e=>setSvgExistingIcon(e.target.value)}>
             <option value="">Choisir une icône…</option>
-            {project.icons.map(icon=><option key={icon.id} value={icon.id}>{icon.name}</option>)}
+            {[...project.icons].sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})).map(icon=><option key={icon.id} value={icon.id}>{icon.name}</option>)}
           </select>
           <div className="nv-svg-create-actions">
             <button type="button" disabled={!svgExistingIcon||svgGenerating||project.icons.length>=150}
@@ -2764,33 +3235,60 @@ function App(){
     }catch{setStatus('Impossible de remplacer cette icône');}
     if(replaceIconInput.current)replaceIconInput.current.value='';
   }
-  function deleteIcon(id:string,confirmed=false){
-    if(!confirmed&&!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
-    setProject(p=>({...p,
-      icons:p.icons.filter(i=>i.id!==id),
-      ...Object.fromEntries((['defaultPhotoIcon','defaultVideoIcon'] as const).map(key=>{const v=p[key];return [key,!v||v.iconId===id?undefined:{...v,hoverIconId:v.hoverIconId===id?undefined:v.hoverIconId,pressedIconId:v.pressedIconId===id?undefined:v.pressedIconId}]})),
-      buttonSets:p.buttonSets?.filter(set=>set.iconId!==id).map(set=>({...set,hoverIconId:set.hoverIconId===id?undefined:set.hoverIconId,pressedIconId:set.pressedIconId===id?undefined:set.pressedIconId})),
-      defaultNavigationIcon:p.defaultNavigationIcon?.iconId===id?undefined:p.defaultNavigationIcon?{...p.defaultNavigationIcon,hoverIconId:p.defaultNavigationIcon.hoverIconId===id?undefined:p.defaultNavigationIcon.hoverIconId,pressedIconId:p.defaultNavigationIcon.pressedIconId===id?undefined:p.defaultNavigationIcon.pressedIconId}:undefined,
-      closeIconId:p.closeIconId===id?undefined:p.closeIconId,
-      soundOnIconId:p.soundOnIconId===id?undefined:p.soundOnIconId,
-      soundOnHoverIconId:p.soundOnHoverIconId===id?undefined:p.soundOnHoverIconId,
-      soundOnPressedIconId:p.soundOnPressedIconId===id?undefined:p.soundOnPressedIconId,
-      soundOffIconId:p.soundOffIconId===id?undefined:p.soundOffIconId,
-      soundOffHoverIconId:p.soundOffHoverIconId===id?undefined:p.soundOffHoverIconId,
-      soundOffPressedIconId:p.soundOffPressedIconId===id?undefined:p.soundOffPressedIconId,
-      settingsIconId:p.settingsIconId===id?undefined:p.settingsIconId,
-      settingsHoverIconId:p.settingsHoverIconId===id?undefined:p.settingsHoverIconId,
-      settingsPressedIconId:p.settingsPressedIconId===id?undefined:p.settingsPressedIconId,
-      // Nettoie aussi les PNG de survol et de clic : une référence orpheline empêcherait de rouvrir le projet.
-      scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>({...h,
-        iconId:h.iconId===id?undefined:h.iconId,
-        hoverIconId:h.hoverIconId===id?undefined:h.hoverIconId,
-        pressedIconId:h.pressedIconId===id?undefined:h.pressedIconId}))})),
-      bottomBar:p.bottomBar.map(b=>({...b,
-        iconId:b.iconId===id?undefined:b.iconId,
-        hoverIconId:b.hoverIconId===id?undefined:b.hoverIconId,
-        pressedIconId:b.pressedIconId===id?undefined:b.pressedIconId}))
+  // Supprimer les trois états en une seule mise à jour : aucun état intermédiaire
+  // ne doit laisser de référence vers une icône supprimée dans le projet.
+  function deleteIcons(ids:string[],confirmed=false){
+    const removed=new Set(ids);
+    if(!removed.size)return;
+    if(!confirmed&&!window.confirm('Supprimer ces icônes et les retirer des boutons et points qui les utilisent ?'))return;
+    const keep=(id?:string)=>id&&!removed.has(id)?id:undefined;
+    setProject(p=>({
+      ...p,
+      icons:p.icons.filter(icon=>!removed.has(icon.id)),
+      defaultPhotoIcon:p.defaultPhotoIcon&&!removed.has(p.defaultPhotoIcon.iconId)?{
+        ...p.defaultPhotoIcon,hoverIconId:keep(p.defaultPhotoIcon.hoverIconId),pressedIconId:keep(p.defaultPhotoIcon.pressedIconId)
+      }:undefined,
+      defaultVideoIcon:p.defaultVideoIcon&&!removed.has(p.defaultVideoIcon.iconId)?{
+        ...p.defaultVideoIcon,hoverIconId:keep(p.defaultVideoIcon.hoverIconId),pressedIconId:keep(p.defaultVideoIcon.pressedIconId)
+      }:undefined,
+      defaultNavigationIcon:p.defaultNavigationIcon&&!removed.has(p.defaultNavigationIcon.iconId)?{
+        ...p.defaultNavigationIcon,hoverIconId:keep(p.defaultNavigationIcon.hoverIconId),pressedIconId:keep(p.defaultNavigationIcon.pressedIconId)
+      }:undefined,
+      buttonSets:p.buttonSets?.filter(set=>!removed.has(set.iconId)).map(set=>({
+        ...set,hoverIconId:keep(set.hoverIconId),pressedIconId:keep(set.pressedIconId)
+      })),
+      closeIconId:keep(p.closeIconId),closeIconHoverId:keep(p.closeIconHoverId),closeIconPressedId:keep(p.closeIconPressedId),
+      soundOnIconId:keep(p.soundOnIconId),soundOnHoverIconId:keep(p.soundOnHoverIconId),soundOnPressedIconId:keep(p.soundOnPressedIconId),
+      soundOffIconId:keep(p.soundOffIconId),soundOffHoverIconId:keep(p.soundOffHoverIconId),soundOffPressedIconId:keep(p.soundOffPressedIconId),
+      settingsIconId:keep(p.settingsIconId),settingsHoverIconId:keep(p.settingsHoverIconId),settingsPressedIconId:keep(p.settingsPressedIconId),
+      hiddenAvailableIcons:p.hiddenAvailableIcons?.filter(id=>!removed.has(id)),
+      hiddenIconSets:p.hiddenIconSets?.filter(key=>!ids.some(id=>key.includes(id))),
+      favoriteNavigationIconSet:p.favoriteNavigationIconSet&&ids.some(id=>p.favoriteNavigationIconSet!.includes(id))?undefined:p.favoriteNavigationIconSet,
+      scenes:p.scenes.map(scene=>({...scene,hotspots:scene.hotspots.map(point=>({
+        ...point,iconId:keep(point.iconId),hoverIconId:keep(point.hoverIconId),pressedIconId:keep(point.pressedIconId)
+      }))})),
+      bottomBar:p.bottomBar.map(button=>({
+        ...button,iconId:keep(button.iconId),hoverIconId:keep(button.hoverIconId),pressedIconId:keep(button.pressedIconId)
+      }))
     }));
+  }
+  function deleteIcon(id:string,confirmed=false){deleteIcons([id],confirmed);}
+
+  async function createLibraryIconSet(name:string,images:IconSetImages):Promise<void>{
+    const label=name.trim().replace(/[\\/]/g,' ').trim();
+    if(!label||label.length>100)throw Error('Donne un nom au pack (100 caractères maximum).');
+    if(buildIconSets(project.icons).some(set=>set.name.toLocaleLowerCase('fr')===label.toLocaleLowerCase('fr'))){
+      throw Error('Un pack porte déjà ce nom. Choisis un autre nom pour éviter de mélanger les états.');
+    }
+    if(project.icons.length+3>150)throw Error('La bibliothèque est pleine (150 icônes maximum). Supprime un ancien pack avant de continuer.');
+    const suffixes=[['normal','Normal'],['hover','Survol'],['pressed','Pressé']] as const;
+    const added:CustomIcon[]=suffixes.map(([state,suffix])=>({
+      id:uid(),name:label+' · '+suffix,dataUrl:images[state]
+    }));
+    // Contrôle de sécurité avant insertion, identique à celui de la sauvegarde.
+    validateProject({...project,icons:[...project.icons,...added]});
+    setProject(p=>({...p,icons:[...p.icons,...added]}));
+    setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé. Sauvegarde avec la disquette.');
   }
   // Jeux d'icônes déjà utilisés dans le projet (barre + points) : la même combinaison normal / survol / clic n'apparaît qu'une fois.
   type IconSet={key:string;iconId:string;hoverIconId?:string;pressedIconId?:string;size:number;users:string[]};
@@ -2809,7 +3307,7 @@ function App(){
     project.buttonSets?.forEach(set=>add('Bouton : '+set.name,set.iconSize,set.iconId,set.hoverIconId,set.pressedIconId));
     project.bottomBar.forEach(b=>add('Barre : '+b.title,barIconSize(b),b.iconId,b.hoverIconId,b.pressedIconId));
     if(project.defaultNavigationIcon){const nav=project.defaultNavigationIcon;add('Flèche par défaut',nav.iconSize,nav.iconId,nav.hoverIconId,nav.pressedIconId);}
-    add('Fermeture des popups',42,project.closeIconId);
+    add('Fermeture des popups',42,project.closeIconId,project.closeIconHoverId,project.closeIconPressedId);
     project.scenes.forEach(sc=>sc.hotspots.forEach(h=>{
       if(h.type!=='image'&&h.type!=='video')add(sc.name+' : '+h.title,h.iconSize??28,h.iconId,h.hoverIconId,h.pressedIconId);
     }));
@@ -2931,7 +3429,7 @@ function App(){
         </div>
       </div>
       {open&&<div className="icon-choice-row">
-        {project.icons.map(i=><span key={i.id} className="icon-choice-wrap">
+        {[...project.icons].sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})).map(i=><span key={i.id} className="icon-choice-wrap">
           <button type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
             <img src={i.dataUrl} alt={i.name}/></button>
           <button type="button" className="icon-delete" title={'Supprimer « '+i.name+' » de la bibliothèque'} aria-label={'Supprimer '+i.name} onClick={()=>deleteIcon(i.id)}><XMark/></button>
@@ -3280,6 +3778,7 @@ function App(){
     if(!window.confirm('Supprimer « '+sc.name+' » du projet ?\n'+(incoming?incoming+' flèche'+(incoming>1?'s qui y mènent seront':' qui y mène sera')+' à reconfigurer.\n':'')+'Tu pourras annuler avec le bouton Annuler (Ctrl+Z).'))return;
     const remaining=project.scenes.filter(x=>x.id!==id);
     setProject(p=>({...p,
+      floorPlan:p.floorPlan?{...p.floorPlan,points:p.floorPlan.points.filter(point=>point.sceneId!==id)}:undefined,
       scenes:p.scenes.filter(x=>x.id!==id).map(x=>({...x,
         nightSourceSceneId:x.nightSourceSceneId===id?undefined:x.nightSourceSceneId,
         hotspots:x.hotspots.map(h=>h.type==='navigation'&&h.target===id?{...h,target:'',arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined}:h)})),
@@ -4441,11 +4940,11 @@ function App(){
             </div>
           )}
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
-          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" aria-label="Barre interactive de la visite" style={barCss}>
+          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" data-hsort={!preview?'':undefined} aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+              return <div key={item.id} data-hsort-id={!preview?item.id:undefined} className={liveBarSort.drag===item.id?'nv-live-bar-dragging':undefined}><div className="nv-bar-sort-item">{!preview&&project.bottomBar.length>1&&liveBarSort.grip(item.id,item.title)}<button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button></div></div>;
@@ -4456,8 +4955,9 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
+            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
             {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
+        {project.floorPlan&&<button type="button" className="nv-open-floor-plan" onClick={()=>{setSettingsOpen(false);setFloorPlanOpen(true);}}>⌖ Afficher le plan</button>}
               <strong>Son</strong>
               <div className="nv-vs-row">
                 <button type="button" className={visitorPrefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
@@ -4469,6 +4969,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog plan={project.floorPlan} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -4535,8 +5036,11 @@ function App(){
           </button>
           <small>{quickLinkMode?'Choisis une destination, oriente la cible, puis valide la flèche avec les icônes du projet.':'Clique sur un panorama pour l’ouvrir sans créer de flèche.'}</small>
         </div>}
-        <button className="import" onClick={()=>upload.current?.click()}>
-          <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer des panoramas
+        <button className="import nv-pano-import-dropzone" onClick={()=>upload.current?.click()}
+          onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
+          onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
+          onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');addImages(e.dataTransfer.files);}}>
+          <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer ou glisser des panoramas 360°
         </button>
         <div className="nv-scene-discovery">
           <label className="nv-scene-search">
@@ -4566,15 +5070,15 @@ function App(){
           onMouseEnter={()=>{if(autoNavigation)hoverSidePreview(s.id);}} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
-          <button className={'scene '+(s.id===activeId?'active':'')} title={'Ouvrir '+s.name+' directement dans la grande vue'}
+          <button className={'scene '+(s.id===activeId?'active':'')} title={(preview?'Ouvrir ':'Prévisualiser et renommer ')+s.name}
             onKeyDown={e=>{
-              if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
+              if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'&&e.key!=='ArrowLeft'&&e.key!=='ArrowRight'))return;
               e.preventDefault();
-              moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
+              moveScene(s.id,(e.key==='ArrowUp'||e.key==='ArrowLeft')?i-1:i+2);
             }}
             onClick={()=>{
               // Hors mode Auto : un clic ouvre une fenêtre pour tourner dans le panorama à 360° avant de décider (ouvrir ou supprimer).
-              if(!autoNavigation&&!preview){setPanoModalId(s.id);return;}
+              if(!preview){setPanoModalId(s.id);return;}
               selectScene(s.id);
               if(!autoNavigation){returnTo.current=null;setRightHidden(true);} // on va simplement au panorama choisi
               setMode(autoNavigation&&!preview?'navigation':null);
@@ -4598,7 +5102,7 @@ function App(){
             onClick={e=>{e.stopPropagation();setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===s.id?{...sc,excluded:sc.excluded?undefined:true}:sc)}));}}>
             {s.excluded?'':'✓'}</button>
           {!preview&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
-            onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>}
+            onClick={()=>setPanoModalId(s.id)}>360°</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
              onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}><XMark/></button>:
@@ -4848,10 +5352,7 @@ function App(){
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
                   </>},
-                  {key:'arrival',title:'Vue d’arrivée',hint:active.arrivalYaw!==undefined?'✓ Définie · direction et zoom':'Direction et zoom',icon:<Eye size={26}/>,tone:'#2fbf8f',content:<>
-
-              {arrivalTiles()}
-                  </>},
+                  {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
                   {key:'points',title:'Points interactifs',badge:active.hotspots.length,hint:'Flèches, infos, photos…',icon:<PinIcon size={26}/>,tone:'#ff8a3d',content:<>
               <div className="section-title">
@@ -4910,7 +5411,7 @@ function App(){
 
           <div className="bar-items-list" data-sort-scope="visit-bar">{project.bottomBar.map(item=><div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-list-sort">{barSort.grip(item.id,item.title)}<button className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
             <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
-            <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
+            <span>{item.title}</span><small>{item.type==='plan'?'Plan':item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
           </button></div></div>)}</div>
           <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
           <button className="preset-button" onClick={()=>{if(window.confirm('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
@@ -4918,17 +5419,20 @@ function App(){
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
             <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
-            <BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>
+            {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
               <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
               <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
               <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
+              <button type="button" aria-pressed={selectedBar.type==='plan'} onClick={()=>chooseBarAction('plan')}>⌖ Plan</button>
               <button type="button" aria-pressed={selectedBar.type==='photos'} onClick={()=>chooseBarAction('photos')}>▣ Photos</button>
               <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
               <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
             </div>
-            {selectedBar.type==='gallery'?<BarGalleryEditor item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+            {selectedBar.type==='plan'?<><p className="hint">Ce bouton affiche le plan interactif en grand. Les points ouvrent les panoramas correspondants.</p>
+              {!project.floorPlan&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
+              <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
@@ -5055,7 +5559,21 @@ function App(){
           <button type="button" className="import" onClick={()=>{if(project.introUrl.startsWith('https://')){setActiveId(startSceneId(visibleScenes));setMode(null);setSelectedId('');setPreview(true);setIntroEnding(false);setIntroVisible(true);}else setStatus('Renseigne d’abord une URL HTTPS valide');}}>Tester l’introduction</button>
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
+        {panel==='plan' && <div className="properties">
+          <InspectorSection title="Plan interactif de la visite" initiallyOpen>
+            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+              hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
+              onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
+              onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
+          </InspectorSection>
+        </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Plan interactif de la visite" initiallyOpen>
+            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+              hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
+              onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
+              onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
+          </InspectorSection>
           <InspectorSection title="Personnaliser le bouton Paramètres" initiallyOpen>
           <p className="hint">Choisis les icônes normales, au survol et au clic. Les modifications sont visibles immédiatement sur le bouton en bas à droite. Passe en aperçu pour tester son menu son et langue.</p>
           <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>
@@ -5126,27 +5644,36 @@ function App(){
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties nv-icons-panel">
+          <InspectorSection title="Croix de fermeture">
+            <p className="hint">Choisis une croix personnalisée pour fermer toutes les fenêtres interactives : photos, vidéos, informations, galerie, plan et autres popups.</p>
+            <div className="nv-close-current">
+              <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
+              <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Aucune croix personnalisée sélectionnée'}</small></div>
+            </div>
+            {iconStateEditor('global-close-icon','Croix globale',project.closeIconId,
+              id=>setProject(p=>({...p,closeIconId:id})),'Croix classique')}
+            {iconStateEditor('global-close-hover-icon','Croix · Survol',project.closeIconHoverId,
+              id=>setProject(p=>({...p,closeIconHoverId:id})),'Identique au normal')}
+            {iconStateEditor('global-close-pressed-icon','Croix · Pressé',project.closeIconPressedId,
+              id=>setProject(p=>({...p,closeIconPressedId:id})),'Identique au survol')}
+            {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
+            <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
+          </InspectorSection>
+          <details className="nv-icons-library" open>
+            <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
-            onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer le jeu « '+name+' » ('+ids.length+' icône'+(ids.length>1?'s':'')+') de la bibliothèque et de ses utilisations ?'))return;ids.forEach(id=>deleteIcon(id,true));}}
-            applyLabel={selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
-            onApply={selectedBar||selected?set=>{
+            onCreateSet={createLibraryIconSet}
+            onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
+            applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
+            onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
               const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
-              if(selectedBar){patchBar(patch);setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
+              if(libraryFor?.startsWith('global-close')){setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId}));setStatus('Pack de croix appliqué : normal, survol et pressé.');}
+              else if(selectedBar){patchBar(patch);setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
               else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
             }:undefined}/>
+          </details>
           <details className="nv-icons-advanced">
-            <summary>Autres réglages : croix de fermeture, créateur d’icônes</summary>
-          <InspectorSection title="Croix de fermeture des fenêtres">
-          <p className="hint">Une seule icône pour fermer les photos, vidéos, informations et popups de tous les panoramas. Le changement s’applique à l’ensemble de cette visite, y compris à l’export.</p>
-          <div className="nv-close-current">
-            <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
-            <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>Actuellement appliquée partout</small></div>
-          </div>
-          {iconStateEditor('global-close-icon','Icône de fermeture (toutes les fenêtres)',project.closeIconId,
-            id=>setProject(p=>({...p,closeIconId:id})),'✕')}
-          {closeIcon&&<button type="button" className="tool" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG dans toute la bibliothèque</button>}
-          <p className="hint">Après avoir choisi la croix, clique sur « Enregistrer » en haut de NovaStudio. Les autres icônes de navigation ne sont pas modifiées.</p>
-          </InspectorSection>
+            <summary>Autres réglages : créateur d’icônes</summary>
             {svgIconWorkshop()}
           </details>
         </div>}
@@ -5192,29 +5719,12 @@ function App(){
           {is.sceneId&&<button type="button" onClick={()=>goToIssue(is)}>Corriger</button>}</li>)}</ul></>}
       <div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>{publishIssues.some(i=>i.level==='error')?'Publier quand même':'Confirmer la publication'}</button></div></section></div>}
     {panoModalId&&(()=>{
-      const list=filteredScenes.length?filteredScenes:visibleScenes;
-      const idx=list.findIndex(x=>x.id===panoModalId);
-      const sc=project.scenes.find(x=>x.id===panoModalId);
-      if(!sc)return null;
-      const go=(d:number)=>{if(list.length>1)setPanoModalId(list[(idx+d+list.length)%list.length].id);};
-      return <div className="nv-pano-modal-backdrop" onClick={()=>setPanoModalId(null)} role="presentation"
-        onKeyDown={e=>{if(e.key==='Escape')setPanoModalId(null);else if(e.key==='ArrowRight')go(1);else if(e.key==='ArrowLeft')go(-1);}}>
-        <section className="nv-pano-modal" role="dialog" aria-modal="true" aria-label={'Panorama '+sc.name} onClick={e=>e.stopPropagation()} tabIndex={-1} ref={el=>el?.focus({preventScroll:true})}>
-          <header><div><strong title={sc.name}>{sc.name}</strong><small>Scène {Math.max(1,project.scenes.findIndex(x=>x.id===sc.id)+1)} / {project.scenes.length} · {sc.hotspots.length} point{sc.hotspots.length>1?'s':''}{sc.excluded?' · décoché':''}</small></div>
-            <button type="button" onClick={()=>setPanoModalId(null)} aria-label="Fermer"><XMark/></button></header>
-          <div className="nv-pano-modal-viewer">
-            {list.length>1&&<button type="button" className="nv-pano-modal-nav is-prev" onClick={()=>go(-1)} aria-label="Panorama précédent"><ChevronLeft size={26}/></button>}
-            <FullscreenGalleryHoverPreview key={sc.id} scene={sc} thumb={sceneThumbs[sc.id]}/>
-            {list.length>1&&<button type="button" className="nv-pano-modal-nav is-next" onClick={()=>go(1)} aria-label="Panorama suivant"><ChevronRight size={26}/></button>}
-          </div>
-          <small className="nv-pano-modal-hint">Glisse pour tourner à 360° · molette ou pincement pour zoomer · ◀ ▶ pour changer de panorama</small>
-          <footer>
-            <button type="button" className="is-primary" onClick={()=>{selectScene(sc.id);returnTo.current=null;setRightHidden(true);setMode(null);setPanoModalId(null);setStatus('Panorama '+sc.name+' ouvert dans la grande vue.');}}>Ouvrir ce panorama</button>
-            <button type="button" onClick={()=>{setProject(p=>({...p,scenes:p.scenes.map(x=>x.id===sc.id?{...x,excluded:x.excluded?undefined:true}:x)}));}}>{sc.excluded?'✓ Remettre dans la visite':'Retirer de la visite'}</button>
-            <button type="button" className="is-danger" onClick={()=>deleteScene(sc.id)}><Trash2 size={15}/> Supprimer</button>
-          </footer>
-        </section>
-      </div>;
+      const scene=project.scenes.find(sc=>sc.id===panoModalId);
+      if(!scene)return null;
+      return <PanoramaPreviewEditor key={scene.id} scene={scene} onDelete={()=>deleteScene(scene.id)} onClose={()=>setPanoModalId(null)}
+        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));if(cloud.signedIn&&!await manualSave())return false;return persist(projectRef.current);}}>
+        <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
+      </PanoramaPreviewEditor>;
     })()}
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
@@ -5237,7 +5747,7 @@ function App(){
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
     {privateOpen&&<PrivatePanel project={projectForSpaceExport(stripExcluded({...project,clientProfile:undefined,comments:undefined}),currentSpace)} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
-    {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
+    {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
       onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>

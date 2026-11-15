@@ -33,7 +33,7 @@ export function validateSkin(value:unknown):Skin {
   const source=skin.appearance;
   if(!source||!Array.isArray(source.icons)||!Array.isArray(source.bottomBar))throw Error('Présentation du skin invalide');
   const appearance=validateProject({...newProject(),name:'Skin',icons:source.icons,barStyle:source.barStyle,
-    bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery'] as const).find(t=>t===item.type)??'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
+    bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery','plan'] as const).find(t=>t===item.type)??'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
     defaultPhotoIcon:source.defaultPhotoIcon,defaultVideoIcon:source.defaultVideoIcon,languages:source.languages,buttonSets:source.buttonSets,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
     ...Object.fromEntries(globalIcons.map(key=>[key,source[key]]))});
   return {version:1,id:skin.id,name:skin.name.trim(),updatedAt:typeof skin.updatedAt==='string'?skin.updatedAt:new Date().toISOString(),appearance};

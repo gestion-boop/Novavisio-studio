@@ -1,3 +1,4 @@
+import {FloorPlanDialog} from './FloorPlan';
 import {EmbeddedPage} from './EmbeddedPage';
 import {informationFont} from './InformationEditor';
 import {projectForSpaceExport} from './spaces';
@@ -211,6 +212,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
   const prefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [floorPlanOpen,setFloorPlanOpen]=useState(false);
   const [modal,setModal]=useState<{title:string;url?:string;text?:string;fontFamily?:string}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
@@ -300,8 +302,12 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   },[mobileExpanded]);
   const theme=project?.barStyle??defaultBarStyle();
   const popupCloseIcon=project?.icons?.find(icon=>icon.id===project?.closeIconId);
+  const popupCloseHoverIcon=project?.icons?.find(icon=>icon.id===project?.closeIconHoverId);
+  const popupClosePressedIcon=project?.icons?.find(icon=>icon.id===project?.closeIconPressedId);
   const cssVars={
     '--nv-close-icon-image':popupCloseIcon?`url("${popupCloseIcon.dataUrl}")`:'none',
+    '--nv-close-icon-hover-image':popupCloseHoverIcon?`url("${popupCloseHoverIcon.dataUrl}")`:'none',
+    '--nv-close-icon-pressed-image':popupClosePressedIcon?`url("${popupClosePressedIcon.dataUrl}")`:'none',
     '--nv-bar-bg':theme.background,
     '--nv-bar-outline':theme.outline,
     '--nv-button-bg':theme.button,
@@ -338,6 +344,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   };
   const information=(h:Hotspot)=>setModal({title:h.title,text:lang==='fr'?h.text:(h.translations?.[lang]||h.text),fontFamily:h.fontFamily});
   const act=(item:BottomBarItem)=>{
+    if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryId(item.id);return;}
     if(item.type==='photos'){setPhotosId(item.id);return;}
     if(item.type==='navigation'){
@@ -418,10 +425,11 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       })}
     </nav>}
     {!showIntro&&firstPanoramaReady&&<div className="nv-visitor-settings">
-      <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : son et langue" onClick={()=>setSettingsOpen(o=>!o)}>
+      <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={settingsOpen} title="Paramètres : plan, son et langue" onClick={()=>setSettingsOpen(o=>!o)}>
         {hasSettingsIcon?<IconStateVisual icons={project.icons??[]} normal={settingsIcon} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<Settings size={Math.round(settingsSize(project)*0.42)}/>}
       </button>
       {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
+        {project.floorPlan&&<button type="button" className="nv-open-floor-plan" onClick={()=>{setSettingsOpen(false);setFloorPlanOpen(true);}}>⌖ Afficher le plan</button>}
         <strong>Son</strong><div className="nv-vs-row">
           <button type="button" className={prefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
           <button type="button" className={prefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 Coupé</button>
@@ -439,6 +447,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       </section>
     </div>}
     {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
+    {floorPlanOpen&&<FloorPlanDialog plan={project.floorPlan} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
     {photosId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===photosId&&b.type==='photos');
       return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotosId(null)}/>:null;

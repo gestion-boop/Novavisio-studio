@@ -159,7 +159,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const mesh=new Mesh(new SphereGeometry(radius,32,20),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
-      mesh.userData={baseScale:1,hoverScale:1.18,onSelect:()=>void goTo(h.target,h)};
+      // Dans un casque, un changement d'échelle sous le rayon de la manette
+      // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
+      mesh.userData={baseScale:1,hoverScale:1,onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
         for(let attempt=0;attempt<30&&!ended;attempt++){
@@ -193,7 +195,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     mesh.renderOrder=1;
     const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
     mesh.position.copy(pos);
-    mesh.userData={baseScale:1,hoverScale:1.25,onSelect:()=>{
+    mesh.userData={baseScale:1,hoverScale:1,onSelect:()=>{
       if(h.type==='navigation')void goTo(h.target,h);
       else {
         // Toujours lire la dernière version du point : les médias Cloud peuvent
@@ -323,7 +325,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
   const addButton=(parent:Group,w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void,order=4)=>{
     const m=addPlane(parent,w,h,tex,order,x,y,0.002) as unknown as Clickable;
-    m.userData={baseScale:1,hoverScale:1.08,onSelect};clickables.push(m);return m;
+    // Les boutons restent géométriquement fixes : le rayon du contrôleur ne
+    // peut plus les faire grossir/rétrécir et provoquer un scintillement.
+    m.userData={baseScale:1,hoverScale:1,onSelect};clickables.push(m);return m;
   };
 
   const placeInFront=(g:Group,distance:number,drop:number)=>{
@@ -386,8 +390,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     clearGroup(panelGroup);
     for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
   }
-  const addPanelButton=(w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void)=>{
-    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,6);m.userData={...m.userData};(m as Object3D).userData.panel=true;return m;
+  const addPanelButton=(w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void,order=6)=>{
+    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,order);m.userData={...m.userData};(m as Object3D).userData.panel=true;return m;
   };
   // Vignettes : la tuile s'affiche tout de suite, l'image arrive ensuite (mise en cache, jamais rechargée).
   const thumbCache=new Map<string,Promise<HTMLCanvasElement|null>>();
@@ -701,12 +705,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const showGallery=async(item:BottomBarItem)=>{
     closePanels();
     const entries=galleryEntries(item,project().scenes,project().spaces);
-    const cols=3,rows=2,perPage=cols*rows;
+    // Deux colonnes plus larges : dans le casque les vignettes restent lisibles
+    // et ne se chevauchent pas avec les flèches de navigation.
+    const cols=2,rows=3,perPage=cols*rows;
     let page=0;
     const render=async()=>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=.44,ch=.40,gx=.04,gy=.05;
+      const cw=.62,ch=.34,gx=.06,gy=.05;
       const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||item.title||'Panoramas',entries.length+' panoramas',pages,page,
@@ -716,14 +722,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         const col=i%cols,row=Math.floor(i/cols);
         const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
         opts.ensureScene?.(e.sceneId);
-        thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,440,400,(c,thumb)=>{
-          roundRect(c,6,6,428,388,34);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=7;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
-          c.save();roundRect(c,22,22,396,250,24);c.clip();
-          if(thumb)c.drawImage(thumb,22,22,396,250);else{c.fillStyle='#333';c.fillRect(22,22,396,250);}
+        thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,620,340,(c,thumb)=>{
+          roundRect(c,6,6,608,328,30);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=7;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
+          c.save();roundRect(c,18,18,584,218,20);c.clip();
+          if(thumb)c.drawImage(thumb,18,18,584,218);else{c.fillStyle='#333';c.fillRect(18,18,584,218);}
           c.restore();
-          c.fillStyle=iconColor;c.font='bold 38px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
-          let t=e.label;while(c.measureText(t).width>390&&t.length>2)t=t.slice(0,-2);
-          c.fillText(t===e.label?t:t.trimEnd()+'…',220,336);
+          c.fillStyle=iconColor;c.font='bold 32px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
+          let t=e.label;while(c.measureText(t).width>560&&t.length>2)t=t.slice(0,-2);
+          c.fillText(t===e.label?t:t.trimEnd()+'…',310,303);
         },cw,ch,x,y,()=>{void goTo(e.sceneId);});
       }
       placePanel(1.6,-.0);
@@ -731,7 +737,47 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     await render();
   };
 
+  // Plan de visite dans le casque : image plane flottante et destinations
+  // cliquables avec le laser des manettes Quest.
+  const showFloorPlan=async(item:BottomBarItem)=>{
+    const plan=project().floorPlan;
+    if(!plan?.imageDataUrl){showText(item.title||'Plan','Le plan de cette visite n’est pas configuré.');return;}
+    setNotice('Chargement du plan…');
+    let bitmap:HTMLCanvasElement;
+    try{bitmap=await loadReduced(plan.imageDataUrl,2048);}catch{setNotice('Impossible de charger le plan.');return;}
+    if(ended)return;
+    closePanels();
+    const ratio=bitmap.width/Math.max(1,bitmap.height);
+    const maxW=1.48,maxH=1.02;
+    const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
+    const W=imageW+.16,H=imageH+.30;
+    addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);
+    const imageTex=new CanvasTexture(bitmap);imageTex.colorSpace=SRGBColorSpace;imageTex.minFilter=LinearFilter;
+    addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
+    addPlane(panelGroup,Math.min(1.25,W-.12),.09,canvasTexture(1000,80,c=>{
+      c.fillStyle=iconColor;c.font='bold 42px sans-serif';c.textAlign='center';c.textBaseline='middle';
+      c.fillText(plan.name||item.title||'Plan de la visite',500,42);
+    }),7,0,H/2-.075);
+    const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,c=>{
+      c.beginPath();c.arc(90,90,76,0,Math.PI*2);c.fillStyle=current?iconColor:btnBg;c.fill();
+      c.lineWidth=8;c.strokeStyle=current?btnLine:iconColor;c.stroke();
+      c.fillStyle=current?btnLine:iconColor;c.font='bold 64px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,90,94);
+    });
+    const visible=plan.points.filter(point=>{const scene=sceneOf(point.sceneId);return !!scene&&!scene.excluded;});
+    visible.forEach((point,index)=>{
+      const target=sceneOf(point.sceneId)!;
+      const x=(point.x/100-.5)*imageW;
+      const y=(.5-point.y/100)*imageH-.025;
+      // Le plan est fixe dans l'espace et les points sont rendus au-dessus de
+      // l'image, sinon le mesh de l'image peut les recouvrir selon l'angle.
+      addPanelButton(.105,.105,pointTexture(String(index+1),target.id===currentId),x,y,()=>{void goTo(target.id);},8);
+    });
+    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.075,closePanels);
+    placePanel(1.55,0);
+  };
+
   function onBarItem(item:BottomBarItem){
+    if(item.type==='plan'){void showFloorPlan(item);return;}
     if(item.type==='gallery'){void showGallery(item);return;}
     if(item.type==='navigation'){
       if(item.target){void goTo(item.target);return;}
@@ -881,8 +927,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
       const states=m.userData.vrIconStates as {normal:Texture;hover:Texture|null;pressed:Texture|null;pressedUntil:number}|undefined;
       if(states){
-        const selected=states.pressedUntil>now&&states.pressed
-          ?states.pressed:hovered.has(m)&&states.hover?states.hover:states.normal;
+        // Les textures « hover » sont désactivées en VR : le rayon peut
+        // osciller d'un pixel avec le suivi du casque et faire clignoter tous
+        // les logos de la barre. L'état pressé reste visible brièvement.
+        const selected=states.pressedUntil>now&&states.pressed?states.pressed:states.normal;
         const material=(m as Mesh).material as MeshBasicMaterial;
         if(material.map!==selected){material.map=selected;material.needsUpdate=true;}
       }

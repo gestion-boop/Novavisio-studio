@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import {flushSync} from 'react-dom';
 import {GripVertical} from 'lucide-react';
 
 export function reorderItems<T>(items:T[],from:string,to:string,id:(item:T)=>string):T[]{
@@ -35,20 +36,28 @@ export function useGripSort(scope:string,order:string[],onMove:(from:string,to:s
         while(scroll&&!(scroll.scrollHeight>scroll.clientHeight&&/(auto|scroll)/.test(getComputedStyle(scroll).overflowY)))scroll=scroll.parentElement;
         const moveRows=(target:string)=>{
           const before=new Map(rows().map(item=>[item.dataset.sortId!,item.getBoundingClientRect().top]));
-          liveOrder=reorderItems(liveOrder,id,target,value=>value);latest.current.onMove(id,target);
-          requestAnimationFrame(()=>{
-            if(disposed||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-            for(const item of rows()){
-              item.getAnimations().forEach(animation=>animation.cancel());
-              const old=before.get(item.dataset.sortId!),delta=old===undefined?0:old-item.getBoundingClientRect().top;
-              if(Math.abs(delta)>1)item.animate([{transform:`translateY(${delta}px)`},{transform:'translateY(0)'}],{duration:170,easing:'ease-out'});
+          liveOrder=reorderItems(liveOrder,id,target,value=>value);
+          try{
+            flushSync(()=>latest.current.onMove(id,target));
+          }catch{
+            latest.current.onMove(id,target);
+          }
+          if(disposed||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+          for(const item of rows()){
+            item.getAnimations().forEach(animation=>animation.cancel());
+            const old=before.get(item.dataset.sortId!),delta=old===undefined?0:old-item.getBoundingClientRect().top;
+            if(Math.abs(delta)>1){
+              item.animate(
+                [{transform:`translateY(${delta}px)`},{transform:'translateY(0)'}],
+                {duration:220,easing:'cubic-bezier(0.22, 1, 0.36, 1)'}
+              );
             }
-          });
+          }
         };
         const update=()=>{
           if(!moved)return;
-          if(ghost)ghost.style.transform=`translate3d(${x-offset.x}px,${y-offset.y}px,0)`;
-          const bounds=container.getBoundingClientRect();if(x<bounds.left-35||x>bounds.right+35)return;
+          if(ghost)ghost.style.transform=`translate3d(${x-offset.x}px,${y-offset.y}px,0) scale(1.03)`;
+          const bounds=container.getBoundingClientRect();if(x<bounds.left-45||x>bounds.right+45)return;
           const current=liveOrder.indexOf(id);let candidate=current;
           // Layout coordinates ignore the temporary FLIP animation transforms.
           for(const item of rows()){
@@ -61,11 +70,16 @@ export function useGripSort(scope:string,order:string[],onMove:(from:string,to:s
         };
         const pointerMove=(e:PointerEvent)=>{
           if(e.pointerId!==event.pointerId)return;e.preventDefault();e.stopPropagation();x=e.clientX;y=e.clientY;
-          if(!moved&&Math.hypot(x-start.x,y-start.y)<5)return;
+          if(!moved&&Math.hypot(x-start.x,y-start.y)<4)return;
           if(!moved){
             moved=true;ghost=row.cloneNode(true) as HTMLElement;ghost.className='nv-sortable-item nv-sort-ghost';ghost.removeAttribute('data-sort-id');ghost.setAttribute('aria-hidden','true');ghost.setAttribute('inert','');
             ghost.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
-            Object.assign(ghost.style,{position:'fixed',left:'0',top:'0',width:initial.width+'px',height:initial.height+'px',pointerEvents:'none',zIndex:'1000',margin:'0'});
+            Object.assign(ghost.style,{
+              position:'fixed',left:'0',top:'0',
+              width:initial.width+'px',height:initial.height+'px',
+              transform:`translate3d(${x-offset.x}px,${y-offset.y}px,0) scale(1.03)`,
+              pointerEvents:'none',zIndex:'100005',margin:'0'
+            });
             document.body.append(ghost);document.body.classList.add('nv-is-sorting');setDrag(id);
           }
           update();

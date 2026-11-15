@@ -1,17 +1,23 @@
-import {useState} from 'react';
+import {PlanModal} from './FloorPlan';
+import {Images} from 'lucide-react';
+import {useState,type ReactNode} from 'react';
 import {galleryEntries} from './gallery';
+import {reorderItems,useGripSort} from './gripSort';
 import type {BottomBarItem,GalleryItem,Scene,StudioProject} from './storage';
 import {XMark} from './XMark';
 
 export type BarGalleryTab='panoramas'|'spaces';
 
 /** A button can open one panel containing both panorama and space shortcuts. */
-export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onChange,onPreview}:{
-  item:BottomBarItem;scenes:Scene[];spaces:NonNullable<StudioProject['spaces']>;
+export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onChange,onPreview,renderPreview}:{
+  renderPreview?:(id:string)=>ReactNode;item:BottomBarItem;scenes:Scene[];spaces:NonNullable<StudioProject['spaces']>;
   thumbs:Record<string,string>;tab:BarGalleryTab;onTabChange:(tab:BarGalleryTab)=>void;
   onChange:(patch:Partial<BottomBarItem>)=>void;onPreview:()=>void;
 }){
   const [error,setError]=useState('');
+  const [bgDragHover,setBgDragHover]=useState(false);
+  const [expanded,setExpanded]=useState(false),[selectedId,setSelectedId]=useState('');
+  const selected=scenes.find(sc=>sc.id===selectedId)??scenes[0];
   const list=galleryEntries(item,scenes);
   const used=new Set(list.map(entry=>entry.sceneId));
   const others=scenes.filter(scene=>!used.has(scene.id));
@@ -20,25 +26,32 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
   const availableSpaces=spaces.filter(space=>scenes.some(scene=>space.sceneIds.includes(scene.id)));
   const selectedSpaces=availableSpaces.filter(space=>item.gallerySpaceIds?.includes(space.id));
   const save=(gallery:GalleryItem[])=>onChange({gallery});
+  const gallerySort=useGripSort('nv-bar-gallery',raw.map(r=>r.sceneId),(from,to)=>save(reorderItems(raw,from,to,r=>r.sceneId)));
   const move=(index:number,direction:number)=>{
     const next=[...raw],to=index+direction;
     if(to<0||to>=next.length)return;
     [next[index],next[to]]=[next[to],next[index]];save(next);
   };
-  const thumb=(id:string)=><span className="gallery-thumb">{thumbs[id]&&<img src={thumbs[id]} alt="" draggable={false}/>}</span>;
-  return <div className="gallery-editor">
+  const handleBgFile=async(file?:File)=>{
+    if(!file)return;
+    try{onChange({galleryBackgroundImage:await compressBackground(file),galleryBackground:undefined});setError('');}
+    catch(e){setError(e instanceof Error?e.message:String(e));}
+  };
+  const thumb=(id:string)=><button type="button" aria-label={"Aperçu de "+(scenes.find(sc=>sc.id===id)?.name??id)} onClick={()=>setSelectedId(id)} className="gallery-thumb">{thumbs[id]&&<img src={thumbs[id]} alt="" draggable={false}/>}</button>;
+  const content=<div className="gallery-editor">
     <label>Titre du panneau<input value={item.galleryTitle??''} placeholder={item.title||'Espaces et panoramas'} onChange={event=>onChange({galleryTitle:event.target.value})}/></label>
     <div className="nv-gallery-bg-picker">
       <div className="section-title">PHOTO DE FOND DU PANNEAU</div>
-      <div className="nv-gallery-bg-current">
-        <span className="nv-gallery-bg-preview">{item.galleryBackgroundImage?<img src={item.galleryBackgroundImage} alt="Photo de fond choisie" draggable={false}/>:<em>Aucune photo</em>}</span>
+      <div className={'nv-gallery-bg-current nv-pano-import-dropzone'+(bgDragHover?' drag-hover':'')}
+        onDragOver={e=>{if(e.dataTransfer?.types.includes('Files')){e.preventDefault();setBgDragHover(true);}}}
+        onDragLeave={()=>setBgDragHover(false)}
+        onDrop={e=>{if(e.dataTransfer?.files?.[0]){e.preventDefault();setBgDragHover(false);void handleBgFile(e.dataTransfer.files[0]);}}}>
+        <span className="nv-gallery-bg-preview">{item.galleryBackgroundImage?<img src={item.galleryBackgroundImage} alt="Photo de fond choisie" draggable={false}/>:<em>Aucune photo (glisser ici)</em>}</span>
         <div className="nv-gallery-bg-actions">
-          <label className="nv-gallery-bg-import">{item.galleryBackgroundImage?'Changer la photo':'＋ Choisir une photo'}
-            <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={async event=>{
+          <label className="nv-gallery-bg-import">{item.galleryBackgroundImage?'Changer la photo':'＋ Choisir ou glisser une photo'}
+            <input type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={event=>{
               const file=event.target.files?.[0];event.target.value='';
-              if(!file)return;
-              try{onChange({galleryBackgroundImage:await compressBackground(file),galleryBackground:undefined});setError('');}
-              catch(e){setError(e instanceof Error?e.message:String(e));}
+              void handleBgFile(file);
             }}/></label>
           {!!(item.galleryBackgroundImage||item.galleryBackground)&&<button type="button" onClick={()=>onChange({galleryBackgroundImage:undefined,galleryBackground:undefined})}>Retirer la photo</button>}
         </div>
@@ -74,7 +87,8 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
     </>:<>
       <div className="section-title">PANORAMAS DANS LE PANNEAU <span className="counter">{list.length}</span></div>
       {!list.length&&<small className="hint-inline">Aucun panorama sélectionné. Tes espaces restent dans le panneau.</small>}
-      <ul className="gallery-rows">{list.map((entry,index)=><li key={entry.sceneId}>
+      <ul className="gallery-rows" data-sort-scope="nv-bar-gallery">{list.map((entry,index)=><li key={entry.sceneId} {...gallerySort.itemProps(entry.sceneId)}>
+        {gallerySort.grip(entry.sceneId,entry.sceneName)}
         {thumb(entry.sceneId)}
         <input value={entry.custom} placeholder={entry.sceneName} aria-label={'Nom affiché dans la galerie pour '+entry.sceneName} onChange={event=>save(raw.map((row,i)=>i===index?{...row,label:event.target.value}:row))}/>
         <button type="button" aria-label="Monter" disabled={index===0} onClick={()=>move(index,-1)}>↑</button>
@@ -94,6 +108,12 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
     <button type="button" className="import" disabled={!entries.length} onClick={onPreview}>Voir le panneau ({entries.length} carte{entries.length>1?'s':''})</button>
     <small className="hint-inline">Enregistre le projet dans le Cloud pour conserver ce réglage.</small>
   </div>;
+  return <><button type="button" onClick={()=>setExpanded(true)}>Agrandir la galerie avec les aperçus</button>{expanded?<PlanModal wide icon={<Images size={22}/>} title="Configurer la galerie de panoramas" onClose={()=>setExpanded(false)}>
+    <div className="nv-media-picker-workspace">
+      <section className="nv-media-large-preview" aria-label="Aperçu du panorama de la galerie">{selected?<><h3>{selected.name}</h3><div className="nv-media-large-view" key={selected.id}>{renderPreview?renderPreview(selected.id):<img src={thumbs[selected.id]} alt={selected.name}/>}</div><p>Glisse pour regarder à 360°. Clique sur une vignette de la liste pour changer d’aperçu.</p></>:<p>Aucun panorama importé.</p>}</section>
+      <div className="nv-media-picker-list">{content}</div>
+    </div>
+  </PlanModal>:content}</>;
 }
 
 /** Réduit la photo choisie (1600 px max, JPEG) pour qu'elle reste légère dans le projet et dans le Cloud. */

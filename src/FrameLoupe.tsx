@@ -73,6 +73,8 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   const [snap,setSnap]=useState(true);
   const [fine,setFine]=useState(false);
   const [dragging,setDragging]=useState(false);
+  const [snapped,setSnapped]=useState(false);
+  const [hoverKey,setHoverKey]=useState<FrameKey|null>(null);
   const frozen=useRef<{yaw:number;pitch:number}|null>(null);
   const grad=useRef<Float32Array|null>(null);
   const cornersRef=useRef(corners);cornersRef.current=corners;
@@ -128,17 +130,19 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   const setCorner=useCallback((key:FrameKey,px:number,py:number,useSnap:boolean)=>{
     let x=clamp(px,0,W),y=clamp(py,0,H);
     const m=grad.current;
+    let isSnapped=false;
     if(useSnap&&m){
       let best=0,bx=x,by=y;
-      for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){
+      for(let dy=-7;dy<=7;dy++)for(let dx=-7;dy<=7;dx++){
         const xx=Math.round(x)+dx,yy=Math.round(y)+dy;
         if(xx<1||yy<1||xx>=W-1||yy>=H-1)continue;
         const score=m[yy*W+xx]-0.9*(dx*dx+dy*dy)/2;
         if(score>best){best=score;bx=xx;by=yy;}
       }
       // Seulement si un vrai bord est détecté : le calage reste léger, jamais brutal.
-      if(best>38){x=x+(bx-x)*0.6;y=y+(by-y)*0.6;}
+      if(best>38){x=x+(bx-x)*0.6;y=y+(by-y)*0.6;isSnapped=true;}
     }
+    setSnapped(isSnapped);
     const p=unproject(viewRef.current,x,y);
     const next=cornersRef.current.map(c=>({...c})) as FrameSphericalCorners;
     next[FRAME_KEYS.indexOf(key)]={yaw:p.yaw,pitch:p.pitch};
@@ -164,10 +168,16 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
     if(!near)setCorner(key,x,y,snap);
   }
   function move(e:RPointerEvent<SVGSVGElement>){
-    if(!dragging)return;
-    const [x,y]=local(e);setCorner(active,x,y,snap);
+    const [x,y]=local(e);
+    if(!dragging){
+      let near:FrameKey|null=null,dist=22;
+      FRAME_KEYS.forEach((k,i)=>{const p=pts[i];if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<dist){dist=d;near=k;}});
+      setHoverKey(near);
+      return;
+    }
+    setCorner(active,x,y,snap);
   }
-  function up(){frozen.current=null;setDragging(false);onAdjusting?.(false);}
+  function up(){frozen.current=null;setDragging(false);setSnapped(false);onAdjusting?.(false);}
   // Micro-ajustements : 1 px de loupe (ou 0,1 px) dans la direction demandée.
   function nudge(dx:number,dy:number){
     const p=pts[FRAME_KEYS.indexOf(active)];if(!p)return;
@@ -184,6 +194,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
 
   if(failed)return <p className="nv-loupe-note">Impossible d’afficher la loupe pour ce panorama (image non lisible). Déplace les coins directement dans la vue 3D.</p>;
   const polygon=pts.every(Boolean)?pts.map(p=>p![0].toFixed(1)+','+p![1].toFixed(1)).join(' '):'';
+  const activeColor=snapped?'#4bebde':'#ffe9b0';
   return <div className="nv-loupe" onKeyDown={key}>
     <div className="nv-loupe-head"><strong>Zoom de précision</strong>
       <span className="nv-loupe-zoom" role="group" aria-label="Niveau de zoom">{ZOOMS.map(z=><button key={z} type="button" className={zoom===z?'is-on':''} onClick={()=>setZoom(z)} aria-pressed={zoom===z}>×{z}</button>)}</span>
@@ -191,20 +202,20 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
     <div className="nv-loupe-stage" style={{aspectRatio:W+'/'+H}}>
       <canvas ref={canvas} width={W} height={H}/>
       {!src&&<div className="nv-loupe-wait">Chargement du panorama…</div>}
-      <svg viewBox={`0 0 ${W} ${H}`} tabIndex={0} aria-label="Loupe : glisse un coin ou clique pour le poser" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+      <svg viewBox={`0 0 ${W} ${H}`} tabIndex={0} style={{cursor:dragging?'grabbing':hoverKey?'grab':'crosshair'}} aria-label="Loupe : glisse un coin ou clique pour le poser" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={()=>setHoverKey(null)}>
         <defs><pattern id="nv-loupe-grid" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" stroke="#fff" strokeOpacity=".16" strokeWidth=".6"/></pattern></defs>
         {polygon&&<><polygon points={polygon} fill="url(#nv-loupe-grid)" stroke="#000" strokeOpacity=".6" strokeWidth="2.6"/>
-          <polygon points={polygon} fill="none" stroke="#ffd98a" strokeWidth="1" strokeDasharray="5 4"/></>}
-        {FRAME_KEYS.map((k,i)=>{const p=pts[i];if(!p)return null;const on=k===active;
-          return <g key={k} opacity={on?1:.42}>
-            <circle cx={p[0]} cy={p[1]} r={on?11:6} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth={on?3.2:2.4}/>
-            <circle cx={p[0]} cy={p[1]} r={on?11:6} fill="none" stroke={on?'#ffe9b0':'#fff'} strokeWidth={on?1.4:1}/>
-            {on&&<path d={`M${p[0]-17} ${p[1]}H${p[0]-4}M${p[0]+4} ${p[1]}H${p[0]+17}M${p[0]} ${p[1]-17}V${p[1]-4}M${p[0]} ${p[1]+4}V${p[1]+17}`} stroke="#ffe9b0" strokeWidth=".9"/>}
+          <polygon points={polygon} fill="none" stroke={snapped?'#4bebde':'#ffd98a'} strokeWidth={snapped?'1.4':'1'} strokeDasharray="5 4"/></>}
+        {FRAME_KEYS.map((k,i)=>{const p=pts[i];if(!p)return null;const on=k===active;const hovered=k===hoverKey&&!on;
+          return <g key={k} opacity={on?1:hovered?.85:.42}>
+            <circle cx={p[0]} cy={p[1]} r={on?11:hovered?8:6} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth={on?3.2:2.4}/>
+            <circle cx={p[0]} cy={p[1]} r={on?11:hovered?8:6} fill="none" stroke={on?activeColor:hovered?'#9fdcf3':'#fff'} strokeWidth={on?1.6:1.1}/>
+            {on&&<path d={`M${p[0]-17} ${p[1]}H${p[0]-4}M${p[0]+4} ${p[1]}H${p[0]+17}M${p[0]} ${p[1]-17}V${p[1]-4}M${p[0]} ${p[1]+4}V${p[1]+17}`} stroke={activeColor} strokeWidth="1.1"/>}
           </g>;})}
       </svg>
     </div>
     <div className="nv-loupe-corners" role="group" aria-label="Coin à régler">{ORDER.map((k,i)=><button key={k} type="button" className={k===active?'is-on':''} onClick={()=>{setActive(k);}}>{i+1}</button>)}
-      <span>Coin : <b>{LABEL[active]}</b></span></div>
+      <span>Coin : <b>{LABEL[active]}</b>{snapped&&<em style={{marginLeft:6,color:'#4bebde',fontStyle:'normal',fontWeight:700}}>✦ Bord aimanté</em>}</span></div>
     <div className="nv-loupe-nudge">
       <div className="nv-loupe-pad" aria-label="Micro-ajustement">
         <button type="button" onClick={()=>nudge(0,-1)} aria-label="Monter">↑</button>

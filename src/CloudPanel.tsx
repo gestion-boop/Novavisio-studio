@@ -7,6 +7,7 @@ import {XMark} from './XMark';
 type Props={
   project:StudioProject;
   onClose:()=>void;
+  onOpenClients?:()=>void;
   hasUnsavedChanges:boolean;
   onOpen:(project:StudioProject,link:CloudLink,spaceId?:string)=>void;
   onStatus:(message:string)=>void;
@@ -15,7 +16,7 @@ type Props={
   autoLabel:string;
   manualMode?:boolean;
 };
-export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel,manualMode=false}:Props){
+export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel,manualMode=false}:Props){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
@@ -78,7 +79,10 @@ export function CloudPanel({project,onClose,hasUnsavedChanges,onOpen,onStatus,au
 
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel nv-cloud-compact" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}><XMark/></button>
-    <div className="nv-cloud-heading"><h2>Mes projets Cloud</h2><button type="button" className="quiet" onClick={()=>void refresh()} disabled={!!busy||!userEmail}>↻ Actualiser</button></div>
+    <div className="nv-cloud-heading"><h2>Mes projets Cloud</h2><div className="nv-cloud-heading-actions">
+      {onOpenClients&&<button type="button" className="quiet nv-cloud-clients-link" onClick={onOpenClients}>👥 Clients &amp; logos</button>}
+      <button type="button" className="quiet" onClick={()=>void refresh()} disabled={!!busy||!userEmail}>↻ Actualiser</button>
+    </div></div>
     {!cloudConfigured?<>
       <p className="warning">Supabase n’est pas configuré. Définis <code>NEXT_PUBLIC_SUPABASE_URL</code> et <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> (clé <b>publishable</b> uniquement) dans les variables d’environnement du déploiement, puis redéploie.</p>
     </>:!userEmail?<LoginBox intro="Connecte-toi pour sauvegarder tes visites dans Supabase, ou pour ouvrir une visite à laquelle on t’a invité."/>

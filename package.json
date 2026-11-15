@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "deploy": "node scripts/deploy-vercel.mjs"
   },
   "dependencies": {
     "@photo-sphere-viewer/core": "5.15.1",

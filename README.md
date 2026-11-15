@@ -155,3 +155,20 @@ Le rendu doit être vérifié sur des panoramas réels, et particulièrement sur
 - Les résumés sont gardés en mémoire dans l’onglet, par compte connecté ; l’index vérifie les ajouts, suppressions et modifications à chaque ouverture. Les détails et liens temporaires des médias sont relus à la sélection d’un client. La progression et les échecs partiels restent visibles ; Actualiser reprend les fiches manquantes.
 - En mode Éditer, un clic sur une flèche la sélectionne sans quitter le panorama. La croix la supprime, la poignée la déplace, et « Panorama d’arrivée » change sa destination en conservant sa position et son icône. Une nouvelle destination utilise sa propre vue d’arrivée.
 - En mode Aperçu, un clic suit la flèche. Les boutons de test de navigation restent disponibles dans l’inspecteur.
+
+
+## Plan interactif des visites
+
+Dans **Paramètres de la visite**, la première section permet d’importer un plan PNG, JPG ou WebP. Ouvrir le plan : le dessin est à gauche et les vignettes des panoramas sont à droite. Glisser une vignette sur le dessin crée son point. Les points se déplacent à la souris ou au doigt ; la petite croix à côté retire uniquement le point. Un panorama sélectionné peut aussi être placé par un clic sur le dessin.
+
+Ajouter un bouton **Plan** depuis cette section, ou choisir l’action **Plan** sur un bouton existant de la barre. En aperçu et dans le lecteur public, le bouton affiche le plan en grand : cliquer sur un point ou son nom ouvre le panorama correspondant, avec sa vue d’arrivée habituelle. La position actuelle est mise en évidence. Échap ferme le plan.
+
+Le plan est propre au projet et accompagne les sauvegardes locales, les sauvegardes cloud, les liens publics et les exports HTML. Les points des panoramas décochés ou extérieurs à un espace exporté sont retirés de la publication. Remplacer le dessin efface ses positions après confirmation ; supprimer le plan conserve les panoramas.
+
+Vérification : `npm run build`, `node scripts/check-export.mjs`, puis `node scripts/check-floor-plan.mjs` (validation, sauvegarde JSON, espaces, skins, médias cloud et contenu réel de l’export ZIP).
+
+L’outil **Plan** ouvre directement cette fenêtre agrandie, sans formulaire de coordonnées ni liste déroulante. Dans **Panoramas**, cliquer sur une vignette ouvre un aperçu 360° à gauche de la liste. Modifier son nom puis cliquer sur **Enregistrer** le conserve localement et, si le compte est connecté, dans le cloud. Les paramètres du visiteur proposent **Afficher le plan** dès qu’un dessin est importé.
+
+La configuration des galeries propose **Agrandir la galerie avec les aperçus** : photos et vidéos ont une grande visionneuse à côté de leur liste de sélection ; la galerie des panoramas permet de consulter chaque vue 360° en cliquant sur sa vignette et de modifier le nom affiché sur ses cartes.
+
+Dans l’éditeur du plan, l’œil d’une vignette affiche sa vue 360° à gauche. La liste de droite reste accessible : cliquer sur une autre vignette actualise l’aperçu. Commencer un glisser-déposer rétablit le plan pour y déposer le panorama. Dans la visite, le plan s’ouvre avec un fondu et un léger zoom ; l’animation est désactivée si le navigateur demande une réduction des mouvements.

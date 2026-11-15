@@ -30,6 +30,7 @@ function sceneRefs(scene:StudioProject['scenes'][number]):string[]{
 function hydrate(snapshot:StudioProject,loaded:Map<string,string>):StudioProject{
   const p=structuredClone(snapshot);
   const swap=(v?:string)=>isRef(v)?loaded.get(v):v;
+  if(p.floorPlan)p.floorPlan.imageDataUrl=swap(p.floorPlan.imageDataUrl)??'';
   p.icons.forEach(i=>{i.dataUrl=swap(i.dataUrl)??'';});
   p.audioTracks.forEach(t=>{t.dataUrl=swap(t.dataUrl);});
   p.bottomBar?.forEach(b=>(b.photos??[]).forEach(m=>{m.data=swap(m.data);}));
@@ -128,11 +129,18 @@ function Share(){
             try{await fetchRef(ref);if(alive.current)setVersion(v=>v+1);}catch{/* photo indisponible : tuile vide */}
           }
         };
+        const fetchPlan=async()=>{
+          const ref=snap.floorPlan?.imageDataUrl;
+          if(!isRef(ref))return;
+          try{await fetchRef(ref);}catch{/* The plan dialog keeps a loading/unavailable message. */}
+          if(alive.current)setVersion(v=>v+1);
+        };
         void fetchIcons();
         void fetchAudio();
         // The first 360° picture has network priority. Others follow without blocking the intro.
         void (async()=>{
           if(snap.scenes[0])await ensureScene(snap.scenes[0].id);
+          void fetchPlan();
           for(const scene of snap.scenes.slice(1)){
             if(!alive.current)return;
             await ensureScene(scene.id);

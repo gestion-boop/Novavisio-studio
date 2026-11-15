@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState,type CSSProperties} from 'react';
 import {Plus,Trash2} from 'lucide-react';
 import type {CustomIcon} from './storage';
+import {IconSetCreator,type IconSetImages} from './IconSetCreator';
 
 /**
  * Bibliothèque d'icônes : une carte = un jeu complet (normal · survol · pressé), classé par couleur.
@@ -8,7 +9,9 @@ import type {CustomIcon} from './storage';
  */
 type State='normal'|'hover'|'pressed';
 export type IconSet={key:string;name:string;normal?:CustomIcon;hover?:CustomIcon;pressed?:CustomIcon;ids:string[]};
-const STATE_RE=/[_\s-]+(normal|survol|hover|presse|pressed|press|clic|click|active)$/i;
+// Accepte les noms importés classiques et ceux générés par l'éditeur
+// (« Nom · Normal », « Nom · Survol », « Nom · Pressé »).
+const STATE_RE=/[\s_\-·•]+(normal|survol|hover|pressé|presse|pressed|press|clic|click|active)$/i;
 const stateOf=(raw:string):State=>{const w=raw.toLowerCase();return w==='survol'||w==='hover'?'hover':w==='normal'?'normal':'pressed';};
 const cleanName=(n:string)=>n.replace(/\.(png|webp|svg|jpe?g|gif)$/i,'');
 
@@ -37,7 +40,6 @@ const FAMILIES:Family[]=[
   {id:'violet',label:'Violet',swatch:'#8b5cf6',order:7},{id:'rose',label:'Rose',swatch:'#ec6aa5',order:8},{id:'marron',label:'Marron',swatch:'#9a6b43',order:9},
   {id:'noir',label:'Noir',swatch:'#1d232b',order:10},{id:'gris',label:'Gris',swatch:'#9aa5ae',order:11},{id:'blanc',label:'Blanc',swatch:'#f2f4f5',order:12}
 ];
-const familyById=new Map(FAMILIES.map(f=>[f.id,f]));
 function classify(r:number,g:number,b:number):string{
   const max=Math.max(r,g,b)/255,min=Math.min(r,g,b)/255,l=(max+min)/2,d=max-min;
   const s=d===0?0:d/(1-Math.abs(2*l-1));
@@ -80,8 +82,8 @@ function dominantFamily(dataUrl:string):Promise<string>{
   });
 }
 
-export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
-  icons:CustomIcon[];onImport:()=>void;onDeleteSet:(ids:string[],name:string)=>void;
+export function IconLibrary({icons,onImport,onCreateSet,onDeleteSet,applyLabel,onApply}:{
+  icons:CustomIcon[];onImport:()=>void;onCreateSet:(name:string,images:IconSetImages)=>Promise<void>;onDeleteSet:(ids:string[],name:string)=>void;
   applyLabel?:string;onApply?:(set:IconSet)=>void;
 }){
   const sets=useMemo(()=>buildIconSets(icons),[icons]);
@@ -100,10 +102,13 @@ export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
     return ()=>{dead=true;};
   },[sets]);
   const present=useMemo(()=>FAMILIES.filter(f=>sets.some(set=>families[set.key]===f.id)),[sets,families]);
+  // La recherche visuelle reste filtrable par couleur, mais l'ordre principal
+  // est toujours alphabétique pour retrouver rapidement un jeu d'icônes.
   const shown=useMemo(()=>sets.filter(set=>!filter||families[set.key]===filter)
-    .sort((a,b)=>(familyById.get(families[a.key])?.order??99)-(familyById.get(families[b.key])?.order??99)||a.name.localeCompare(b.name,'fr')),[sets,families,filter]);
+    .sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})||a.key.localeCompare(b.key)),[sets,families,filter]);
   return <div className="nv-iconlib">
     <div className="nv-iconlib-bar">
+      <IconSetCreator onCreate={onCreateSet}/>
       <button type="button" className="nv-iconlib-import" onClick={onImport}><Plus size={17}/> Importer des icônes</button>
       <span className="nv-iconlib-count">{sets.length} jeu{sets.length>1?'x':''} · {icons.length} icône{icons.length>1?'s':''}</span>
     </div>
@@ -113,7 +118,7 @@ export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
         style={{'--chip':f.swatch} as CSSProperties} onClick={()=>setFilter(filter===f.id?null:f.id)}><span aria-hidden="true"/><i>{f.label}</i></button>)}
     </div>}
     {applyLabel&&<p className="nv-iconlib-apply">Touche un jeu pour l’appliquer à : <b>{applyLabel}</b></p>}
-    {!icons.length&&<p className="nv-iconlib-empty">Ta bibliothèque est vide. Importe tes icônes (normal, survol, pressé) : elles seront rangées par jeu et par couleur.</p>}
+    {!icons.length&&<p className="nv-iconlib-empty">Ta bibliothèque est vide. Clique sur « Créer un pack de 3 » pour ajouter les états normal, survol et pressé.</p>}
     <div className="nv-iconlib-grid">
       {shown.map(set=><div key={set.key} className={'nv-iconset'+(onApply?' is-clickable':'')}>
         <button type="button" className="nv-iconset-main" disabled={!onApply} onClick={()=>onApply?.(set)} title={onApply?'Appliquer ce jeu':set.name}>
@@ -125,7 +130,7 @@ export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
           </span>
           <strong title={set.name}>{set.name}</strong>
         </button>
-        <button type="button" className="nv-iconset-del" aria-label={'Supprimer '+set.name} title="Supprimer ce jeu" onClick={()=>onDeleteSet(set.ids,set.name)}><Trash2 size={14}/></button>
+        <button type="button" className="nv-iconset-del" aria-label={'Supprimer '+set.name} title="Supprimer définitivement ce pack" onClick={()=>onDeleteSet(set.ids,set.name)}><Trash2 size={14}/></button>
       </div>)}
     </div>
   </div>;
