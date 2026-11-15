@@ -210,6 +210,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [gallerySpace,setGallerySpace]=useState<string|null>(null);
   const chosenSpace=sourceProject?.spaces?.find(space=>space.id===gallerySpace);
   const project=sourceProject&&chosenSpace?projectForSpaceExport(sourceProject,chosenSpace):sourceProject;
+  const vrAllowed=project?.vrEnabled!==false; // Compatibilité des projets publiés avant l'option VR
   const [sceneId,setSceneId]=useState(()=>project?.scenes[0]?.id??'');
   const [nightSceneId,setNightSceneId]=useState<string|null>(null);
   const prefs=useVisitorPrefs();
@@ -358,7 +359,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }
   };
   const enterVr=async()=>{
-    if(vrActive||!projectRef.current)return;
+    if(vrActive||!projectRef.current||projectRef.current.vrEnabled===false)return;
     setVrError('');
     try{
       vrStop.current=await startVr({
@@ -400,8 +401,8 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={(fullscreen||mobileExpanded)?'Réduire la visite':'Agrandir la visite'}>
       {(fullscreen||mobileExpanded)?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
-    {vrAvailable&&!vrEntry&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Passer de la visite 360° à l'immersion dans le casque">{vrActive?'VR en cours…':'🥽 Mode immersif VR'}</button>}
-    {vrEntry&&!vrPromptDismissed&&!vrActive&&<div role="dialog" aria-label="Mode casque Immosphera360 VR" style={{position:'absolute',inset:0,zIndex:120,background:'rgba(4,19,28,.88)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+    {vrAllowed&&vrAvailable&&!vrEntry&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Passer de la visite 360° à l'immersion dans le casque">{vrActive?'VR en cours…':'🥽 Mode immersif VR'}</button>}
+    {vrAllowed&&vrEntry&&!vrPromptDismissed&&!vrActive&&<div role="dialog" aria-label="Mode casque Immosphera360 VR" style={{position:'absolute',inset:0,zIndex:120,background:'rgba(4,19,28,.88)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
       <div style={{maxWidth:470,width:'100%',background:'#102f3d',border:'1px solid #79aab5',borderRadius:22,padding:28,textAlign:'center',color:'#f5fbfc',boxShadow:'0 16px 70px #0009'}}>
         <div style={{fontSize:44}}>🥽</div>
         <h2 style={{margin:'6px 0 14px',fontSize:26}}>Immosphera360 VR</h2>

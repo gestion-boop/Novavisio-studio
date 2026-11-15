@@ -14,6 +14,7 @@ import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisp
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
+import {defaultSkinId,newProjectFromDefaultSkin} from './skins';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
@@ -3907,10 +3908,15 @@ function App(){
     setProject(fresh);setActiveId('');setSelectedId('');setLock(null);setPreparationOpen(true);
     void persist(fresh,true);
   }
-  function startFresh(){
+  async function startFresh(){
     if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
-    setActiveSpaceId(null);setSpaceManagerOpen(false);resetProject(newProject());setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
+    // Charger le modèle AVANT de vider l'éditeur : la visite ouverte reste intacte
+    // en cas d'indisponibilité du stockage local.
+    const defaultChosen=!!defaultSkinId();
+    const fresh=await newProjectFromDefaultSkin();
+    setActiveSpaceId(null);setSpaceManagerOpen(false);resetProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
     cloud.unlink();
+    if(defaultChosen)setStatus('Nouveau projet préparé avec ton modèle par défaut : vérifie les icônes, les réglages et la VR, puis ajoute les panoramas.');
   }
   function addClientLink(item:ClientLink){
     const next:BottomBarItem={id:uid(),title:item.label,type:item.kind==='info'?'information':'lien',target:'',text:'',url:item.url,builtinIcon:item.label==='Appeler'?'phone':item.label==='Itinéraire'?'grid':'info'};
@@ -5599,6 +5605,14 @@ function App(){
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Visite immersive 360° et VR (facultatif)" initiallyOpen>
+            <p className="hint">La visite fonctionne toujours sur mobile, ordinateur et tablette. Le mode casque VR est une option à activer uniquement pour les clients qui le souhaitent.</p>
+            <label className="toggle-row"><input type="checkbox" checked={project.vrEnabled!==false}
+              onChange={e=>{const enabled=e.target.checked;setProject(p=>({...p,vrEnabled:enabled}));setStatus(enabled?'VR activée pour cette visite. Enregistre avec la disquette.':'VR désactivée : la visite 360° classique reste disponible. Enregistre avec la disquette.');}}/>
+              Autoriser le mode casque VR dans cette visite
+            </label>
+            <small className="hint-inline">Avec l'option activée, les navigateurs WebXR compatibles proposent l'entrée immersive. Sans l'option, aucun bouton ni écran d'accueil VR n'apparaît. La fonction n'est pas activée automatiquement sur les nouveaux projets.</small>
+          </InspectorSection>
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
             <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
