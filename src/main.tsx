@@ -1415,293 +1415,288 @@ function App(){
       </div>
     );
   }
-  // Grille des tuiles d'outils avec drag & drop fluide au pointeur (les autres tuiles glissent dessous) et animations FLIP
-  function ToolTilesGrid({fs}:{fs:boolean}){
-    const containerRef=useRef<HTMLDivElement>(null);
-    const [dragTool,setDragTool]=useState<string|null>(null);
-    const [justDropped,setJustDropped]=useState<string|null>(null);
-    const latestOrderRef=useRef<string[]>(toolOrder);
-    latestOrderRef.current=toolOrder;
-    const hasDraggedRef=useRef(false);
-    const disposeRef=useRef<(()=>void)|null>(null);
+  // Glisser-déposer des tuiles d'outils : état et références au niveau racine pour éviter tout démontage React
+  const [dragTool,setDragTool]=useState<string|null>(null);
+  const [justDroppedTool,setJustDroppedTool]=useState<string|null>(null);
+  const latestToolOrderRef=useRef<string[]>(toolOrder);
+  latestToolOrderRef.current=toolOrder;
+  const hasDraggedToolRef=useRef(false);
+  const disposeToolDragRef=useRef<(()=>void)|null>(null);
+  useEffect(()=>()=>disposeToolDragRef.current?.(),[]);
 
-    useEffect(()=>()=>disposeRef.current?.(),[]);
+  function handleToolPointerDown(event:React.PointerEvent<HTMLDivElement>,id:string){
+    if(event.button!==0||!canDragTools||disposeToolDragRef.current)return;
+    const tileWrap=event.currentTarget;
+    const container=tileWrap.closest<HTMLElement>('.nv-tiles');
+    if(!container)return;
 
-    const handlePointerDown=(event:React.PointerEvent<HTMLDivElement>,id:string)=>{
-      if(event.button!==0||!canDragTools||disposeRef.current)return;
-      const tileWrap=event.currentTarget;
-      const container=containerRef.current;
-      if(!container)return;
+    const original=[...latestToolOrderRef.current];
+    let liveOrder=[...original];
+    const initial=tileWrap.getBoundingClientRect();
+    const startX=event.clientX;
+    const startY=event.clientY;
+    const offsetX=startX-initial.left;
+    const offsetY=startY-initial.top;
 
-      const original=[...latestOrderRef.current];
-      let liveOrder=[...original];
-      const initial=tileWrap.getBoundingClientRect();
-      const startX=event.clientX;
-      const startY=event.clientY;
-      const offsetX=startX-initial.left;
-      const offsetY=startY-initial.top;
+    const items=()=>[...container.querySelectorAll<HTMLElement>(':scope > .nv-tile-wrap[data-tool-key]')];
+    // Capture la géométrie fixe des cases de la grille avant tout mouvement
+    let slotRects=items().map(el=>el.getBoundingClientRect());
 
-      let moved=false;
-      let ghost:HTMLElement|null=null;
-      let disposed=false;
-      let currentX=startX;
-      let currentY=startY;
+    let moved=false;
+    let ghost:HTMLElement|null=null;
+    let disposed=false;
+    let currentX=startX;
+    let currentY=startY;
 
-      const items=()=>[...container.querySelectorAll<HTMLElement>('.nv-tile-wrap[data-tool-key]')];
+    const moveTilesToIndex=(targetIdx:number)=>{
+      const currentIdx=liveOrder.indexOf(id);
+      if(currentIdx<0||targetIdx<0||currentIdx===targetIdx)return;
+      const targetKey=liveOrder[targetIdx];
+      if(!targetKey||targetKey===id)return;
 
-      const moveTiles=(targetKey:string)=>{
-        const beforeMap=new Map(items().map(it=>[it.dataset.toolKey!,it.getBoundingClientRect()]));
-        liveOrder=reorderItems(liveOrder,id,targetKey,k=>k);
-        latestOrderRef.current=liveOrder;
+      // 1. Mesure la position visuelle exacte de chaque tuile à cet instant précis
+      const beforeMap=new Map<string,DOMRect>();
+      for(const it of items()){
+        const k=it.dataset.toolKey;
+        if(k)beforeMap.set(k,it.getBoundingClientRect());
+      }
+
+      // 2. Met à jour l'ordre de manière synchrone (sans clignotement d'image)
+      liveOrder=reorderItems(liveOrder,id,targetKey,k=>k);
+      latestToolOrderRef.current=liveOrder;
+      flushSync(()=>{
         setToolOrder(liveOrder);
+      });
 
-        requestAnimationFrame(()=>{
-          if(disposed||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-          for(const item of items()){
-            const k=item.dataset.toolKey;
-            if(!k||k===id)continue;
-            item.getAnimations().forEach(a=>a.cancel());
-            const old=beforeMap.get(k);
-            if(!old)continue;
-            const curr=item.getBoundingClientRect();
-            const dx=old.left-curr.left;
-            const dy=old.top-curr.top;
-            if(Math.abs(dx)>1||Math.abs(dy)>1){
-              item.animate([
-                {transform:`translate3d(${dx}px,${dy}px,0)`},
-                {transform:'translate3d(0,0,0)'}
-              ],{
-                duration:200,
-                easing:'cubic-bezier(0.2,0,0,1)'
-              });
-            }
-          }
-        });
-      };
-
-      const update=()=>{
-        if(!moved||disposed)return;
-        if(ghost){
-          ghost.style.transform=`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`;
-        }
-
-        const bounds=container.getBoundingClientRect();
-        if(
-          currentX<bounds.left-60||
-          currentX>bounds.right+60||
-          currentY<bounds.top-60||
-          currentY>bounds.bottom+60
-        )return;
-
-        const currentIdx=liveOrder.indexOf(id);
-        if(currentIdx<0)return;
-
-        // Calcul des distances par rapport aux coordonnées statiques de chaque emplacement (offsetLeft/offsetTop)
-        const allItems=items();
-        let bestKey=id;
-        let minDistanceSq=Infinity;
-        let currentDistanceSq=Infinity;
-
-        for(const item of allItems){
+      // 3. Anime en douceur (FLIP) chaque tuile déplacée depuis son ancienne position visuelle
+      if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        for(const item of items()){
           const k=item.dataset.toolKey;
-          if(!k)continue;
-          const slotX=bounds.left+item.offsetLeft-container.scrollLeft+item.offsetWidth/2;
-          const slotY=bounds.top+item.offsetTop-container.scrollTop+item.offsetHeight/2;
-          const distSq=(currentX-slotX)**2+(currentY-slotY)**2;
-
-          if(k===id){
-            currentDistanceSq=distSq;
-          }
-          if(distSq<minDistanceSq){
-            minDistanceSq=distSq;
-            bestKey=k;
-          }
-        }
-
-        // Hystérésis stable : bascule uniquement si on est nettement plus proche du nouvel emplacement
-        const tileWidth=initial.width||132;
-        const switchThresholdSq=(tileWidth*0.58)**2;
-
-        if(bestKey!==id&&(minDistanceSq<switchThresholdSq||minDistanceSq<currentDistanceSq*0.7)){
-          moveTiles(bestKey);
-        }
-      };
-
-      const handlePointerMove=(e:PointerEvent)=>{
-        currentX=e.clientX;
-        currentY=e.clientY;
-
-        if(!moved&&Math.hypot(currentX-startX,currentY-startY)>5){
-          moved=true;
-          hasDraggedRef.current=true;
-          setDragTool(id);
-          document.body.classList.add('nv-is-sorting');
-
-          // Crée la tuile fantôme flottante qui suit la souris
-          const tileBtn=tileWrap.querySelector('.nv-app-tile') as HTMLElement;
-          ghost=(tileBtn?tileBtn.cloneNode(true):tileWrap.cloneNode(true)) as HTMLElement;
-          ghost.className='nv-app-tile nv-tile-ghost';
-          ghost.removeAttribute('id');
-          ghost.setAttribute('aria-hidden','true');
-          Object.assign(ghost.style,{
-            position:'fixed',
-            left:'0',
-            top:'0',
-            width:`${initial.width}px`,
-            height:`${initial.height}px`,
-            transform:`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`,
-            pointerEvents:'none',
-            zIndex:'99999',
-            margin:'0',
-            boxShadow:'0 20px 48px rgba(0,0,0,0.8), 0 0 0 2px #4bebde, 0 0 24px rgba(75,235,222,0.45)',
-            borderRadius:'22px',
-            willChange:'transform'
-          });
-          document.body.appendChild(ghost);
-        }
-
-        if(moved){
-          e.preventDefault();
-          update();
-        }
-      };
-
-      const cleanup=()=>{
-        disposed=true;
-        disposeRef.current=null;
-        window.removeEventListener('pointermove',handlePointerMove,{capture:true});
-        window.removeEventListener('pointerup',handlePointerUp,true);
-        window.removeEventListener('pointercancel',handlePointerCancel,true);
-        window.removeEventListener('keydown',handleKeyDownGlobal,true);
-        document.body.classList.remove('nv-is-sorting');
-      };
-
-      const finish=(rollback=false)=>{
-        if(disposed)return;
-        cleanup();
-
-        if(!moved){
-          hasDraggedRef.current=false;
-          return;
-        }
-
-        if(rollback){
-          liveOrder=[...original];
-          latestOrderRef.current=liveOrder;
-          setToolOrder(liveOrder);
-          ghost?.remove();
-          setDragTool(null);
-          hasDraggedRef.current=false;
-          return;
-        }
-
-        // Atterrissage fluide de la tuile fantôme vers son emplacement final
-        const finalTarget=container.querySelector<HTMLElement>(`.nv-tile-wrap[data-tool-key="${id}"]`);
-        if(ghost&&finalTarget){
-          const finalRect=finalTarget.getBoundingClientRect();
-          const land=ghost.animate([
-            {transform:`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`},
-            {transform:`translate3d(${finalRect.left}px,${finalRect.top}px,0) scale(1)`}
-          ],{
-            duration:170,
-            easing:'cubic-bezier(0.2,0,0,1)'
-          });
-          land.onfinish=()=>{ghost?.remove();};
-        }else{
-          ghost?.remove();
-        }
-
-        setDragTool(null);
-        setJustDropped(id);
-        setTimeout(()=>{
-          setJustDropped(null);
-          hasDraggedRef.current=false;
-        },400);
-
-        saveToolOrder(liveOrder);
-      };
-
-      const handlePointerUp=()=>finish(false);
-      const handlePointerCancel=()=>finish(true);
-      const handleKeyDownGlobal=(e:KeyboardEvent)=>{
-        if(e.key==='Escape'){
-          e.preventDefault();
-          finish(true);
-        }
-      };
-
-      disposeRef.current=cleanup;
-      window.addEventListener('pointermove',handlePointerMove,{capture:true,passive:false});
-      window.addEventListener('pointerup',handlePointerUp,true);
-      window.addEventListener('pointercancel',handlePointerCancel,true);
-      window.addEventListener('keydown',handleKeyDownGlobal,true);
-    };
-
-    const handleKeyDown=(e:React.KeyboardEvent,key:string)=>{
-      if(!canDragTools)return;
-      if(e.altKey||e.ctrlKey){
-        let delta=0;
-        if(e.key==='ArrowLeft'||e.key==='ArrowUp')delta=-1;
-        else if(e.key==='ArrowRight'||e.key==='ArrowDown')delta=1;
-
-        if(delta!==0){
-          e.preventDefault();
-          const currentIndex=toolOrder.indexOf(key);
-          const targetIndex=currentIndex+delta;
-          if(targetIndex>=0&&targetIndex<toolOrder.length){
-            const targetKey=toolOrder[targetIndex];
-            setToolOrder(order=>{
-              const next=reorderItems(order,key,targetKey,k=>k);
-              saveToolOrder(next);
-              return next;
+          if(!k||k===id)continue;
+          item.getAnimations().forEach(a=>a.cancel());
+          const oldRect=beforeMap.get(k);
+          if(!oldRect)continue;
+          const newRect=item.getBoundingClientRect();
+          const dx=oldRect.left-newRect.left;
+          const dy=oldRect.top-newRect.top;
+          if(Math.abs(dx)>1||Math.abs(dy)>1){
+            item.animate([
+              {transform:`translate3d(${dx}px,${dy}px,0)`},
+              {transform:'translate3d(0,0,0)'}
+            ],{
+              duration:220,
+              easing:'cubic-bezier(0.2,0,0,1)'
             });
-            setJustDropped(key);
-            setTimeout(()=>setJustDropped(null),450);
           }
         }
       }
     };
 
-    return (
-      <div ref={containerRef} className={'nv-tiles'+(dragTool?' nv-tiles-is-dragging':'')} role="list">
-        {toolOrder.map(key=>{
-          const meta=toolMeta(key);
-          if(!meta)return null;
-          const isDragging=dragTool===key;
-          const isDropped=justDropped===key;
+    const update=()=>{
+      if(!moved||disposed)return;
+      if(ghost){
+        ghost.style.transform=`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`;
+      }
 
-          return (
-            <div key={key} data-tool-key={key} role="listitem"
-              className={'nv-tile-wrap'+(isDragging?' is-dragging':'')+(isDropped?' is-just-dropped':'')}
-              onPointerDown={e=>handlePointerDown(e,key)}
-              onKeyDown={e=>handleKeyDown(e,key)}>
-              <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active}
-                onClick={()=>{
-                  if(hasDraggedRef.current)return;
-                  if(fs)runFromFullscreen(key,meta.run);
-                  else meta.run();
-                }}
-                tabIndex={toolsMenuOpen?0:-1}
-                style={{'--tile-tone':meta.tone} as CSSProperties}
-                title={canDragTools?`${meta.label} · Glisser pour déplacer (ou Alt+Flèches)`:meta.label}>
-                {canDragTools&&<span className="nv-tile-drag-handle" aria-hidden="true" title="Glisser pour réorganiser"><GripVertical size={13}/></span>}
-                <span className="nv-app-tile-icon">{meta.icon}</span>
-                <span className="nv-app-tile-label">{meta.label}</span>
-                {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    );
+      // Détecte dans quelle case fixe de la grille se trouve le pointeur (zone centrale 72% pour éviter toute oscillation)
+      let targetIdx=-1;
+      for(let i=0;i<slotRects.length;i++){
+        const r=slotRects[i];
+        const padX=r.width*0.14;
+        const padY=r.height*0.14;
+        if(
+          currentX>=r.left+padX&&
+          currentX<=r.right-padX&&
+          currentY>=r.top+padY&&
+          currentY<=r.bottom-padY
+        ){
+          targetIdx=i;
+          break;
+        }
+      }
+
+      if(targetIdx!==-1&&targetIdx!==liveOrder.indexOf(id)){
+        moveTilesToIndex(targetIdx);
+      }
+    };
+
+    const handlePointerMove=(e:PointerEvent)=>{
+      currentX=e.clientX;
+      currentY=e.clientY;
+
+      if(!moved&&Math.hypot(currentX-startX,currentY-startY)>5){
+        moved=true;
+        hasDraggedToolRef.current=true;
+        // Recalcule les cases au démarrage effectif du glissement
+        slotRects=items().map(el=>{
+          el.getAnimations().forEach(a=>a.cancel());
+          return el.getBoundingClientRect();
+        });
+
+        const tileBtn=tileWrap.querySelector('.nv-app-tile') as HTMLElement;
+        ghost=(tileBtn?tileBtn.cloneNode(true):tileWrap.cloneNode(true)) as HTMLElement;
+        ghost.className='nv-app-tile nv-tile-ghost';
+        ghost.removeAttribute('id');
+        ghost.setAttribute('aria-hidden','true');
+        Object.assign(ghost.style,{
+          position:'fixed',
+          left:'0',
+          top:'0',
+          width:`${initial.width}px`,
+          height:`${initial.height}px`,
+          transform:`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`,
+          pointerEvents:'none',
+          zIndex:'99999',
+          margin:'0',
+          boxShadow:'0 20px 48px rgba(0,0,0,0.8), 0 0 0 2px #4bebde, 0 0 24px rgba(75,235,222,0.45)',
+          borderRadius:'22px',
+          willChange:'transform'
+        });
+        document.body.appendChild(ghost);
+        document.body.classList.add('nv-is-sorting');
+        setDragTool(id);
+      }
+
+      if(moved){
+        e.preventDefault();
+        update();
+      }
+    };
+
+    const cleanup=()=>{
+      disposed=true;
+      disposeToolDragRef.current=null;
+      window.removeEventListener('pointermove',handlePointerMove,{capture:true});
+      window.removeEventListener('pointerup',handlePointerUp,true);
+      window.removeEventListener('pointercancel',handlePointerCancel,true);
+      window.removeEventListener('keydown',handleKeyDownGlobal,true);
+      document.body.classList.remove('nv-is-sorting');
+    };
+
+    const finish=(rollback=false)=>{
+      if(disposed)return;
+      cleanup();
+
+      if(!moved){
+        hasDraggedToolRef.current=false;
+        return;
+      }
+
+      if(rollback){
+        liveOrder=[...original];
+        latestToolOrderRef.current=liveOrder;
+        setToolOrder(liveOrder);
+        ghost?.remove();
+        setDragTool(null);
+        hasDraggedToolRef.current=false;
+        return;
+      }
+
+      const finalIdx=liveOrder.indexOf(id);
+      const finalRect=slotRects[finalIdx]??container.querySelector<HTMLElement>(`.nv-tile-wrap[data-tool-key="${id}"]`)?.getBoundingClientRect();
+      if(ghost&&finalRect){
+        const g=ghost;
+        const land=g.animate([
+          {transform:`translate3d(${currentX-offsetX}px,${currentY-offsetY}px,0) scale(1.06)`},
+          {transform:`translate3d(${finalRect.left}px,${finalRect.top}px,0) scale(1)`}
+        ],{
+          duration:160,
+          easing:'cubic-bezier(0.2,0,0,1)'
+        });
+        land.onfinish=()=>{
+          g.remove();
+          setDragTool(null);
+          setJustDroppedTool(id);
+          setTimeout(()=>{
+            setJustDroppedTool(null);
+            hasDraggedToolRef.current=false;
+          },380);
+        };
+      }else{
+        ghost?.remove();
+        setDragTool(null);
+        hasDraggedToolRef.current=false;
+      }
+
+      saveToolOrder(liveOrder);
+    };
+
+    const handlePointerUp=()=>finish(false);
+    const handlePointerCancel=()=>finish(true);
+    const handleKeyDownGlobal=(e:KeyboardEvent)=>{
+      if(e.key==='Escape'){
+        e.preventDefault();
+        finish(true);
+      }
+    };
+
+    disposeToolDragRef.current=cleanup;
+    window.addEventListener('pointermove',handlePointerMove,{capture:true,passive:false});
+    window.addEventListener('pointerup',handlePointerUp,true);
+    window.addEventListener('pointercancel',handlePointerCancel,true);
+    window.addEventListener('keydown',handleKeyDownGlobal,true);
   }
+
+  function handleToolKeyDown(e:React.KeyboardEvent,key:string){
+    if(!canDragTools)return;
+    if(e.altKey||e.ctrlKey){
+      let delta=0;
+      if(e.key==='ArrowLeft'||e.key==='ArrowUp')delta=-1;
+      else if(e.key==='ArrowRight'||e.key==='ArrowDown')delta=1;
+
+      if(delta!==0){
+        e.preventDefault();
+        const currentIndex=toolOrder.indexOf(key);
+        const targetIndex=currentIndex+delta;
+        if(targetIndex>=0&&targetIndex<toolOrder.length){
+          const targetKey=toolOrder[targetIndex];
+          setToolOrder(order=>{
+            const next=reorderItems(order,key,targetKey,k=>k);
+            saveToolOrder(next);
+            return next;
+          });
+          setJustDroppedTool(key);
+          setTimeout(()=>setJustDroppedTool(null),450);
+        }
+      }
+    }
+  }
+
   // Rideau des outils (tuiles) : sous l'en-tête, ou dans le plein écran de création.
   function toolsCurtain(fs:boolean){
     return (
         <div id={fs?'nv-fs-tools-options':'nv-header-tools-options'} className={'nv-tools-curtain'+(toolsMenuOpen?' is-open':'')+(fs?' nv-in-fullscreen':'')} role="dialog" aria-label="Tous les outils" aria-hidden={!toolsMenuOpen}>
           <div className="nv-tools-curtain-inner">
             <div className="nv-tiles-title">Tes outils<small>{canDragTools?'Glisse une tuile pour la ranger où tu veux (ou Alt + Flèches)':'Touche une tuile pour l’ouvrir'}</small></div>
-            <ToolTilesGrid fs={fs}/>
+            <div className={'nv-tiles'+(dragTool?' nv-tiles-is-dragging':'')} role="list">
+              {toolOrder.map(key=>{
+                const meta=toolMeta(key);
+                if(!meta)return null;
+                const isDragging=dragTool===key;
+                const isDropped=justDroppedTool===key;
+                return (
+                  <div key={key} data-tool-key={key} role="listitem"
+                    className={'nv-tile-wrap'+(isDragging?' is-dragging':'')+(isDropped?' is-just-dropped':'')}
+                    onPointerDown={e=>handleToolPointerDown(e,key)}
+                    onKeyDown={e=>handleToolKeyDown(e,key)}>
+                    <button type="button" className={'nv-app-tile'+(meta.active?' is-active':'')} aria-pressed={meta.active}
+                      onClick={()=>{
+                        if(hasDraggedToolRef.current)return;
+                        if(fs)runFromFullscreen(key,meta.run);
+                        else meta.run();
+                      }}
+                      tabIndex={toolsMenuOpen?0:-1}
+                      style={{'--tile-tone':meta.tone} as CSSProperties}
+                      title={canDragTools?`${meta.label} · Glisser pour déplacer (ou Alt+Flèches)`:meta.label}>
+                      {canDragTools&&<span className="nv-tile-drag-handle" aria-hidden="true" title="Glisser pour réorganiser"><GripVertical size={13}/></span>}
+                      <span className="nv-app-tile-icon">{meta.icon}</span>
+                      <span className="nv-app-tile-label">{meta.label}</span>
+                      {meta.badge!==undefined&&<small className="nv-app-tile-badge">{meta.badge}</small>}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
             {!fs&&<>
             <div className="nv-tiles-title nv-tiles-title-second">Fichier et équipe</div>
             <div className="nv-tiles">
