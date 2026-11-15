@@ -2792,43 +2792,62 @@ function App(){
   function patchScene(patch:(s:Scene)=>Scene){
     setProject(p=>({...p,scenes:p.scenes.map(s=>s.id===activeId?patch(s):s)}));
   }
-  // Glisser-déposer des scènes : suit le pointeur en direct (transformations CSS, aucun rendu React pendant le glissement),
-  // décale les autres scènes avec une animation, fait défiler la liste près des bords. Souris, stylet et tactile (via la poignée ⋮⋮).
+  // Glisser-déposer des scènes (1D liste et 2D grille) : suit le pointeur en direct en 2D (aucun rendu React pendant le glissement),
+  // décale les autres scènes sur les axes X/Y avec une animation fluide, et fait défiler la liste près des bords.
   function startSceneDrag(e:React.PointerEvent<HTMLDivElement>,index:number){
     if(e.button!==0||sortBusy.current)return;
-    if(e.pointerType==='touch'&&!(e.target as HTMLElement).closest('.scene-grip'))return;
+    const targetEl=e.target as HTMLElement;
+    if(targetEl.closest('.nv-scene-include,.nv-scene-360-preview-btn,.nv-space-exclude'))return;
+    if(e.pointerType==='touch'&&!targetEl.closest('.scene-grip'))return;
     const container=scenesRef.current;
     if(!container)return;
     const slots=Array.from(container.querySelectorAll<HTMLElement>(':scope > .scene-slot'));
     const el=slots[index];
     const id=project.scenes[index]?.id;
     if(!el||!id)return;
-    const pointerId=e.pointerId,startY=e.clientY,startScroll=container.scrollTop;
-    const tops=slots.map(n=>n.offsetTop),heights=slots.map(n=>n.offsetHeight);
-    const gap=parseFloat(getComputedStyle(container).rowGap)||8;
-    const step=heights[index]+gap;
-    const crect=container.getBoundingClientRect(); // la liste ne bouge pas pendant le glissement
-    let started=false,to=index,lastY=startY,raf=0,zoneSince=0;
+    const pointerId=e.pointerId,startX=e.clientX,startY=e.clientY,startScroll=container.scrollTop;
+    const lefts=slots.map(n=>n.offsetLeft),tops=slots.map(n=>n.offsetTop);
+    const widths=slots.map(n=>n.offsetWidth),heights=slots.map(n=>n.offsetHeight);
+    const crect=container.getBoundingClientRect();
+    let started=false,to=index,lastX=startX,lastY=startY,raf=0,zoneSince=0;
     const layout=()=>{
-      const last=slots.length-1;
-      const raw=lastY-startY+(container.scrollTop-startScroll);
-      const dy=Math.max(tops[0]-tops[index],Math.min(tops[last]+heights[last]-tops[index]-heights[index],raw));
-      el.style.transform='translateY('+dy+'px)';
-      const center=tops[index]+heights[index]/2+dy;
-      let target=index;
+      const dx=lastX-startX;
+      const dy=lastY-startY+(container.scrollTop-startScroll);
+      el.style.transform=`translate3d(${dx}px,${dy}px,0) scale(1.04)`;
+
+      const curRect=container.getBoundingClientRect();
+      const curX=lastX-curRect.left+container.scrollLeft;
+      const curY=lastY-curRect.top+container.scrollTop;
+
+      for(let k=0;k<slots.length;k++){
+        const padX=widths[k]*0.12;
+        const padY=heights[k]*0.12;
+        if(
+          curX>=lefts[k]+padX&&
+          curX<=lefts[k]+widths[k]-padX&&
+          curY>=tops[k]+padY&&
+          curY<=tops[k]+heights[k]-padY
+        ){
+          to=k;
+          break;
+        }
+      }
+
       slots.forEach((n,j)=>{
         if(j===index)return;
-        const c=tops[j]+heights[j]/2;
-        let shift=0;
-        // 1 px de tolérance : une scène collée au bord haut/bas doit bien passer devant/derrière la dernière.
-        if(j<index&&c>center-1){shift=step;target=Math.min(target,j);}
-        else if(j>index&&c<center+1){shift=-step;target=Math.max(target,j);}
-        n.style.transform=shift?'translateY('+shift+'px)':'';
+        let destIdx=j;
+        if(index<to&&j>index&&j<=to)destIdx=j-1;
+        else if(index>to&&j>=to&&j<index)destIdx=j+1;
+        if(destIdx!==j){
+          const sx=lefts[destIdx]-lefts[j];
+          const sy=tops[destIdx]-tops[j];
+          n.style.transform=`translate3d(${sx}px,${sy}px,0)`;
+        }else{
+          n.style.transform='';
+        }
       });
-      to=target;
     };
     const tick=(now:number)=>{
-      // Défilement doux : zone étroite, délai avant démarrage, vitesse progressive (jamais de saut brusque).
       const edge=30;
       const depth=lastY<crect.top+edge?crect.top+edge-lastY:lastY>crect.bottom-edge?lastY-(crect.bottom-edge):0;
       if(!depth)zoneSince=0;
@@ -2845,12 +2864,14 @@ function App(){
     };
     const move=(ev:PointerEvent)=>{
       if(ev.pointerId!==pointerId)return;
+      lastX=ev.clientX;
       lastY=ev.clientY;
       if(!started){
-        if(Math.abs(ev.clientY-startY)<5)return;
+        if(Math.hypot(ev.clientX-startX,ev.clientY-startY)<5)return;
         started=true;
         el.classList.add('is-dragging');
         container.classList.add('is-sorting');
+        document.body.classList.add('nv-is-sorting');
         raf=requestAnimationFrame(tick);
       }
       ev.preventDefault();
@@ -2861,23 +2882,24 @@ function App(){
       document.removeEventListener('pointerup',up);
       document.removeEventListener('pointercancel',cancel);
       document.removeEventListener('keydown',key);
+      document.body.classList.remove('nv-is-sorting');
       cancelAnimationFrame(raf);
       if(!started)return;
       suppressClick.current=true;
       window.setTimeout(()=>{suppressClick.current=false;},0);
       sortBusy.current=true;
-      // La scène glisse jusqu'à sa place (au lieu de sauter), puis l'ordre est appliqué sans aucun saut à l'écran.
       const apply=commit&&to!==index;
-      const finalTop=to>index?tops[to]+heights[to]-heights[index]:tops[to];
+      const finalX=apply?lefts[to]-lefts[index]:0;
+      const finalY=apply?tops[to]-tops[index]:0;
       el.classList.add('is-settling');
-      el.style.transform='translateY('+(apply?finalTop-tops[index]:0)+'px)';
+      el.style.transform=`translate3d(${finalX}px,${finalY}px,0) scale(1)`;
       if(!apply)slots.forEach(n=>{if(n!==el)n.style.transform='';});
       window.setTimeout(()=>{
         if(apply)flushSync(()=>moveScene(id,to>index?to+1:to));
         slots.forEach(n=>{n.style.transition='none';n.style.transform='';n.classList.remove('is-dragging','is-settling');});
         container.classList.remove('is-sorting');
         requestAnimationFrame(()=>{slots.forEach(n=>{n.style.transition='';});sortBusy.current=false;});
-      },160);
+      },170);
     };
     const up=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(true);};
     const cancel=(ev:PointerEvent)=>{if(ev.pointerId===pointerId)finish(false);};
@@ -4919,8 +4941,11 @@ function App(){
           </button>
           <small>{quickLinkMode?'Choisis une destination, oriente la cible, puis valide la flèche avec les icônes du projet.':'Clique sur un panorama pour l’ouvrir sans créer de flèche.'}</small>
         </div>}
-        <button className="import" onClick={()=>upload.current?.click()}>
-          <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer des panoramas
+        <button className="import nv-pano-import-dropzone" onClick={()=>upload.current?.click()}
+          onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
+          onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
+          onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');addImages(e.dataTransfer.files);}}>
+          <Plus size={15} style={{marginRight:6,verticalAlign:'-2px'}}/> Importer ou glisser des panoramas 360°
         </button>
         <div className="nv-scene-discovery">
           <label className="nv-scene-search">
@@ -4952,9 +4977,9 @@ function App(){
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
           <button className={'scene '+(s.id===activeId?'active':'')} title={(preview?'Ouvrir ':'Prévisualiser et renommer ')+s.name}
             onKeyDown={e=>{
-              if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
+              if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'&&e.key!=='ArrowLeft'&&e.key!=='ArrowRight'))return;
               e.preventDefault();
-              moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
+              moveScene(s.id,(e.key==='ArrowUp'||e.key==='ArrowLeft')?i-1:i+2);
             }}
             onClick={()=>{
               // Hors mode Auto : un clic ouvre une fenêtre pour tourner dans le panorama à 360° avant de décider (ouvrir ou supprimer).
