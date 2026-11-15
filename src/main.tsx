@@ -1356,12 +1356,12 @@ function App(){
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
+  const TOOL_KEYS=['settings','spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
       const known=Array.isArray(saved)?saved.filter((k):k is string=>typeof k==='string'&&TOOL_KEYS.includes(k)):[];
-      return [...new Set([...known,...TOOL_KEYS])];
+      return [...new Set([...(known.includes('settings')?[]:['settings']),...known,...TOOL_KEYS])];
     }catch{return TOOL_KEYS;}
   });
   const saveToolOrder=(order:string[])=>{try{localStorage.setItem('nvstudio-tools-order',JSON.stringify(order));}catch{/* ordre non mémorisé */}};
@@ -1376,7 +1376,7 @@ function App(){
     const option=toolOptions.find(item=>item.key===key);
     if(!option)return null;
     const look:Record<string,{icon:ReactNode;tone:string}>={
-      panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
+      settings:{icon:<SettingsIcon size={ic}/>,tone:'#42c6b7'},panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
       icons:{icon:<Star size={ic}/>,tone:'#f0b429'},intro:{icon:<Play size={ic}/>,tone:'#ef5b7b'},elements:{icon:<Plus size={ic}/>,tone:'#2bb3d6'},
       medialib:{icon:<Images size={ic}/>,tone:'#3ec6a8'},music:{icon:<Music size={ic}/>,tone:'#ff6fa8'},client:{icon:<Smile size={ic}/>,tone:'#7f8cff'}
     };
