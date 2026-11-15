@@ -1098,6 +1098,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
   });
   // ---- boucle de rendu --------------------------------------------------------------------------------------
+  let hoveredRightLast:Clickable|null=null;
   let lastRefreshCheck=0;
   let turnArmed=true;
   // Clic sur le joystick : masque toute l'interface (barre, fenêtres, repères) ; un second clic la fait réapparaître.
@@ -1139,6 +1140,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
     }
     barGroup.visible=referenceMode&&!uiHidden;
+    vrShellGroup.visible=referenceMode&&!uiHidden;
     panelGroup.visible=!uiHidden;
     headerGroup.visible=!uiHidden;
     noticeGroup.visible=!uiHidden;
@@ -1211,21 +1213,28 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Laser visible exclusivement depuis la manette droite. Son extrémité
     // est placée au point d'intersection réel, sans dépasser le bouton.
     const right=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness==='right');
+    let hoveredRight:Clickable|null=null;
     if(right){
       if(rightLaserLine.parent!==right)right.add(rightLaserLine);
       const impact=pointable(right);
+      hoveredRight=impact.target;
+      if(hoveredRight!==hoveredRightLast){
+        if(hoveredRight&&!uiHidden)pulse(right,.18,22);
+        hoveredRightLast=hoveredRight;
+      }
       const tip=impact.point?right.worldToLocal(impact.point.clone()):new Vector3(0,0,-2.3);
       const attr=rightLaserGeometry.getAttribute('position') as Float32BufferAttribute;
       attr.setXYZ(1,tip.x,tip.y,tip.z);attr.needsUpdate=true;rightLaserGeometry.computeBoundingSphere();
       rightLaserLine.visible=!uiHidden;
       rightLaserDot.visible=!uiHidden&&!!impact.point;
       if(impact.point)rightLaserDot.position.copy(impact.point);
-    }else{rightLaserLine.visible=false;rightLaserDot.visible=false;}
+    }else{rightLaserLine.visible=false;rightLaserDot.visible=false;hoveredRightLast=null;}
     // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
     const choices=remoteCandidates();
     if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
     if(!remoteTarget&&choices.length)remoteTarget=remotePositions(choices).sort((a,b)=>b.y-a.y||a.x-b.x)[0].mesh;
     const hovered=new Set<Clickable>();
+    if(hoveredRight&&!uiHidden)hovered.add(hoveredRight);
     if(remoteTarget){
       hovered.add(remoteTarget);
       const mesh=remoteTarget as Mesh;
