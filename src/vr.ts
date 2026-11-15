@@ -417,7 +417,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         ctx.font='bold 132px sans-serif';ctx.fillText(glyph,150,153);
         if(label){ctx.fillStyle='#fff';ctx.font='bold 31px sans-serif';ctx.fillText(label,150,256);}
       });
-      const plate=(value:string,w=1.22)=>canvasTexture(1000,175,ctx=>{
+      const plate=(value:string)=>canvasTexture(1000,175,ctx=>{
         roundRect(ctx,6,6,988,163,44);ctx.fillStyle='rgba(38,39,42,.92)';ctx.fill();
         ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 58px sans-serif';
         let label=value;while(ctx.measureText(label).width>925&&label.length>4)label=label.slice(0,-2);
