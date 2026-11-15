@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {Volume2,VolumeX} from 'lucide-react';
 import type {StudioProject,Scene} from './storage';
 import {setSound,useVisitorPrefs} from './visitorPrefs';
+import {registerVrMusicController,type VrMusicResult} from './vrAudioBridge';
 
 type SoundSide='on'|'off';
 
@@ -35,6 +36,8 @@ export function ContinuousMusic({project,scene,paused=false,showToggle=true}:{pr
   const loop=track?.loop??scene?.audioLoop!==false;
 
   const volRef=useRef(volume);volRef.current=volume;
+  const sourceRef=useRef(source);sourceRef.current=source;
+  const pausedRef=useRef(paused);pausedRef.current=paused;
   const fadeRaf=useRef(0);
   /** Fondu rapide du volume (sortie 350 ms, retour 450 ms) : la musique s'efface / revient sans coupure sèche. */
   const fade=(el:HTMLAudioElement,to:number,ms:number,done?:()=>void)=>{
@@ -48,6 +51,25 @@ export function ContinuousMusic({project,scene,paused=false,showToggle=true}:{pr
     fadeRaf.current=requestAnimationFrame(step);
   };
   useEffect(()=>()=>cancelAnimationFrame(fadeRaf.current),[]);
+  useEffect(()=>registerVrMusicController({
+    setPlaying(on:boolean):Promise<VrMusicResult>{
+      const el=audio.current;
+      if(!el)return Promise.resolve('unavailable');
+      if(!on){
+        cancelAnimationFrame(fadeRaf.current);
+        el.pause();setPlaying(false);
+        return Promise.resolve('stopped');
+      }
+      if(!sourceRef.current||!el.getAttribute('src'))return Promise.resolve('no-source');
+      if(pausedRef.current)return Promise.resolve('paused');
+      // Appel synchrone à play() dans l'événement WebXR de la gâchette.
+      // Un effet React différé n'a pas toujours l'autorisation du navigateur Quest.
+      cancelAnimationFrame(fadeRaf.current);
+      el.volume=volRef.current;
+      return el.play().then(()=>{setPlaying(true);setFailed(false);return 'playing' as const;})
+        .catch(()=>{setPlaying(false);setFailed(true);return 'blocked' as const;});
+    }
+  }),[]);
 
   useEffect(()=>{
     const el=audio.current;if(!el)return;
