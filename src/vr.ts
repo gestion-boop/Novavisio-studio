@@ -6,6 +6,7 @@ import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
 import {resolveLink} from './mediaLinks';
+import {frameWorldCorners} from './sphericalFrame';
 import {getPrefs} from './visitorPrefs';
 
 /**
@@ -149,7 +150,57 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const currentIconSignature=()=>[...(project().icons??[]).map(i=>i.id+':'+(i.dataUrl??'')),...(project().bottomBar??[]).map(i=>i.id+':'+(i.iconId??''))].join('|');
   let iconSignature=currentIconSignature();
   let refreshBusy=false;
+  /** Cadre photo/vidéo incrusté (TV) : affiché DANS le panorama, déformé sur la sphère comme dans la visite. Un clic ouvre la version en grand. */
+  const makeFrame=async(h:Hotspot):Promise<Mesh|null>=>{
+    const corners=frameWorldCorners(h);
+    if(!corners||corners.length!==4)return null;
+    const isVideo=h.type==='video';
+    const src=isVideo?(h.videoDataUrl||h.videoUrl):h.imageDataUrl;
+    if(!src)return null;
+    let tex:Texture;let video:HTMLVideoElement|null=null;
+    if(isVideo){
+      const el=document.createElement('video');
+      el.src=src;el.crossOrigin='anonymous';el.loop=h.videoLoop!==false;el.muted=true;el.playsInline=true;el.setAttribute('playsinline','');el.preload='auto';
+      void el.play().catch(()=>{/* lecture relancée par le casque au premier geste */});
+      const vt=new VideoTexture(el);vt.minFilter=LinearFilter;tex=vt;video=el;
+    }else{
+      const canvas=await loadReduced(src,1024).catch(()=>null);
+      if(!canvas)return null;
+      tex=new CanvasTexture(canvas);
+    }
+    tex.colorSpace=SRGBColorSpace;
+    // Maillage 12×12 : chaque sommet est pris sur la sphère (direction interpolée puis normalisée) -> image sans cisaillement.
+    const dirOf=(c:{yaw:number;pitch:number})=>new Vector3(-Math.cos(c.pitch)*Math.sin(c.yaw),Math.sin(c.pitch),Math.cos(c.pitch)*Math.cos(c.yaw)).normalize();
+    const [tl,tr,br,bl]=corners.map(dirOf);
+    const N=12,pos:number[]=[],uv:number[]=[],idx:number[]=[];
+    for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){
+      const u=i/N,v=j/N;
+      const top=tl.clone().lerp(tr,u),bottom=bl.clone().lerp(br,u);
+      const d=top.lerp(bottom,v).normalize().multiplyScalar(HOTSPOT_R);
+      pos.push(d.x,d.y,d.z);uv.push(u,1-v);
+    }
+    for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+      const a=j*(N+1)+i,b=a+1,c=a+(N+1),d=c+1;
+      idx.push(a,c,b,b,c,d);
+    }
+    const geo=new BufferGeometry();
+    geo.setAttribute('position',new Float32BufferAttribute(pos,3));
+    geo.setAttribute('uv',new Float32BufferAttribute(uv,2));
+    geo.setIndex(idx);
+    const mat=new MeshBasicMaterial({map:tex,depthTest:false,depthWrite:false,side:DoubleSide});
+    const mesh=new Mesh(geo,mat);
+    mesh.renderOrder=0.5;
+    mesh.userData={isFrame:true,video,baseScale:1,hoverScale:1,onSelect:()=>{
+      // Même ouverture que l'icône : la photo ou la vidéo s'affiche en grand dans le casque.
+      const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
+      if(live.type==='image'){void showPhoto(live);return;}
+      const direct=live.videoDataUrl||live.videoUrl;
+      if(direct)void showVideoPanel(direct,live.title||'Vidéo');
+    }};
+    return mesh;
+  };
   const makeHotspot=async(h:Hotspot):Promise<Mesh|null>=>{
+    if((h.type==='image'||h.type==='video')&&h.mediaDisplay!=='popup'){const f=await makeFrame(h);if(f)return f;}
     if(h.type!=='navigation'&&h.type!=='information'&&h.type!=='lien'&&h.type!=='image'&&h.type!=='video')return null;
     if(h.type==='navigation'&&!h.target)return null;
     const iconUrl=getIconUrl(h.iconId);
@@ -161,7 +212,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       mesh.position.copy(pos);mesh.renderOrder=2;
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
-      mesh.userData={baseScale:1,hoverScale:1,onSelect:()=>void goTo(h.target,h)};
+      mesh.userData={baseScale:1,hoverScale:1,spin:true,onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
         for(let attempt=0;attempt<30&&!ended;attempt++){
@@ -235,6 +286,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const m=child as Mesh;
       const mat=m.material as MeshBasicMaterial|undefined;
       mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
+      const vid=m.userData.video as HTMLVideoElement|null|undefined;
+      if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
       const idx=clickables.indexOf(child as Clickable);if(idx>=0)clickables.splice(idx,1);
     }
   };
@@ -860,7 +913,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let lastRefreshCheck=0;
   let turnArmed=true;
+  let lastTick=performance.now();
   const tick=()=>{
+    const tnow=performance.now();const dt=Math.min(.1,(tnow-lastTick)/1000);lastTick=tnow;
     // Rotation instantanée d'un quart de tour pour réduire le mal des yeux.
     // Une nouvelle impulsion exige d'abord le retour du joystick au neutre.
     const inputs=renderer.xr.getSession()?.inputSources??[];
@@ -903,7 +958,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     hotspotGroup.visible=fade>.6;
     // Flèches toujours face au spectateur.
     const cam=renderer.xr.getCamera();const camPos=new Vector3();cam.getWorldPosition(camPos);
-    for(const m of hotspotGroup.children)m.lookAt(camPos);
+    for(const m of hotspotGroup.children)if(!m.userData.isFrame)m.lookAt(camPos);
+    // Sphères : la texture (le panorama) défile en continu, la sphère tourne sur elle-même sans bouger de place.
+    for(const m of hotspotGroup.children){
+      const mat=(m as Mesh).material as MeshBasicMaterial|undefined;
+      if(m.userData.spin&&mat?.map)mat.map.offset.x=(mat.map.offset.x+dt*.05)%1;
+    }
     // Barre : suit doucement le regard quand on s'en détourne trop.
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
