@@ -405,7 +405,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       {project.bottomBar.map(item=>{
         const icon=project.icons?.find(i=>i.id===item.iconId);
         return <button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={item.title} title={item.title}>
-          <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
+          <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
         </button>;
       })}
     </nav>}

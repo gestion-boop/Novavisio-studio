@@ -4,6 +4,7 @@ import {perspectiveMatrix,escapeAttribute} from './imageFrame';
 import {defaultFrameCorners,type CustomIcon,type Hotspot,type ImageFrameStyle,type Scene} from './storage';
 import {XMark} from './XMark';
 import {getPrefs} from './visitorPrefs';
+import {trimIcon} from './iconFit';
 
 export const iconById=(icons:CustomIcon[],id?:string)=>icons.find(icon=>icon.id===id)?.dataUrl;
 
@@ -19,13 +20,25 @@ export function iconStateHtml(icons:CustomIcon[],normal?:string,hover?:string,pr
   '</span>';
 }
 
-export function IconStateVisual({icons,normal,hover,pressed,size,zoom=1}:{icons:CustomIcon[];normal?:string;hover?:string;pressed?:string;size:number;zoom?:number}) {
-  const main=iconById(icons,normal);
+/** Source d'icône recadrée sur son contenu visible (si `enabled`) ; en attendant le recadrage, l'image d'origine est utilisée. */
+function useTrimmed(src:string|undefined,enabled:boolean){
+  const [out,setOut]=useState<{from:string;to:string}|null>(null);
+  useEffect(()=>{
+    if(!enabled||!src)return;
+    let live=true;
+    void trimIcon(src).then(to=>{if(live)setOut({from:src,to});});
+    return ()=>{live=false;};
+  },[src,enabled]);
+  return enabled&&src&&out?.from===src?out.to:src;
+}
+export function IconStateVisual({icons,normal,hover,pressed,size,zoom=1,trim=false}:{icons:CustomIcon[];normal?:string;hover?:string;pressed?:string;size:number;zoom?:number;trim?:boolean}) {
+  const rawMain=iconById(icons,normal),rawHover=iconById(icons,hover),rawPress=iconById(icons,pressed);
+  const main=useTrimmed(rawMain,trim),hov=useTrimmed(rawHover,trim),prs=useTrimmed(rawPress,trim);
   if(!main)return null;
   return <span className="nv-icon-states nv-bar-png" style={{width:size,height:size,...(zoom!==1?{transform:'scale('+zoom+')'}:{})}}>
     <img alt="" draggable={false} className="nv-state-normal" src={main}/>
-    <img alt="" draggable={false} className="nv-state-hover" src={iconById(icons,hover)??main}/>
-    <img alt="" draggable={false} className="nv-state-press" src={iconById(icons,pressed)??iconById(icons,hover)??main}/>
+    <img alt="" draggable={false} className="nv-state-hover" src={hov??main}/>
+    <img alt="" draggable={false} className="nv-state-press" src={prs??hov??main}/>
   </span>;
 }
 

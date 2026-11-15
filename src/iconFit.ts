@@ -20,3 +20,37 @@ export function autoIconZoom(dataUrl:string):Promise<number>{
     img.src=dataUrl;
   });
 }
+
+/* ——— Rognage automatique des marges transparentes : toutes les icônes d'une barre remplissent leur bouton de la même façon ——— */
+const trimCache=new Map<string,Promise<string>>();
+/** Renvoie l'icône recadrée sur son contenu visible (carré centré). Si elle remplit déjà son cadre, elle est renvoyée telle quelle. */
+export function trimIcon(dataUrl:string):Promise<string>{
+  let p=trimCache.get(dataUrl);
+  if(p)return p;
+  p=new Promise<string>(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const scale=Math.min(1,512/Math.max(img.naturalWidth,img.naturalHeight));
+        const W=Math.max(1,Math.round(img.naturalWidth*scale)),H=Math.max(1,Math.round(img.naturalHeight*scale));
+        const c=document.createElement('canvas');c.width=W;c.height=H;
+        const x=c.getContext('2d',{willReadFrequently:true})!;x.drawImage(img,0,0,W,H);
+        const d=x.getImageData(0,0,W,H).data;
+        let x0=W,y0=H,x1=-1,y1=-1;
+        for(let yy=0;yy<H;yy++)for(let xx=0;xx<W;xx++)if(d[(yy*W+xx)*4+3]>24){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy;}
+        if(x1<0){resolve(dataUrl);return;}
+        const bw=x1-x0+1,bh=y1-y0+1,side=Math.max(bw,bh);
+        // Déjà bien rempli (≥ 96 % dans les deux sens) : on ne touche à rien.
+        if(bw/W>=0.96&&bh/H>=0.96){resolve(dataUrl);return;}
+        const o=document.createElement('canvas');o.width=o.height=side;
+        o.getContext('2d')!.drawImage(c,x0,y0,bw,bh,(side-bw)/2,(side-bh)/2,bw,bh);
+        resolve(o.toDataURL('image/png'));
+      }catch{resolve(dataUrl);}
+    };
+    img.onerror=()=>resolve(dataUrl);
+    img.src=dataUrl;
+  });
+  trimCache.set(dataUrl,p);
+  if(trimCache.size>150){const first=trimCache.keys().next().value;if(first)trimCache.delete(first);}
+  return p;
+}

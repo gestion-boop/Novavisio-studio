@@ -4280,7 +4280,7 @@ function App(){
                         onChange={e=>patchBar({iconSize:Number(e.target.value)})}/>
                     </label>
                   </div>}
-                  <InspectorSection title="Dimensions de la barre"><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/></InspectorSection>
+                  <InspectorSection title="Dimensions de la barre"><><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/><label className="toggle-row"><input type="checkbox" checked={project.barIconTrim!==false} onChange={e=>setProject(p=>({...p,barIconTrim:e.target.checked}))}/> Remplir les boutons : rogner les marges transparentes des icônes (toutes à la même taille)</label></></InspectorSection>
                   <div className="nv-quick-section-title">Apparence de la barre</div>
                   <div className="nv-quick-colors">
                     {([
@@ -4403,7 +4403,7 @@ function App(){
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
               return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
-                <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
+                <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button></div></div>;
             })}
@@ -4922,7 +4922,7 @@ function App(){
             <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
           </div>
 </>},
-            {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/></>},
+            {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/><label className="toggle-row"><input type="checkbox" checked={project.barIconTrim!==false} onChange={e=>setProject(p=>({...p,barIconTrim:e.target.checked}))}/> Remplir les boutons : rogner les marges transparentes des icônes (toutes à la même taille)</label></></>},
             {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)}
           ]}/>
         </div>}
