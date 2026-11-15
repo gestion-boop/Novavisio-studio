@@ -5562,19 +5562,119 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 @media(max-width:560px){.nv-pg-nav{width:34px;height:52px}.nv-pg-viewer{gap:6px;padding:0 6px}.nv-pg-viewer figure,.nv-pg-viewer figure img,.nv-pg-viewer figure video{max-width:calc(100vw - 96px)}}
 
 /* Fenêtre de visite 360° d'un panorama (liste des panoramas) */
-.nv-pano-modal-backdrop{position:fixed;inset:0;z-index:100002;background:rgba(4,12,18,.78);display:grid;place-items:center;padding:16px}
-.nv-pano-modal{width:min(900px,96vw);max-height:94vh;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #426b77;border-radius:18px;background:#0d222c;box-shadow:0 24px 80px #000c;outline:none;color:#eaf7fa}
+.nv-pano-modal-backdrop{position:fixed;inset:0;z-index:100002;background:rgba(4,12,18,.78);backdrop-filter:blur(7px);display:grid;place-items:center;padding:16px;animation:nv-backdrop-fade .2s ease-out both}
+.nv-pano-modal{width:min(900px,96vw);max-height:94vh;display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid #426b77;border-radius:18px;background:#0d222c;box-shadow:0 24px 80px #000c;outline:none;color:#eaf7fa;animation:nv-modal-spring .26s cubic-bezier(.22,1,.36,1) both}
 .nv-pano-modal header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .nv-pano-modal header strong{display:block;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(640px,70vw)}
 .nv-pano-modal header small{color:#9fb7bf}
-.nv-pano-modal header button{width:38px;height:38px;border-radius:50%;border:1px solid #35606f;background:#143543;color:#fff;display:grid;place-items:center;cursor:pointer}
+.nv-pano-modal header button{width:38px;height:38px;border-radius:50%;border:1px solid #35606f;background:#143543;color:#fff;display:grid;place-items:center;cursor:pointer;transition:transform .15s,background .15s,border-color .15s}
+.nv-pano-modal header button:hover{background:#1d6f9e;border-color:#7ad6ee;transform:scale(1.06)}
+.nv-pano-modal header button:active{transform:scale(.93)}
 .nv-pano-modal-viewer{position:relative;height:min(60vh,520px);border-radius:12px;overflow:hidden;background:#000;border:1px solid #386775}
 .nv-pano-modal-viewer>.nv-hover-preview-media{position:absolute;inset:0;width:100%;height:100%}
 .nv-pano-modal-viewer .nv-hover-preview-viewer{position:absolute;inset:0;width:100%;height:100%}
-.nv-pano-modal-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:42px;height:62px;border:0;border-radius:12px;background:#000a;color:#fff;cursor:pointer;display:grid;place-items:center}
+.nv-pano-modal-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:5;width:42px;height:62px;border:0;border-radius:12px;background:#000a;color:#fff;cursor:pointer;display:grid;place-items:center;transition:background .15s,transform .15s}
+.nv-pano-modal-nav:hover{background:rgba(28,88,108,.85);transform:translateY(-50%) scale(1.06)}
 .nv-pano-modal-nav.is-prev{left:8px}.nv-pano-modal-nav.is-next{right:8px}
 .nv-pano-modal-hint{color:#9fb7bf;font-size:12px;text-align:center}
 .nv-pano-modal footer{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.nv-pano-modal footer button{border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;padding:9px 14px;font:700 13px system-ui;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.nv-pano-modal footer button{border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;padding:9px 14px;font:700 13px system-ui;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:transform .14s,background .15s,border-color .15s,box-shadow .15s}
+.nv-pano-modal footer button:hover{transform:translateY(-1.5px);border-color:#7ad6ee;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.nv-pano-modal footer button:active{transform:translateY(1px) scale(.96)}
 .nv-pano-modal footer .is-primary{background:#1f8aa8;border-color:#7ad6ee;color:#fff;margin-right:auto}
+.nv-pano-modal footer .is-primary:hover{background:#259ec0;border-color:#9fe8fa}
 .nv-pano-modal footer .is-danger{border-color:#8a3a40;color:#ffb3b3;background:#3a1519}
+.nv-pano-modal footer .is-danger:hover{background:#521c22;border-color:#ef4444;color:#fff}
+
+/* ── Point 5 : Fluidité UI/UX, Modales, Tiroirs & Réordonnancement Barre du Bas en direct ── */
+@keyframes nv-backdrop-fade{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes nv-modal-spring{
+  0%{opacity:0;transform:scale(.94) translateY(10px)}
+  100%{opacity:1;transform:scale(1) translateY(0)}
+}
+@keyframes nv-sheet-enter{
+  0%{opacity:0;transform:translateX(18px) scale(.985)}
+  100%{opacity:1;transform:translateX(0) scale(1)}
+}
+@keyframes nv-toast-spring{
+  0%{opacity:0;transform:translate(-50%,-10px) scale(.95)}
+  100%{opacity:1;transform:translate(-50%,0) scale(1)}
+}
+.nv-studio-pro.nv-sheet-open .workspace>.right.panel{
+  animation:nv-sheet-enter .24s cubic-bezier(.22,1,.36,1) both;
+}
+.overlay.info-in-view,.embed-overlay,.nv-notes-overlay,.nv-publish-overlay{
+  animation:nv-backdrop-fade .18s ease-out both;
+}
+.overlay.info-in-view .modal,.embed-overlay .embed-shell,.nv-notes-overlay .nv-notes,.nv-publish-overlay .nv-publish-warning,.nv-visitor-settings-panel{
+  animation:nv-modal-spring .24s cubic-bezier(.22,1,.36,1) both;
+}
+.nv-photo-gallery{
+  animation:nv-backdrop-fade .22s ease-out both;
+}
+.nv-workflow-status{
+  animation:nv-toast-spring .24s cubic-bezier(.22,1,.36,1) both;
+  backdrop-filter:blur(10px);
+}
+
+/* Poignée de glissement directe sur les boutons de la barre du bas en mode Édition */
+.visitor-bottom-bar .nv-bar-sort-item{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.visitor-bottom-bar .nv-bar-sort-item>.nv-hsort-grip{
+  position:absolute;
+  top:-6px;
+  right:-6px;
+  z-index:4;
+  width:20px;
+  height:20px;
+  min-height:20px;
+  padding:0;
+  border-radius:999px;
+  border:1px solid rgba(112,235,222,.65);
+  background:rgba(10,30,42,.92);
+  color:#8ff7ec;
+  display:grid;
+  place-items:center;
+  cursor:grab;
+  opacity:0;
+  transform:scale(.82);
+  box-shadow:0 3px 10px rgba(0,0,0,.55);
+  transition:opacity .16s ease,transform .16s cubic-bezier(.22,1,.36,1),background .15s ease,border-color .15s ease;
+  touch-action:none;
+}
+.visitor-bottom-bar .nv-bar-sort-item:hover>.nv-hsort-grip,
+.visitor-bottom-bar .nv-bar-sort-item>.nv-hsort-grip:focus-visible,
+.visitor-bottom-bar .nv-live-bar-dragging .nv-bar-sort-item>.nv-hsort-grip{
+  opacity:1;
+  transform:scale(1);
+}
+.visitor-bottom-bar .nv-bar-sort-item>.nv-hsort-grip:hover{
+  background:#195968;
+  border-color:#4bebde;
+  color:#fff;
+  transform:scale(1.12);
+}
+.visitor-bottom-bar .nv-bar-sort-item>.nv-hsort-grip:active{
+  cursor:grabbing;
+  transform:scale(.95);
+}
+.visitor-bottom-bar .nv-live-bar-dragging{
+  opacity:.35;
+  transform:scale(.92);
+  transition:opacity .15s ease,transform .15s ease;
+}
+@media(prefers-reduced-motion:reduce){
+  .nv-pano-modal-backdrop,.nv-pano-modal,.nv-studio-pro.nv-sheet-open .workspace>.right.panel,
+  .overlay.info-in-view,.overlay.info-in-view .modal,.embed-overlay,.embed-overlay .embed-shell,
+  .nv-notes-overlay,.nv-notes-overlay .nv-notes,.nv-visitor-settings-panel,.nv-workflow-status{
+    animation:none!important;
+  }
+}
+

@@ -1,9 +1,10 @@
 import {useEffect,useRef,useState} from 'react';
+import {flushSync} from 'react-dom';
 import {GripVertical} from 'lucide-react';
 import {reorderItems} from './gripSort';
 
 /**
- * Réorganisation par glisser-déposer d'éléments disposés en ligne (onglets des espaces).
+ * Réorganisation par glisser-déposer d'éléments disposés en ligne (onglets des espaces et barre du bas).
  * L'ordre change en direct pendant le glissement ; Échap annule ; les flèches ← → déplacent l'élément au clavier.
  */
 export function useHorizontalSort(order:string[],onMove:(from:string,to:string)=>void){
@@ -36,15 +37,22 @@ export function useHorizontalSort(order:string[],onMove:(from:string,to:string)=
       const moveItems=(target:string)=>{
         const before=new Map(items().map(item=>[item.dataset.hsortId!,item.getBoundingClientRect().left]));
         live=reorderItems(live,id,target,v=>v);
-        latest.current.onMove(id,target);
-        requestAnimationFrame(()=>{
-          if(disposed||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-          for(const item of items()){
-            item.getAnimations().forEach(animation=>animation.cancel());
-            const old=before.get(item.dataset.hsortId!),delta=old===undefined?0:old-item.getBoundingClientRect().left;
-            if(Math.abs(delta)>1)item.animate([{transform:`translateX(${delta}px)`},{transform:'translateX(0)'}],{duration:190,easing:'cubic-bezier(0.2,0,0,1)'});
+        try{
+          flushSync(()=>latest.current.onMove(id,target));
+        }catch{
+          latest.current.onMove(id,target);
+        }
+        if(disposed||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+        for(const item of items()){
+          item.getAnimations().forEach(animation=>animation.cancel());
+          const old=before.get(item.dataset.hsortId!),delta=old===undefined?0:old-item.getBoundingClientRect().left;
+          if(Math.abs(delta)>1){
+            item.animate(
+              [{transform:`translateX(${delta}px)`},{transform:'translateX(0)'}],
+              {duration:220,easing:'cubic-bezier(0.22, 1, 0.36, 1)'}
+            );
           }
-        });
+        }
       };
       const update=()=>{
         if(!moved)return;
@@ -85,7 +93,7 @@ export function useHorizontalSort(order:string[],onMove:(from:string,to:string)=
       };
       const move=(e:PointerEvent)=>{
         e.preventDefault();x=e.clientX;y=e.clientY;
-        if(!moved&&Math.hypot(x-start.x,y-start.y)<5)return;
+        if(!moved&&Math.hypot(x-start.x,y-start.y)<4)return;
         if(!moved){
           moved=true;
           ghost=row.cloneNode(true) as HTMLElement;
@@ -95,7 +103,8 @@ export function useHorizontalSort(order:string[],onMove:(from:string,to:string)=
           ghost.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
           Object.assign(ghost.style,{
             position:'fixed',left:'0',top:'0',width:`${initial.width}px`,height:`${initial.height}px`,
-            pointerEvents:'none',zIndex:'10000',margin:'0',
+            transform:`translate3d(${x-offset.x}px,${initial.top}px,0) scale(1.04)`,
+            pointerEvents:'none',zIndex:'100005',margin:'0',
             boxShadow:'0 14px 32px rgba(0,0,0,0.65), 0 0 0 2px #4bebde',borderRadius:'12px'
           });
           document.body.append(ghost);
