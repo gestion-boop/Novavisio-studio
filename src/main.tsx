@@ -1521,6 +1521,8 @@ function App(){
   const [fullscreenGalleryLayout,setFullscreenGalleryLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-gallery-layout')==='list'?'list':'grid';}catch{return 'grid';}});
   const [panoramasLayout,setPanoramasLayout]=useState<'grid'|'list'>(()=>{try{return localStorage.getItem('nvstudio-panorama-layout')==='grid'?'grid':'list';}catch{return 'list';}});
   const [showArrivalCrosshair,setShowArrivalCrosshair]=useState(false);
+  const [arrivalSaving,setArrivalSaving]=useState(false);
+  const arrivalSavingRef=useRef(false);
   useEffect(()=>{try{localStorage.setItem('nvstudio-gallery-layout',fullscreenGalleryLayout);}catch{}},[fullscreenGalleryLayout]);
   useEffect(()=>{try{localStorage.setItem('nvstudio-panorama-layout',panoramasLayout);}catch{}},[panoramasLayout]);
   useEffect(()=>{if(fullscreenToolsOpen&&fullscreenCommandDrawerOpen)setFullscreenCommandDrawerOpen(false);},[fullscreenToolsOpen,fullscreenCommandDrawerOpen]);
@@ -2360,6 +2362,25 @@ function App(){
       </>}
       <small className="hint-inline">Pour un fondu parfaitement aligné, utilise deux photos prises depuis le même point et orientées de la même façon.</small>
     </div></InspectorSection>;
+  }
+  async function saveArrivalImmediately(){
+    if(arrivalSavingRef.current||savingManually||savingRef.current)return;
+    if(!active||lock){setStatus('Échec : enregistrement de la vue indisponible');return;}
+    const {sceneId,yaw,pitch,zoom}=cameraRef.current;
+    if(sceneId!==active.id){setStatus('Échec : attends le chargement du panorama puis réessaie');return;}
+    const snapshot:StudioProject={...projectRef.current,scenes:projectRef.current.scenes.map(sc=>sc.id===sceneId?
+      {...sc,arrivalYaw:yaw,arrivalPitch:pitch,arrivalZoom:zoom,arrivalZoomModel:'wide'}:sc)};
+    const name=active.name;
+    arrivalSavingRef.current=true;setArrivalSaving(true);
+    flushSync(()=>setProject(snapshot));
+    try{
+      if(!await persist(snapshot))return;
+      if(cloud.signedIn&&!await manualSave(false,true)){
+        setStatus('Sauvegardé localement · Vue d’arrivée de '+name+' · Cloud non synchronisé, réessaie l’enregistrement.');return;
+      }
+      setStatus('Sauvegardé · Vue d’arrivée enregistrée pour '+name);
+    }catch(error){setStatus('Échec de sauvegarde de la vue : '+(error instanceof Error?error.message:String(error)));}
+    finally{arrivalSavingRef.current=false;setArrivalSaving(false);}
   }
   function saveArrivalView(){
     if(!active)return;
@@ -4842,10 +4863,7 @@ function App(){
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
                   </>},
-                  {key:'arrival',title:'Vue d’arrivée',hint:active.arrivalYaw!==undefined?'✓ Définie · direction et zoom':'Direction et zoom',icon:<Eye size={26}/>,tone:'#2fbf8f',content:<>
-
-              {arrivalTiles()}
-                  </>},
+                  {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
                   {key:'points',title:'Points interactifs',badge:active.hotspots.length,hint:'Flèches, infos, photos…',icon:<PinIcon size={26}/>,tone:'#ff8a3d',content:<>
               <div className="section-title">
