@@ -4,6 +4,7 @@ import {
 } from 'three';
 import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
+import {trimIcon} from './iconFit';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
@@ -188,12 +189,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // finir de charger après la création des icônes WebXR.
         const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
         if(live.type==='information'){
-          // Un point « i » est d'abord une fiche de renseignements : ne pas
-          // remplacer son texte par l'image associée.
+          // Pour les points i, privilégier le texte et sa traduction.
           const detail=(live.text||'').trim();
-          if(detail){showText(live.title||'Informations',detail);return;}
-          if(live.imageDataUrl||live.imageUrl){void showPhoto(live);return;}
-          showText(live.title||'Informations','Aucune information renseignée.');return;
+          showText(live.title||'Informations',detail||'Aucune information renseignée.');
+          return;
         }
         if(live.type==='image'){void showPhoto(live);return;}
         if(live.type==='lien'){showText(live.title||'Lien',live.url||'Aucun lien renseigné.');return;}
@@ -271,7 +270,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Les PNG personnalisés conservent leur charte, mais leurs angles carrés
   // sont masqués par une découpe circulaire dans la texture WebXR.
   const barCircleTexture=async(iconSrc:string|undefined,glyph:string,zoom=100):Promise<CanvasTexture>=>{
-    const img=iconSrc?await loadImage(iconSrc):null;
+    // Même recadrage transparent que la visite 360 classique.
+    const trimmed=iconSrc&&project().barIconTrim!==false?await trimIcon(iconSrc):iconSrc;
+    const img=trimmed?await loadImage(trimmed):null;
     return canvasTexture(320,320,c=>{
       const cx=160,cy=160,r=151;
       c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);
@@ -464,7 +465,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Bouton Espaces sans cible : affiche la liste des panoramas et espaces.
       void showGallery({...item,type:'gallery',galleryTitle:item.title||'Espaces',gallery:project().scenes.map(scene=>({sceneId:scene.id,label:scene.name})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
-    if(item.type==='information'){showText(item.title,item.text);return;}
+    if(item.type==='information'){
+      const detail=(item.text||'').trim()||(item.url||'').trim();
+      showText(item.title||'Informations',detail||'Aucune information renseignée.');
+      return;
+    }
     if(item.type==='lien'){showText(item.title,item.url||'Aucun lien renseigné.');return;}
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
@@ -514,27 +519,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let lastRefreshCheck=0;
-  let lastFrameAt=0;
+  let turnArmed=true;
   const tick=()=>{
-    // Rotation du panorama au joystick (Meta Quest Touch) sans bouger
-    // physiquement le visiteur. Les hotspots pivotent avec le panorama.
-    const frameAt=performance.now();
-    const dt=lastFrameAt?Math.min(.05,(frameAt-lastFrameAt)/1000):0;
-    lastFrameAt=frameAt;
+    // Rotation instantanée d'un quart de tour pour réduire le mal des yeux.
+    // Une nouvelle impulsion exige d'abord le retour du joystick au neutre.
     const inputs=renderer.xr.getSession()?.inputSources??[];
     let turn=0;
     for(const source of inputs){
       const axes=source.gamepad?.axes;
       if(!axes||axes.length<2)continue;
       const horizontal=axes.length>=4?axes[2]:axes[0];
-      if(typeof horizontal==='number'&&Math.abs(horizontal)>.2){
-        turn=horizontal;
-        break;
-      }
+      if(typeof horizontal==='number'&&Math.abs(horizontal)>Math.abs(turn))turn=horizontal;
     }
-    if(turn&&dt&&!alignPending&&!busy){
-      const direction=Math.sign(turn)*(Math.abs(turn)-.2)/.8;
-      root.rotation.y-=direction*dt*1.15;
+    if(Math.abs(turn)<.25)turnArmed=true;
+    else if(Math.abs(turn)>.72&&turnArmed&&!alignPending&&!busy){
+      root.rotation.y-=Math.sign(turn)*Math.PI/2;
+      turnArmed=false;
     }
     const now=performance.now();
     if(now-lastRefreshCheck>900&&!refreshBusy&&!ended){
