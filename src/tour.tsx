@@ -195,6 +195,9 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
  *    le chargement d'un panorama pas encore téléchargé).
  */
 export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedScene?:(id:string)=>void}){
+  // Mode casque : dérivé de l'URL sans toucher au projet ni à sa publication.
+  const vrEntry=new URLSearchParams(window.location.search).get('vr')==='1';
+  const [vrPromptDismissed,setVrPromptDismissed]=useState(false);
   const [fromPage]=useState<StudioProject|null>(()=>{
     try{const el=document.getElementById('nv-project-data');return el?JSON.parse(el.textContent??'null'):null;}catch{return null;}
   });
@@ -238,7 +241,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   useEffect(()=>{
     if(introInitialised.current||!project)return;
     introInitialised.current=true;
-    if(project.introEnabled&&project.introUrl?.startsWith('https://')&&
+    if(!vrEntry&&project.introEnabled&&project.introUrl?.startsWith('https://')&&
        !(window.parent!==window&&new URLSearchParams(window.location.search).get('external_intro')==='1')){
       setShowIntro(true);
     }
@@ -372,6 +375,17 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       {(fullscreen||mobileExpanded)?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
     {vrAvailable&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Entrer en VR">{vrActive?'VR en cours…':'🥽 Entrer en VR'}</button>}
+    {vrEntry&&!vrPromptDismissed&&!vrActive&&<div role="dialog" aria-label="Mode casque Immosphera360 VR" style={{position:'absolute',inset:0,zIndex:120,background:'rgba(4,19,28,.88)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div style={{maxWidth:470,width:'100%',background:'#102f3d',border:'1px solid #79aab5',borderRadius:22,padding:28,textAlign:'center',color:'#f5fbfc',boxShadow:'0 16px 70px #0009'}}>
+        <div style={{fontSize:44}}>🥽</div>
+        <h2 style={{margin:'6px 0 14px',fontSize:26}}>Immosphera360 VR</h2>
+        <p style={{lineHeight:1.5,color:'#bdd7dd'}}>La visite utilise les panoramas du lien public NovaStudio. Aucun projet original n'est modifié.</p>
+        {vrAvailable?<button type="button" onClick={()=>void enterVr()} style={{background:'#e6c17c',color:'#182833',padding:'14px 22px',border:'none',borderRadius:12,fontWeight:750,cursor:'pointer'}}>Entrer dans le casque VR</button>:<p style={{color:'#f6d6a5'}}>Le mode immersif nécessite le navigateur WebXR du Meta Quest 3. Vous pouvez continuer en 360° sur cet écran.</p>}
+        <div><button type="button" onClick={()=>setVrPromptDismissed(true)} style={{marginTop:18,border:0,background:'transparent',color:'#d2e7e9',padding:10,cursor:'pointer'}}>Continuer en visite classique</button></div>
+        {vrError&&<p role="alert" style={{color:'#ffc1b8'}}>{vrError}</p>}
+      </div>
+    </div>}
+
     {vrError&&<div className="tour-vr-error" role="alert" onClick={()=>setVrError('')}>{vrError}</div>}
     {project.bottomBar?.length>0&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
