@@ -2,16 +2,15 @@ import {useState} from 'react';
 import {Image,Play} from 'lucide-react';
 import {IconStateVisual} from './media';
 import {buildIconSets} from './IconLibrary';
-import {IconSetCreator,type IconSetImages} from './IconSetCreator';
+import {ExistingIconPackPicker} from './ExistingIconPackPicker';
 import type {DefaultNavigationIcon,StudioProject} from './storage';
 import type {Dispatch,SetStateAction} from 'react';
 const KIND_NAME={image:/photo|image|picto|galerie|gallery|camera|appareil|diapo/i,video:/vid[eé]o|film|play|lecture|cin[eé]ma|clip/i};
 /** Choix visuel de l'icône d'un popup : uniquement des icônes du bon type (photo ou vidéo), sans les variantes survol / pressé. */
-export function MediaIconSelector({project,value,onChange,label,kind,onImportPack}:{
+export function MediaIconSelector({project,value,onChange,label,kind}:{
  project:StudioProject;value?:Partial<DefaultNavigationIcon>;
  onChange:(value:Partial<DefaultNavigationIcon>)=>void;
  label:string;kind:'image'|'video';
- onImportPack?:(name:string,images:IconSetImages)=>Promise<void>;
 }){
  const [open,setOpen]=useState(false);
  const match=KIND_NAME[kind];
@@ -39,13 +38,12 @@ export function MediaIconSelector({project,value,onChange,label,kind,onImportPac
       onClick={()=>pick({iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})}>
       <span><img alt="" src={thumb(item.iconId)}/></span><small>{item.name}</small></button>)}
    </div>
-   {onImportPack&&<div className="nv-media-icon-import">
-     <IconSetCreator toggleLabel="Importer mon pack de 3 ici" onCreate={async(name,images)=>{
-       await onImportPack(name,images);
-       setOpen(false);
-     }}/>
-     <small>Les images Normal, Survol et Pressé seront enregistrées ensemble et appliquées à ce point. Pour les utiliser partout, clique ensuite sur « Remplacer tous les points ».</small>
-   </div>}
+   <div className="nv-media-icon-import">
+     <ExistingIconPackPicker project={project} value={value} preferred={kind}
+       label="Importer mon pack de 3 ici"
+       onSelect={pack=>pick({iconId:pack.iconId,hoverIconId:pack.hoverIconId,pressedIconId:pack.pressedIconId})}/>
+     <small>Choisis parmi les packs de trois déjà créés dans la bibliothèque de cette visite. Aucun nouveau fichier n'est importé. Le pack choisi est appliqué immédiatement à ce point.</small>
+   </div>
   </div>}
  </div>;
 }
