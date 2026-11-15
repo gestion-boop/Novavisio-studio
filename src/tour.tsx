@@ -155,11 +155,11 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
     const markersNow=()=>visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]);
-    const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),260);};
+    const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),600);};
     instance.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
     void instance.setPanorama(nextTexture,{
-      showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
+      showLoader:false,transition:{effect:'fade',rotation:false,speed:600},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
       position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
       zoom:arrivalFor?.zoom??panoramaArrivalZoom(next)
