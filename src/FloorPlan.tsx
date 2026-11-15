@@ -52,7 +52,7 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove}:{plan:FloorPlan
     {visiblePoints(plan,scenes).map((point,index)=>{
       const scene=scenes.find(scene=>scene.id===point.sceneId)!;
       const current=scene.id===currentId;
-      return <button type="button" key={point.sceneId} className={'nv-plan-point'+(current?' is-current':'')} style={{left:point.x+'%',top:point.y+'%'}}
+      return <button type="button" key={point.sceneId} className={'nv-plan-point nv-no-fx'+(current?' is-current':'')} style={{left:point.x+'%',top:point.y+'%'}}
         aria-label={(onPlace?'Sélectionner : ':'Aller à : ')+scene.name} aria-current={current?'location':undefined} title={scene.name}
         onPointerDown={onMove?e=>{if(e.button!==0)return;e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,moved:false,dx:e.clientX-rect.left-rect.width/2,dy:e.clientY-rect.top-rect.height/2};suppressClick.current=false;e.currentTarget.setPointerCapture(e.pointerId);onPick(point.sceneId);}:undefined}
         onPointerMove={onMove?e=>{if(!drag.current)return;if(Math.hypot(e.clientX-drag.current.x,e.clientY-drag.current.y)>4)drag.current.moved=true;if(drag.current.moved){const p=position(e.clientX-drag.current.dx,e.clientY-drag.current.dy,e.currentTarget.parentElement!.getBoundingClientRect());e.currentTarget.style.left=p.x+'%';e.currentTarget.style.top=p.y+'%';}}:undefined}
