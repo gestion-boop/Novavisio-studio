@@ -7,7 +7,7 @@ import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
 import {resolveLink} from './mediaLinks';
 import {frameWorldCorners} from './sphericalFrame';
-import {getPrefs,effectiveLang} from './visitorPrefs';
+import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 
 /**
@@ -30,6 +30,8 @@ export async function vrSupported():Promise<boolean>{
 export type VrOptions={
   getProject:()=>StudioProject;
   startSceneId:string;
+  /** Interface d'essai anthracite / or, jamais persistée dans la visite. */
+  referenceTest?:boolean;
   /** Demande le téléchargement d'un panorama pas encore chargé (lien public). */
   ensureScene?:(id:string)=>void;
   onSceneChange?:(id:string)=>void;
@@ -334,11 +336,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     fadeTarget=1;
     busy=false;
     if(!ok)setNotice(tt('unavailable'));
+    else if(opts.referenceTest)void buildBar();
   }
 
   // ---- panneaux flottants (barre, galerie, texte) ----------------------------------------------------------
   const theme=project().barStyle;
-  const panelBg=theme?.background??'#c2c5c6',panelLine=theme?.outline??'#987974',btnBg=theme?.button??'#5d131a',btnLine=theme?.buttonOutline??'#4a1518',iconColor=theme?.icon??'#f4d69a';
+  const panelBg=opts.referenceTest?'rgba(37,38,42,.87)':theme?.background??'#c2c5c6',
+    panelLine=opts.referenceTest?'#e1a525':theme?.outline??'#987974',
+    btnBg=opts.referenceTest?'#1c1d20':theme?.button??'#5d131a',
+    btnLine=opts.referenceTest?'#daa025':theme?.buttonOutline??'#4a1518',
+    iconColor=opts.referenceTest?'#f6bb34':theme?.icon??'#f4d69a';
   const barGroup=new Group();ui.add(barGroup);
   const panelGroup=new Group();ui.add(panelGroup);
   const noticeGroup=new Group();ui.add(noticeGroup);
@@ -398,6 +405,51 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let barPlacedPhi=0;
   const buildBar=async()=>{
     clearGroup(barGroup);
+    if(opts.referenceTest){
+      // Maquette issue des trois captures : bandeau panorama, barre d'étage
+      // à gauche, options à droite, galerie/plan dans le panneau central.
+      // Position du décor fixe dans l'espace, manettes WebXR interactives.
+      const emblem=(glyph:string,label?:string)=>canvasTexture(300,300,ctx=>{
+        ctx.beginPath();ctx.arc(150,150,136,0,Math.PI*2);
+        ctx.fillStyle='#1c1d20';ctx.fill();
+        ctx.lineWidth=11;ctx.strokeStyle='#f6b72d';ctx.stroke();
+        ctx.fillStyle='#f6b72d';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font='bold 132px sans-serif';ctx.fillText(glyph,150,153);
+        if(label){ctx.fillStyle='#fff';ctx.font='bold 31px sans-serif';ctx.fillText(label,150,256);}
+      });
+      const plate=(value:string,w=1.22)=>canvasTexture(1000,175,ctx=>{
+        roundRect(ctx,6,6,988,163,44);ctx.fillStyle='rgba(38,39,42,.92)';ctx.fill();
+        ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 58px sans-serif';
+        let label=value;while(ctx.measureText(label).width>925&&label.length>4)label=label.slice(0,-2);
+        ctx.fillText(label===value?label:label+'…',500,86);
+      });
+      // La boussole et le titre sont au-dessus du champ d'action central.
+      addPlane(barGroup,.145,.145,emblem('⌖'),4,0,.47);
+      addPlane(barGroup,1.22,.155,plate(sceneOf(currentId)?.name||project().name),4,0,.30);
+      const control=(x:number,y:number,sign:string,action:()=>void)=>{
+        const button=addButton(barGroup,.122,.122,emblem(sign),x,y,action,5);
+        button.userData.referenceUi=true;
+      };
+      const first=project().scenes.filter(s=>!s.excluded);
+      const sceneIndex=Math.max(0,first.findIndex(s=>s.id===currentId));
+      const gallery=project().bottomBar.find(b=>b.type==='gallery');
+      const fallback={id:'vr-test-gallery',title:'Panoramas',type:'gallery',gallery:first.map(s=>({sceneId:s.id,label:s.name}))} as BottomBarItem;
+      const plan=project().bottomBar.find(b=>b.type==='plan');
+      control(-.86,.16,'▱',()=>{void showGallery(gallery??fallback);});
+      control(-.86,-.03,'▲',()=>{const s=first[Math.max(0,sceneIndex-1)];if(s)void goTo(s.id);});
+      addPlane(barGroup,.13,.10,plate((sceneIndex+1)+' / '+first.length),4,-.86,-.16);
+      control(-.86,-.29,'▼',()=>{const s=first[Math.min(first.length-1,sceneIndex+1)];if(s)void goTo(s.id);});
+      control(-.86,-.49,'⌂',()=>{if(first[0])void goTo(first[0].id);});
+      control(.86,.11,getPrefs().sound==='off'?'◌':'♫',()=>{
+        setSound(getPrefs().sound==='off'?'on':'off');void buildBar();
+      });
+      control(.86,-.09,'◉',()=>{if(plan)void showFloorPlan(plan);else showText('Plan','Aucun plan défini pour cette visite.');});
+      control(.86,-.29,'?',()=>showText('Navigation VR','Vise une icône avec la manette, puis presse la gâchette. Les boutons utilisent la charte anthracite et or.'));
+      control(.86,-.49,'✕',()=>{void session.end();});
+      placeInFront(barGroup,1.75,.3);
+      barPlacedPhi=headForward().phi;
+      return;
+    }
     const items=project().bottomBar??[];
     const bw=.145,bh=.145,gap=.013;
     const entries:{item?:BottomBarItem;label:string}[]=[...items.map(item=>({item,label:pick(item.title,item.titleTranslations,vlang())})),{label:tt('quitVr')}];
@@ -505,10 +557,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const galleryChrome=(W:number,H:number,title:string,count:string,pages:number,page:number,onPrev:()=>void,onNext:()=>void)=>{
     addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
       roundRect(c,6,6,W*1000-12,H*1000-12,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-      c.fillStyle='#1b1b1f';c.font='bold 58px sans-serif';c.textAlign='left';c.textBaseline='middle';
+      c.fillStyle=opts.referenceTest?'#ffffff':'#1b1b1f';c.font='bold 58px sans-serif';c.textAlign='left';c.textBaseline='middle';
       let t=title;while(c.measureText(t).width>W*1000-420&&t.length>3)t=t.slice(0,-2);
       c.fillText(t,64,92);
-      c.font='34px sans-serif';c.fillStyle='#4a4a52';c.textAlign='right';
+      c.font='34px sans-serif';c.fillStyle=opts.referenceTest?'#e8bf65':'#4a4a52';c.textAlign='right';
       c.fillText(count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:''),W*1000-170,92);
     }),5,0,0).userData.blocker=true;
     addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
@@ -765,12 +817,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const entries=galleryEntries(item,project().scenes,project().spaces).map(e=>{const sc=project().scenes.find(x=>x.id===e.sceneId);return sc&&sc.name===e.label?{...e,label:pick(sc.name,sc.nameTranslations,vlang())}:e;});
     // Deux colonnes plus larges : dans le casque les vignettes restent lisibles
     // et ne se chevauchent pas avec les flèches de navigation.
-    const cols=2,rows=3,perPage=cols*rows;
+    const cols=opts.referenceTest?4:2,rows=opts.referenceTest?2:3,perPage=cols*rows;
     let page=0;
     const render=async()=>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=.62,ch=.34,gx=.06,gy=.05;
+      const cw=opts.referenceTest?.37:.62,ch=opts.referenceTest?.28:.34,gx=opts.referenceTest?.025:.06,gy=.05;
       const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
