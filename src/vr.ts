@@ -1,6 +1,6 @@
 import {
-  CanvasTexture,Color,LinearFilter,DoubleSide,Group,Line,BufferGeometry,LineBasicMaterial,Float32BufferAttribute,Mesh,MeshBasicMaterial,
-  PerspectiveCamera,PlaneGeometry,Quaternion,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
+  CanvasTexture,Color,LinearFilter,DoubleSide,Group,BufferGeometry,Float32BufferAttribute,Mesh,MeshBasicMaterial,
+  PerspectiveCamera,PlaneGeometry,Quaternion,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
 } from 'three';
 import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -18,7 +18,6 @@ import {ui as uiText,pick,type UiKey} from './i18n';
  */
 export const VR_MAX_TEXTURE=4096;
 const SPHERE_R=10,HOTSPOT_R=6;
-const POINTER_MAX=2.2; // Un laser court ; point bleu sur la vraie cible.
 
 export async function vrSupported():Promise<boolean>{
   try{
@@ -941,38 +940,53 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     setNotice(tt('buttonClassic'));
   }
 
-  // ---- manettes ---------------------------------------------------------------------------------------------
-  const raycaster=new Raycaster();
+  // ---- télécommande de l'agent immobilier ------------------------------------
+  // Aucun laser, point bleu ou viseur n'est créé dans le casque.
   const controllers=[0,1].map(i=>{
-    const c=renderer.xr.getController(i);
-    const geo=new BufferGeometry();geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-POINTER_MAX],3));
-    const line=new Line(geo,new LineBasicMaterial({color:0xbce6fb,transparent:true,opacity:.65,depthTest:false}));
-    line.renderOrder=9;c.add(line);scene.add(c);
-    const dot=new Mesh(new SphereGeometry(.0035,12,8),new MeshBasicMaterial({color:0x13c7ff,depthTest:false,depthWrite:false}));
-    dot.renderOrder=12;dot.visible=false;scene.add(dot);
-    c.userData.vrPointer={geo,dot,line};
-    disposables.push(dot.geometry,dot.material as MeshBasicMaterial);
-    disposables.push(geo,line.material as LineBasicMaterial);
-    return c;
+    const controller=renderer.xr.getController(i);
+    scene.add(controller);
+    return controller;
   });
-  const hits=(c:Object3D):{target:Clickable|null;point:Vector3|null;distance:number}=>{
-    const origin=new Vector3(),dir=new Vector3(0,0,-1);
-    c.getWorldPosition(origin);
-    dir.transformDirection(c.matrixWorld);
-    raycaster.set(origin,dir);
-    // Les fonds de fenêtres et de la barre arrêtent aussi le laser (il ne traverse plus les panneaux) ; seuls les boutons sont sélectionnables.
-    const blockers=[...panelGroup.children,...barGroup.children].filter(m=>m.visible&&m.userData.onSelect===undefined) as Clickable[];
-    const shown=(o:Object3D)=>{let x:Object3D|null=o;while(x){if(!x.visible)return false;x=x.parent;}return true;};
-    const live=[...clickables.filter(m=>m.parent&&shown(m)),...blockers.filter(shown)];
-    // Les panneaux devant les yeux doivent passer avant les hotspots plus
-    // éloignés. Parmi des cibles de même plan, on choisit la plus proche.
-    const found=raycaster.intersectObjects(live,false);
-    if(!found.length)return {target:null,point:null,distance:POINTER_MAX};
-    found.sort((a,b)=>{
-      const aPanel=Boolean(a.object.userData.panel),bPanel=Boolean(b.object.userData.panel);
-      return Number(bPanel)-Number(aPanel)||a.distance-b.distance;
+  let remoteTarget:Clickable|null=null;
+  let remoteAxisArmed=true;
+  // Cadre doré autour du contrôle sélectionné. La bordure suit la cible,
+  // elle n'est pas un laser et ne dépend pas de l'orientation de la manette.
+  const remoteFocus=new Mesh(new PlaneGeometry(1,1),new MeshBasicMaterial({
+    color:0xf5ba32,side:DoubleSide,depthTest:false,depthWrite:false
+  }));
+  remoteFocus.visible=false;ui.add(remoteFocus);
+  disposables.push(remoteFocus.geometry,remoteFocus.material as MeshBasicMaterial);
+  const remoteCandidates=():Clickable[]=>{
+    if(!referenceMode||uiHidden)return [];
+    const shown=(obj:Object3D)=>{let x:Object3D|null=obj;while(x){if(!x.visible)return false;x=x.parent;}return true;};
+    const panel=clickables.filter(m=>m.parent===panelGroup&&shown(m)&&!!m.userData.onSelect);
+    if(panel.length)return panel;
+    return clickables.filter(m=>m.parent===barGroup&&shown(m)&&!!m.userData.onSelect);
+  };
+  const remotePositions=(items:Clickable[])=>{
+    const xrCamera=renderer.xr.getCamera();
+    const eye=xrCamera.cameras[0]??xrCamera;
+    eye.updateMatrixWorld();
+    return items.map(mesh=>{
+      const point=new Vector3();mesh.getWorldPosition(point);point.project(eye);
+      return {mesh,x:point.x,y:point.y};
     });
-    return {target:found[0].object as Clickable,point:found[0].point,distance:found[0].distance};
+  };
+  const navigateRemote=(horizontal:number,vertical:number)=>{
+    const items=remoteCandidates();
+    if(!items.length){remoteTarget=null;return;}
+    const coords=remotePositions(items);
+    let current=coords.find(p=>p.mesh===remoteTarget);
+    if(!current){current=[...coords].sort((a,b)=>b.y-a.y||a.x-b.x)[0];remoteTarget=current.mesh;return;}
+    const xdir=Math.abs(horizontal)>=Math.abs(vertical)?Math.sign(horizontal):0;
+    const ydir=xdir?0:-Math.sign(vertical);
+    const options=coords.filter(p=>p!==current).map(p=>{
+      const dx=p.x-current.x,dy=p.y-current.y;
+      const forward=dx*xdir+dy*ydir,side=Math.abs(dx*ydir-dy*xdir);
+      return {...p,forward,score:forward+side*2.5};
+    }).filter(p=>p.forward>.015&&p.forward>Math.abs(p.x*ydir-p.y*xdir-(current.x*ydir-current.y*xdir))*.18);
+    const next=options.sort((a,b)=>a.score-b.score)[0];
+    if(next)remoteTarget=next.mesh;
   };
   /** Vibration de la manette (impulsion courte). Ignorée si le casque ne la prend pas en charge. */
   const pulse=(c:Object3D,intensity:number,ms:number)=>{
@@ -984,32 +998,34 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       else if(actuator?.playEffect)void Promise.resolve(actuator.playEffect('dual-rumble',{startDelay:0,duration:ms,strongMagnitude:intensity,weakMagnitude:intensity})).catch(()=>{});
     }catch{/* La manette ou le navigateur ne gère pas les vibrations */}
   };
-  controllers.forEach(c=>{
-    c.addEventListener('connected',e=>{c.userData.source=(e as unknown as {data?:unknown}).data;});
-    c.addEventListener('selectstart',()=>{
-      const h=hits(c),target=h.target;
-      if(target){
-        const states=target.userData.vrIconStates as {pressedUntil:number}|undefined;
-        if(states)states.pressedUntil=performance.now()+260;
-        target.userData.pressedUntil=performance.now()+260;
-        if(target.userData.onSelect){
-          pulse(c,.8,65);
-          if(states){
-            const mat=(target as Mesh).material as MeshBasicMaterial;
-            const texture=(states as {pressed?:Texture|null}).pressed;
-            if(texture){mat.map=texture;mat.needsUpdate=true;}
-          }
-          target.userData.onSelect();
+  controllers.forEach(controller=>{
+    controller.addEventListener('connected',event=>{
+      controller.userData.source=(event as unknown as {data?:unknown}).data;
+    });
+    controller.addEventListener('selectstart',()=>{
+      // La gâchette de la manette GAUCHE valide le choix en surbrillance.
+      const source=controller.userData.source as {handedness?:string}|undefined;
+      if(source?.handedness!=='left'||uiHidden||!referenceMode)return;
+      const target=remoteCandidates().find(item=>item===remoteTarget);
+      if(!target?.userData.onSelect)return;
+      target.userData.pressedUntil=performance.now()+260;
+      const states=target.userData.vrIconStates as {pressed?:Texture|null;pressedUntil:number}|undefined;
+      if(states){
+        states.pressedUntil=performance.now()+260;
+        if(states.pressed){
+          const mat=(target as Mesh).material as MeshBasicMaterial;
+          mat.map=states.pressed;mat.needsUpdate=true;
         }
       }
+      pulse(controller,.75,60);
+      target.userData.onSelect();
+      remoteTarget=null;
     });
-    // Prise (gâchette latérale) : ramène la barre devant soi.
-    c.addEventListener('squeezestart',()=>{void buildBar();});
+    // Prise latérale : recentrer le panneau sans en modifier l'état.
+    controller.addEventListener('squeezestart',()=>{
+      if(referenceMode)void buildBar();
+    });
   });
-
-  // Vibration une seule fois lorsqu'un bouton est pointé, et non à chaque image.
-  const hoveredByController=new Map<Object3D,Clickable>();
-  const lastHoverHaptic=new Map<Object3D,number>();
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let lastRefreshCheck=0;
   let turnArmed=true;
@@ -1035,6 +1051,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         if(down&&!abDown[key]&&!switchingReference){
           switchingReference=true;
           referenceMode=!referenceMode;
+          remoteTarget=null;
           updateVrPalette();
           closePanels();uiHidden=false;
           void buildBar().then(()=>{
@@ -1058,7 +1075,24 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const axes=source.gamepad?.axes;
       if(!axes||axes.length<2)continue;
       const horizontal=axes.length>=4?axes[2]:axes[0];
-      if(typeof horizontal==='number'&&Math.abs(horizontal)>Math.abs(turn))turn=horizontal;
+      const vertical=axes.length>=4?axes[3]:axes[1];
+      // Manette gauche : navigation du menu sans rayon. Joystick
+      // droit : rotation du panorama comme auparavant.
+      if(source.handedness==='left'&&referenceMode&&!uiHidden){
+        const magnitude=Math.hypot(horizontal,vertical);
+        if(magnitude<.3)remoteAxisArmed=true;
+        else if(magnitude>.65&&remoteAxisArmed){
+          const before=remoteTarget;
+          navigateRemote(horizontal,vertical);
+          if(remoteTarget!==before){
+            const c=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness==='left');
+            if(c)pulse(c,.2,25);
+          }
+          remoteAxisArmed=false;
+        }
+      }else if(source.handedness==='right'&&typeof horizontal==='number'){
+        if(Math.abs(horizontal)>Math.abs(turn))turn=horizontal;
+      }
     }
     if(Math.abs(turn)<.25)turnArmed=true;
     else if(Math.abs(turn)>.72&&turnArmed&&!alignPending&&!busy){
@@ -1102,40 +1136,23 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
-    // Survol.
+    // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
+    const choices=remoteCandidates();
+    if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
+    if(!remoteTarget&&choices.length)remoteTarget=remotePositions(choices).sort((a,b)=>b.y-a.y||a.x-b.x)[0].mesh;
     const hovered=new Set<Clickable>();
-    controllers.forEach(c=>{
-      const hit=hits(c),pointer=c.userData.vrPointer as {geo:BufferGeometry;dot:Mesh;line:Line}|undefined;
-      const target=hit.target?.userData.onSelect?hit.target:null;
-      const old=hoveredByController.get(c);
-      if(target){
-        hovered.add(target);
-        if(old!==target){
-          hoveredByController.set(c,target);
-          if(now-(lastHoverHaptic.get(c)??0)>110){
-            pulse(c,.2,24);
-            lastHoverHaptic.set(c,now);
-          }
-        }
-      }else hoveredByController.delete(c);
-      if(pointer){
-        pointer.line.visible=!uiHidden;
-        if(uiHidden){pointer.dot.visible=false;return;}
-        const pos=pointer.geo.getAttribute('position') as Float32BufferAttribute;
-        if(hit.point){
-          // Point d'impact exact en coordonnées locales de la manette.
-          const tip=c.worldToLocal(hit.point.clone());
-          pos.setXYZ(1,tip.x,tip.y,tip.z);
-          pointer.dot.position.copy(hit.point);
-          pointer.dot.scale.setScalar(1);
-          pointer.dot.visible=c.visible&&!uiHidden;
-        }else{
-          pos.setXYZ(1,0,0,-POINTER_MAX);
-          pointer.dot.visible=false;
-        }
-        pos.needsUpdate=true;pointer.geo.computeBoundingSphere();
-      }
-    });
+    if(remoteTarget){
+      hovered.add(remoteTarget);
+      const mesh=remoteTarget as Mesh;
+      const geometry=mesh.geometry as PlaneGeometry;
+      const w=geometry.parameters.width,h=geometry.parameters.height;
+      mesh.getWorldPosition(remoteFocus.position);
+      mesh.getWorldQuaternion(remoteFocus.quaternion);
+      remoteFocus.translateZ(-.004);
+      remoteFocus.scale.set(w+.027,h+.027,1);
+      remoteFocus.renderOrder=mesh.renderOrder-.15;
+      remoteFocus.visible=!uiHidden&&referenceMode;
+    }else remoteFocus.visible=false;
     for(const m of clickables){
       const isPressed=(m.userData.pressedUntil??0)>now;
       const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
