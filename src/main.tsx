@@ -3022,7 +3022,7 @@ function App(){
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
-  useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';},[project.windowAnimation]);
+  useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
   useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
   function triggerBar(item:BottomBarItem){
@@ -5618,6 +5618,9 @@ function App(){
         {panel==='settings' && <div className="properties">
           <InspectorSection title="Animation des fenêtres (info, photo, vidéo, galeries, plan)" initiallyOpen>
             <p className="hint">Ce style s’applique à toutes les fenêtres de la visite : informations, photos, vidéos, galeries et plan. Il s’applique aussi à l’aperçu.</p>
+            <label>Durée d’ouverture : {project.windowAnimationMs??700} ms
+              <input type="range" min={200} max={2000} step={50} value={project.windowAnimationMs??700} onChange={e=>setProject(p=>({...p,windowAnimationMs:Number(e.target.value)}))}/>
+            </label>
             <label>Style
               <select value={project.windowAnimation??'fade'} onChange={e=>setProject(p=>({...p,windowAnimation:e.target.value as WindowAnimation}))}>
                 {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}

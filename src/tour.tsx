@@ -324,7 +324,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     '--nv-bar-height':Math.max(theme.height??82,project?.bottomBar?.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
   // Animation d'ouverture des fenêtres : posée sur <html> pour toutes les fenêtres (info, photo, vidéo, galeries, plan).
-  useEffect(()=>{document.documentElement.dataset.windowAnim=project?.windowAnimation??'fade';},[project?.windowAnimation]);
+  useEffect(()=>{document.documentElement.dataset.windowAnim=project?.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project?.windowAnimationMs??700)+'ms');},[project?.windowAnimation,project?.windowAnimationMs]);
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const activeLanguages=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   const lang=effectiveLang(prefs,activeLanguages);
