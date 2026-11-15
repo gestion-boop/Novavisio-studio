@@ -434,9 +434,19 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       const ghost=()=>{const el=root.querySelector<HTMLElement>(movingCenter?'.nv-sphere-center[data-frame-id="'+id+'"]':'[data-frame-id="'+id+'"][data-corner="'+key+'"]');el?.classList.add('is-dragging');};
       ghost();root.classList.add('nv-frame-dragging');
       // L'image / la vidéo devient quasi invisible pendant le geste : on voit le décor exact sous les pointillés.
-      const dimFrame=(o:number)=>{try{plugin.updateMarker({id:h.id,opacity:o},false);plugin.renderMarkers();viewer.needsUpdate();}catch{/* cadre supprimé */}};
+      // Pendant le geste le contenu est masqué (contour et coins seulement) : la vidéo n'est plus décodée ni redessinée à chaque mouvement.
+      const dimFrame=(o:number)=>{try{plugin.updateMarker({id:h.id,opacity:o,visible:o>.05},false);plugin.renderMarkers();viewer.needsUpdate();}catch{/* cadre supprimé */}};
       dimFrame(0);
+      // Les mouvements de souris sont fusionnés : un seul calcul et une seule mise à jour par image écran (sinon l'application se fige).
+      let pendingPointer:PointerEvent|null=null;let frameReq=0;
       const update=(pointer:PointerEvent)=>{
+        if(pointer.pointerId!==event.pointerId)return;
+        pointer.preventDefault();
+        pointer.stopImmediatePropagation();
+        pendingPointer=pointer;
+        if(!frameReq)frameReq=requestAnimationFrame(()=>{frameReq=0;const p=pendingPointer;pendingPointer=null;if(p)applyUpdate(p);});
+      };
+      const applyUpdate=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
         pointer.preventDefault();
         pointer.stopImmediatePropagation();
@@ -479,6 +489,8 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         }
       };
       const cleanup=()=>{
+        if(frameReq){cancelAnimationFrame(frameReq);frameReq=0;}
+        pendingPointer=null;
         dimFrame(0.3);
         hudEl.remove();
         root.classList.remove('nv-frame-dragging');root.querySelectorAll('.is-dragging').forEach(el=>el.classList.remove('is-dragging'));
@@ -488,7 +500,9 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       };
       const finish=(pointer:PointerEvent)=>{
         if(pointer.pointerId!==event.pointerId)return;
-        update(pointer);
+        if(frameReq){cancelAnimationFrame(frameReq);frameReq=0;}
+        pendingPointer=null;
+        applyUpdate(pointer);
         const rect=root.getBoundingClientRect();
         const dropX=pointer.clientX-rect.left;
         const dropY=pointer.clientY-rect.top;

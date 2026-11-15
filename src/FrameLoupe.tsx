@@ -102,30 +102,34 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   // Rendu du fond : vrai panorama échantillonné (bilinéaire) à travers la même projection que la vue 3D.
   useEffect(()=>{
     const c=canvas.current;if(!c||!src)return;
-    const ctx=c.getContext('2d')!;const out=ctx.createImageData(W,H);const o=out.data;
-    const {w,h,data}=src;const g=new Float32Array(W*H);
-    for(let y=0;y<H;y++)for(let x=0;x<W;x++){
-      const p=unproject(b,x,y);
+    // Pendant un glissement de coin : moitié de définition (4× moins de calcul) pour ne pas figer l'application.
+    const sc=dragging?.5:1,cw=Math.round(W*sc),ch=Math.round(H*sc);
+    c.width=cw;c.height=ch;
+    const ctx=c.getContext('2d')!;const out=ctx.createImageData(cw,ch);const o=out.data;
+    const {w,h,data}=src;const g=new Float32Array(cw*ch);
+    for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
+      const p=unproject(b,x/sc,y/sc);
       const u=((p.yaw/(2*Math.PI)+0.5)%1+1)%1*w-0.5,v=clamp((0.5-p.pitch/Math.PI)*h-0.5,0,h-1.001);
       const x0=Math.floor(u),y0=Math.floor(v),fx=u-x0,fy=v-y0;
       const xa=((x0%w)+w)%w,xb=(xa+1)%w,ya=y0,yb=Math.min(h-1,y0+1);
-      const i=(y*W+x)*4;
+      const i=(y*cw+x)*4;
       for(let k=0;k<3;k++){
         const a=data[(ya*w+xa)*4+k],bb=data[(ya*w+xb)*4+k],cc=data[(yb*w+xa)*4+k],d=data[(yb*w+xb)*4+k];
         o[i+k]=a*(1-fx)*(1-fy)+bb*fx*(1-fy)+cc*(1-fx)*fy+d*fx*fy;
       }
-      o[i+3]=255;g[y*W+x]=0.299*o[i]+0.587*o[i+1]+0.114*o[i+2];
+      o[i+3]=255;g[y*cw+x]=0.299*o[i]+0.587*o[i+1]+0.114*o[i+2];
     }
     ctx.putImageData(out,0,0);
-    // Gradient (Sobel simplifié) pour le magnétisme sur les bords.
-    const mag=new Float32Array(W*H);
-    for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-      const gx=g[y*W+x+1]-g[y*W+x-1]+0.5*(g[(y-1)*W+x+1]-g[(y-1)*W+x-1]+g[(y+1)*W+x+1]-g[(y+1)*W+x-1]);
-      const gy=g[(y+1)*W+x]-g[(y-1)*W+x]+0.5*(g[(y+1)*W+x-1]-g[(y-1)*W+x-1]+g[(y+1)*W+x+1]-g[(y-1)*W+x+1]);
-      mag[y*W+x]=Math.hypot(gx,gy);
+    // Gradient (Sobel simplifié) pour le magnétisme sur les bords : recalculé seulement au repos.
+    if(dragging)return;
+    const mag=new Float32Array(cw*ch);
+    for(let y=1;y<ch-1;y++)for(let x=1;x<cw-1;x++){
+      const gx=g[y*cw+x+1]-g[y*cw+x-1]+0.5*(g[(y-1)*cw+x+1]-g[(y-1)*cw+x-1]+g[(y+1)*cw+x+1]-g[(y+1)*cw+x-1]);
+      const gy=g[(y+1)*cw+x]-g[(y-1)*cw+x]+0.5*(g[(y+1)*cw+x-1]-g[(y-1)*cw+x-1]+g[(y+1)*cw+x+1]-g[(y-1)*cw+x+1]);
+      mag[y*cw+x]=Math.hypot(gx,gy);
     }
     grad.current=mag;
-  },[src,b]);
+  },[src,b,dragging]);
 
   const setCorner=useCallback((key:FrameKey,px:number,py:number,useSnap:boolean)=>{
     let x=clamp(px,0,W),y=clamp(py,0,H);

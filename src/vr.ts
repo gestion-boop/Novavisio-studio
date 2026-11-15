@@ -176,7 +176,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(let j=0;j<=N;j++)for(let i=0;i<=N;i++){
       const u=i/N,v=j/N;
       const top=tl.clone().lerp(tr,u),bottom=bl.clone().lerp(br,u);
-      const d=top.lerp(bottom,v).normalize().multiplyScalar(HOTSPOT_R);
+      // Même surface que le panorama : le cadre est collé à l'écran de la télé, sans décalage quand la tête bouge.
+      const d=top.lerp(bottom,v).normalize().multiplyScalar(SPHERE_R-.05);
       pos.push(d.x,d.y,d.z);uv.push(u,1-v);
     }
     for(let j=0;j<N;j++)for(let i=0;i<N;i++){
@@ -212,7 +213,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       mesh.position.copy(pos);mesh.renderOrder=2;
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
-      mesh.userData={baseScale:1,hoverScale:1,spin:true,onSelect:()=>void goTo(h.target,h)};
+      mesh.userData={baseScale:1,hoverScale:1,spin:true,dir:pos.clone().normalize(),dist:HOTSPOT_R,onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
         for(let attempt=0;attempt<30&&!ended;attempt++){
@@ -903,7 +904,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(target){
         const states=target.userData.vrIconStates as {pressedUntil:number}|undefined;
         if(states)states.pressedUntil=performance.now()+180;
-        if(target.userData.onSelect){pulse(c,.5,30);target.userData.onSelect();}
+        target.userData.pressedUntil=performance.now()+180;
+        if(target.userData.onSelect){pulse(c,.7,45);target.userData.onSelect();}
       }
     });
     // Prise (gâchette latérale) : ramène la barre devant soi.
@@ -983,7 +985,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
     });
     for(const m of clickables){
-      const base=m.userData.baseScale??1,wanted=hovered.has(m)?(m.userData.hoverScale??1):base;
+      const isPressed=(m.userData.pressedUntil??0)>now;
+      const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
+      // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
+      if(m.userData.spin&&m.userData.dir){const want=hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
+      // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
+      if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
+        const mm=(m as Mesh).material as MeshBasicMaterial;
+        const tint=isPressed?.66:hovered.has(m)?1.2:1;
+        if(!m.userData.spin)mm.color.setScalar(tint);
+      }
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
       const states=m.userData.vrIconStates as {normal:Texture;hover:Texture|null;pressed:Texture|null;pressedUntil:number}|undefined;
       if(states){
