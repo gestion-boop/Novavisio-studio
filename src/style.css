@@ -5729,3 +5729,34 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-media-icon-import .nv-iconset-create-preview{max-width:72px}
 .nv-media-icon-import .nv-iconset-create-file{padding:7px 3px;font-size:11px}
 .nv-media-icon-import .nv-iconset-create-actions .nv-iconset-create-save{flex:1}
+
+
+/* Choix direct des packs existants : 3 états visibles et appliqués ensemble */
+.nv-existing-pack-picker{display:flex;flex-direction:column;gap:8px;width:100%;min-width:0;margin:10px 0}
+.nv-existing-pack-toggle{display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-height:46px;padding:10px 13px;border:1px solid #b38a53;border-radius:12px;background:linear-gradient(160deg,#32586a,#193f50);color:#f5fafb;font:700 13px system-ui,sans-serif;cursor:pointer;text-align:left;box-sizing:border-box}
+.nv-existing-pack-toggle:hover,.nv-existing-pack-toggle.is-open{border-color:#e7bd7e;background:#265a70}
+.nv-existing-pack-toggle>span{flex:1}
+.nv-existing-pack-toggle>b{padding:2px 7px;border-radius:999px;background:#d0ac72;color:#14252d;font-size:11px}
+.nv-existing-pack-toggle>svg:last-child{flex-shrink:0;transition:transform .15s}
+.nv-existing-pack-toggle.is-open>svg:last-child{transform:rotate(180deg)}
+.nv-existing-pack-panel{display:flex;flex-direction:column;gap:11px;padding:12px;border:1px solid #436774;border-radius:12px;background:#102b37;min-width:0}
+.nv-existing-pack-help{margin:0;font-size:12px;line-height:1.45;color:#c1dce2}
+.nv-existing-pack-search{display:flex;align-items:center;gap:7px;min-height:38px;padding:0 9px;border:1px solid #4b7281;border-radius:9px;background:#071f29;color:#a6c2c9}
+.nv-existing-pack-search input{min-width:0;width:100%;border:none;background:transparent;color:#f6feff;outline:none;font-size:13px}
+.nv-existing-pack-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-height:350px;overflow-y:auto;overscroll-behavior:contain;padding:3px}
+.nv-existing-pack-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;padding:10px 6px;border:1px solid #456673;border-radius:12px;background:#193c4a;color:#e4f1f4;text-align:center;cursor:pointer}
+.nv-existing-pack-card:hover{border-color:#e3c08c;background:#275566;box-shadow:0 2px 12px #0004}
+.nv-existing-pack-card:active{transform:scale(.98)}
+.nv-existing-pack-card.is-selected{border-color:#61dfd2;box-shadow:0 0 0 2px #61dfd255}
+.nv-existing-pack-states{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;width:100%}
+.nv-existing-pack-states>span{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.nv-existing-pack-states img{display:block;object-fit:contain;width:100%;height:auto;max-width:54px;aspect-ratio:1/1}
+.nv-existing-pack-states small{font-size:10px;color:#abc8cd;white-space:nowrap}
+.nv-existing-pack-name{width:100%;font-size:12px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.nv-existing-pack-check{position:absolute;top:4px;right:4px;color:#61dfd2}
+.nv-existing-pack-empty{margin:8px 0;font-size:12px;line-height:1.4;color:#c4d6da}
+.nv-existing-pack-note{font-size:11px;color:#9cbbc4;line-height:1.5}
+.nv-icon-single-states{border:1px solid #365665;border-radius:10px;padding:10px;background:#0e2936}
+.nv-icon-single-states summary{cursor:pointer;color:#d0e7ec;font-size:12px;font-weight:700}
+.nv-icon-single-states[open] summary{margin-bottom:10px}
+@media(max-width:530px){.nv-existing-pack-grid{grid-template-columns:1fr}.nv-existing-pack-states img{max-width:68px}}
