@@ -5761,3 +5761,11 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-icon-single-states summary{cursor:pointer;color:#d0e7ec;font-size:12px;font-weight:700}
 .nv-icon-single-states[open] summary{margin-bottom:10px}
 @media(max-width:530px){.nv-existing-pack-grid{grid-template-columns:1fr}.nv-existing-pack-states img{max-width:68px}}
+
+
+/* Le bouton Importer du popup choisit maintenant un pack EXISTANT dans la bibliothèque. */
+.nv-media-icon-import .nv-existing-pack-toggle{min-height:52px;justify-content:center;border:1px solid #d1aa74;background:linear-gradient(155deg,#bd925b,#815c36);color:#fff;font-size:14px;box-shadow:0 2px 7px #0003}
+.nv-media-icon-import .nv-existing-pack-toggle:hover,.nv-media-icon-import .nv-existing-pack-toggle.is-open{border-color:#e7ca96;background:linear-gradient(155deg,#d0a875,#916c41)}
+.nv-media-icon-import .nv-existing-pack-toggle>b{background:#f6e1bf;color:#563718}
+.nv-media-icon-import .nv-existing-pack-picker{margin:0}
+.nv-media-icon-import .nv-existing-pack-panel{margin-top:8px}
