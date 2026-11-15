@@ -71,7 +71,7 @@ async function loadReduced(src:string,maxWidth:number):Promise<HTMLCanvasElement
 
 /** Texte toujours contenu dans sa zone : réduit la police, puis ajoute une ellipse si nécessaire. */
 function fitCanvasLabel(ctx:CanvasRenderingContext2D,label:string,maxWidth:number,maxSize:number,minSize:number):string{
-  const clean=(label||'').replace(/\\s+/g,' ').trim();
+  const clean=(label||'').replace(/\s+/g,' ').trim();
   let font=maxSize;
   ctx.font='bold '+font+'px sans-serif';
   while(font>minSize&&ctx.measureText(clean).width>maxWidth){
@@ -675,11 +675,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const galleryChrome=(W:number,H:number,title:string,count:string,pages:number,page:number,onPrev:()=>void,onNext:()=>void)=>{
     addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
       roundRect(c,6,6,W*1000-12,H*1000-12,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-      c.fillStyle=referenceMode?'#ffffff':'#1b1b1f';c.font='bold 58px sans-serif';c.textAlign='left';c.textBaseline='middle';
-      let t=title;while(c.measureText(t).width>W*1000-420&&t.length>3)t=t.slice(0,-2);
-      c.fillText(t,64,92);
-      c.font='34px sans-serif';c.fillStyle=referenceMode?'#e8bf65':'#4a4a52';c.textAlign='right';
-      c.fillText(count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:''),W*1000-170,92);
+      const rightEdge=W*1000-180;
+      const metadata=count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:'');
+      const metaWidth=Math.min(440,Math.max(250,W*1000*.31));
+      c.fillStyle=referenceMode?'#e8bf65':'#4a4a52';
+      c.textAlign='right';c.textBaseline='middle';
+      const meta=fitCanvasLabel(c,metadata,metaWidth,34,25);
+      c.fillText(meta,rightEdge,92);
+      // Une vraie réserve pour le compteur et le bouton fermer. Les deux
+      // libellés ne peuvent plus se recouvrir, même avec plusieurs pages.
+      c.fillStyle=referenceMode?'#ffffff':'#1b1b1f';
+      c.textAlign='left';
+      const titleWidth=Math.max(160,rightEdge-metaWidth-115);
+      const name=fitCanvasLabel(c,title,titleWidth,58,35);
+      c.fillText(name,64,92);
     }),5,0,0).userData.blocker=true;
     addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
     if(pages>1){
@@ -707,12 +716,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const chunk=chunks[page];
       const tex=canvasTexture(1100,820,c=>{
         roundRect(c,6,6,1088,808,50);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-        c.fillStyle='#1b1b1f';c.font='bold 56px sans-serif';c.textAlign='left';c.textBaseline='top';
-        let t=chunk.title;while(c.measureText(t).width>980&&t.length>3)t=t.slice(0,-2);
-        c.fillText(t,60,46);
-        c.font='40px sans-serif';
-        chunk.lines.forEach((l,i)=>c.fillText(l,60,140+i*54));
-        if(chunks.length>1){c.font='32px sans-serif';c.fillStyle='#4a4a52';c.textAlign='right';c.fillText((page+1)+' / '+chunks.length,1040,52);}
+        c.fillStyle=referenceMode?'#ffffff':'#1b1b1f';
+        c.textAlign='left';c.textBaseline='top';
+        const title=fitCanvasLabel(c,chunk.title,885,56,35);
+        c.fillText(title,60,46);
+        c.font='40px sans-serif';c.fillStyle=referenceMode?'#f4f3f0':'#1b1b1f';
+        chunk.lines.forEach((line,i)=>{
+          const fit=fitCanvasLabel(c,line,980,40,32);
+          c.fillText(fit,60,140+i*54);
+        });
+        if(chunks.length>1){
+          c.font='32px sans-serif';c.fillStyle=referenceMode?'#e8bf65':'#4a4a52';
+          c.textAlign='right';c.fillText((page+1)+' / '+chunks.length,1040,52);
+        }
       });
       addPlane(panelGroup,W,H,tex,5,0,0);
       if(chunks.length>1){
@@ -955,9 +971,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           c.save();roundRect(c,18,18,584,218,20);c.clip();
           if(thumb)c.drawImage(thumb,18,18,584,218);else{c.fillStyle='#333';c.fillRect(18,18,584,218);}
           c.restore();
-          c.fillStyle=iconColor;c.font='bold 32px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
-          let t=e.label;while(c.measureText(t).width>560&&t.length>2)t=t.slice(0,-2);
-          c.fillText(t===e.label?t:t.trimEnd()+'…',310,303);
+          c.fillStyle=referenceMode?'#ffe3a1':iconColor;
+          c.textAlign='center';c.textBaseline='alphabetic';
+          const label=fitCanvasLabel(c,e.label,548,32,23);
+          c.fillText(label,310,303);
         },cw,ch,x,y,()=>{void goTo(e.sceneId);});
       }
       placePanel(PANEL_DIST,-.0);
@@ -971,20 +988,24 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const plan=project().floorPlan;
     if(!plan?.imageDataUrl){showText(pick(item.title,item.titleTranslations,vlang())||tt('plan'),tt('planUnset'));return;}
     setNotice(tt('planLoading'));
+    // Annule une ancienne demande si l'agent sélectionne entre-temps Galerie.
+    const requestGeneration=panelGen;
     let bitmap:HTMLCanvasElement;
     try{bitmap=await loadReduced(plan.imageDataUrl,2048);}catch{setNotice(tt('planFail'));return;}
-    if(ended)return;
+    if(ended||requestGeneration!==panelGen)return;
     closePanels();
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const maxW=1.48,maxH=1.02;
+    // Plan limité à l'intérieur du monobloc, sans débordement vertical.
+    const maxW=referenceMode?1.43:1.48,maxH=referenceMode?.78:1.02;
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
-    const W=imageW+.16,H=imageH+.30;
+    const W=imageW+.16,H=imageH+(referenceMode?.26:.30);
     addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);
     const imageTex=new CanvasTexture(bitmap);imageTex.colorSpace=SRGBColorSpace;imageTex.minFilter=LinearFilter;
     addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
     addPlane(panelGroup,Math.min(1.25,W-.12),.09,canvasTexture(1000,80,c=>{
-      c.fillStyle=iconColor;c.font='bold 42px sans-serif';c.textAlign='center';c.textBaseline='middle';
-      c.fillText(plan.name||pick(item.title,item.titleTranslations,vlang())||tt('planTitle'),500,42);
+      c.fillStyle=iconColor;c.textAlign='center';c.textBaseline='middle';
+      const title=fitCanvasLabel(c,plan.name||pick(item.title,item.titleTranslations,vlang())||tt('planTitle'),930,43,28);
+      c.fillText(title,500,42);
     }),7,0,H/2-.075);
     const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,c=>{
       c.beginPath();c.arc(90,90,76,0,Math.PI*2);c.fillStyle=current?iconColor:btnBg;c.fill();
