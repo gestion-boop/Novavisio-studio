@@ -4446,8 +4446,9 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
+            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
             {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
+        {project.floorPlan&&<button type="button" className="nv-open-floor-plan" onClick={()=>{setSettingsOpen(false);setFloorPlanOpen(true);}}>⌖ Afficher le plan</button>}
               <strong>Son</strong>
               <div className="nv-vs-row">
                 <button type="button" className={visitorPrefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
@@ -5049,7 +5050,8 @@ function App(){
         </div>}
         {panel==='plan' && <div className="properties">
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
-            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
+              renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
@@ -5057,7 +5059,8 @@ function App(){
         </div>}
         {panel==='settings' && <div className="properties">
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
-            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
+              renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
