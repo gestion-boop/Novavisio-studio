@@ -155,3 +155,14 @@ Le rendu doit être vérifié sur des panoramas réels, et particulièrement sur
 - Les résumés sont gardés en mémoire dans l’onglet, par compte connecté ; l’index vérifie les ajouts, suppressions et modifications à chaque ouverture. Les détails et liens temporaires des médias sont relus à la sélection d’un client. La progression et les échecs partiels restent visibles ; Actualiser reprend les fiches manquantes.
 - En mode Éditer, un clic sur une flèche la sélectionne sans quitter le panorama. La croix la supprime, la poignée la déplace, et « Panorama d’arrivée » change sa destination en conservant sa position et son icône. Une nouvelle destination utilise sa propre vue d’arrivée.
 - En mode Aperçu, un clic suit la flèche. Les boutons de test de navigation restent disponibles dans l’inspecteur.
+
+
+## Plan interactif des visites
+
+Dans **Paramètres de la visite**, la première section permet d’importer un plan PNG, JPG ou WebP. Agrandir l’éditeur, puis glisser les panoramas sur le plan ou sélectionner un panorama et cliquer à son emplacement. Les points se déplacent à la souris ou au doigt ; les coordonnées en pourcentage permettent aussi un placement au clavier.
+
+Ajouter un bouton **Plan** depuis cette section, ou choisir l’action **Plan** sur un bouton existant de la barre. En aperçu et dans le lecteur public, le bouton affiche le plan en grand : cliquer sur un point ou son nom ouvre le panorama correspondant, avec sa vue d’arrivée habituelle. La position actuelle est mise en évidence. Échap ferme le plan.
+
+Le plan est propre au projet et accompagne les sauvegardes locales, les sauvegardes cloud, les liens publics et les exports HTML. Les points des panoramas décochés ou extérieurs à un espace exporté sont retirés de la publication. Remplacer le dessin efface ses positions après confirmation ; supprimer le plan conserve les panoramas.
+
+Vérification : `npm run build`, `node scripts/check-export.mjs`, puis `node scripts/check-floor-plan.mjs` (validation, sauvegarde JSON, espaces, skins, médias cloud et contenu réel de l’export ZIP).

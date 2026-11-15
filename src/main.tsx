@@ -1,3 +1,4 @@
+import {FloorPlanEditor,FloorPlanDialog} from './FloorPlan';
 import {MediaIconSelector} from './MediaIconSettings';
 import {BarSmartCard,barKind,recommendedType} from './BarSmartCard';
 import {InformationEditor,informationFont} from './InformationEditor';
@@ -769,6 +770,7 @@ function App(){
   const [infoLanguage,setInfoLanguage]=useState<StudioLanguage>('fr');
   const visitorPrefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [floorPlanOpen,setFloorPlanOpen]=useState(false);
   const [photoGalleryId,setPhotoGalleryId]=useState<string|null>(null);
   const [panoModalId,setPanoModalId]=useState<string|null>(null);
   const sphereImage=(id:string)=>projectRef.current.scenes.find(sc=>sc.id===id)?.dataUrl;
@@ -1350,7 +1352,7 @@ function App(){
     {key:'elements',label:'Éléments'},
     {key:'medialib',label:'Photos & Vidéos'},
     {key:'music',label:'Musique'},
-    {key:'settings',label:'Bouton Paramètres'},
+    {key:'settings',label:'Paramètres de la visite'},
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
@@ -2529,6 +2531,7 @@ function App(){
   function chooseBarAction(type:BottomBarItem['type'],tab?:BarGalleryTab){
     if(tab)setBarGalleryTab(tab);
     // Keep existing selections and content when changing the button's action.
+    if(type==='plan'){patchBar({type,builtinIcon:'map'});return;}
     patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:type==='photos'?{type,photos:selectedBar?.photos??[]}:{type});
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
@@ -2539,10 +2542,11 @@ function App(){
       setSelectedBarId(current=>current===item.id?'':item.id);setPanel('bar');setSelectedId('');setRightHidden(false);
       // Bouton encore vide : on règle tout de suite le bon type d'action d'après son titre (panorama, appel, site, infos…).
       const rec=recommendedType(barKind(item));
-      if(rec&&rec!==item.type&&!item.url&&!item.text&&!(item.gallery?.length))setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===item.id?{...b,type:rec,...(rec==='gallery'?{gallery:b.gallery??[]}:{})}:b)}));
+      if(item.type!=='plan'&&rec&&rec!==item.type&&!item.url&&!item.text&&!(item.gallery?.length))setProject(p=>({...p,bottomBar:p.bottomBar.map(b=>b.id===item.id?{...b,type:rec,...(rec==='gallery'?{gallery:b.gallery??[]}:{})}:b)}));
       if(creationFullscreen){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
       return;
     }
+    if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryOpen(item.id);return;}
     if(item.type==='photos'){setPhotoGalleryId(item.id);return;}
     if(item.type==='navigation'){
@@ -3262,6 +3266,7 @@ function App(){
     if(!window.confirm('Supprimer « '+sc.name+' » du projet ?\n'+(incoming?incoming+' flèche'+(incoming>1?'s qui y mènent seront':' qui y mène sera')+' à reconfigurer.\n':'')+'Tu pourras annuler avec le bouton Annuler (Ctrl+Z).'))return;
     const remaining=project.scenes.filter(x=>x.id!==id);
     setProject(p=>({...p,
+      floorPlan:p.floorPlan?{...p.floorPlan,points:p.floorPlan.points.filter(point=>point.sceneId!==id)}:undefined,
       scenes:p.scenes.filter(x=>x.id!==id).map(x=>({...x,
         nightSourceSceneId:x.nightSourceSceneId===id?undefined:x.nightSourceSceneId,
         hotspots:x.hotspots.map(h=>h.type==='navigation'&&h.target===id?{...h,target:'',arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined}:h)})),
@@ -4451,6 +4456,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog plan={project.floorPlan} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -4891,7 +4897,7 @@ function App(){
 
           <div className="bar-items-list" data-sort-scope="visit-bar">{project.bottomBar.map(item=><div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-list-sort">{barSort.grip(item.id,item.title)}<button className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
             <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
-            <span>{item.title}</span><small>{item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
+            <span>{item.title}</span><small>{item.type==='plan'?'Plan':item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
           </button></div></div>)}</div>
           <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
           <button className="preset-button" onClick={()=>{if(window.confirm('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
@@ -4899,17 +4905,20 @@ function App(){
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
             <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
-            <BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>
+            {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
               <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
               <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
               <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
+              <button type="button" aria-pressed={selectedBar.type==='plan'} onClick={()=>chooseBarAction('plan')}>⌖ Plan</button>
               <button type="button" aria-pressed={selectedBar.type==='photos'} onClick={()=>chooseBarAction('photos')}>▣ Photos</button>
               <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
               <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
             </div>
-            {selectedBar.type==='gallery'?<BarGalleryEditor item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+            {selectedBar.type==='plan'?<><p className="hint">Ce bouton affiche le plan interactif en grand. Les points ouvrent les panoramas correspondants.</p>
+              {!project.floorPlan&&<p role="status">Importe d’abord un plan dans les paramètres de la visite.</p>}
+              <button type="button" onClick={()=>{setPanel('settings');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
@@ -5036,6 +5045,12 @@ function App(){
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Plan interactif de la visite" initiallyOpen>
+            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+              hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
+              onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
+              onPreview={()=>{setPreview(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
+          </InspectorSection>
           <InspectorSection title="Personnaliser le bouton Paramètres" initiallyOpen>
           <p className="hint">Choisis les icônes normales, au survol et au clic. Les modifications sont visibles immédiatement sur le bouton en bas à droite. Passe en aperçu pour tester son menu son et langue.</p>
           <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>

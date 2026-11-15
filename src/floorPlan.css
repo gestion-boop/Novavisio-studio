@@ -1,0 +1,36 @@
+.nv-plan-overlay{position:fixed;inset:0;z-index:150;display:flex;align-items:center;justify-content:center;padding:16px;background:#06131de8;color:#effbff;backdrop-filter:blur(6px)}
+.nv-plan-dialog{display:flex;flex-direction:column;width:min(1100px,100%);max-height:100%;min-height:0;overflow:auto;background:#102b39;border:1px solid #5a8597;border-radius:18px;box-shadow:0 20px 80px #0009;font:14px system-ui}
+.nv-plan-dialog>header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid #436372}
+.nv-plan-dialog h2{display:flex;align-items:center;gap:10px;margin:0;font-size:19px;color:#effbff}
+.nv-plan-dialog button,.nv-plan-editor button{cursor:pointer;border:1px solid #628292;border-radius:8px;background:#1c4254;color:#fff;padding:8px 12px;font:inherit}
+.nv-plan-dialog>header button{display:grid;place-items:center;min-width:44px;min-height:44px;padding:6px}
+.nv-plan-help{margin:12px 18px;line-height:1.5;color:#c3dbe6}
+.nv-plan-view{min-height:0;overflow:auto;padding:20px;flex:1;text-align:center}
+.nv-plan-image{position:relative;display:inline-block;vertical-align:top;max-width:100%;line-height:0;margin:0 auto;background:white}
+.nv-plan-image>img{display:block;max-width:100%;width:auto;height:auto;max-height:65vh;object-fit:contain}
+.nv-plan-image.is-editing{cursor:crosshair}
+.nv-plan-image>button.nv-plan-point{position:absolute;transform:translate(-50%,-50%);width:36px;height:36px;min-width:36px;min-height:36px;display:grid;place-items:center;padding:0!important;border:2px solid #fff;border-radius:50%;background:#153f59;color:white;box-shadow:0 2px 8px #000b;font:700 13px system-ui;cursor:pointer;z-index:1}
+.nv-plan-image>button.nv-plan-point.is-current{background:#f6bf56;color:#102330;border-color:#102330;z-index:2}
+.nv-plan-image>button.nv-plan-point:hover{background:#167e8f;color:white;z-index:3}
+.nv-plan-point:focus-visible,.nv-plan-dialog button:focus-visible,.nv-plan-editor button:focus-visible{outline:3px solid #54e9d6;outline-offset:3px}
+.nv-plan-destinations{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px;border-top:1px solid #436372}
+.nv-plan-destinations button[aria-current]{border-color:#f6bf56;color:#ffda94}
+.nv-plan-editor{display:flex;flex-direction:column;gap:10px;min-width:0;color:#cee3eb}
+.nv-plan-editor p{margin:0;line-height:1.5}
+.nv-plan-editor>button{display:flex;align-items:center;justify-content:center;gap:8px}
+.nv-plan-editor label{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.nv-plan-editor select,.nv-plan-editor input[type=number]{max-width:100%;min-width:0;width:100%;box-sizing:border-box;border:1px solid #628292;border-radius:6px;background:#09202e;color:#f1fbff;padding:8px}
+.nv-plan-editor small{color:#a9cbd5}
+.nv-plan-edit-canvas{padding:20px;text-align:center;background:#081e29;border-radius:8px;overflow:auto}
+.nv-plan-position{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.nv-plan-position>span{width:100%;font-weight:600}
+.nv-plan-position>label{flex:1;min-width:90px}
+.nv-plan-editor-actions{display:flex;flex-direction:column;gap:8px}
+.nv-plan-expanded-editor{padding:18px;overflow:auto}
+.nv-plan-expanded-editor .nv-plan-edit-canvas img{max-height:55vh}
+@media(max-width:600px){.nv-plan-overlay{padding:6px}.nv-plan-dialog>header{padding:10px}.nv-plan-dialog h2{font-size:16px}.nv-plan-view{padding:20px}.nv-plan-image>button.nv-plan-point{width:32px;height:32px;min-width:32px;min-height:32px}.nv-plan-destinations{padding:10px}.nv-plan-destinations button{min-height:44px}}
+
+.nv-plan-editor .nv-plan-point{touch-action:none}
+.nv-plan-source-list{display:flex;gap:6px;overflow:auto;max-height:120px;padding:3px;flex-wrap:wrap}
+.nv-plan-source-list button{cursor:grab;font-size:12px}
+.nv-plan-source-list button[aria-pressed=true]{border-color:#f6bf56;color:#ffda94}

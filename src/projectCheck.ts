@@ -36,6 +36,8 @@ export function checkProject(project:StudioProject):CheckIssue[]{
     }
   }
   for(const item of project.bottomBar){
+    if(item.type==='plan'&&(!project.floorPlan||!project.floorPlan.points.some(point=>ids.has(point.sceneId))))
+      out.push({level:'error',kind:'other',hint:'Importe un plan et place au moins un panorama dans les paramètres de la visite.',barId:item.id,text:'Barre du bas · « '+(item.title||'Plan')+' » : plan absent ou sans destination visible.'});
     if(item.type==='lien'&&!item.url)out.push({level:'error',kind:'bar-link',hint:'Colle l’adresse du lien dans le champ ci-contre.',barId:item.id,text:'Barre du bas · « '+(item.title||'bouton')+' » : lien sans adresse.'});
     if(item.type==='navigation'&&item.target&&!ids.has(item.target))out.push({level:'error',kind:'bar-nav',hint:'Choisis une destination existante pour ce bouton.',barId:item.id,text:'Barre du bas · « '+(item.title||'bouton')+' » : destination introuvable ('+nameOf(item.target)+').'});
   }
