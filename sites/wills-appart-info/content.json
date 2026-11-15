@@ -1,0 +1,615 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Will's Appart - Narbonne",
+   "sections": [
+    {
+     "title": "Présentation générale",
+     "kind": "text",
+     "items": [
+      "Profitez d'un logement élégant et très lumineux, récemment classé **4 étoiles** dans la catégorie **Meublé de Tourisme**, situé à seulement **300 mètres de l'hôtel**.",
+      "Cet appartement **T2 de 37 m²** se trouve à deux pas du centre-ville de Narbonne et de la gare routière / SNCF.",
+      "Il se compose d'une chambre avec **lit double 160 × 200 cm haut de gamme**, d'une salle de bain avec douche, d'un salon avec **canapé convertible 140 × 200 cm**, d'une **TV connectée**, du **wifi** et d'une **cuisine entièrement équipée**.",
+      "L'appartement est climatisé possédant le double vitrage, avec balcon orienté sud-ensoleillé. Il est situé au premier étage dans un immeuble Haussmannien sans ascenseur."
+     ]
+    },
+    {
+     "title": "Contact & réservation",
+     "kind": "buttons",
+     "items": [
+      {
+       "t": "Appeler l'hôtel",
+       "s": "04 68 32 26 28",
+       "u": "tel:+33468322628"
+      },
+      {
+       "t": "Téléphone mobile",
+       "s": "06 45 98 18 80",
+       "u": "tel:+33645981880"
+      },
+      {
+       "t": "Envoyer un email",
+       "s": "contact@willshotelnarbonne.fr",
+       "u": "mailto:contact@willshotelnarbonne.fr"
+      },
+      {
+       "t": "Site officiel",
+       "s": "Découvrir Will's Hôtel",
+       "u": "https://willshotelnarbonne.fr/"
+      },
+      {
+       "t": "Réserver en direct",
+       "s": "Meilleur prix garanti",
+       "u": "https://willshotelnarbonne.thais-hotel.com/direct-booking/calendar"
+      },
+      {
+       "t": "Voir les avis Google",
+       "s": "Consulter les retours voyageurs",
+       "u": null
+      },
+      {
+       "t": "Room Directory",
+       "s": "Accéder au livret d'accueil",
+       "u": "https://willshotelnarbonne.fr/room-directory-hotel/"
+      },
+      {
+       "t": "Instagram",
+       "s": "Suivre Will's Hotel sur Instagram",
+       "u": "https://www.instagram.com/lewillshotel/"
+      },
+      {
+       "t": "Facebook",
+       "s": "Découvrir la page Facebook de l'hôtel",
+       "u": "https://www.facebook.com/profile.php?id=100086912328688"
+      }
+     ]
+    },
+    {
+     "title": "Règlement intérieur",
+     "kind": "text",
+     "items": [
+      "**Animaux :** les animaux ne sont pas acceptés, sans exception.",
+      "**Non-fumeur :** il est strictement interdit de fumer dans l'appartement, même avec les fenêtres ouvertes. Une indemnité forfaitaire de **60 €** pourra être appliquée pour perte d'exploitation.",
+      "Le règlement intérieur de l'appartement s'applique à l'ensemble des réservations. Tout séjour entraîne l'acceptation des conditions particulières et du règlement intérieur. En cas de non-respect d'une de ces dispositions, l'hôtelier pourra être amené à inviter le client à quitter l'établissement, sans indemnité."
+     ]
+    },
+    {
+     "title": "Conditions de réservation",
+     "kind": "text",
+     "items": [
+      "**Séjour minimum :** 2 nuitées.",
+      "**Arrivée :** nous vous accueillons entre **17h00 et 22h00**. Merci de bien vouloir communiquer votre heure approximative d'arrivée afin de mieux organiser votre accueil.",
+      "**Remise des clés :** rendez-vous à l'hôtel pour récupérer les clés et régler le restant de votre séjour : **Will's Hôtel – 23 avenue Pierre Semard, Narbonne**.",
+      "**Départ :** l'appartement doit être libéré au plus tard à **11h00**."
+     ]
+    },
+    {
+     "title": "Équipements",
+     "kind": "columns",
+     "items": [
+      {
+       "t": "Salle de bain & linge",
+       "items": [
+        "Douche",
+        "Sèche-cheveux",
+        "Serviettes, draps, savon et papier toilette fournis",
+        "Shampooing, savon, gel douche",
+        "Produits de nettoyage",
+        "Remplacement du linge : voir l'affichette de la salle d'eau ou contacter la réception"
+       ]
+      },
+      {
+       "t": "Confort au quotidien",
+       "items": [
+        "Climatisation réversible",
+        "Chauffage d'appoint (radiateur électrique)",
+        "Dressing",
+        "Fer à repasser et planche à repasser",
+        "Cintres et espace de rangement pour les vêtements"
+       ]
+      },
+      {
+       "t": "Extérieur & accès",
+       "items": [
+        "Patio ou balcon avec accès privé",
+        "Table et chaises d'extérieur",
+        "Espace pour entreposer les vélos",
+        "Stationnement payant dans la rue",
+        "Parking payant sur place"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "en": {
+   "title": "Will's Appart - Narbonne",
+   "sections": [
+    {
+     "title": "General presentation",
+     "kind": "text",
+     "items": [
+      "Enjoy an elegant, very bright apartment, recently rated **4 stars** in the **Furnished Tourist Accommodation** category, just **300 metres from the hotel**.",
+      "This **37 m² two-room apartment** is a few steps from Narbonne's town centre and the bus station / SNCF train station.",
+      "It has a bedroom with a **high-end 160 × 200 cm double bed**, a bathroom with shower, a living room with a **140 × 200 cm convertible sofa**, a **connected TV**, **Wi-Fi** and a **fully equipped kitchen**.",
+      "The apartment is air-conditioned, double-glazed, with a sunny south-facing balcony. It is on the first floor of a Haussmann-style building with no lift."
+     ]
+    },
+    {
+     "title": "Contact & booking",
+     "kind": "buttons",
+     "items": [
+      {
+       "t": "Call the hotel",
+       "s": "04 68 32 26 28",
+       "u": "tel:+33468322628"
+      },
+      {
+       "t": "Mobile phone",
+       "s": "06 45 98 18 80",
+       "u": "tel:+33645981880"
+      },
+      {
+       "t": "Send an email",
+       "s": "contact@willshotelnarbonne.fr",
+       "u": "mailto:contact@willshotelnarbonne.fr"
+      },
+      {
+       "t": "Official website",
+       "s": "Discover Will's Hôtel",
+       "u": "https://willshotelnarbonne.fr/"
+      },
+      {
+       "t": "Book directly",
+       "s": "Best price guaranteed",
+       "u": "https://willshotelnarbonne.thais-hotel.com/direct-booking/calendar"
+      },
+      {
+       "t": "Google reviews",
+       "s": "Read travellers' reviews",
+       "u": null
+      },
+      {
+       "t": "Room Directory",
+       "s": "Access the welcome guide",
+       "u": "https://willshotelnarbonne.fr/room-directory-hotel/"
+      },
+      {
+       "t": "Instagram",
+       "s": "Follow Will's Hotel on Instagram",
+       "u": "https://www.instagram.com/lewillshotel/"
+      },
+      {
+       "t": "Facebook",
+       "s": "Discover the hotel's Facebook page",
+       "u": "https://www.facebook.com/profile.php?id=100086912328688"
+      }
+     ]
+    },
+    {
+     "title": "House rules",
+     "kind": "text",
+     "items": [
+      "**Animals:** animals are not accepted, without exception.",
+      "**Non-smoking:** smoking is strictly forbidden in the apartment, even with the windows open. A flat-rate indemnity of **€60** may be charged for loss of business.",
+      "The apartment's house rules apply to all bookings. Any stay means accepting the special conditions and the house rules. If any of these rules are not respected, the hotelier may ask the guest to leave the establishment, without compensation."
+     ]
+    },
+    {
+     "title": "Booking conditions",
+     "kind": "text",
+     "items": [
+      "**Minimum stay:** 2 nights.",
+      "**Arrival:** we welcome guests between **5 pm and 10 pm**. Please let us know your approximate arrival time so we can prepare your welcome.",
+      "**Key collection:** come to the hotel to collect the keys and pay the balance of your stay: **Will's Hôtel – 23 avenue Pierre Semard, Narbonne**.",
+      "**Departure:** the apartment must be vacated by **11 am** at the latest."
+     ]
+    },
+    {
+     "title": "Facilities",
+     "kind": "columns",
+     "items": [
+      {
+       "t": "Bathroom & linen",
+       "items": [
+        "Shower",
+        "Hairdryer",
+        "Towels, sheets, soap and toilet paper provided",
+        "Shampoo, soap, shower gel",
+        "Cleaning products",
+        "Linen replacement: see the notice in the bathroom or contact reception"
+       ]
+      },
+      {
+       "t": "Everyday comfort",
+       "items": [
+        "Reversible air conditioning",
+        "Additional heating (electric radiator)",
+        "Walk-in wardrobe",
+        "Iron and ironing board",
+        "Hangers and storage space for clothes"
+       ]
+      },
+      {
+       "t": "Outdoor & access",
+       "items": [
+        "Patio or balcony with private access",
+        "Outdoor table and chairs",
+        "Space to store bicycles",
+        "Paid street parking",
+        "Paid parking on site"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "de": {
+   "title": "Will's Appart - Narbonne",
+   "sections": [
+    {
+     "title": "Allgemeine Vorstellung",
+     "kind": "text",
+     "items": [
+      "Genießen Sie eine elegante, sehr helle Wohnung, kürzlich mit **4 Sternen** in der Kategorie **Möblierte Ferienunterkunft** eingestuft, nur **300 Meter vom Hotel** entfernt.",
+      "Diese **37 m² große 2-Zimmer-Wohnung** liegt nur wenige Schritte vom Stadtzentrum von Narbonne und vom Busbahnhof / Bahnhof SNCF entfernt.",
+      "Sie besteht aus einem Schlafzimmer mit **hochwertigem Doppelbett 160 × 200 cm**, einem Bad mit Dusche, einem Wohnzimmer mit **Schlafsofa 140 × 200 cm**, einem **Smart-TV**, **WLAN** und einer **voll ausgestatteten Küche**.",
+      "Die Wohnung ist klimatisiert, hat Doppelverglasung und einen sonnigen Südbalkon. Sie liegt im ersten Stock eines Gebäudes im Haussmann-Stil ohne Aufzug."
+     ]
+    },
+    {
+     "title": "Kontakt & Buchung",
+     "kind": "buttons",
+     "items": [
+      {
+       "t": "Hotel anrufen",
+       "s": "04 68 32 26 28",
+       "u": "tel:+33468322628"
+      },
+      {
+       "t": "Handy",
+       "s": "06 45 98 18 80",
+       "u": "tel:+33645981880"
+      },
+      {
+       "t": "E-Mail senden",
+       "s": "contact@willshotelnarbonne.fr",
+       "u": "mailto:contact@willshotelnarbonne.fr"
+      },
+      {
+       "t": "Offizielle Website",
+       "s": "Will's Hôtel entdecken",
+       "u": "https://willshotelnarbonne.fr/"
+      },
+      {
+       "t": "Direkt buchen",
+       "s": "Bester Preis garantiert",
+       "u": "https://willshotelnarbonne.thais-hotel.com/direct-booking/calendar"
+      },
+      {
+       "t": "Google-Bewertungen",
+       "s": "Bewertungen von Reisenden lesen",
+       "u": null
+      },
+      {
+       "t": "Room Directory",
+       "s": "Zum Begrüßungsheft",
+       "u": "https://willshotelnarbonne.fr/room-directory-hotel/"
+      },
+      {
+       "t": "Instagram",
+       "s": "Will's Hotel auf Instagram folgen",
+       "u": "https://www.instagram.com/lewillshotel/"
+      },
+      {
+       "t": "Facebook",
+       "s": "Facebook-Seite des Hotels entdecken",
+       "u": "https://www.facebook.com/profile.php?id=100086912328688"
+      }
+     ]
+    },
+    {
+     "title": "Hausordnung",
+     "kind": "text",
+     "items": [
+      "**Tiere:** Haustiere sind ausnahmslos nicht erlaubt.",
+      "**Nichtraucher:** Rauchen ist in der Wohnung streng verboten, auch bei geöffneten Fenstern. Eine Pauschalentschädigung von **60 €** kann für entgangene Einnahmen berechnet werden.",
+      "Die Hausordnung der Wohnung gilt für alle Buchungen. Mit jedem Aufenthalt werden die besonderen Bedingungen und die Hausordnung akzeptiert. Bei Nichtbeachtung einer dieser Regeln kann der Hotelier den Gast ohne Entschädigung bitten, die Unterkunft zu verlassen."
+     ]
+    },
+    {
+     "title": "Buchungsbedingungen",
+     "kind": "text",
+     "items": [
+      "**Mindestaufenthalt:** 2 Übernachtungen.",
+      "**Ankunft:** wir empfangen Sie zwischen **17:00 und 22:00 Uhr**. Bitte teilen Sie uns Ihre ungefähre Ankunftszeit mit, damit wir Ihren Empfang gut vorbereiten können.",
+      "**Schlüsselübergabe:** Kommen Sie zum Hotel, um die Schlüssel abzuholen und den Restbetrag Ihres Aufenthalts zu bezahlen: **Will's Hôtel – 23 avenue Pierre Semard, Narbonne**.",
+      "**Abreise:** Die Wohnung muss spätestens bis **11:00 Uhr** geräumt sein."
+     ]
+    },
+    {
+     "title": "Ausstattung",
+     "kind": "columns",
+     "items": [
+      {
+       "t": "Bad & Wäsche",
+       "items": [
+        "Dusche",
+        "Haartrockner",
+        "Handtücher, Bettwäsche, Seife und Toilettenpapier inklusive",
+        "Shampoo, Seife, Duschgel",
+        "Reinigungsmittel",
+        "Wäschewechsel: siehe Aushang im Bad oder Rezeption kontaktieren"
+       ]
+      },
+      {
+       "t": "Komfort im Alltag",
+       "items": [
+        "Reversible Klimaanlage",
+        "Zusatzheizung (elektrischer Heizkörper)",
+        "Ankleidezimmer",
+        "Bügeleisen und Bügelbrett",
+        "Kleiderbügel und Stauraum für Kleidung"
+       ]
+      },
+      {
+       "t": "Außenbereich & Zugang",
+       "items": [
+        "Terrasse oder Balkon mit privatem Zugang",
+        "Gartentisch und Stühle",
+        "Fahrradabstellplatz",
+        "Kostenpflichtiger Straßenparkplatz",
+        "Kostenpflichtiger Parkplatz vor Ort"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "es": {
+   "title": "Will's Appart - Narbona",
+   "sections": [
+    {
+     "title": "Presentación general",
+     "kind": "text",
+     "items": [
+      "Disfrute de un alojamiento elegante y muy luminoso, clasificado recientemente con **4 estrellas** en la categoría **Alojamiento Turístico Amueblado**, a solo **300 metros del hotel**.",
+      "Este apartamento **T2 de 37 m²** está a dos pasos del centro de Narbona y de la estación de autobuses / estación SNCF.",
+      "Dispone de un dormitorio con **cama doble de gama alta 160 × 200 cm**, un baño con ducha, un salón con **sofá cama 140 × 200 cm**, una **TV conectada**, **Wi-Fi** y una **cocina totalmente equipada**.",
+      "El apartamento tiene aire acondicionado, doble acristalamiento y un balcón orientado al sur. Está en el primer piso de un edificio de estilo haussmanniano sin ascensor."
+     ]
+    },
+    {
+     "title": "Contacto y reserva",
+     "kind": "buttons",
+     "items": [
+      {
+       "t": "Llamar al hotel",
+       "s": "04 68 32 26 28",
+       "u": "tel:+33468322628"
+      },
+      {
+       "t": "Teléfono móvil",
+       "s": "06 45 98 18 80",
+       "u": "tel:+33645981880"
+      },
+      {
+       "t": "Enviar un correo",
+       "s": "contact@willshotelnarbonne.fr",
+       "u": "mailto:contact@willshotelnarbonne.fr"
+      },
+      {
+       "t": "Sitio oficial",
+       "s": "Descubrir Will's Hôtel",
+       "u": "https://willshotelnarbonne.fr/"
+      },
+      {
+       "t": "Reservar directamente",
+       "s": "Mejor precio garantizado",
+       "u": "https://willshotelnarbonne.thais-hotel.com/direct-booking/calendar"
+      },
+      {
+       "t": "Opiniones en Google",
+       "s": "Leer las opiniones de los viajeros",
+       "u": null
+      },
+      {
+       "t": "Room Directory",
+       "s": "Acceder a la guía de bienvenida",
+       "u": "https://willshotelnarbonne.fr/room-directory-hotel/"
+      },
+      {
+       "t": "Instagram",
+       "s": "Seguir a Will's Hotel en Instagram",
+       "u": "https://www.instagram.com/lewillshotel/"
+      },
+      {
+       "t": "Facebook",
+       "s": "Ver la página de Facebook del hotel",
+       "u": "https://www.facebook.com/profile.php?id=100086912328688"
+      }
+     ]
+    },
+    {
+     "title": "Reglamento interno",
+     "kind": "text",
+     "items": [
+      "**Animales:** no se admiten animales, sin excepción.",
+      "**No fumadores:** está estrictamente prohibido fumar en el apartamento, incluso con las ventanas abiertas. Podrá aplicarse una indemnización fija de **60 €** por pérdida de explotación.",
+      "El reglamento interno del apartamento se aplica a todas las reservas. Cualquier estancia implica la aceptación de las condiciones particulares y del reglamento interno. En caso de incumplimiento de alguna de estas disposiciones, el hotelero podrá pedir al cliente que abandone el establecimiento, sin indemnización."
+     ]
+    },
+    {
+     "title": "Condiciones de reserva",
+     "kind": "text",
+     "items": [
+      "**Estancia mínima:** 2 noches.",
+      "**Llegada:** le recibimos entre las **17:00 y las 22:00 h**. Por favor, indíquenos su hora aproximada de llegada para organizar mejor su recepción.",
+      "**Entrega de llaves:** acuda al hotel para recoger las llaves y pagar el resto de su estancia: **Will's Hôtel – 23 avenue Pierre Semard, Narbona**.",
+      "**Salida:** el apartamento debe quedar libre como máximo a las **11:00 h**."
+     ]
+    },
+    {
+     "title": "Equipamiento",
+     "kind": "columns",
+     "items": [
+      {
+       "t": "Baño y ropa",
+       "items": [
+        "Ducha",
+        "Secador de pelo",
+        "Toallas, sábanas, jabón y papel higiénico incluidos",
+        "Champú, jabón, gel de ducha",
+        "Productos de limpieza",
+        "Cambio de ropa de cama y toallas: vea el aviso del baño o contacte con recepción"
+       ]
+      },
+      {
+       "t": "Confort diario",
+       "items": [
+        "Aire acondicionado reversible",
+        "Calefacción de apoyo (radiador eléctrico)",
+        "Vestidor",
+        "Plancha y tabla de planchar",
+        "Perchas y espacio de almacenamiento para la ropa"
+       ]
+      },
+      {
+       "t": "Exterior y acceso",
+       "items": [
+        "Patio o balcón con acceso privado",
+        "Mesa y sillas de exterior",
+        "Espacio para guardar bicicletas",
+        "Aparcamiento de pago en la calle",
+        "Aparcamiento de pago en el lugar"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "nl": {
+   "title": "Will's Appart - Narbonne",
+   "sections": [
+    {
+     "title": "Algemene presentatie",
+     "kind": "text",
+     "items": [
+      "Geniet van een stijlvol en zeer lichtrijk appartement, onlangs geclassificeerd met **4 sterren** in de categorie **Gemeubileerde toeristische accommodatie**, op slechts **300 meter van het hotel**.",
+      "Dit **T2-appartement van 37 m²** ligt op enkele stappen van het stadscentrum van Narbonne en het busstation / station SNCF.",
+      "Het heeft een slaapkamer met een **hoogwaardig tweepersoonsbed 160 × 200 cm**, een badkamer met douche, een woonkamer met **slaapbank 140 × 200 cm**, een **smart-tv**, **wifi** en een **volledig ingerichte keuken**.",
+      "Het appartement is airconditioned, dubbel glas en heeft een zonnig balkon op het zuiden. Het ligt op de eerste verdieping van een Haussmann-pand zonder lift."
+     ]
+    },
+    {
+     "title": "Contact & reserveren",
+     "kind": "buttons",
+     "items": [
+      {
+       "t": "Hotel bellen",
+       "s": "04 68 32 26 28",
+       "u": "tel:+33468322628"
+      },
+      {
+       "t": "Mobiele telefoon",
+       "s": "06 45 98 18 80",
+       "u": "tel:+33645981880"
+      },
+      {
+       "t": "E-mail sturen",
+       "s": "contact@willshotelnarbonne.fr",
+       "u": "mailto:contact@willshotelnarbonne.fr"
+      },
+      {
+       "t": "Officiële website",
+       "s": "Ontdek Will's Hôtel",
+       "u": "https://willshotelnarbonne.fr/"
+      },
+      {
+       "t": "Rechtstreeks boeken",
+       "s": "Beste prijs gegarandeerd",
+       "u": "https://willshotelnarbonne.thais-hotel.com/direct-booking/calendar"
+      },
+      {
+       "t": "Google-recensies",
+       "s": "Lees de reviews van reizigers",
+       "u": null
+      },
+      {
+       "t": "Room Directory",
+       "s": "Naar het welkomstboekje",
+       "u": "https://willshotelnarbonne.fr/room-directory-hotel/"
+      },
+      {
+       "t": "Instagram",
+       "s": "Volg Will's Hotel op Instagram",
+       "u": "https://www.instagram.com/lewillshotel/"
+      },
+      {
+       "t": "Facebook",
+       "s": "Facebookpagina van het hotel bekijken",
+       "u": "https://www.facebook.com/profile.php?id=100086912328688"
+      }
+     ]
+    },
+    {
+     "title": "Huishoudelijk reglement",
+     "kind": "text",
+     "items": [
+      "**Huisdieren:** huisdieren zijn zonder uitzondering niet toegestaan.",
+      "**Niet-roken:** roken is strikt verboden in het appartement, zelfs met de ramen open. Een forfaitaire schadevergoeding van **€ 60** kan worden toegepast wegens gederfde omzet.",
+      "Het huishoudelijk reglement van het appartement geldt voor alle reserveringen. Elk verblijf houdt in dat de bijzondere voorwaarden en het huishoudelijk reglement worden aanvaard. Bij niet-naleving van een van deze bepalingen kan de hotelier de gast vragen het etablissement te verlaten, zonder schadevergoeding."
+     ]
+    },
+    {
+     "title": "Reserveringsvoorwaarden",
+     "kind": "text",
+     "items": [
+      "**Minimumverblijf:** 2 nachten.",
+      "**Aankomst:** wij ontvangen u tussen **17.00 en 22.00 uur**. Geef ons alstublieft uw ongeveer aankomsttijd door, zodat wij uw ontvangst goed kunnen voorbereiden.",
+      "**Sleuteloverdracht:** kom naar het hotel om de sleutels op te halen en het restant van uw verblijf te betalen: **Will's Hôtel – 23 avenue Pierre Semard, Narbonne**.",
+      "**Vertrek:** het appartement moet uiterlijk om **11.00 uur** worden verlaten."
+     ]
+    },
+    {
+     "title": "Voorzieningen",
+     "kind": "columns",
+     "items": [
+      {
+       "t": "Badkamer & linnen",
+       "items": [
+        "Douche",
+        "Haardroger",
+        "Handdoeken, lakens, zeep en toiletpapier aanwezig",
+        "Shampoo, zeep, douchegel",
+        "Schoonmaakproducten",
+        "Linnen vervangen: zie het bordje in de badkamer of neem contact op met de receptie"
+       ]
+      },
+      {
+       "t": "Dagelijks comfort",
+       "items": [
+        "Omkeerbare airconditioning",
+        "Bijverwarming (elektrische radiator)",
+        "Inloopkast",
+        "Strijkijzer en strijkplank",
+        "Hangers en opbergruimte voor kleding"
+       ]
+      },
+      {
+       "t": "Buiten & toegang",
+       "items": [
+        "Patio of balkon met privétoegang",
+        "Tafel en stoelen buiten",
+        "Ruimte om fietsen te stallen",
+        "Betaald parkeren op straat",
+        "Betaald parkeren ter plaatse"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "logo": "logo.png"
+}

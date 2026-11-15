@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Will's Appart · Narbonne</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#f7f3ec;--card:#fff;--ink:#2a2622;--mut:#6f665c;--acc:#8c2f39;--gold:#b8924a;--line:#e4dccf}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:#fffdf9ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+header img{height:34px;width:auto}
+.langs{margin-left:auto;display:flex;gap:4px}
+.langs button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 9px;font-size:20px;line-height:1.2;cursor:pointer}
+.langs button[aria-pressed=true]{border-color:var(--acc);box-shadow:0 0 0 2px #8c2f3933}
+nav{display:flex;gap:6px;overflow-x:auto;padding:8px 16px;background:#fffdf9;border-bottom:1px solid var(--line)}
+nav a{white-space:nowrap;text-decoration:none;color:var(--ink);background:#f0e9dc;border-radius:999px;padding:5px 12px;font-size:14px;font-weight:600}
+main{max-width:760px;margin:0 auto;padding:16px}
+.hero{border-radius:16px;background:linear-gradient(135deg,#8c2f39,#5e1f27);color:#fff;padding:22px 18px;margin-bottom:14px}
+.hero h1{margin:0;font-size:24px;font-weight:700}
+section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 16px;margin:0 0 14px;scroll-margin-top:110px}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.dot{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+h2{margin:0;font-size:19px;color:var(--acc)}
+.gold{height:2px;width:56px;background:var(--gold);border-radius:2px;margin:0 0 12px}
+p{margin:0 0 10px}
+.cards{display:grid;gap:10px}
+.card{display:block;text-decoration:none;color:var(--ink);background:#fbf8f2;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+a.card:hover{border-color:var(--acc)}
+.card b{display:block;font-size:16px}
+.card small{color:var(--mut);display:block;font-size:14px}
+.cols{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.cols h3{margin:0 0 6px;font-size:16px;color:var(--acc)}
+ul{margin:0;padding-left:20px}
+li{margin:3px 0}
+footer{text-align:center;color:var(--mut);font-size:12px;padding:14px}
+</style>
+</head>
+<body>
+<header><img src="logo.png" alt="Will's Hôtel"><div class="langs" id="langs" role="group"></div></header>
+<nav id="nav"></nav>
+<main id="app"><p class="muted" style="text-align:center">…</p></main>
+<footer>Will's Hôtel · 23 avenue Pierre Sémard · 11100 Narbonne</footer>
+<script>
+const FLAG={fr:'🇫🇷',en:'🇬🇧',es:'🇪🇸',de:'🇩🇪',nl:'🇳🇱'};
+const NAME={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands'};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// Gras : **texte** dans le contenu
+const rich=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+const q=new URLSearchParams(location.search);
+let D=null,langs=[],cur='fr';
+
+function render(){
+  const L=D.languages[cur];
+  document.documentElement.lang=cur;
+  document.title=L.title;
+  document.getElementById('langs').innerHTML=langs.length>1?langs.map(l=>`<button type="button" data-l="${l}" aria-pressed="${l===cur}" title="${NAME[l]}" aria-label="${NAME[l]}">${FLAG[l]}</button>`).join(''):'';
+  document.getElementById('nav').innerHTML=L.sections.map((s,i)=>`<a href="#s${i}">${esc(s.title)}</a>`).join('');
+  const body=L.sections.map((s,i)=>{
+    let inner='';
+    if(s.kind==='text'){
+      inner=s.items.map(p=>`<p>${rich(p)}</p>`).join('');
+    }else if(s.kind==='buttons'){
+      inner='<div class="cards">'+s.items.map(b=>{
+        const inside=`<b>${esc(b.t)}</b><small>${esc(b.s)}</small>`;
+        return b.u
+          ? `<a class="card" href="${esc(b.u)}"${b.u.startsWith('http')?' target="_blank" rel="noopener"':''}>${inside}</a>`
+          : `<div class="card">${inside}</div>`;
+      }).join('')+'</div>';
+    }else if(s.kind==='columns'){
+      inner='<div class="cols">'+s.items.map(c=>`<div><h3>${esc(c.t)}</h3><ul>${c.items.map(x=>`<li>${rich(x)}</li>`).join('')}</ul></div>`).join('')+'</div>';
+    }
+    return `<section id="s${i}"><div class="head"><div class="dot">${i+1}</div><h2>${esc(s.title)}</h2></div><div class="gold"></div>${inner}</section>`;
+  }).join('');
+  document.getElementById('app').innerHTML=`<div class="hero"><h1>${esc(L.title)}</h1></div>${body}`;
+}
+
+async function init(){
+  try{
+    const r=await fetch('content.json',{cache:'no-cache'});
+    D=await r.json();
+  }catch{
+    document.getElementById('app').innerHTML='<p>Contenu indisponible.</p>';
+    return;
+  }
+  const all=Object.keys(D.languages);
+  langs=all.filter(l=>FLAG[l]);
+  let saved=null;try{saved=localStorage.getItem('nv-lang');}catch{}
+  const want=q.get('lang');
+  cur=langs.includes(want)?want:(langs.includes(saved)?saved:(langs[0]||'fr'));
+  render();
+}
+document.getElementById('langs').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-l]');if(!b)return;
+  cur=b.dataset.l;try{localStorage.setItem('nv-lang',cur);}catch{}
+  render();
+});
+init();
+</script>
+</body>
+</html>
