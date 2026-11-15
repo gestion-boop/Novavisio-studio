@@ -1,5 +1,5 @@
 import {createPortal} from 'react-dom';
-import {useEffect,useId,useRef,useState,type ReactNode} from 'react';
+import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {Map,Maximize2,X} from 'lucide-react';
 import {isSafeFrameImage,type FloorPlan,type Scene} from './storage';
 import './floorPlan.css';
@@ -37,7 +37,7 @@ export function PlanModal({children,title,onClose,wide=false,icon}:{children:Rea
 }
 
 /** The image determines the canvas size: markers never drift into letterboxing. */
-function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove}:{plan:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onPlace?:(x:number,y:number)=>void;onMove?:(id:string,x:number,y:number)=>void}){
+function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove}:{onRemove?:(id:string)=>void;plan:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onPlace?:(x:number,y:number)=>void;onMove?:(id:string,x:number,y:number)=>void}){
   const drag=useRef<{x:number;y:number;moved:boolean;dx:number;dy:number}|null>(null);
   const suppressClick=useRef(false);
   const position=(clientX:number,clientY:number,rect:DOMRect)=>({x:Math.max(0,Math.min(100,(clientX-rect.left)/rect.width*100)),y:Math.max(0,Math.min(100,(clientY-rect.top)/rect.height*100))});
@@ -52,13 +52,16 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove}:{plan:FloorPlan
     {visiblePoints(plan,scenes).map((point,index)=>{
       const scene=scenes.find(scene=>scene.id===point.sceneId)!;
       const current=scene.id===currentId;
-      return <button type="button" key={point.sceneId} className={'nv-plan-point nv-no-fx'+(current?' is-current':'')} style={{left:point.x+'%',top:point.y+'%'}}
+      return <Fragment key={point.sceneId}><button type="button" className={'nv-plan-point nv-no-fx'+(current?' is-current':'')} style={{left:point.x+'%',top:point.y+'%'}}
         aria-label={(onPlace?'Sélectionner : ':'Aller à : ')+scene.name} aria-current={current?'location':undefined} title={scene.name}
         onPointerDown={onMove?e=>{if(e.button!==0)return;e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,moved:false,dx:e.clientX-rect.left-rect.width/2,dy:e.clientY-rect.top-rect.height/2};suppressClick.current=false;e.currentTarget.setPointerCapture(e.pointerId);onPick(point.sceneId);}:undefined}
         onPointerMove={onMove?e=>{if(!drag.current)return;if(Math.hypot(e.clientX-drag.current.x,e.clientY-drag.current.y)>4)drag.current.moved=true;if(drag.current.moved){const p=position(e.clientX-drag.current.dx,e.clientY-drag.current.dy,e.currentTarget.parentElement!.getBoundingClientRect());e.currentTarget.style.left=p.x+'%';e.currentTarget.style.top=p.y+'%';}}:undefined}
         onPointerUp={onMove?e=>{if(!drag.current)return;const {moved,dx,dy}=drag.current;drag.current=null;suppressClick.current=moved;if(moved){const p=position(e.clientX-dx,e.clientY-dy,e.currentTarget.parentElement!.getBoundingClientRect());onMove(point.sceneId,p.x,p.y);}}:undefined}
         onPointerCancel={e=>{drag.current=null;e.currentTarget.style.left=point.x+'%';e.currentTarget.style.top=point.y+'%';}}
-        onClick={e=>{e.stopPropagation();if(suppressClick.current){suppressClick.current=false;return;}onPick(point.sceneId);}}><span>{index+1}</span></button>;
+        onClick={e=>{e.stopPropagation();if(suppressClick.current){suppressClick.current=false;return;}onPick(point.sceneId);}}><span>{index+1}</span></button>
+        {onRemove&&<button type="button" className="nv-plan-remove nv-no-fx" style={{left:`calc(${point.x}% + 16px)`,top:`calc(${point.y}% - 16px)`}}
+          aria-label={'Retirer le point : '+scene.name} title={'Retirer le point : '+scene.name} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onRemove(point.sceneId);}}><X size={13}/></button>}
+      </Fragment>;
     })}
   </div>;
 }
@@ -96,12 +99,12 @@ async function importPlan(file:File):Promise<string>{
   }finally{bitmap.close();}
 }
 
-export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview,onRenameScene,startExpanded=false}:{startExpanded?:boolean;onRenameScene?:(id:string,name:string)=>void;thumbs?:Record<string,string>;renderPreview?:(sceneId:string)=>ReactNode;plan?:FloorPlan;scenes:Scene[];onChange:(plan:FloorPlan|undefined)=>void;hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void}){
-  const [selectedId,setSelectedId]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[expanded,setExpanded]=useState(startExpanded&&!!plan);
+export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={}}:{thumbs?:Record<string,string>;plan?:FloorPlan;scenes:Scene[];onChange:(plan:FloorPlan|undefined)=>void;hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void}){
+  const [selectedId,setSelectedId]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[expanded,setExpanded]=useState(!!plan);
   const fileInput=useRef<HTMLInputElement>(null),importing=useRef(false);
   const available=scenes.filter(scene=>!scene.excluded);
   const selected=available.find(scene=>scene.id===selectedId)??available[0];
-  const point=plan?.points.find(point=>point.sceneId===selected?.id);
+  const removePoint=(id:string)=>{if(plan)onChange({...plan,points:plan.points.filter(point=>point.sceneId!==id)});};
   const movePoint=(sceneId:string,x:number,y:number)=>{
     if(!plan||!available.some(scene=>scene.id===sceneId))return;
     setSelectedId(sceneId);
@@ -109,23 +112,15 @@ export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,
   };
   const place=(x:number,y:number)=>{if(selected)movePoint(selected.id,x,y);};
   const controls=<div className="nv-plan-editor">
-    <p>Glisse un panorama sur le plan, ou sélectionne-le puis clique à son emplacement. Les points peuvent aussi être déplacés à la souris ou au doigt.</p>
+    <p>Glisse un panorama de la liste sur le plan. Pour retirer un point, clique sur sa croix.</p>
     {plan&&<>
       <div className="nv-plan-workspace">
         <div className="nv-plan-workspace-map">
           <div className="nv-plan-pane-heading"><strong>Plan de la visite</strong><small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small></div>
-          <div className="nv-plan-edit-canvas"><PlanImage plan={plan} scenes={available} currentId={selected?.id} onPick={setSelectedId} onPlace={selected?place:undefined} onMove={movePoint}/></div>
+          <div className="nv-plan-edit-canvas"><PlanImage plan={plan} scenes={available} currentId={selected?.id} onPick={setSelectedId} onPlace={selected?place:undefined} onMove={movePoint} onRemove={removePoint}/></div>
         </div>
         <aside className="nv-plan-panorama-pane" aria-label="Liste et aperçu des panoramas">
           <strong>Panoramas</strong>
-          <label>Panorama à placer<select value={selected?.id??''} disabled={!available.length} onChange={e=>setSelectedId(e.target.value)}>
-            {!available.length&&<option value="">Importe d’abord des panoramas</option>}
-            {available.map(scene=><option key={scene.id} value={scene.id}>{plan.points.some(point=>point.sceneId===scene.id)?'✓ ':''}{scene.name}</option>)}
-          </select></label>
-          {selected&&<section className="nv-plan-selected-preview" aria-label={'Aperçu de '+selected.name}>
-            <div className="nv-plan-selected-view" key={selected.id}>{renderPreview?renderPreview(selected.id):thumbs[selected.id]?<img src={thumbs[selected.id]} alt={selected.name}/>:<span>Aperçu en préparation…</span>}</div>
-            {onRenameScene?<label>Nom du panorama<input aria-label="Renommer le panorama sélectionné" maxLength={150} value={selected.name} onChange={e=>onRenameScene(selected.id,e.target.value)}/></label>:<strong>{selected.name}</strong>}<small>Glisse dans l’aperçu pour regarder autour de toi.</small>
-          </section>}
           <div className="nv-plan-source-list" role="group" aria-label="Panoramas à glisser sur le plan">{available.map(scene=>{
             const index=visiblePoints(plan,available).findIndex(point=>point.sceneId===scene.id);
             return <button type="button" key={scene.id} draggable aria-label={scene.name} aria-pressed={selected?.id===scene.id}
@@ -136,17 +131,6 @@ export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,
           })}</div>
         </aside>
       </div>
-      {selected&&<div className="nv-plan-position">
-        <span>{selected.name} {point?'· placé':'· à placer'}</span>
-        {(['x','y'] as const).map(axis=><label key={axis}>{axis==='x'?'Horizontal':'Vertical'} (%)<input type="number" min="0" max="100" step="0.1" value={Math.round((point?.[axis]??50)*10)/10} onChange={e=>{
-          if(e.target.value==='')return;
-          const value=Number(e.target.value);
-          if(Number.isFinite(value))place(axis==='x'?Math.max(0,Math.min(100,value)):point?.x??50,axis==='y'?Math.max(0,Math.min(100,value)):point?.y??50);
-        }}/></label>)}
-        {!point&&<button type="button" onClick={()=>place(50,50)}>Placer au centre</button>}
-        {point&&<button type="button" onClick={()=>onChange({...plan,points:plan.points.filter(point=>point.sceneId!==selected.id)})}>Retirer ce point</button>}
-      </div>}
-      <small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small>
     </>}
   </div>;
   return <div className="nv-plan-editor">
@@ -163,8 +147,8 @@ export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,
     <button type="button" disabled={busy} onClick={()=>fileInput.current?.click()}>{busy?'Import du plan…':plan?'Remplacer le plan':'Importer un plan'}</button>
     {error&&<p role="alert">{error}</p>}
     {plan&&<>
-      <button type="button" onClick={()=>setExpanded(true)}><Maximize2 size={16}/> Agrandir l’éditeur du plan</button>
-      {expanded?<PlanModal wide title="Placer les panoramas sur le plan" onClose={()=>setExpanded(false)}><div className="nv-plan-expanded-editor">{controls}</div></PlanModal>:controls}
+      <button type="button" onClick={()=>setExpanded(true)}><Maximize2 size={16}/> Ouvrir le plan</button>
+      {expanded?<PlanModal wide title="Plan et panoramas" onClose={()=>setExpanded(false)}><div className="nv-plan-expanded-editor">{controls}</div></PlanModal>:null}
       <div className="nv-plan-editor-actions">
         {!hasPlanButton&&<button type="button" onClick={onAddButton}>＋ Ajouter le bouton Plan à la visite</button>}
         {hasPlanButton&&<small>✓ Une action Plan est configurée dans la barre de la visite.</small>}

@@ -1,3 +1,4 @@
+import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {FloorPlanEditor,FloorPlanDialog} from './FloorPlan';
 import {MediaIconSelector} from './MediaIconSettings';
 import {BarSmartCard,barKind,recommendedType} from './BarSmartCard';
@@ -867,6 +868,8 @@ function App(){
   },[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null>(null);
   const [preview,setPreview]=useState(false);
+  useEffect(()=>{if(preview||panel!=='panoramas')setPanoModalId(null);},[preview,panel]);
+
   const [clientVideoPlacement,setClientVideoPlacement]=useState<(ImportedClientVideo&{sceneId:string})|null>(null);
   useEffect(()=>{
     if(mode!=='video'||preview||clientVideoPlacement?.sceneId!==activeId)setClientVideoPlacement(null);
@@ -4558,7 +4561,7 @@ function App(){
           onMouseEnter={()=>{if(autoNavigation)hoverSidePreview(s.id);}} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
-          <button className={'scene '+(s.id===activeId?'active':'')} title={'Ouvrir '+s.name+' directement dans la grande vue'}
+          <button className={'scene '+(s.id===activeId?'active':'')} title={(preview?'Ouvrir ':'Prévisualiser et renommer ')+s.name}
             onKeyDown={e=>{
               if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'))return;
               e.preventDefault();
@@ -4566,7 +4569,7 @@ function App(){
             }}
             onClick={()=>{
               // Hors mode Auto : un clic ouvre une fenêtre pour tourner dans le panorama à 360° avant de décider (ouvrir ou supprimer).
-              if(!autoNavigation&&!preview){setPanoModalId(s.id);return;}
+              if(!preview){setPanoModalId(s.id);return;}
               selectScene(s.id);
               if(!autoNavigation){returnTo.current=null;setRightHidden(true);} // on va simplement au panorama choisi
               setMode(autoNavigation&&!preview?'navigation':null);
@@ -4589,11 +4592,8 @@ function App(){
             onPointerDown={e=>e.stopPropagation()}
             onClick={e=>{e.stopPropagation();setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===s.id?{...sc,excluded:sc.excluded?undefined:true}:sc)}));}}>
             {s.excluded?'':'✓'}</button>
-          {!preview&&<label className="nv-scene-rename" onPointerDown={e=>e.stopPropagation()} onClick={e=>e.stopPropagation()}>Nom du panorama
-            <input aria-label={'Renommer le panorama '+s.name} maxLength={150} value={s.name} onChange={e=>{const name=e.target.value;setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===s.id?{...sc,name}:sc)}));}}/>
-          </label>}
           {!preview&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
-            onClick={()=>{setGalleryPreviewSceneId(s.id);setGalleryPreviewPinned(true);}}>360°</button>}
+            onClick={()=>setPanoModalId(s.id)}>360°</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
              onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}><XMark/></button>:
@@ -5053,8 +5053,7 @@ function App(){
         </div>}
         {panel==='plan' && <div className="properties">
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
-            <FloorPlanEditor startExpanded onRenameScene={(id,name)=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===id?{...sc,name}:sc)}))} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
-              renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
@@ -5062,8 +5061,7 @@ function App(){
         </div>}
         {panel==='settings' && <div className="properties">
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
-            <FloorPlanEditor onRenameScene={(id,name)=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===id?{...sc,name}:sc)}))} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs}
-              renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+            <FloorPlanEditor plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
@@ -5204,29 +5202,12 @@ function App(){
           {is.sceneId&&<button type="button" onClick={()=>goToIssue(is)}>Corriger</button>}</li>)}</ul></>}
       <div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>{publishIssues.some(i=>i.level==='error')?'Publier quand même':'Confirmer la publication'}</button></div></section></div>}
     {panoModalId&&(()=>{
-      const list=filteredScenes.length?filteredScenes:visibleScenes;
-      const idx=list.findIndex(x=>x.id===panoModalId);
-      const sc=project.scenes.find(x=>x.id===panoModalId);
-      if(!sc)return null;
-      const go=(d:number)=>{if(list.length>1)setPanoModalId(list[(idx+d+list.length)%list.length].id);};
-      return <div className="nv-pano-modal-backdrop" onClick={()=>setPanoModalId(null)} role="presentation"
-        onKeyDown={e=>{if(e.key==='Escape')setPanoModalId(null);else if(e.key==='ArrowRight')go(1);else if(e.key==='ArrowLeft')go(-1);}}>
-        <section className="nv-pano-modal" role="dialog" aria-modal="true" aria-label={'Panorama '+sc.name} onClick={e=>e.stopPropagation()} tabIndex={-1} ref={el=>el?.focus({preventScroll:true})}>
-          <header><div><strong title={sc.name}>{sc.name}</strong><small>Scène {Math.max(1,project.scenes.findIndex(x=>x.id===sc.id)+1)} / {project.scenes.length} · {sc.hotspots.length} point{sc.hotspots.length>1?'s':''}{sc.excluded?' · décoché':''}</small></div>
-            <button type="button" onClick={()=>setPanoModalId(null)} aria-label="Fermer"><XMark/></button></header>
-          <div className="nv-pano-modal-viewer">
-            {list.length>1&&<button type="button" className="nv-pano-modal-nav is-prev" onClick={()=>go(-1)} aria-label="Panorama précédent"><ChevronLeft size={26}/></button>}
-            <FullscreenGalleryHoverPreview key={sc.id} scene={sc} thumb={sceneThumbs[sc.id]}/>
-            {list.length>1&&<button type="button" className="nv-pano-modal-nav is-next" onClick={()=>go(1)} aria-label="Panorama suivant"><ChevronRight size={26}/></button>}
-          </div>
-          <small className="nv-pano-modal-hint">Glisse pour tourner à 360° · molette ou pincement pour zoomer · ◀ ▶ pour changer de panorama</small>
-          <footer>
-            <button type="button" className="is-primary" onClick={()=>{selectScene(sc.id);returnTo.current=null;setRightHidden(true);setMode(null);setPanoModalId(null);setStatus('Panorama '+sc.name+' ouvert dans la grande vue.');}}>Ouvrir ce panorama</button>
-            <button type="button" onClick={()=>{setProject(p=>({...p,scenes:p.scenes.map(x=>x.id===sc.id?{...x,excluded:x.excluded?undefined:true}:x)}));}}>{sc.excluded?'✓ Remettre dans la visite':'Retirer de la visite'}</button>
-            <button type="button" className="is-danger" onClick={()=>deleteScene(sc.id)}><Trash2 size={15}/> Supprimer</button>
-          </footer>
-        </section>
-      </div>;
+      const scene=project.scenes.find(sc=>sc.id===panoModalId);
+      if(!scene)return null;
+      return <PanoramaPreviewEditor key={scene.id} scene={scene} onDelete={()=>deleteScene(scene.id)} onClose={()=>setPanoModalId(null)}
+        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));if(cloud.signedIn&&!await manualSave())return false;return persist(projectRef.current);}}>
+        <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
+      </PanoramaPreviewEditor>;
     })()}
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}

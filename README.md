@@ -159,7 +159,7 @@ Le rendu doit être vérifié sur des panoramas réels, et particulièrement sur
 
 ## Plan interactif des visites
 
-Dans **Paramètres de la visite**, la première section permet d’importer un plan PNG, JPG ou WebP. Agrandir l’éditeur, puis glisser les panoramas sur le plan ou sélectionner un panorama et cliquer à son emplacement. Les points se déplacent à la souris ou au doigt ; les coordonnées en pourcentage permettent aussi un placement au clavier.
+Dans **Paramètres de la visite**, la première section permet d’importer un plan PNG, JPG ou WebP. Ouvrir le plan : le dessin est à gauche et les vignettes des panoramas sont à droite. Glisser une vignette sur le dessin crée son point. Les points se déplacent à la souris ou au doigt ; la petite croix à côté retire uniquement le point. Un panorama sélectionné peut aussi être placé par un clic sur le dessin.
 
 Ajouter un bouton **Plan** depuis cette section, ou choisir l’action **Plan** sur un bouton existant de la barre. En aperçu et dans le lecteur public, le bouton affiche le plan en grand : cliquer sur un point ou son nom ouvre le panorama correspondant, avec sa vue d’arrivée habituelle. La position actuelle est mise en évidence. Échap ferme le plan.
 
@@ -167,6 +167,6 @@ Le plan est propre au projet et accompagne les sauvegardes locales, les sauvegar
 
 Vérification : `npm run build`, `node scripts/check-export.mjs`, puis `node scripts/check-floor-plan.mjs` (validation, sauvegarde JSON, espaces, skins, médias cloud et contenu réel de l’export ZIP).
 
-L’outil **Plan** ouvre directement l’éditeur agrandi : dessin à gauche, vignettes et aperçu 360° à droite. Les noms des panoramas sont modifiables dans cet éditeur et dans la liste **Panoramas**. Les paramètres du visiteur proposent **Afficher le plan** dès qu’un dessin est importé.
+L’outil **Plan** ouvre directement cette fenêtre agrandie, sans formulaire de coordonnées ni liste déroulante. Dans **Panoramas**, cliquer sur une vignette ouvre un aperçu 360° à gauche de la liste. Modifier son nom puis cliquer sur **Enregistrer** le conserve localement et, si le compte est connecté, dans le cloud. Les paramètres du visiteur proposent **Afficher le plan** dès qu’un dessin est importé.
 
 La configuration des galeries propose **Agrandir la galerie avec les aperçus** : photos et vidéos ont une grande visionneuse à côté de leur liste de sélection ; la galerie des panoramas permet de consulter chaque vue 360° en cliquant sur sa vignette et de modifier le nom affiché sur ses cartes.
