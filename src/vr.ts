@@ -31,6 +31,8 @@ export type VrOptions={
   /** Demande le téléchargement d'un panorama pas encore chargé (lien public). */
   ensureScene?:(id:string)=>void;
   onSceneChange?:(id:string)=>void;
+  /** Afficher une page externe dans l'iframe absolue de la visite 2D après sortie de WebXR. */
+  onOpenEmbedded?:(title:string,url:string)=>void;
   onEnd?:(lastSceneId:string)=>void;
 };
 
@@ -191,15 +193,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // finir de charger après la création des icônes WebXR.
         const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
         if(live.type==='information'){
-          // Pour les points i, privilégier le texte et sa traduction.
           const detail=(live.text||'').trim();
           if(!detail&&(live.imageDataUrl||live.imageUrl)){void showPhoto(live);return;}
-          if(!detail&&live.url){void showWebContent(live.title||'Informations',live.url);return;}
+          const url=live.url||((detail.match(/https?:\/\/[^\s]+/i)||[])[0]);
+          if(url){void showWebContent(live.title||'Informations',url,detail);return;}
           showText(live.title||'Informations',detail||'Aucune information renseignée.');
           return;
         }
         if(live.type==='image'){void showPhoto(live);return;}
-        if(live.type==='lien'){void showWebContent(live.title||'Lien',live.url||'');return;}
+        if(live.type==='lien'){void showWebContent(live.title||'Lien',live.url||'',live.text);return;}
         if(live.type==='video'){
           const direct=live.videoDataUrl||live.videoUrl;
           if(direct)void showVideoPanel(direct,live.title||'Vidéo');
@@ -442,14 +444,60 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       return pages.length?{title:typeof pick?.title==='string'?pick.title:'',pages}:null;
     }catch{return null;}
   };
-  /** Contenu qui se trouve sur une page web : lu dans le casque si le site propose /vr.json, sinon on explique et on donne l'adresse. */
-  const showWebContent=async(title:string,url:string)=>{
+  // Les pages web ne peuvent pas être rendues comme un panneau HTML dans
+  // WebXR. Un vrai bouton ouvre la destination dans le navigateur du Quest
+  // après sortie explicite de la session immersive.
+  const safeWebUrl=(candidate:string):string|null=>{
+    try{
+      const u=new URL(candidate.trim());
+      return u.protocol==='https:'||u.protocol==='http:'?u.href:null;
+    }catch{return null;}
+  };
+  const showWebLink=(title:string,url:string,description='')=>{
+    closePanels();
+    const valid=safeWebUrl(url);
+    const W=1.24,H=.80;
+    const tex=canvasTexture(1240,800,c=>{
+      roundRect(c,8,8,1224,784,52);c.fillStyle=panelBg;c.fill();
+      c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
+      c.fillStyle='#17232b';c.textAlign='left';c.textBaseline='top';
+      c.font='bold 54px sans-serif';c.fillText(title||'Lien internet',65,54,1110);
+      c.font='37px sans-serif';
+      const caption=description.trim()||'Ouvrir cette page dans le navigateur du casque.';
+      wrapText(c,caption,1100).slice(0,5).forEach((line,i)=>c.fillText(line,65,155+i*58));
+      c.font='31px sans-serif';
+      if(valid)c.fillText(new URL(valid).hostname,65,535,1100);
+      else c.fillText('Adresse web indisponible',65,535);
+    });
+    addPlane(panelGroup,W,H,tex,5,0,0);
+    if(valid){
+      const action=canvasTexture(650,150,c=>{
+        roundRect(c,8,8,634,134,45);c.fillStyle=btnBg;c.fill();
+        c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
+        c.fillStyle=iconColor;c.font='bold 49px sans-serif';c.textAlign='center';c.textBaseline='middle';
+        c.fillText('↗ Ouvrir le site',325,78);
+      });
+      addPanelButton(.58,.135,action,0,-.19,()=>{
+        // Un iframe HTML ne peut pas être dessiné à l'intérieur d'une
+        // scène WebXR immersive. On quitte la session VR puis on affiche
+        // l'iframe ABSOLUE existante dans le même onglet de NovaStudio.
+        // Aucun window.open ni changement d'adresse.
+        void session.end().then(()=>opts.onOpenEmbedded?.(title||'Page web',valid))
+          .catch(()=>opts.onOpenEmbedded?.(title||'Page web',valid));
+      });
+    }
+    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.055,closePanels);
+    placeInFront(panelGroup,1.5,0);
+  };
+
+  /** Contenu d'une page web : lu directement dans le casque si le site propose /vr.json, sinon panneau « Ouvrir le site » (sortie du casque puis page affichée dans NovaStudio). */
+  const showWebContent=async(title:string,url:string,description=''):Promise<void>=>{
     if(!url){showText(title||'Lien','Aucun lien renseigné.');return;}
     setNotice('Chargement…');
     const doc=await fetchVrDoc(url);
     if(ended)return;
     if(doc){showPages(doc.title||title,doc.pages);return;}
-    showText(title||'Page web','Ce contenu est une page web, qui ne peut pas s’afficher dans le casque.\nOuvre-la sur ton téléphone ou ton ordinateur :\n'+url);
+    showWebLink(title,url,description);
   };
 
   // Image en grand dans un panneau 3D (fermable avec la gâchette). `nav` ajoute précédent / suivant / retour à la galerie.
@@ -632,11 +680,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(item.type==='photos'){void showPhotoGallery(item);return;}
     if(item.type==='information'){
       const detail=(item.text||'').trim();
-      if(!detail&&item.url){void showWebContent(item.title||'Informations',item.url);return;}
-      showText(item.title||'Informations',detail||'Aucune information renseignée.');
+      const url=item.url||((detail.match(/https?:\/\/[^\s]+/i)||[])[0]);
+      if(url)void showWebContent(item.title||'Informations',url,detail);
+      else showText(item.title||'Informations',detail||'Aucune information renseignée.');
       return;
     }
-    if(item.type==='lien'){void showWebContent(item.title,item.url||'');return;}
+    if(item.type==='lien'){void showWebContent(item.title||'Lien',item.url||'',item.text);return;}
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
 
@@ -699,7 +748,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }
     if(Math.abs(turn)<.25)turnArmed=true;
     else if(Math.abs(turn)>.72&&turnArmed&&!alignPending&&!busy){
-      root.rotation.y-=Math.sign(turn)*Math.PI/2;
+      root.rotation.y+=Math.sign(turn)*Math.PI/2;
       turnArmed=false;
     }
     const now=performance.now();

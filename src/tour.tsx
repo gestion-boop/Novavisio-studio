@@ -357,6 +357,11 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         startSceneId:current.id,
         ensureScene:id=>needSceneRef.current?.(id),
         onSceneChange:id=>setVrSceneId(id),
+        onOpenEmbedded:(title,url)=>{
+          // Iframe de la visite classique, positionnée en absolu dans
+          // .tour-overlay ; aucun nouvel onglet pour le navigateur Quest.
+          setModal({title,url});
+        },
         onEnd:last=>{vrStop.current=null;setVrActive(false);setVrSceneId(null);if(projectRef.current?.scenes.some(s=>s.id===last))setSceneId(last);}
       });
       setVrActive(true);
