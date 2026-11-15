@@ -5054,7 +5054,7 @@ function App(){
               renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
-              onPreview={()=>{setPreview(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
+              onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
@@ -5063,7 +5063,7 @@ function App(){
               renderPreview={id=>{const scene=project.scenes.find(scene=>scene.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
-              onPreview={()=>{setPreview(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
+              onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
           </InspectorSection>
           <InspectorSection title="Personnaliser le bouton Paramètres" initiallyOpen>
           <p className="hint">Choisis les icônes normales, au survol et au clic. Les modifications sont visibles immédiatement sur le bouton en bas à droite. Passe en aperçu pour tester son menu son et langue.</p>
