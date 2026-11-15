@@ -8,7 +8,7 @@ import {SkinChoices} from './SkinLibrary';
 import {ICON_PACKS,packPreview,prepareIconPack} from './iconPacks';
 import {ClientStep,ClientColorProposals,ClientButtonsStep} from './ClientSetupSteps';
 
-const TITLES:Record<string,string>={client:'Client',project:'Projet & skin',icons:'Icônes',colors:'Couleurs & barre',buttons:'Boutons de la barre',languages:'Langues',panoramas:'Panoramas',music:'Musique',ready:'Prêt à créer'};
+const TITLES:Record<string,string>={client:'Client',project:'Projet & modèle',icons:'Icônes',colors:'Couleurs & barre',buttons:'Boutons de la barre',languages:'Langues',panoramas:'Panoramas',music:'Musique',vr:'VR en option',ready:'Prêt à créer'};
 const palettes=[
   {name:'Camping',background:'#f0e9d8',outline:'#91816b',button:'#536e28',buttonOutline:'#859652',icon:'#fff4cf'},
   {name:'Océan',background:'#e0eff3',outline:'#6591a5',button:'#176a91',buttonOutline:'#62a4bc',icon:'#ffffff'},
@@ -20,7 +20,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
   const content=useRef<HTMLDivElement>(null);
   // Visite créée à partir d'un client : étapes supplémentaires (fiche, boutons proposés).
   const clientMode=!!project.clientProfile?.name?.trim();
-  const keys=[...(clientMode?['client']:[]),'project','icons','colors',...(clientMode?['buttons']:[]),'languages','panoramas','music','ready'];
+  const keys=[...(clientMode?['client']:[]),'project','icons','colors',...(clientMode?['buttons']:[]),'languages','panoramas','music','vr','ready'];
   const steps=keys.map(k=>TITLES[k]);
   const key=keys[Math.min(step,keys.length-1)];
   function move(index:number){setStep(index);setMessage('');content.current?.scrollTo({top:0});}
@@ -44,7 +44,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
         <div ref={content} className="nv-setup-step"><h3>{steps[Math.min(step,steps.length-1)]}</h3>
           {key==='client'&&<ClientStep project={project} setProject={setProject}/>}
           {key==='buttons'&&<ClientButtonsStep project={project} setProject={setProject} onMessage={setMessage}/>}
-          {key==='project'&&<><p>Donne un nom à ta visite, puis démarre avec un skin enregistré ou prépare un nouveau style.</p>
+          {key==='project'&&<><p>Donne un nom à ta visite, puis applique un modèle enregistré (skin) pour reprendre les icônes Normal/Survol/Pressé, la barre et la configuration VR. Les photos, les textes et les coordonnées de l'ancien client ne sont pas copiés.</p>
             <label>Nom de l’établissement<input aria-label="Nom de l’établissement" value={project.name} maxLength={150} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/></label>
             <SkinChoices project={project} setProject={setProject}/>
           </>}
@@ -75,8 +75,12 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
             {track&&<><audio controls src={track.dataUrl??track.url} preload="none"/><label>Volume : {track.volume} %<input type="range" min="0" max="100" value={track.volume} onChange={e=>{const volume=Number(e.target.value);setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,volume}:t)}));}}/></label><label className="toggle-row"><input type="checkbox" checked={track.loop} onChange={e=>{const loop=e.target.checked;setProject(p=>({...p,audioTracks:p.audioTracks.map(t=>t.id===track.id?{...t,loop}:t)}));}}/> Lecture en boucle</label></>}
             <button type="button" disabled={busy||!project.scenes.length} onClick={()=>{setProject(p=>({...p,scenes:p.scenes.map(scene=>({...scene,musicTrackId:p.defaultMusicTrackId,audioEnabled:p.defaultMusicTrackId?false:scene.audioEnabled}))}));setMessage('Choix musical appliqué à tous les panoramas.');}}>Appliquer ce choix à tous les panoramas</button>
           </>}
+          {key==='vr'&&<><p>La visite immersive classique 360° fonctionne toujours. Tu peux activer en plus le mode casque WebXR sur les appareils compatibles, comme Meta Quest, uniquement si tu le souhaites.</p>
+            <label className="toggle-row"><input type="checkbox" checked={project.vrEnabled!==false} onChange={e=>setProject(p=>({...p,vrEnabled:e.target.checked}))}/> Autoriser le mode casque VR pour cette visite</label>
+            <small className="hint-inline">Désactivé : aucun bouton ni invitation VR sur le lien public. Activé : le visiteur peut basculer vers le casque compatible ; la navigation 360° classique reste disponible. Ce choix est conservé dans tes modèles.</small>
+          </>}
           {key==='ready'&&<><p>La base du projet est prête. Tu pourras maintenant relier les panoramas, placer les photos et compléter les liens.</p>
-            <dl className="nv-setup-review"><div><dt>Établissement</dt><dd>{project.name}</dd></div><div><dt>Panoramas</dt><dd>{project.scenes.length}</dd></div><div><dt>Barre du bas</dt><dd>{project.barStyle.width?project.barStyle.width+' px':'Largeur automatique'} · {project.barStyle.height??82} px de haut</dd></div><div><dt>Langues</dt><dd>{(project.languages??['fr']).map(code=>STUDIO_LANGUAGES.find(lang=>lang.code===code)?.name).join(', ')}</dd></div><div><dt>Musique par défaut</dt><dd>{track?.name??'Sans musique'}</dd></div></dl>
+            <dl className="nv-setup-review"><div><dt>Établissement</dt><dd>{project.name}</dd></div><div><dt>Panoramas</dt><dd>{project.scenes.length}</dd></div><div><dt>Barre du bas</dt><dd>{project.barStyle.width?project.barStyle.width+' px':'Largeur automatique'} · {project.barStyle.height??82} px de haut</dd></div><div><dt>Langues</dt><dd>{(project.languages??['fr']).map(code=>STUDIO_LANGUAGES.find(lang=>lang.code===code)?.name).join(', ')}</dd></div><div><dt>Musique par défaut</dt><dd>{track?.name??'Sans musique'}</dd></div><div><dt>Mode casque VR</dt><dd>{project.vrEnabled===false?'Désactivé':'Autorisé si compatible'}</dd></div></dl>
             <button type="button" aria-expanded={saveSkin} onClick={()=>setSaveSkin(value=>!value)}>Enregistrer cette préparation comme skin</button>
             {saveSkin&&<SkinChoices project={project} setProject={setProject}/>}
             <p className="nv-setup-note">Clique ensuite sur « Enregistrer » dans la barre du haut pour sauvegarder le projet dans ton compte Cloud. Les skins se sauvegardent séparément dans leur bibliothèque.</p>
