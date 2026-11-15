@@ -3033,6 +3033,7 @@ function App(){
       if(creationFullscreen){setFullscreenToolsTab('bar');setFullscreenToolsOpen(true);setFullscreenGalleryOpen(false);}
       return;
     }
+    document.documentElement.dataset.windowAnim=item.openAnimation??project.windowAnimation??'fade';
     if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryOpen(item.id);return;}
     if(item.type==='photos'){setPhotoGalleryId(item.id);return;}
@@ -5215,6 +5216,7 @@ function App(){
               <div className="field-group">
                 <label>Titre / Libellé
                   <input value={selected.title} placeholder="Nom du point..." onChange={e=>patchPoint({title:e.target.value})}/>
+                  <label>Animation à l’ouverture<select value={selected.openAnimation??''} onChange={e=>patchPoint({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
                 </label>
               </div>
 
@@ -5463,7 +5465,7 @@ function App(){
           {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
-            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label><TranslationInputs label="Libellé traduit" values={selectedBar.titleTranslations} onChange={t=>patchBar({titleTranslations:t})}/>
+            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label><TranslationInputs label="Libellé traduit" values={selectedBar.titleTranslations} onChange={t=>patchBar({titleTranslations:t})}/><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
             {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">

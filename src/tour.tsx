@@ -17,7 +17,7 @@ import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star,Settings} from 'lucide-react';
-import {barIconSize,barHeightFor,defaultBarStyle,defaultFrameCorners,STUDIO_LANGUAGES,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
+import {barIconSize,barHeightFor,defaultBarStyle,defaultFrameCorners,STUDIO_LANGUAGES,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type WindowAnimation,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
@@ -347,8 +347,11 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }
     else window.location.href=checked;
   };
-  const information=(h:Hotspot)=>setModal({title:pick(h.title,h.titleTranslations,lang),text:lang==='fr'?h.text:(h.translations?.[lang]||h.text),fontFamily:h.fontFamily});
+  /** Style d'ouverture de la fenêtre qui s'ouvre : propre au bouton ou au point, sinon réglage général. */
+  const openWith=(own?:WindowAnimation)=>{document.documentElement.dataset.windowAnim=own??project.windowAnimation??'fade';};
+  const information=(h:Hotspot)=>{openWith(h.openAnimation);setModal({title:pick(h.title,h.titleTranslations,lang),text:lang==='fr'?h.text:(h.translations?.[lang]||h.text),fontFamily:h.fontFamily});};
   const act=(item:BottomBarItem)=>{
+    openWith(item.openAnimation);
     if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryId(item.id);return;}
     if(item.type==='photos'){setPhotosId(item.id);return;}
@@ -395,7 +398,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     setMobileExpanded(true);
   };
   return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
-    {current.dataUrl?<Pano lang={lang} sphereImage={id=>project.scenes.find(x=>x.id===id)?.dataUrl} scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
+    {current.dataUrl?<Pano lang={lang} sphereImage={id=>project.scenes.find(x=>x.id===id)?.dataUrl} scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{openWith(h.openAnimation);setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{openWith(h.openAnimation);setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
       <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
       <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(current.id)}>☾ <span>Nuit</span></button>
