@@ -135,6 +135,8 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
 };
 export type Scene = {
   id:string;name:string;
+  /** Superficie réelle de la pièce en m² ; ne pas déduire d'une photographie. */
+  surfaceM2?:number;
   /** Nom du panorama dans les autres langues de la visite (le français reste dans « name »). */
   nameTranslations?:Partial<Record<'en'|'es'|'de'|'nl',string>>;
   dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;hotspots:Hotspot[];
@@ -341,6 +343,7 @@ export function validateProject(value:unknown):StudioProject {
   for (const scene of p.scenes) {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
+    if(scene.surfaceM2!==undefined && (!Number.isFinite(scene.surfaceM2)||scene.surfaceM2<=0||scene.surfaceM2>100000))throw new Error('Superficie de la pièce invalide');
     if(scene.nightDataUrl!==undefined && (!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(scene.nightDataUrl) || scene.nightDataUrl.length>85_000_000)) throw new Error('Panorama de nuit invalide');
     if(scene.nightSourceSceneId!==undefined && (typeof scene.nightSourceSceneId!=='string'||scene.nightSourceSceneId===scene.id||!p.scenes.some(other=>other.id===scene.nightSourceSceneId))) throw new Error('Panorama de nuit sélectionné introuvable');
     if(scene.musicTrackId!==undefined && (typeof scene.musicTrackId!=='string'||!ids.has(scene.musicTrackId)))
