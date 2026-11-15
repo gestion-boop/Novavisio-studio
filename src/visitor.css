@@ -181,17 +181,17 @@ html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
 
 @media(max-width:560px){.nv-pg-nav{width:34px;height:52px}.nv-pg-viewer{gap:6px;padding:0 6px}.nv-pg-viewer figure,.nv-pg-viewer figure img,.nv-pg-viewer figure video{max-width:calc(100vw - 96px)}}
 
-/* Animations d'ouverture des fenêtres d'information (réglage « Animation des fenêtres »). Propriétés scale/translate : elles ne gênent pas le centrage. */
-[data-window-anim]{animation:nv-win-fade .32s ease both}
-[data-window-anim="unfold"]{animation:nv-win-unfold .5s cubic-bezier(.2,.8,.2,1) both}
-[data-window-anim="unfold"]>*{animation:nv-win-content .3s ease .32s both}
-[data-window-anim="slide"]{animation:nv-win-slide .42s cubic-bezier(.2,.8,.2,1) both}
-[data-window-anim="zoom"]{animation:nv-win-zoom .36s cubic-bezier(.2,.9,.3,1.1) both}
-[data-window-anim="drop"]{animation:nv-win-drop .5s cubic-bezier(.3,1.25,.5,1) both}
+/* Animations d'ouverture des fenêtres (réglage « Animation des fenêtres ») : le style est posé sur <html> (data-window-anim). scale/translate ne gênent pas le centrage. */
+:root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-fade .32s ease both}
+:root[data-window-anim="unfold"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-unfold .5s cubic-bezier(.2,.8,.2,1) both}
+:root[data-window-anim="unfold"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal)>*{animation:nv-win-content .3s ease .32s both}
+:root[data-window-anim="slide"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-slide .42s cubic-bezier(.2,.8,.2,1) both}
+:root[data-window-anim="zoom"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-zoom .36s cubic-bezier(.2,.9,.3,1.1) both}
+:root[data-window-anim="drop"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-drop .5s cubic-bezier(.3,1.25,.5,1) both}
 @keyframes nv-win-fade{from{opacity:0}to{opacity:1}}
 @keyframes nv-win-unfold{0%{opacity:0;scale:1 .03}30%{opacity:1}100%{opacity:1;scale:1 1}}
 @keyframes nv-win-content{from{opacity:0}to{opacity:1}}
 @keyframes nv-win-slide{from{opacity:0;translate:0 70px}to{opacity:1;translate:0 0}}
 @keyframes nv-win-zoom{from{opacity:0;scale:.82}to{opacity:1;scale:1}}
 @keyframes nv-win-drop{from{opacity:0;translate:0 -80px}to{opacity:1;translate:0 0}}
-@media (prefers-reduced-motion:reduce){[data-window-anim],[data-window-anim]>*{animation:none!important}}
+@media (prefers-reduced-motion:reduce){:root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal),:root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal)>*{animation:none!important}}

@@ -322,6 +322,8 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     '--nv-bar-width':theme.width?theme.width+'px':'max-content',
     '--nv-bar-height':Math.max(theme.height??82,project?.bottomBar?.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
+  // Animation d'ouverture des fenêtres : posée sur <html> pour toutes les fenêtres (info, photo, vidéo, galeries, plan).
+  useEffect(()=>{document.documentElement.dataset.windowAnim=project?.windowAnimation??'fade';},[project?.windowAnimation]);
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const activeLanguages=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   const lang=effectiveLang(prefs,activeLanguages);
@@ -443,7 +445,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)} showToggle={false}/>
     {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
-      <section className="tour-dialog" data-window-anim={project.windowAnimation??'fade'} onClick={e=>e.stopPropagation()} aria-label={modal.title}>
+      <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label={ui('close',lang)} onClick={()=>setModal(null)}><X/></button></header>
         {modal.url?<EmbeddedPage url={modal.url} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||ui('noInfo',lang)}</p>}
 

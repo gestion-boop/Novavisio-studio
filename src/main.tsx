@@ -3021,6 +3021,7 @@ function App(){
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
+  useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';},[project.windowAnimation]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
   useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
   function triggerBar(item:BottomBarItem){
@@ -5037,7 +5038,7 @@ function App(){
             </section>
           </div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
-            <div className="modal" data-window-anim={project.windowAnimation??'fade'} onClick={event=>event.stopPropagation()}>
+            <div className="modal" onClick={event=>event.stopPropagation()}>
               <button className="close" onClick={()=>setInfo(null)} aria-label={ui('close',infoLanguage)}><XMark/></button>
               <h2>{pick(info.title,info.titleTranslations,infoLanguage)}</h2>
               <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
