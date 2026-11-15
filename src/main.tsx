@@ -61,7 +61,7 @@ import {MediaPicker} from './MediaPicker';
 import {SpacesActions} from './SpacesActions';
 import {mergeImportedSpaces} from './spaceTransfer';
 import {rememberMedia} from './mediaLibrary';
-import {IconLibrary} from './IconLibrary';
+import {IconLibrary,buildIconSets} from './IconLibrary';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -2863,6 +2863,24 @@ function App(){
       {restoreHiddenLink()}
     </div>;
   }
+  /** Packs de la bibliothèque (PNG nommés …_normal / …_hover / …_pressed) : un clic applique les trois états d'un coup. */
+  function libraryPackPicker(currentIconId:string|undefined,apply:(patch:{iconId:string;hoverIconId?:string;pressedIconId?:string})=>void){
+    const packs=buildIconSets(project.icons).filter(g=>g.normal||g.hover||g.pressed);
+    if(!packs.length)return null;
+    return <div className="icon-set-picker nv-library-pack-picker">
+      <div className="icon-state-label">PACK DE LA BIBLIOTHÈQUE</div>
+      <small className="hint-inline">Un clic applique d’un coup normal, survol et clic de ce pack.</small>
+      <div className="icon-set-grid">{packs.map(g=>{
+        const main=(g.normal??g.hover??g.pressed) as CustomIcon;
+        const active=currentIconId===main.id;
+        return <button type="button" key={g.key} className={'icon-set'+(active?' is-active':'')} title={'Pack « '+g.name+' »'}
+          onClick={()=>{apply({iconId:main.id,hoverIconId:g.hover?.id,pressedIconId:g.pressed?.id});setStatus('Pack « '+g.name+' » appliqué (normal, survol, clic)');}}>
+          {([['Normal',g.normal],['Survol',g.hover],['Clic',g.pressed]] as const).map(([label,icon])=><span className="icon-set-cell" key={label}>
+            {icon?<img src={icon.dataUrl} alt=""/>:<i className="icon-set-empty"/>}<small>{label}</small></span>)}
+          <span className="icon-set-size">{g.name}</span>
+        </button>;})}</div>
+    </div>;
+  }
   // Choix rapide d'un jeu complet, identique à l'inspecteur principal :
   // une sélection applique normal + survol + clic + taille en une seule opération.
   function fullscreenIconSetPicker(
@@ -4796,6 +4814,7 @@ function App(){
               {!['image','video'].includes(selected.type) && <InspectorSection title="Icône et apparence">
                 <div className="section-title">ICÔNE DU POINT</div>
                 {iconSetPicker({...selected,size:selected.iconSize??28},set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:Math.max(16,Math.min(80,set.size))}))}
+                {libraryPackPicker(selected.iconId,patch=>patchPoint(patch))}
                 {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
                 {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
                 {applyAllButton()}
@@ -4916,6 +4935,7 @@ function App(){
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
             <InspectorSection title="Icônes : normal, survol, clic">
             {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size}))}
+            {libraryPackPicker(selectedBar.iconId,patch=>patchBar(patch))}
             {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id}),'Icône par défaut')}
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
             {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
