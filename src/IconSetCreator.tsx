@@ -9,18 +9,38 @@ const STATES:ReadonlyArray<{id:State;label:string}>=[
   {id:'hover',label:'Survol'},
   {id:'pressed',label:'Pressé'}
 ];
-const MAX_FILE_BYTES=1_500_000;
+const MAX_FILE_BYTES=20*1024*1024;
+const MAX_STORED_LENGTH=2_900_000;
 
 async function loadIcon(file:File):Promise<string>{
   if(!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type) || file.size>MAX_FILE_BYTES){
-    throw Error('Utilise des fichiers PNG, JPG, WebP ou GIF de 1,5 Mo maximum chacun.');
+    throw Error('Choisis une image PNG, JPG, WebP ou GIF de 20 Mo maximum.');
   }
   const dataUrl=await readImage(file);
-  if(!isSafeIconDataUrl(dataUrl)||dataUrl.length>3_000_000)throw Error('Image invalide ou trop volumineuse.');
+  if(!isSafeIconDataUrl(dataUrl))throw Error('Image incompatible.');
   const img=new Image();
   img.src=dataUrl;
   await img.decode().catch(()=>{throw Error('Impossible de lire « '+file.name+' ».');});
-  return dataUrl;
+  // Les icônes originales 2048 px peuvent être lourdes. On garde leur définition
+  // si elle est compatible, sinon on produit un WebP transparent 1024 px
+  // pour que le projet Cloud reste léger (sans rogner le cercle).
+  if(dataUrl.length<=MAX_STORED_LENGTH)return dataUrl;
+  for(const size of [1024,768,512,384]){
+    const scale=Math.min(1,size/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+    canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const context=canvas.getContext('2d');
+    if(!context)throw Error('Impossible de préparer cette image.');
+    context.imageSmoothingEnabled=true;
+    context.imageSmoothingQuality='high';
+    context.drawImage(img,0,0,canvas.width,canvas.height);
+    const optimized=canvas.toDataURL('image/webp',0.94);
+    if(isSafeIconDataUrl(optimized)&&optimized.length<=MAX_STORED_LENGTH)return optimized;
+    const png=canvas.toDataURL('image/png');
+    if(isSafeIconDataUrl(png)&&png.length<=MAX_STORED_LENGTH)return png;
+  }
+  throw Error('Image trop volumineuse pour la bibliothèque : utilise un PNG ou WebP plus léger.');
 }
 
 function guessState(filename:string):State|undefined{
@@ -31,7 +51,7 @@ function guessState(filename:string):State|undefined{
   return undefined;
 }
 
-export function IconSetCreator({onCreate}:{onCreate:(name:string,images:IconSetImages)=>Promise<void>}){
+export function IconSetCreator({onCreate,toggleLabel='Créer un pack de 3'}:{onCreate:(name:string,images:IconSetImages)=>Promise<void>;toggleLabel?:string}){
   const [open,setOpen]=useState(false);
   const [name,setName]=useState('');
   const [images,setImages]=useState<Partial<IconSetImages>>({});
@@ -79,7 +99,7 @@ export function IconSetCreator({onCreate}:{onCreate:(name:string,images:IconSetI
 
   return <div className="nv-iconset-create">
     <button type="button" className="nv-iconset-create-toggle" onClick={()=>{setOpen(v=>!v);setError('');}} aria-expanded={open}>
-      {open?<X size={17}/>:<Plus size={17}/>} {open?'Fermer la création':'Créer un pack de 3'}
+      {open?<X size={17}/>:<Plus size={17}/>} {open?'Fermer l’import':toggleLabel}
     </button>
     {success&&<p className="nv-iconset-create-ok" role="status"><Check size={15}/>{success}</p>}
     {open&&<div className="nv-iconset-create-panel">
@@ -91,7 +111,7 @@ export function IconSetCreator({onCreate}:{onCreate:(name:string,images:IconSetI
         <input type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy}
           onChange={e=>{void loadThree(e.target.files);e.target.value='';}}/>
       </label>
-      <small>Les noms contenant _normal, _survol et _presse sont reconnus. Sinon, l’ordre est normal → survol → pressé.</small>
+      <small>Les noms contenant _normal, _survol et _presse sont reconnus. Sinon, l’ordre est normal → survol → pressé. Les grandes images sont optimisées sans couper les cercles.</small>
       <div className="nv-iconset-create-states">
         {STATES.map(({id,label})=><div key={id} className="nv-iconset-create-state">
           <div className="nv-iconset-create-preview">{images[id]?<img src={images[id]} alt={'Aperçu '+label}/>:<span>+</span>}</div>
