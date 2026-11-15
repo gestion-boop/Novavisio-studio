@@ -161,7 +161,14 @@
 .nv-custom-close .tour-dialog header button:hover,
 .nv-custom-close .embed-shell .embed-actions button:hover,
 .nv-custom-close .info-in-view .modal > .close:hover,
-.nv-custom-close .nv-gallery-close:hover{filter:brightness(1.13);cursor:pointer}
+.nv-custom-close .nv-gallery-close:hover{background-image:var(--nv-close-icon-hover-image,var(--nv-close-icon-image));filter:brightness(1.13);cursor:pointer}
+.nv-custom-close .lightbox-close:active,
+.nv-custom-close .nv-video-close:active,
+.nv-custom-close .tour-close-image:active,
+.nv-custom-close .tour-dialog header button:active,
+.nv-custom-close .embed-shell .embed-actions button:active,
+.nv-custom-close .info-in-view .modal > .close:active,
+.nv-custom-close .nv-gallery-close:active{background-image:var(--nv-close-icon-pressed-image,var(--nv-close-icon-hover-image,var(--nv-close-icon-image)));}
 
 
 
@@ -190,6 +197,20 @@
   box-shadow:none!important;
   color:transparent!important;
 }
+.nv-custom-close .lightbox-close:hover,
+.nv-custom-close .nv-video-close:hover,
+.nv-custom-close .tour-close-image:hover,
+.nv-custom-close .tour-dialog header button:hover,
+.nv-custom-close .embed-shell .embed-actions button:hover,
+.nv-custom-close .info-in-view .modal > .close:hover,
+.nv-custom-close .nv-gallery-close:hover{background-image:var(--nv-close-icon-hover-image,var(--nv-close-icon-image))!important;}
+.nv-custom-close .lightbox-close:active,
+.nv-custom-close .nv-video-close:active,
+.nv-custom-close .tour-close-image:active,
+.nv-custom-close .tour-dialog header button:active,
+.nv-custom-close .embed-shell .embed-actions button:active,
+.nv-custom-close .info-in-view .modal > .close:active,
+.nv-custom-close .nv-gallery-close:active{background-image:var(--nv-close-icon-pressed-image,var(--nv-close-icon-hover-image,var(--nv-close-icon-image)))!important;}
 
 
 /* Commandes Jour/Nuit centrées dans la vue, indépendamment des barres d'outils. */

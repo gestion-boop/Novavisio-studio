@@ -2295,6 +2295,8 @@ function App(){
   const spaceSort=useHorizontalSort((project.spaces??[]).map(sp=>sp.id),(from,to)=>setProject(p=>({...p,spaces:reorderItems(p.spaces??[],from,to,sp=>sp.id)})));
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
+    '--nv-close-icon-hover-image':project.closeIconHoverId?`url("${project.icons.find(i=>i.id===project.closeIconHoverId)?.dataUrl??''}")`:'none',
+    '--nv-close-icon-pressed-image':project.closeIconPressedId?`url("${project.icons.find(i=>i.id===project.closeIconPressedId)?.dataUrl??''}")`:'none',
     '--nv-bar-bg':project.barStyle.background,
     '--nv-daynight-color':project.barStyle.dayNightColor??'#2f72b4',
     '--nv-bar-outline':project.barStyle.outline,
@@ -3211,6 +3213,8 @@ function App(){
       buttonSets:p.buttonSets?.filter(set=>set.iconId!==id).map(set=>({...set,hoverIconId:set.hoverIconId===id?undefined:set.hoverIconId,pressedIconId:set.pressedIconId===id?undefined:set.pressedIconId})),
       defaultNavigationIcon:p.defaultNavigationIcon?.iconId===id?undefined:p.defaultNavigationIcon?{...p.defaultNavigationIcon,hoverIconId:p.defaultNavigationIcon.hoverIconId===id?undefined:p.defaultNavigationIcon.hoverIconId,pressedIconId:p.defaultNavigationIcon.pressedIconId===id?undefined:p.defaultNavigationIcon.pressedIconId}:undefined,
       closeIconId:p.closeIconId===id?undefined:p.closeIconId,
+      closeIconHoverId:p.closeIconHoverId===id?undefined:p.closeIconHoverId,
+      closeIconPressedId:p.closeIconPressedId===id?undefined:p.closeIconPressedId,
       soundOnIconId:p.soundOnIconId===id?undefined:p.soundOnIconId,
       soundOnHoverIconId:p.soundOnHoverIconId===id?undefined:p.soundOnHoverIconId,
       soundOnPressedIconId:p.soundOnPressedIconId===id?undefined:p.soundOnPressedIconId,
@@ -3248,7 +3252,7 @@ function App(){
     project.buttonSets?.forEach(set=>add('Bouton : '+set.name,set.iconSize,set.iconId,set.hoverIconId,set.pressedIconId));
     project.bottomBar.forEach(b=>add('Barre : '+b.title,barIconSize(b),b.iconId,b.hoverIconId,b.pressedIconId));
     if(project.defaultNavigationIcon){const nav=project.defaultNavigationIcon;add('Flèche par défaut',nav.iconSize,nav.iconId,nav.hoverIconId,nav.pressedIconId);}
-    add('Fermeture des popups',42,project.closeIconId);
+    add('Fermeture des popups',42,project.closeIconId,project.closeIconHoverId,project.closeIconPressedId);
     project.scenes.forEach(sc=>sc.hotspots.forEach(h=>{
       if(h.type!=='image'&&h.type!=='video')add(sc.name+' : '+h.title,h.iconSize??28,h.iconId,h.hoverIconId,h.pressedIconId);
     }));
@@ -5573,17 +5577,25 @@ function App(){
             </div>
             {iconStateEditor('global-close-icon','Croix globale',project.closeIconId,
               id=>setProject(p=>({...p,closeIconId:id})),'Croix classique')}
+            {iconStateEditor('global-close-hover-icon','Croix · Survol',project.closeIconHoverId,
+              id=>setProject(p=>({...p,closeIconHoverId:id})),'Identique au normal')}
+            {iconStateEditor('global-close-pressed-icon','Croix · Pressé',project.closeIconPressedId,
+              id=>setProject(p=>({...p,closeIconPressedId:id})),'Identique au survol')}
             {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
             <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
           </InspectorSection>
+          <details className="nv-icons-library" open>
+            <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
             onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer le jeu « '+name+' » ('+ids.length+' icône'+(ids.length>1?'s':'')+') de la bibliothèque et de ses utilisations ?'))return;ids.forEach(id=>deleteIcon(id,true));}}
-            applyLabel={selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
-            onApply={selectedBar||selected?set=>{
+            applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
+            onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
               const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
-              if(selectedBar){patchBar(patch);setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
+              if(libraryFor?.startsWith('global-close')){setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId}));setStatus('Pack de croix appliqué : normal, survol et pressé.');}
+              else if(selectedBar){patchBar(patch);setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
               else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
             }:undefined}/>
+          </details>
           <details className="nv-icons-advanced">
             <summary>Autres réglages : créateur d’icônes</summary>
             {svgIconWorkshop()}

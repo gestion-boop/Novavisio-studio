@@ -4861,6 +4861,8 @@ body.nv-is-sorting{cursor:grabbing !important;user-select:none !important}
 .nv-iconset-del:hover{background:#7b2a35;color:#fff}
 .nv-icons-advanced{margin-top:18px;border:1px solid #2c5361;border-radius:14px;padding:10px 14px;background:#0d222c}
 .nv-icons-advanced summary{cursor:pointer;font-weight:700;color:#b8cdd3}
+.nv-icons-library{margin-top:14px;border:1px solid #2c5361;border-radius:14px;padding:10px 14px;background:#0d222c}
+.nv-icons-library summary{cursor:pointer;font-weight:750;color:#dffcf8;padding:4px 0 10px}
 @media(max-width:820px){.nv-iconlib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.nv-iconset-del{opacity:1}}
 @media(max-width:520px){.nv-iconlib-grid{grid-template-columns:1fr}}
 

@@ -302,8 +302,12 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   },[mobileExpanded]);
   const theme=project?.barStyle??defaultBarStyle();
   const popupCloseIcon=project?.icons?.find(icon=>icon.id===project?.closeIconId);
+  const popupCloseHoverIcon=project?.icons?.find(icon=>icon.id===project?.closeIconHoverId);
+  const popupClosePressedIcon=project?.icons?.find(icon=>icon.id===project?.closeIconPressedId);
   const cssVars={
     '--nv-close-icon-image':popupCloseIcon?`url("${popupCloseIcon.dataUrl}")`:'none',
+    '--nv-close-icon-hover-image':popupCloseHoverIcon?`url("${popupCloseHoverIcon.dataUrl}")`:'none',
+    '--nv-close-icon-pressed-image':popupClosePressedIcon?`url("${popupClosePressedIcon.dataUrl}")`:'none',
     '--nv-bar-bg':theme.background,
     '--nv-bar-outline':theme.outline,
     '--nv-button-bg':theme.button,
