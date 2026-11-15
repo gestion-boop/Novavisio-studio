@@ -78,7 +78,7 @@ import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,
 import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
+import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './media.css';
 import {XMark} from './XMark';
@@ -5037,7 +5037,7 @@ function App(){
             </section>
           </div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
-            <div className="modal" onClick={event=>event.stopPropagation()}>
+            <div className="modal" data-window-anim={project.windowAnimation??'fade'} onClick={event=>event.stopPropagation()}>
               <button className="close" onClick={()=>setInfo(null)} aria-label={ui('close',infoLanguage)}><XMark/></button>
               <h2>{pick(info.title,info.titleTranslations,infoLanguage)}</h2>
               <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
@@ -5591,6 +5591,13 @@ function App(){
           <div className="section-title">INTRODUCTION DE LA VISITE</div>
           <p className="hint">Chaque visite possède son URL d’introduction. L’introduction apparaît au lancement puis passe automatiquement au premier panorama, sans bouton supplémentaire.</p>
           <label className="toggle-row"><input type="checkbox" checked={project.introEnabled} onChange={e=>setProject(p=>({...p,introEnabled:e.target.checked}))}/> Activer l’introduction</label>
+          <div className="section-title">ANIMATION DES FENÊTRES</div>
+          <p className="hint">Style d’ouverture des fenêtres d’information dans la visite. Choisis-en un, puis teste-le dans l’aperçu.</p>
+          <label>Style
+            <select value={project.windowAnimation??'fade'} onChange={e=>setProject(p=>({...p,windowAnimation:e.target.value as WindowAnimation}))}>
+              {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+          </label>
           <label>Adresse HTTPS de l'introduction
             <input type="url" value={project.introUrl} placeholder="https://intro-au-bureau-narbonne.vercel.app/" onChange={e=>setProject(p=>({...p,introUrl:e.target.value}))}/>
           </label>

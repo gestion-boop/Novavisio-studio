@@ -443,7 +443,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)} showToggle={false}/>
     {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" onClick={()=>setModal(null)}>
-      <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
+      <section className="tour-dialog" data-window-anim={project.windowAnimation??'fade'} onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label={ui('close',lang)} onClick={()=>setModal(null)}><X/></button></header>
         {modal.url?<EmbeddedPage url={modal.url} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||ui('noInfo',lang)}</p>}
 
