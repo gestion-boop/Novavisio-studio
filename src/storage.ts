@@ -15,6 +15,8 @@ export type Hotspot = {
   type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
+  /** Titre dans les autres langues. */
+  titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;/** Flèche « Sphère » : boule 3D qui tourne et montre le panorama de destination (diamètre = iconSize). */sphere?:boolean;/** Photo hébergée ailleurs (https) : affichée en fenêtre. */imageUrl?:string;/** Vidéo à lire dans un lecteur intégré (ex. Google Drive). */videoEmbed?:string;url?:string;
   mediaDisplay?:'popup'|'inline';
   fontFamily?:string;linkMode?:'embed'|'tab';
@@ -69,6 +71,7 @@ export type BottomBarItem = {
   /** Zoom de l'icône dans son bouton (100–250 %) : compense les marges transparentes de l'image. */
   iconZoom?: number;
   title: string;
+  titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   type: 'navigation' | 'information' | 'lien' | 'gallery' | 'photos' | 'plan';
   /** Type « photos » : galerie de photos / vidéos affichée en grand (copies des éléments choisis dans la bibliothèque Photos & Vidéos). */
   photos?: MediaLinkItem[];
@@ -118,7 +121,10 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
   });
 };
 export type Scene = {
-  id:string;name:string;dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;hotspots:Hotspot[];
+  id:string;name:string;
+  /** Nom du panorama dans les autres langues de la visite (le français reste dans « name »). */
+  nameTranslations?:Partial<Record<'en'|'es'|'de'|'nl',string>>;
+  dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;hotspots:Hotspot[];
   arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
   audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
   musicTrackId?:string;

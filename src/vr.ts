@@ -7,7 +7,8 @@ import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
 import {resolveLink} from './mediaLinks';
 import {frameWorldCorners} from './sphericalFrame';
-import {getPrefs} from './visitorPrefs';
+import {getPrefs,effectiveLang} from './visitorPrefs';
+import {ui as uiText,pick,type UiKey} from './i18n';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
@@ -134,6 +135,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let fade=1,fadeTarget=1;
 
   const project=()=>opts.getProject();
+  /** Texte du casque dans la langue choisie par le visiteur (repli : français). */
+  const vlang=()=>effectiveLang(getPrefs(),project().languages??['fr']);
+  const tt=(key:UiKey,vars?:Record<string,string|number>)=>uiText(key,vlang(),vars);
   const sceneOf=(id:string):Scene|undefined=>project().scenes.find(s=>s.id===id);
 
   const headForward=():{x:number;y:number;z:number;phi:number}=>{
@@ -196,7 +200,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
       if(live.type==='image'){void showPhoto(live);return;}
       const direct=live.videoDataUrl||live.videoUrl;
-      if(direct)void showVideoPanel(direct,live.title||'Vidéo');
+      if(direct)void showVideoPanel(direct,pick(live.title,live.titleTranslations,vlang())||tt('videoTitle'));
     }};
     return mesh;
   };
@@ -258,22 +262,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           const body=infoText(live);
           if(!body&&(live.imageDataUrl||live.imageUrl)){void showPhoto(live);return;}
           const url=live.url||((body.match(/https?:\/\/[^\s]+/i)||[])[0]);
-          if(body){showInfo(live.title||'Informations',body,url);return;}
-          if(url){void showWebContent(live.title||'Informations',url,'');return;}
-          showText(live.title||'Informations',detail||'Aucune information renseignée.');
+          if(body){showInfo(pick(live.title,live.titleTranslations,vlang())||tt('infoTitle'),body,url);return;}
+          if(url){void showWebContent(pick(live.title,live.titleTranslations,vlang())||tt('infoTitle'),url,'');return;}
+          showText(pick(live.title,live.titleTranslations,vlang())||tt('infoTitle'),detail||tt('noInfo'));
           return;
         }
         if(live.type==='image'){void showPhoto(live);return;}
         if(live.type==='lien'){
           const body=infoText(live);
-          if(body)showInfo(live.title||'Lien',body,live.url);
-          else void showWebContent(live.title||'Lien',live.url||'','');
+          if(body)showInfo(pick(live.title,live.titleTranslations,vlang())||tt('linkTitle'),body,live.url);
+          else void showWebContent(pick(live.title,live.titleTranslations,vlang())||tt('linkTitle'),live.url||'','');
           return;
         }
         if(live.type==='video'){
           const direct=live.videoDataUrl||live.videoUrl;
-          if(direct)void showVideoPanel(direct,live.title||'Vidéo');
-          else setNotice('Cette vidéo se lit dans la visite classique.');
+          if(direct)void showVideoPanel(direct,pick(live.title,live.titleTranslations,vlang())||tt('videoTitle'));
+          else setNotice(tt('videoClassic'));
           return;
         }
       }
@@ -329,7 +333,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const ok=await showScene(id,via);
     fadeTarget=1;
     busy=false;
-    if(!ok)setNotice('Ce panorama n\'est pas encore disponible.');
+    if(!ok)setNotice(tt('unavailable'));
   }
 
   // ---- panneaux flottants (barre, galerie, texte) ----------------------------------------------------------
@@ -396,7 +400,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     clearGroup(barGroup);
     const items=project().bottomBar??[];
     const bw=.145,bh=.145,gap=.013;
-    const entries:{item?:BottomBarItem;label:string}[]=[...items.map(item=>({item,label:item.title})),{label:'Quitter la VR'}];
+    const entries:{item?:BottomBarItem;label:string}[]=[...items.map(item=>({item,label:pick(item.title,item.titleTranslations,vlang())})),{label:tt('quitVr')}];
     const total=entries.length*bw+(entries.length-1)*gap;
     const W=total+.08,H=bh+.045;
     addPlane(barGroup,W,H,backdrop(W,H),2,0,0);
@@ -468,7 +472,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
   const closeButtonTexture=()=>canvasTexture(240,110,c=>{
     roundRect(c,6,6,228,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-    c.fillStyle=iconColor;c.font='bold 46px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('Fermer',120,58);
+    c.fillStyle=iconColor;c.font='bold 46px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(tt('close'),120,58);
   });
 
   let noticeTimer=0;
@@ -505,7 +509,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       let t=title;while(c.measureText(t).width>W*1000-420&&t.length>3)t=t.slice(0,-2);
       c.fillText(t,64,92);
       c.font='34px sans-serif';c.fillStyle='#4a4a52';c.textAlign='right';
-      c.fillText(count+(pages>1?'  ·  page '+(page+1)+'/'+pages:''),W*1000-170,92);
+      c.fillText(count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:''),W*1000-170,92);
     }),5,0,0).userData.blocker=true;
     addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
     if(pages>1){
@@ -521,10 +525,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Découpe chaque page de texte en blocs de 10 lignes.
     const chunks:{title:string;lines:string[]}[]=[];
     for(const pg of pages){
-      const lines=wrapText(measure,(pg.text||'').trim()||'Aucune information renseignée.',980);
+      const lines=wrapText(measure,(pg.text||'').trim()||tt('noInfo'),980);
       for(let i=0;i<lines.length;i+=LINES)chunks.push({title:pg.title||title,lines:lines.slice(i,i+LINES)});
     }
-    if(!chunks.length)chunks.push({title,lines:['Aucune information renseignée.']});
+    if(!chunks.length)chunks.push({title,lines:[tt('noInfo')]});
     let page=0;
     const W=1.1,H=.82;
     const render=()=>{
@@ -561,7 +565,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
   const openSiteOutside=(title:string,url:string)=>{
     // Une page web ne peut pas être dessinée dans la scène immersive : on quitte le casque puis la page s'affiche dans NovaStudio.
-    void session.end().then(()=>opts.onOpenEmbedded?.(title||'Page web',url)).catch(()=>opts.onOpenEmbedded?.(title||'Page web',url));
+    void session.end().then(()=>opts.onOpenEmbedded?.(title||tt('webPage'),url)).catch(()=>opts.onOpenEmbedded?.(title||tt('webPage'),url));
   };
   /** Point d'information : le contenu s'affiche TOUJOURS dans la fenêtre du casque ; s'il y a un site lié, un bouton « ↗ Site » est proposé en plus. */
   const showInfo=(title:string,text:string,url?:string)=>{
@@ -605,13 +609,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       roundRect(c,8,8,1224,784,52);c.fillStyle=panelBg;c.fill();
       c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
       c.fillStyle='#17232b';c.textAlign='left';c.textBaseline='top';
-      c.font='bold 54px sans-serif';c.fillText(title||'Lien internet',65,54,1110);
+      c.font='bold 54px sans-serif';c.fillText(title||tt('webLinkTitle'),65,54,1110);
       c.font='37px sans-serif';
-      const caption=description.trim()||'Ouvrir cette page dans le navigateur du casque.';
+      const caption=description.trim()||tt('openInBrowser');
       wrapText(c,caption,1100).slice(0,5).forEach((line,i)=>c.fillText(line,65,155+i*58));
       c.font='31px sans-serif';
       if(valid)c.fillText(new URL(valid).hostname,65,535,1100);
-      else c.fillText('Adresse web indisponible',65,535);
+      else c.fillText(tt('badUrl'),65,535);
     });
     addPlane(panelGroup,W,H,tex,5,0,0);
     if(valid){
@@ -619,15 +623,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         roundRect(c,8,8,634,134,45);c.fillStyle=btnBg;c.fill();
         c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
         c.fillStyle=iconColor;c.font='bold 49px sans-serif';c.textAlign='center';c.textBaseline='middle';
-        c.fillText('↗ Ouvrir le site',325,78);
+        c.fillText(tt('openSite'),325,78);
       });
       addPanelButton(.58,.135,action,0,-.19,()=>{
         // Un iframe HTML ne peut pas être dessiné à l'intérieur d'une
         // scène WebXR immersive. On quitte la session VR puis on affiche
         // l'iframe ABSOLUE existante dans le même onglet de NovaStudio.
         // Aucun window.open ni changement d'adresse.
-        void session.end().then(()=>opts.onOpenEmbedded?.(title||'Page web',valid))
-          .catch(()=>opts.onOpenEmbedded?.(title||'Page web',valid));
+        void session.end().then(()=>opts.onOpenEmbedded?.(title||tt('webPage'),valid))
+          .catch(()=>opts.onOpenEmbedded?.(title||tt('webPage'),valid));
       });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.055,closePanels);
@@ -636,8 +640,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   /** Contenu d'une page web : lu directement dans le casque si le site propose /vr.json, sinon panneau « Ouvrir le site » (sortie du casque puis page affichée dans NovaStudio). */
   const showWebContent=async(title:string,url:string,description=''):Promise<void>=>{
-    if(!url){showText(title||'Lien','Aucun lien renseigné.');return;}
-    setNotice('Chargement…');
+    if(!url){showText(title||tt('linkTitle'),tt('noLink'));return;}
+    setNotice(tt('loading'));
     const gen=panelGen;
     const doc=await fetchVrDoc(url);
     if(ended||gen!==panelGen)return;
@@ -648,11 +652,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Image en grand dans un panneau 3D (fermable avec la gâchette). `nav` ajoute précédent / suivant / retour à la galerie.
   let imageReq=0;
   const showImagePanel=async(src:string|undefined,title:string,nav?:{index:number;count:number;prev:()=>void;next:()=>void;back:()=>void})=>{
-    if(!src){setNotice('Photo en cours de chargement…');opts.ensureScene?.(currentId);return;}
+    if(!src){setNotice(tt('photoLoading'));opts.ensureScene?.(currentId);return;}
     const shownFor=currentId,gen=panelGen,req=++imageReq;
     let bitmap:HTMLCanvasElement;
     try{bitmap=await loadReduced(src,2048);}
-    catch{setNotice('Impossible de charger cette photo.');return;}
+    catch{setNotice(tt('photoFail'));return;}
     if(ended||shownFor!==currentId||gen!==panelGen||req!==imageReq)return;
     closePanels();
     const ratio=bitmap.width/Math.max(1,bitmap.height);
@@ -689,13 +693,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
     placePanel(1.55,0);
   };
-  const showPhoto=(h:Hotspot)=>showImagePanel(h.imageDataUrl||h.imageUrl,h.title||'Photo');
+  const showPhoto=(h:Hotspot)=>showImagePanel(h.imageDataUrl||h.imageUrl,pick(h.title,h.titleTranslations,vlang())||'Photo');
 
   // Galerie de photos / vidéos d'un bouton de la barre (type « photos ») : vignettes puis image en grand.
   const showPhotoGallery=async(item:BottomBarItem)=>{
     closePanels();
     const entries=(item.photos??[]).map(m=>({m,r:resolveLink(m)})).filter(e=>e.r.image||e.r.video||e.r.embed);
-    if(!entries.length){showText(item.title||'Photos','Aucune photo dans cette galerie.');return;}
+    if(!entries.length){showText(pick(item.title,item.titleTranslations,vlang())||tt('photos'),tt('noPhoto'));return;}
     let page=0;
     const open=async(i:number)=>{
       const e=entries[i];
@@ -703,7 +707,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const nav={index:i,count,prev:()=>{void open((i-1+count)%count);},next:()=>{void open((i+1)%count);},back:()=>{void renderGrid();}};
       if(e.m.kind==='photo')await showImagePanel(e.r.image,e.m.name,nav);
       else if(e.r.video)await showVideoPanel(e.r.video,e.m.name);
-      else setNotice('Cette vidéo se lit dans la visite classique.');
+      else setNotice(tt('videoClassic'));
     };
     const renderGrid=async()=>{
       closePanels();
@@ -712,7 +716,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const slice=entries.slice(page*perPageP,page*perPageP+perPageP);
       const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
       const pages=Math.max(1,Math.ceil(entries.length/perPageP));
-      galleryChrome(W,H,item.title||'Photos',entries.length+' éléments',pages,page,
+      galleryChrome(W,H,pick(item.title,item.titleTranslations,vlang())||tt('photos'),entries.length+' '+tt('items'),pages,page,
         ()=>{page=(page-1+pages)%pages;void renderGrid();},()=>{page=(page+1)%pages;void renderGrid();});
       for(let k=0;k<slice.length;k++){
         const e=slice[k];
@@ -735,7 +739,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   // Vidéo lue dans le casque (fichier MP4/WebM du projet) : panneau 16:9 avec lecture / pause.
   const showVideoPanel=async(src:string|undefined,title:string)=>{
-    if(!src){setNotice('Cette vidéo se lit dans la visite classique.');return;}
+    if(!src){setNotice(tt('videoClassic'));return;}
     closePanels();
     const el=document.createElement('video');
     el.src=src;el.crossOrigin='anonymous';el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');
@@ -749,16 +753,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       c.fillStyle='#17232b';c.font='bold 40px sans-serif';c.textAlign='center';c.textBaseline='middle';
       let t=title;while(c.measureText(t).width>900&&t.length>3)t=t.slice(0,-2);c.fillText(t,480,38);
     }),7,0,H/2-.07);
-    const toggle=addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.2,-H/2+.09,()=>{if(el.paused)void el.play().catch(()=>setNotice('Lecture impossible.'));else el.pause();});
+    const toggle=addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.2,-H/2+.09,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
     void toggle;
     addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.09,closePanels);
     placePanel(1.7,0);
-    void el.play().catch(()=>setNotice('Touche ❚❚ / ▶ pour lancer la vidéo.'));
+    void el.play().catch(()=>setNotice(tt('videoPlayHint')));
   };
 
   const showGallery=async(item:BottomBarItem)=>{
     closePanels();
-    const entries=galleryEntries(item,project().scenes,project().spaces);
+    const entries=galleryEntries(item,project().scenes,project().spaces).map(e=>{const sc=project().scenes.find(x=>x.id===e.sceneId);return sc&&sc.name===e.label?{...e,label:pick(sc.name,sc.nameTranslations,vlang())}:e;});
     // Deux colonnes plus larges : dans le casque les vignettes restent lisibles
     // et ne se chevauchent pas avec les flèches de navigation.
     const cols=2,rows=3,perPage=cols*rows;
@@ -769,7 +773,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const cw=.62,ch=.34,gx=.06,gy=.05;
       const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
-      galleryChrome(W,H,item.galleryTitle||item.title||'Panoramas',entries.length+' panoramas',pages,page,
+      galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
         ()=>{page=(page-1+pages)%pages;void render();},()=>{page=(page+1)%pages;void render();});
       for(let i=0;i<slice.length;i++){
         const e=slice[i];
@@ -795,10 +799,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // cliquables avec le laser des manettes Quest.
   const showFloorPlan=async(item:BottomBarItem)=>{
     const plan=project().floorPlan;
-    if(!plan?.imageDataUrl){showText(item.title||'Plan','Le plan de cette visite n’est pas configuré.');return;}
-    setNotice('Chargement du plan…');
+    if(!plan?.imageDataUrl){showText(pick(item.title,item.titleTranslations,vlang())||tt('plan'),tt('planUnset'));return;}
+    setNotice(tt('planLoading'));
     let bitmap:HTMLCanvasElement;
-    try{bitmap=await loadReduced(plan.imageDataUrl,2048);}catch{setNotice('Impossible de charger le plan.');return;}
+    try{bitmap=await loadReduced(plan.imageDataUrl,2048);}catch{setNotice(tt('planFail'));return;}
     if(ended)return;
     closePanels();
     const ratio=bitmap.width/Math.max(1,bitmap.height);
@@ -810,7 +814,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
     addPlane(panelGroup,Math.min(1.25,W-.12),.09,canvasTexture(1000,80,c=>{
       c.fillStyle=iconColor;c.font='bold 42px sans-serif';c.textAlign='center';c.textBaseline='middle';
-      c.fillText(plan.name||item.title||'Plan de la visite',500,42);
+      c.fillText(plan.name||pick(item.title,item.titleTranslations,vlang())||tt('planTitle'),500,42);
     }),7,0,H/2-.075);
     const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,c=>{
       c.beginPath();c.arc(90,90,76,0,Math.PI*2);c.fillStyle=current?iconColor:btnBg;c.fill();
@@ -836,24 +840,24 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(item.type==='navigation'){
       if(item.target){void goTo(item.target);return;}
       // Bouton Espaces sans cible : affiche la liste des panoramas et espaces.
-      void showGallery({...item,type:'gallery',galleryTitle:item.title||'Espaces',gallery:project().scenes.map(scene=>({sceneId:scene.id,label:scene.name})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
+      void showGallery({...item,type:'gallery',galleryTitle:pick(item.title,item.titleTranslations,vlang())||tt('spaces'),gallery:project().scenes.map(scene=>({sceneId:scene.id,label:pick(scene.name,scene.nameTranslations,vlang())})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
     if(item.type==='photos'){void showPhotoGallery(item);return;}
     if(item.type==='information'){
       const body=infoText(item);
       const url=item.url||((body.match(/https?:\/\/[^\s]+/i)||[])[0]);
-      if(body)showInfo(item.title||'Informations',body,url);
-      else if(url)void showWebContent(item.title||'Informations',url,'');
-      else showText(item.title||'Informations','Aucune information renseignée.');
+      if(body)showInfo(pick(item.title,item.titleTranslations,vlang())||tt('infoTitle'),body,url);
+      else if(url)void showWebContent(pick(item.title,item.titleTranslations,vlang())||tt('infoTitle'),url,'');
+      else showText(pick(item.title,item.titleTranslations,vlang())||tt('infoTitle'),tt('noInfo'));
       return;
     }
     if(item.type==='lien'){
       const body=infoText(item);
-      if(body)showInfo(item.title||'Lien',body,item.url);
-      else void showWebContent(item.title||'Lien',item.url||'','');
+      if(body)showInfo(pick(item.title,item.titleTranslations,vlang())||tt('linkTitle'),body,item.url);
+      else void showWebContent(pick(item.title,item.titleTranslations,vlang())||tt('linkTitle'),item.url||'','');
       return;
     }
-    setNotice('Ce bouton s\'ouvre dans la visite classique.');
+    setNotice(tt('buttonClassic'));
   }
 
   // ---- manettes ---------------------------------------------------------------------------------------------
@@ -1035,7 +1039,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   // Première scène + barre.
   const first=await showScene(opts.startSceneId);
-  if(!first&&!ended){setNotice('Panorama indisponible.');}
+  if(!first&&!ended){setNotice(tt('unavailableAny'));}
   fade=1;fadeTarget=1;
   await buildBar();
   return ()=>{if(!ended)void session.end();};

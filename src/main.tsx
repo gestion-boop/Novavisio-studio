@@ -39,6 +39,8 @@ import {PhotoGallery} from './PhotoGallery';
 import {resolveLink} from './mediaLinks';
 import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
+import {ui,pick} from './i18n';
+import {TranslationInputs} from './TranslationFields';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
 import {ClientPanel,type ClientLink} from './ClientPanel';
@@ -1496,7 +1498,7 @@ function App(){
     if(u.p&&['points','panoramas','bar','general'].includes(u.p as string))setPanel(u.p);
     // Fenêtre d'information : soit un bouton de la barre du bas, soit un point du panorama (toujours relus dans MA copie du projet).
     const bar=u.i?current.bottomBar.find(b=>b.id===u.i):null;
-    if(bar)setInfo({id:bar.id,type:'information',title:bar.title,text:bar.text,translations:bar.translations,target:'',yaw:0,pitch:0});
+    if(bar)setInfo({id:bar.id,type:'information',title:bar.title,titleTranslations:bar.titleTranslations,text:bar.text,translations:bar.translations,target:'',yaw:0,pitch:0});
     else setInfo(findHotspot(u.i));
     const safe=u.f?safeLink(u.f.u):null;
     setFrame(u.f&&safe&&/^https:\/\//i.test(safe)?{title:String(u.f.t).slice(0,120),url:safe}:null);
@@ -3017,6 +3019,7 @@ function App(){
     patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:type==='photos'?{type,photos:selectedBar?.photos??[]}:{type});
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
+  const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
   useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
   function triggerBar(item:BottomBarItem){
@@ -3036,7 +3039,7 @@ function App(){
       if(dest)selectScene(dest);
     }else if(item.type==='information') {
       if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url,item.linkMode);
-      else {setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo({id:item.id,type:'information',title:item.title,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
+      else {setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo({id:item.id,type:'information',title:item.title,titleTranslations:item.titleTranslations,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
     }
     else if(item.url)openLinkInTour(item.title,item.url,item.linkMode);
   }
@@ -4865,6 +4868,7 @@ function App(){
                   <label>Nom du panorama
                     <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
                   </label>
+                  <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
                     <Eye size={15}/> Définir cette vue comme arrivée
@@ -4972,7 +4976,7 @@ function App(){
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
               return <div key={item.id} data-hsort-id={!preview?item.id:undefined} className={liveBarSort.drag===item.id?'nv-live-bar-dragging':undefined}><div className="nv-bar-sort-item">{!preview&&project.bottomBar.length>1&&liveBarSort.grip(item.id,item.title)}<button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
-                <span className="visitor-bar-label">{item.title}</span>
+                <span className="visitor-bar-label">{pick(item.title,item.titleTranslations,visitorLang)}</span>
               </button></div></div>;
             })}
           </nav>}
@@ -4981,21 +4985,21 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
+            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label={ui('settings',visitorLang)} aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
             {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
-        {project.floorPlan&&<button type="button" className="nv-open-floor-plan" onClick={()=>{setSettingsOpen(false);setFloorPlanOpen(true);}}>⌖ Afficher le plan</button>}
-              <strong>Son</strong>
+        {project.floorPlan&&<button type="button" className="nv-open-floor-plan" onClick={()=>{setSettingsOpen(false);setFloorPlanOpen(true);}}>⌖ {ui('showPlan',visitorLang)}</button>}
+              <strong>{ui('sound',visitorLang)}</strong>
               <div className="nv-vs-row">
-                <button type="button" className={visitorPrefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 Activé</button>
-                <button type="button" className={visitorPrefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 Coupé</button>
+                <button type="button" className={visitorPrefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 {ui('soundOn',visitorLang)}</button>
+                <button type="button" className={visitorPrefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 {ui('soundOff',visitorLang)}</button>
               </div>
-              {activeLanguages.length>1&&<><strong>Langue</strong>
+              {activeLanguages.length>1&&<><strong>{ui('language',visitorLang)}</strong>
               <div className="nv-vs-row nv-vs-flags">{STUDIO_LANGUAGES.filter(l=>activeLanguages.includes(l.code)).map(l=>
                 <button type="button" key={l.code} title={l.name} aria-label={l.name} aria-pressed={effectiveLang(visitorPrefs,activeLanguages)===l.code} className={effectiveLang(visitorPrefs,activeLanguages)===l.code?'is-on':''} onClick={()=>setLang(l.code)}>{l.flag}</button>)}</div></>}
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
-          {preview&&floorPlanOpen&&<FloorPlanDialog plan={project.floorPlan} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plan={project.floorPlan} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -5021,12 +5025,12 @@ function App(){
           </div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
             <div className="modal" onClick={event=>event.stopPropagation()}>
-              <button className="close" onClick={()=>setInfo(null)} aria-label="Fermer"><XMark/></button>
-              <h2>{info.title}</h2>
+              <button className="close" onClick={()=>setInfo(null)} aria-label={ui('close',infoLanguage)}><XMark/></button>
+              <h2>{pick(info.title,info.titleTranslations,infoLanguage)}</h2>
               <div className="nv-info-languages" role="group" aria-label="Langue de l'information">
                 {STUDIO_LANGUAGES.filter(lang=>activeLanguages.includes(lang.code)).map(lang=><button type="button" key={lang.code} title={lang.name} aria-label={lang.name} aria-pressed={infoLanguage===lang.code} className={infoLanguage===lang.code?'is-active':''} onClick={()=>setInfoLanguage(lang.code)}>{lang.flag}</button>)}
               </div><p className="preserve" style={{fontFamily:informationFont(info.fontFamily)+', Arial, sans-serif'}}>{(infoLanguage==='fr'?info.text:info.translations?.[infoLanguage]||info.text)||'Aucune information renseignée.'}</p>
-              <button className="primary" onClick={()=>setInfo(null)}>Fermer</button>
+              <button className="primary" onClick={()=>setInfo(null)}>{ui('close',infoLanguage)}</button>
             </div>
           </div>}
         </div>
@@ -5377,6 +5381,7 @@ function App(){
               <label>Nom de la scène
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
               </label>
+              <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
@@ -5444,7 +5449,7 @@ function App(){
           {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
-            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label>
+            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label><TranslationInputs label="Libellé traduit" values={selectedBar.titleTranslations} onChange={t=>patchBar({titleTranslations:t})}/>
             {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
