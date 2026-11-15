@@ -105,10 +105,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   renderer.xr.enabled=true;
   renderer.setPixelRatio(1);
   // Netteté dans le casque : tampon d'image plus grand (avant le début de la session) et pas de dégradé de définition sur les bords.
-  try{renderer.xr.setFramebufferScaleFactor(1.5);}catch{/* non pris en charge */}
+  try{renderer.xr.setFramebufferScaleFactor(1.25);}catch{/* non pris en charge */}
   const maxTex=Math.min(VR_MAX_TEXTURE,renderer.capabilities.maxTextureSize);
   await renderer.xr.setSession(session);
-  try{renderer.xr.setFoveation(0);}catch{/* non pris en charge */}
+  try{renderer.xr.setFoveation(.35);}catch{/* non pris en charge */}
 
   const scene=new ThreeScene();scene.background=new Color(0x000000);
   const camera=new PerspectiveCamera(70,1,0.05,50);
@@ -378,7 +378,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     try{activeVideo.el.pause();activeVideo.el.removeAttribute('src');activeVideo.el.load();}catch{/* déjà arrêtée */}
     activeVideo.tex.dispose();activeVideo=null;
   };
+  let panelGen=0; // change à chaque fermeture / remplacement de fenêtre : un chargement en cours ne peut plus rien ajouter après coup
   function closePanels(){
+    panelGen++;
     panelReplace=panelGroup.children.length>0;
     stopVideo();
     clearGroup(panelGroup);
@@ -386,6 +388,25 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   }
   const addPanelButton=(w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void)=>{
     const m=addButton(panelGroup,w,h,tex,x,y,onSelect,6);m.userData={...m.userData};(m as Object3D).userData.panel=true;return m;
+  };
+  // Vignettes : la tuile s'affiche tout de suite, l'image arrive ensuite (mise en cache, jamais rechargée).
+  const thumbCache=new Map<string,Promise<HTMLCanvasElement|null>>();
+  let thumbQueue:Promise<unknown>=Promise.resolve();
+  const cachedThumb=(key:string,src:string)=>{
+    let p=thumbCache.get(key);
+    // Une vignette à la fois : décoder plusieurs grands panoramas en même temps fait saccader le casque.
+    if(!p){p=thumbQueue.then(()=>ended?null:loadReduced(src,480)).catch(()=>null);thumbQueue=p.then(()=>wait(30));thumbCache.set(key,p);}
+    return p;
+  };
+  const thumbTile=(key:string,src:string|undefined,tw:number,th:number,draw:(c:CanvasRenderingContext2D,thumb:HTMLCanvasElement|null)=>void,w:number,h:number,x:number,y:number,onSelect:()=>void)=>{
+    const btn=addPanelButton(w,h,canvasTexture(tw,th,c=>draw(c,null)),x,y,onSelect);
+    if(!src)return;
+    const gen=panelGen;
+    void cachedThumb(key,src).then(thumb=>{
+      if(!thumb||ended||gen!==panelGen||!(btn as Object3D).parent)return;
+      const mat=(btn as unknown as Mesh).material as MeshBasicMaterial;
+      const old=mat.map;mat.map=canvasTexture(tw,th,c=>draw(c,thumb));mat.needsUpdate=true;old?.dispose();
+    });
   };
   const closeButtonTexture=()=>canvasTexture(240,110,c=>{
     roundRect(c,6,6,228,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
@@ -559,20 +580,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const showWebContent=async(title:string,url:string,description=''):Promise<void>=>{
     if(!url){showText(title||'Lien','Aucun lien renseigné.');return;}
     setNotice('Chargement…');
+    const gen=panelGen;
     const doc=await fetchVrDoc(url);
-    if(ended)return;
+    if(ended||gen!==panelGen)return;
     if(doc){showPages(doc.title||title,doc.pages);return;}
     showWebLink(title,url,description);
   };
 
   // Image en grand dans un panneau 3D (fermable avec la gâchette). `nav` ajoute précédent / suivant / retour à la galerie.
+  let imageReq=0;
   const showImagePanel=async(src:string|undefined,title:string,nav?:{index:number;count:number;prev:()=>void;next:()=>void;back:()=>void})=>{
     if(!src){setNotice('Photo en cours de chargement…');opts.ensureScene?.(currentId);return;}
-    const shownFor=currentId;
+    const shownFor=currentId,gen=panelGen,req=++imageReq;
     let bitmap:HTMLCanvasElement;
     try{bitmap=await loadReduced(src,2048);}
     catch{setNotice('Impossible de charger cette photo.');return;}
-    if(ended||shownFor!==currentId)return;
+    if(ended||shownFor!==currentId||gen!==panelGen||req!==imageReq)return;
     closePanels();
     const ratio=bitmap.width/Math.max(1,bitmap.height);
     const maxW=1.42,maxH=.92;
@@ -637,19 +660,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         const e=slice[k];
         const col=k%cols,row=Math.floor(k/cols);
         const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
-        let thumb:HTMLCanvasElement|null=null;
-        const src=e.r.thumb??e.r.image;
-        if(e.m.kind==='photo'&&src){try{thumb=await loadReduced(src,480);}catch{thumb=null;}}
-        const tex=canvasTexture(340,300,c=>{
+        thumbTile('media:'+e.m.id,e.m.kind==='photo'?(e.r.thumb??e.r.image):undefined,340,300,(c,thumb)=>{
           roundRect(c,5,5,330,290,28);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
           c.save();roundRect(c,16,16,308,196,20);c.clip();
-          if(thumb)c.drawImage(thumb,16,16,308,196);else{c.fillStyle='#222';c.fillRect(16,16,308,196);c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',170,116);}
+          if(thumb)c.drawImage(thumb,16,16,308,196);else{c.fillStyle='#222';c.fillRect(16,16,308,196);if(e.m.kind!=='photo'){c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',170,116);}}
           c.restore();
           c.fillStyle=iconColor;c.font='bold 30px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
           let t=e.m.name;while(c.measureText(t).width>300&&t.length>2)t=t.slice(0,-2);
           c.fillText(t===e.m.name?t:t.trimEnd()+'…',170,258);
-        });
-        addPanelButton(cw,ch,tex,x,y,()=>{void open(page*perPageP+k);});
+        },cw,ch,x,y,()=>{void open(page*perPageP+k);});
       }
       placePanel(1.7,-.0);
     };
@@ -696,10 +715,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         const e=slice[i];
         const col=i%cols,row=Math.floor(i/cols);
         const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
-        let thumb:HTMLCanvasElement|null=null;
-        const src=sceneOf(e.sceneId)?.dataUrl;
-        if(src){try{thumb=await loadReduced(src,480);}catch{thumb=null;}}
-        const tex=canvasTexture(440,400,c=>{
+        opts.ensureScene?.(e.sceneId);
+        thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,440,400,(c,thumb)=>{
           roundRect(c,6,6,428,388,34);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=7;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
           c.save();roundRect(c,22,22,396,250,24);c.clip();
           if(thumb)c.drawImage(thumb,22,22,396,250);else{c.fillStyle='#333';c.fillRect(22,22,396,250);}
@@ -707,8 +724,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           c.fillStyle=iconColor;c.font='bold 38px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
           let t=e.label;while(c.measureText(t).width>390&&t.length>2)t=t.slice(0,-2);
           c.fillText(t===e.label?t:t.trimEnd()+'…',220,336);
-        });
-        addPanelButton(cw,ch,tex,x,y,()=>{void goTo(e.sceneId);});
+        },cw,ch,x,y,()=>{void goTo(e.sceneId);});
       }
       placePanel(1.6,-.0);
     };
