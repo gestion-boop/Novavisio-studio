@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#071924"><title>Immosphera360 VR · NovaVisio VR</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#f4f7fa;background:#071924;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 80% -10%,#174554 0%,transparent 45%),linear-gradient(155deg,#071924,#0c2c39 55%,#081b25)}
+button,input,select{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}
+header{height:84px;border-bottom:1px solid #ffffff1c;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,76px);gap:12px}
+.brand{font-weight:750;font-size:clamp(23px,2.4vw,32px);letter-spacing:-.05em}.brand span{color:#ddba78}.kicker{letter-spacing:.24em;color:#b2d6da;font-size:10px;text-transform:uppercase;font-weight:750}
+.back{border:1px solid #406471;background:#0c2a39;padding:11px 18px;border-radius:12px;font-size:13px}
+main{max-width:1440px;margin:auto;padding:44px clamp(18px,4vw,65px) 90px}
+.top{text-align:center;margin-bottom:37px}.top h1{font-size:clamp(38px,6vw,75px);margin:4px 0;font-weight:740;letter-spacing:-.06em}.top h1 span{color:#dfbd7e}.top p{color:#b1cbd1;max-width:600px;margin:12px auto}
+.searchbox{display:flex;align-items:center;gap:12px;max-width:850px;margin:0 auto 20px;padding:0 19px;background:#143646;border:1px solid #5e8b99;border-radius:17px;min-height:62px;box-shadow:0 12px 40px #0003}
+.searchbox svg{flex:none}.searchbox input{background:none;border:0;outline:none;color:white;width:100%;min-width:0;font-size:17px}.searchbox input::placeholder{color:#a8c3ca}
+.controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;margin-bottom:28px}
+.tab{border:1px solid #517782;border-radius:999px;background:#0e2b38;color:#d2e1e5;padding:11px 20px;transition:.15s}
+.tab[aria-pressed=true]{background:linear-gradient(135deg,#fae2b3,#c79b55);border-color:#ffe6b0;color:#1f2a2c;font-weight:760}
+.filters{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin:32px 0 16px}
+.filters select,.filters button{border:1px solid #527483;background:#102f3b;color:#edf7f9;border-radius:11px;padding:11px 14px}
+.count{color:#c4d4d7;font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,355px),1fr));gap:20px}
+.card{overflow:hidden;border:1px solid #3e7180;border-radius:22px;background:linear-gradient(155deg,#153b49,#0b2836);box-shadow:0 13px 40px #0003}
+.cover{height:205px;position:relative;background:linear-gradient(145deg,#214653,#102b38);display:grid;place-items:center;overflow:hidden}
+.cover img{width:100%;height:100%;object-fit:cover}.cover .placeholder{font-size:58px;opacity:.5}
+.pill{position:absolute;top:14px;left:14px;background:#071e29da;border:1px solid #ffffff4d;border-radius:999px;padding:6px 11px;font-size:11px;font-weight:750}
+.cardbody{padding:20px}.card h3{font-size:22px;margin:0 0 8px;letter-spacing:-.025em}
+.meta{color:#c1d4d9;margin:6px 0;font-size:14px}.mandate{display:inline-block;margin-top:9px;padding:5px 10px;border:1px solid #a4a887;border-radius:8px;font-size:12px}
+.actions{display:flex;gap:9px;margin-top:20px}.gold{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 17px;border-radius:11px;background:linear-gradient(#f3d69b,#c79b52);border:1px solid #ffe2a4;color:#182832;font-weight:750;flex:1;text-align:center}
+.vr-launch{display:inline-flex;align-items:center;justify-content:center;padding:12px 13px;border-radius:11px;background:#124658;border:1px solid #6fb9c5;color:#eafaff;font-weight:700;flex:1;text-align:center}.actions{flex-wrap:wrap}.delete{border:1px solid #58717a;background:#122d39;color:#f1d1c9;border-radius:11px;padding:0 13px}
+.empty{text-align:center;border:1px dashed #597786;background:#102e3b8a;padding:55px 22px;border-radius:22px;color:#c9dce2}
+.empty strong{display:block;color:white;font-size:21px;margin-bottom:10px}.empty p{max-width:520px;margin:10px auto 20px}
+.toolbtn{border:1px solid #d6b77d;background:#d9bd86;color:#142b35;border-radius:10px;padding:12px 18px;font-weight:750}
+dialog{background:#0d2937;color:#eef8fa;border:1px solid #6892a0;border-radius:24px;padding:26px;width:min(94vw,580px);box-shadow:0 20px 110px #0009}
+dialog::backdrop{background:#020b11b8;backdrop-filter:blur(5px)}
+.dialogHead{display:flex;justify-content:space-between;align-items:center;gap:12px}.dialogHead h2{margin:0}
+.close{background:#173b49;border:1px solid #61818c;color:white;border-radius:11px;padding:8px 12px}
+form{display:grid;gap:14px;margin-top:22px}label{display:grid;gap:6px;font-size:13px;font-weight:650;color:#d5e1e5}form input,form select{width:100%;min-height:45px;padding:10px 12px;background:#08202b;color:white;border:1px solid #5a7b87;border-radius:10px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.hint{font-size:12px;color:#adc5cb;line-height:1.5}.form-actions{display:flex;gap:10px}.form-actions button{flex:1}
+footer{padding:22px;text-align:center;color:#8fa8b3;border-top:1px solid #ffffff17;font-size:12px}
+.note{margin-top:25px;text-align:center;color:#9eb7c0;font-size:12px}
+@media(max-width:600px){header{height:72px}.row2{grid-template-columns:1fr}main{padding-top:28px}.back{padding:10px}.top{margin-bottom:23px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head>
+<body>
+<header><div><div class="brand">Immo<span>sphera360</span> VR</div><div class="kicker">Immobilier immersif · Meta Quest 3</div></div><a class="back" href="/">↗ NovaStudio</a></header>
+<main>
+<section class="top"><div class="kicker">Bibliothèque immobilière immersive</div><h1>Immosphera<span>360 VR</span></h1><p>Retrouvez vos maisons et appartements par ville, adresse ou numéro de mandat. Ouvrez la visite immersive en un geste.</p></section>
+<div class="searchbox"><svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="none" stroke="#edc989" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></svg><input id="search" autocomplete="off" placeholder="Rechercher une ville, un bien ou un n° de mandat…" aria-label="Rechercher une visite"></div>
+<nav class="controls" aria-label="Catégories"><button class="tab" data-filter="all" aria-pressed="true">◉ Toutes les visites</button><button class="tab" data-filter="maison" aria-pressed="false">⌂ Maisons</button><button class="tab" data-filter="appartement" aria-pressed="false">▦ Appartements</button></nav>
+<div class="filters"><span class="count" id="count">0 visite</span><div style="display:flex;gap:9px;flex-wrap:wrap"><select id="city" aria-label="Filtrer par ville"><option value="">Toutes les villes</option></select><button type="button" id="importBtn">Importer</button><button type="button" class="toolbtn" id="addBtn">＋ Ajouter une visite</button></div></div>
+<div class="cards" id="cards"></div>
+<p class="note">Version initiale : catalogue enregistré localement sur cet appareil. La synchronisation Cloud et la véritable navigation WebXR seront ajoutées dans les prochaines étapes.</p>
+</main>
+<dialog id="dialog" aria-label="Ajouter une visite"><div class="dialogHead"><h2>Ajouter une visite NovaStudio</h2><button class="close" id="closeBtn" type="button" aria-label="Fermer">✕</button></div>
+<form id="form"><label>Nom du bien *<input name="name" required maxlength="120" placeholder="Maison avec jardin"></label>
+<div class="row2"><label>Type de bien *<select name="type" required><option value="maison">Maison</option><option value="appartement">Appartement</option></select></label><label>Ville *<input name="city" required maxlength="90" placeholder="Narbonne"></label></div>
+<div class="row2"><label>Adresse / secteur (facultatif)<input name="address" maxlength="160" placeholder="Centre-ville"></label><label>Numéro de mandat<input name="mandate" maxlength="60" placeholder="2418"></label></div>
+<label>Lien public de la visite NovaStudio *<input name="url" type="url" required placeholder="https://novavisio-studio.vercel.app/share.html?t=…"></label>
+<label>URL d'une image de couverture (facultatif)<input name="image" type="url" placeholder="https://…/photo.jpg"></label>
+<p class="hint">Utilisez uniquement un lien de visite publié et autorisé. Ne saisissez pas de données privées. Les fiches sont conservées dans ce navigateur seulement.</p><div class="form-actions"><button class="close" type="button" id="cancelBtn">Annuler</button><button class="gold" type="submit">Enregistrer la visite</button></div></form></dialog>
+<input id="importFile" type="file" accept="application/json,.json" hidden>
+<footer>Immosphera360 VR · Propulsé par NovaStudio — Portail de visites immersives</footer>
+<script>
+(()=>{'use strict';
+const STORE='novavisio-hemisphere-1-v1';let visits=[];const featured={id:'demo-vr-first',name:'Visite immersive test',type:'visite',city:'Localisation à renseigner',address:'',mandate:'',url:'https://novavisio-studio.vercel.app/share.html?t=32e38cb9f7114fd786e0277c123d1b723272e1be285f4d4ab99876f45e700b39',image:''};try{const x=JSON.parse(localStorage.getItem(STORE)||'[]');if(Array.isArray(x))visits=x.filter(safeRecord);}catch{}
+const $=id=>document.getElementById(id),cards=$('cards'),search=$('search'),city=$('city'),dialog=$('dialog');let kind='all';
+function clean(x){return String(x??'').trim()}
+function safeUrl(s){try{const u=new URL(s);return u.protocol==='https:'?u.href:null}catch{return null}}
+function safeRecord(v){return v&&['maison','appartement','visite'].includes(v.type)&&clean(v.name)&&clean(v.city)&&safeUrl(v.url)}
+function save(){localStorage.setItem(STORE,JSON.stringify(visits))}
+function node(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function render(){const query=search.value.trim().toLocaleLowerCase('fr');const names=[...new Set(visits.map(v=>v.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b));const prev=city.value;city.replaceChildren(new Option('Toutes les villes',''));for(const n of names)city.add(new Option(n,n));city.value=names.includes(prev)?prev:'';
+const shown=[featured,...visits.filter(v=>v.url!==featured.url)].filter(v=>(kind==='all'||v.type===kind)&&(!city.value||v.city===city.value)&&[v.name,v.city,v.address,v.mandate].some(t=>clean(t).toLocaleLowerCase('fr').includes(query)));
+$('count').textContent=shown.length+' visite'+(shown.length!==1?'s':'');cards.replaceChildren();
+if(!shown.length){const e=node('div','empty');const t=node('strong','',visits.length?'Aucun résultat pour cette recherche':'Votre bibliothèque est prête');const p=node('p','',visits.length?'Essayez une autre ville, catégorie ou référence.':'Ajoutez votre première visite immobilière avec son lien de publication NovaStudio.');e.append(t,p);if(!visits.length){const b=node('button','toolbtn','＋ Ajouter ma première visite');b.onclick=()=>dialog.showModal();e.append(b)}cards.append(e);return}
+for(const v of shown){const item=node('article','card'),cover=node('div','cover'),pic=safeUrl(v.image);if(pic){const im=node('img');im.src=pic;im.alt='';im.loading='lazy';im.referrerPolicy='no-referrer';im.onerror=()=>{im.replaceWith(node('span','placeholder',v.type==='maison'?'⌂':'▦'))};cover.append(im)}else cover.append(node('span','placeholder',v.type==='maison'?'⌂':'▦'));cover.append(node('span','pill','360°'));const body=node('div','cardbody');body.append(node('h3','',v.name),node('p','meta','⌖ '+v.city+(v.address?' · '+v.address:'')));if(v.mandate)body.append(node('span','mandate','Mandat '+v.mandate));
+const acts=node('div','actions'),a=node('a','gold','◉ Visite classique');a.href=v.url;a.target='_blank';a.rel='noopener noreferrer';a.title='Ouvrir la visite 360° habituelle';acts.append(a);const vr=node('a','vr-launch','🥽 Mode casque VR');const vrUrl=new URL(v.url);vrUrl.searchParams.set('vr','1');vr.href=vrUrl.toString();vr.target='_blank';vr.rel='noopener noreferrer';vr.title='Ouvrir cette visite en mode Meta Quest 3';acts.append(vr);const del=node('button','delete','✕');del.type='button';del.title='Retirer de cette bibliothèque';del.setAttribute('aria-label','Retirer '+v.name);del.onclick=()=>{if(confirm('Retirer cette visite du catalogue local ?')){visits=visits.filter(x=>x.id!==v.id);save();render()}};if(v.id!==featured.id)acts.append(del);body.append(acts);item.append(cover,body);cards.append(item)}
+}
+search.addEventListener('input',render);city.addEventListener('change',render);document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{kind=b.dataset.filter;document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render()});
+$('addBtn').onclick=()=>dialog.showModal();$('closeBtn').onclick=()=>dialog.close();$('cancelBtn').onclick=()=>dialog.close();
+$('form').onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget);const v=Object.fromEntries([...d.entries()].map(([k,v])=>[k,clean(v)]));v.url=safeUrl(v.url);v.image=v.image?safeUrl(v.image):'';if(!safeRecord(v)){alert('Merci de saisir un lien HTTPS valide ainsi que le nom, la ville et le type.');return}v.id=crypto.randomUUID?.()||String(Date.now());visits.unshift(v);try{save()}catch{alert('Stockage local indisponible.')}e.currentTarget.reset();dialog.close();render()};
+$('importBtn').onclick=()=>{const choice=prompt('Importer ou exporter votre catalogue ? Tapez IMPORTER ou EXPORTER.','EXPORTER');if(!choice)return;if(choice.toUpperCase()==='IMPORTER')$('importFile').click();else if(choice.toUpperCase()==='EXPORTER'){const blob=new Blob([JSON.stringify(visits,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=node('a');a.href=url;a.download='hemisphere-1-catalogue.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}};
+$('importFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!Array.isArray(data)||data.length>500)throw Error();const items=data.filter(safeRecord).map(v=>({id:clean(v.id)||String(Math.random()),name:clean(v.name),type:v.type,city:clean(v.city),address:clean(v.address),mandate:clean(v.mandate),url:safeUrl(v.url),image:safeUrl(v.image)||''}));if(!confirm('Importer '+items.length+' visites dans ce navigateur ?'))return;visits=[...visits,...items.filter(v=>!visits.some(a=>a.url===v.url))];save();render()}catch{alert('Fichier JSON non valide.')}e.target.value=''};
+render();
+})();
+</script></body></html>

@@ -1,6 +1,6 @@
 import {
   CanvasTexture,Color,LinearFilter,DoubleSide,Group,Line,BufferGeometry,LineBasicMaterial,Float32BufferAttribute,Mesh,MeshBasicMaterial,
-  PerspectiveCamera,PlaneGeometry,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,WebGLRenderer,type Object3D,type Texture
+  PerspectiveCamera,PlaneGeometry,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
 } from 'three';
 import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -8,10 +8,12 @@ import {galleryEntries} from './gallery';
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
  * avec la manette, barre flottante, galerie de panoramas. Les panoramas sont allégés (4096 px max) pour le casque.
- * Les cadres photo/vidéo, fenêtres d'information et la musique ne font pas partie de cette version.
+ * Les cadres photo/vidéo en perspective et la musique ne font pas encore partie de cette version.
+ * Les points d'information texte, le style de barre et la galerie restent accessibles.
  */
 export const VR_MAX_TEXTURE=4096;
 const SPHERE_R=10,HOTSPOT_R=6;
+const POINTER_MAX=2.2; // Un laser court ; point bleu sur la vraie cible.
 
 export async function vrSupported():Promise<boolean>{
   try{
@@ -130,23 +132,61 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   /** Place le panorama de sorte que la vue d'arrivée (yaw) se trouve devant le visage actuel. */
   const alignToHead=(yaw:number)=>{const h=headForward();root.position.set(h.x,h.y,h.z);root.rotation.y=yaw+h.phi;};
 
+  const getIconUrl=(id?:string)=>id?project().icons?.find(i=>i.id===id)?.dataUrl:undefined;
+  // Les logos Cloud peuvent arriver après le chargement des panoramas.
+  const currentIconSignature=()=>[...(project().icons??[]).map(i=>i.id+':'+(i.dataUrl??'')),...(project().bottomBar??[]).map(i=>i.id+':'+(i.iconId??''))].join('|');
+  let iconSignature=currentIconSignature();
+  let refreshBusy=false;
   const makeHotspot=async(h:Hotspot):Promise<Mesh|null>=>{
-    if(h.type!=='navigation'||!h.target)return null;
-    const icon=project().icons?.find(i=>i.id===h.iconId);
-    const img=icon?.dataUrl?await loadImage(icon.dataUrl):null;
+    if(h.type!=='navigation'&&h.type!=='information'&&h.type!=='lien'&&h.type!=='image'&&h.type!=='video')return null;
+    if(h.type==='navigation'&&!h.target)return null;
+    const iconUrl=getIconUrl(h.iconId);
+    const img=iconUrl?await loadImage(iconUrl):null;
+    if(h.type==='navigation'&&h.sphere&&h.target){
+      const radius=Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
+      const mesh=new Mesh(new SphereGeometry(radius,32,20),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
+      const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
+      mesh.position.copy(pos);mesh.renderOrder=2;
+      mesh.userData={baseScale:1,hoverScale:1.18,onSelect:()=>void goTo(h.target,h)};
+      opts.ensureScene?.(h.target);
+      const loadSphere=async()=>{
+        for(let attempt=0;attempt<30&&!ended;attempt++){
+          const url=sceneOf(h.target)?.dataUrl;
+          if(url){
+            try{
+              const pano=await loadReduced(url,512);
+              if(ended||!mesh.parent)return;
+              const texture=new CanvasTexture(pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
+              const material=mesh.material as MeshBasicMaterial;
+              material.map=texture;material.color.set(0xffffff);material.opacity=1;material.needsUpdate=true;
+              return;
+            }catch{}
+          }
+          await wait(450);
+        }
+      };
+      void loadSphere();
+      return mesh;
+    }
     const tex=canvasTexture(256,256,c=>{
       if(img){c.drawImage(img,0,0,256,256);return;}
       c.fillStyle='rgba(20,20,24,.72)';c.beginPath();c.arc(128,128,120,0,Math.PI*2);c.fill();
       c.lineWidth=10;c.strokeStyle='#ffffff';c.stroke();
       c.strokeStyle='#ffffff';c.lineWidth=22;c.lineCap='round';c.lineJoin='round';
-      c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();
+      if(h.type==='navigation'){c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();}
+      else {c.font='bold 144px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(h.type==='information'?'i':h.type==='lien'?'↗':h.type==='video'?'▶':'▣',128,130);}
     });
-    const size=Math.min(1.3,Math.max(.6,(h.iconSize??28)/32*.7));
+    const size=Math.min(.30,Math.max(.12,(h.iconSize??28)/48*.20));
     const mesh=new Mesh(new PlaneGeometry(size,size),new MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false,side:DoubleSide}));
     mesh.renderOrder=1;
     const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
     mesh.position.copy(pos);
-    mesh.userData={baseScale:1,hoverScale:1.25,onSelect:()=>{void goTo(h.target,h);}};
+    mesh.userData={baseScale:1,hoverScale:1.25,onSelect:()=>{
+      if(h.type==='navigation')void goTo(h.target,h);
+      else if(h.type==='information')showText(h.title||'Informations',h.text);
+      else if(h.type==='lien')showText(h.title||'Lien',h.url||'Ouvrir cette ressource dans la visite classique.');
+      else setNotice('Photo ou vidéo : disponible dans la visite classique.');
+    }};
     return mesh;
   };
 
@@ -214,14 +254,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     roundRect(c,6,6,c.canvas.width-12,c.canvas.height-12,36);
     c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
   });
-  const buttonTexture=async(label:string,iconSrc:string|undefined,glyph:string,wide=false):Promise<CanvasTexture>=>{
+  const buttonTexture=async(label:string,iconSrc:string|undefined,glyph:string,wide=false,iconOnly=false):Promise<CanvasTexture>=>{
     const img=iconSrc?await loadImage(iconSrc):null;
     const W=wide?420:300,H=360;
     return canvasTexture(W,H,c=>{
+      if(iconOnly&&img){
+        const size=Math.min(W,H)-12;
+        c.drawImage(img,(W-size)/2,(H-size)/2,size,size);
+        return;
+      }
       roundRect(c,8,8,W-16,H-16,48);c.fillStyle=btnBg;c.fill();c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
       if(img){
-        const s=Math.min(190/img.width,190/img.height);
-        c.drawImage(img,(W-img.width*s)/2,40+(190-img.height*s)/2,img.width*s,img.height*s);
+        const size=Math.min(190,Math.min(W,H)*.60);
+        const scale=Math.min(size/img.width,size/img.height);
+        c.drawImage(img,(W-img.width*scale)/2,40+(size-img.height*scale)/2,img.width*scale,img.height*scale);
       }else{
         c.fillStyle=iconColor;c.font='bold 150px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(glyph,W/2,135);
       }
@@ -246,17 +292,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const buildBar=async()=>{
     clearGroup(barGroup);
     const items=project().bottomBar??[];
-    const bw=.21,bh=.25,gap=.03;
+    const bw=.145,bh=.145,gap=.013;
     const entries:{item?:BottomBarItem;label:string}[]=[...items.map(item=>({item,label:item.title})),{label:'Quitter la VR'}];
     const total=entries.length*bw+(entries.length-1)*gap;
-    const W=total+.12,H=bh+.1;
+    const W=total+.08,H=bh+.045;
     addPlane(barGroup,W,H,backdrop(W,H),2,0,0);
     let x=-total/2+bw/2;
     for(const e of entries){
       if(e.item){
         const item=e.item;
         const icon=project().icons?.find(i=>i.id===item.iconId);
-        const tex=await buttonTexture(item.title,icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i');
+        const tex=await buttonTexture(item.title,icon?.dataUrl,GLYPH[item.builtinIcon??'info']??'i',false,!!icon?.dataUrl);
         addButton(barGroup,bw,bh,tex,x,0,()=>onBarItem(item));
       }else{
         const tex=await buttonTexture('Quitter la VR',undefined,'✕');
@@ -264,7 +310,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
       x+=bw+gap;
     }
-    placeInFront(barGroup,1.5,.55);
+    placeInFront(barGroup,1.55,1.08);
     barPlacedPhi=headForward().phi;
   };
 
@@ -308,7 +354,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   const showGallery=async(item:BottomBarItem)=>{
     closePanels();
-    const entries=galleryEntries(item,project().scenes);
+    const entries=galleryEntries(item,project().scenes,project().spaces);
     const perPage=6,cols=3;
     let page=0;
     const render=async()=>{
@@ -355,8 +401,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   function onBarItem(item:BottomBarItem){
     if(item.type==='gallery'){void showGallery(item);return;}
-    if(item.type==='navigation'){void goTo(item.target||project().scenes[0].id);return;}
+    if(item.type==='navigation'){
+      if(item.target){void goTo(item.target);return;}
+      // Bouton Espaces sans cible : affiche la liste des panoramas et espaces.
+      void showGallery({...item,type:'gallery',galleryTitle:item.title||'Espaces',gallery:project().scenes.map(scene=>({sceneId:scene.id,label:scene.name})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
+    }
     if(item.type==='information'){showText(item.title,item.text);return;}
+    if(item.type==='lien'){showText(item.title,item.url||'Cette action est disponible depuis la visite classique.');return;}
     setNotice('Ce bouton s\'ouvre dans la visite classique.');
   }
 
@@ -364,13 +415,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const raycaster=new Raycaster();
   const controllers=[0,1].map(i=>{
     const c=renderer.xr.getController(i);
-    const geo=new BufferGeometry();geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-3],3));
-    const line=new Line(geo,new LineBasicMaterial({color:0xffffff,transparent:true,opacity:.7,depthTest:false}));
+    const geo=new BufferGeometry();geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-POINTER_MAX],3));
+    const line=new Line(geo,new LineBasicMaterial({color:0xbce6fb,transparent:true,opacity:.65,depthTest:false}));
     line.renderOrder=9;c.add(line);scene.add(c);
+    const dot=new Mesh(new SphereGeometry(.022,12,8),new MeshBasicMaterial({color:0x13c7ff,depthTest:false,depthWrite:false}));
+    dot.renderOrder=12;dot.visible=false;scene.add(dot);
+    c.userData.vrPointer={geo,dot};
+    disposables.push(dot.geometry,dot.material as MeshBasicMaterial);
     disposables.push(geo,line.material as LineBasicMaterial);
     return c;
   });
-  const hits=(c:Object3D):Clickable|null=>{
+  const hits=(c:Object3D):{target:Clickable|null;point:Vector3|null;distance:number}=>{
     const origin=new Vector3(),dir=new Vector3(0,0,-1);
     c.getWorldPosition(origin);
     dir.transformDirection(c.matrixWorld);
@@ -378,18 +433,35 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const live=clickables.filter(m=>m.parent&&m.visible);
     // Ordre de priorité : panneaux (devant) avant les flèches.
     const found=raycaster.intersectObjects(live,false);
-    if(!found.length)return null;
+    if(!found.length)return {target:null,point:null,distance:POINTER_MAX};
     found.sort((a,b)=>((b.object as Mesh).renderOrder-(a.object as Mesh).renderOrder)||a.distance-b.distance);
-    return found[0].object as Clickable;
+    return {target:found[0].object as Clickable,point:found[0].point,distance:found[0].distance};
   };
   controllers.forEach(c=>{
-    c.addEventListener('selectstart',()=>{const t=hits(c);t?.userData.onSelect?.();});
+    c.addEventListener('selectstart',()=>{const h=hits(c);h.target?.userData.onSelect?.();});
     // Prise (gâchette latérale) : ramène la barre devant soi.
     c.addEventListener('squeezestart',()=>{void buildBar();});
   });
 
   // ---- boucle de rendu --------------------------------------------------------------------------------------
+  let lastRefreshCheck=0;
   const tick=()=>{
+    const now=performance.now();
+    if(now-lastRefreshCheck>900&&!refreshBusy&&!ended){
+      lastRefreshCheck=now;
+      const signature=currentIconSignature();
+      if(signature!==iconSignature){
+        iconSignature=signature;refreshBusy=true;
+        void (async()=>{
+          await buildBar();
+          const active=sceneOf(currentId);
+          if(active){
+            clearGroup(hotspotGroup);
+            for(const h of active.hotspots){const m=await makeHotspot(h);if(m){hotspotGroup.add(m);clickables.push(m as Clickable);}}
+          }
+        })().finally(()=>{refreshBusy=false;});
+      }
+    }
     if(alignPending){
       const h=headForward();
       // Attend la première vraie pose de la tête.
@@ -408,7 +480,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
     // Survol.
     const hovered=new Set<Clickable>();
-    controllers.forEach(c=>{if(c.visible){const t=hits(c);if(t)hovered.add(t);}});
+    controllers.forEach(c=>{
+      const hit=hits(c),pointer=c.userData.vrPointer as {geo:BufferGeometry;dot:Mesh}|undefined;
+      if(hit.target)hovered.add(hit.target);
+      if(pointer){
+        const length=Math.min(POINTER_MAX,hit.distance);
+        const pos=pointer.geo.getAttribute('position') as Float32BufferAttribute;
+        pos.setXYZ(1,0,0,-length);pos.needsUpdate=true;pointer.geo.computeBoundingSphere();
+        pointer.dot.visible=!!hit.point&&c.visible;
+        if(hit.point){pointer.dot.position.copy(hit.point);pointer.dot.scale.setScalar(hit.distance>3?3:1);}
+      }
+    });
     for(const m of clickables){
       const base=m.userData.baseScale??1,wanted=hovered.has(m)?(m.userData.hoverScale??1):base;
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
