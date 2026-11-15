@@ -4076,6 +4076,9 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   display:flex;flex-direction:column;gap:10px;padding:21px;
 }
 .nv-cloud-compact .nv-cloud-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-right:23px}
+.nv-cloud-heading-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.nv-cloud-clients-link{border-color:#4b8b8c!important;color:#c4fff2!important;background:#173f49!important}
+.nv-cloud-clients-link:hover{border-color:#6be0cf!important;background:#225867!important}
 .nv-cloud-compact .nv-cloud-heading h2{margin:0}
 .nv-cloud-compact .nv-cloud-account{margin:0;font-size:12px}
 .nv-cloud-compact .nv-cloud-hint{margin:0;font-size:12px;line-height:1.4}
