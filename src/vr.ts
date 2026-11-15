@@ -30,8 +30,6 @@ export async function vrSupported():Promise<boolean>{
 export type VrOptions={
   getProject:()=>StudioProject;
   startSceneId:string;
-  /** Interface d'essai anthracite / or, jamais persistée dans la visite. */
-  referenceTest?:boolean;
   /** Demande le téléchargement d'un panorama pas encore chargé (lien public). */
   ensureScene?:(id:string)=>void;
   onSceneChange?:(id:string)=>void;
@@ -336,16 +334,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     fadeTarget=1;
     busy=false;
     if(!ok)setNotice(tt('unavailable'));
-    else if(opts.referenceTest)void buildBar();
+    else if(referenceMode)void buildBar();
   }
 
   // ---- panneaux flottants (barre, galerie, texte) ----------------------------------------------------------
+  // Le nouveau design ne s'active QUE dans le casque par A ou B.
+  let referenceMode=false;
   const theme=project().barStyle;
-  const panelBg=opts.referenceTest?'rgba(37,38,42,.87)':theme?.background??'#c2c5c6',
-    panelLine=opts.referenceTest?'#e1a525':theme?.outline??'#987974',
-    btnBg=opts.referenceTest?'#1c1d20':theme?.button??'#5d131a',
-    btnLine=opts.referenceTest?'#daa025':theme?.buttonOutline??'#4a1518',
-    iconColor=opts.referenceTest?'#f6bb34':theme?.icon??'#f4d69a';
+  const panelBg=referenceMode?'rgba(37,38,42,.87)':theme?.background??'#c2c5c6',
+    panelLine=referenceMode?'#e1a525':theme?.outline??'#987974',
+    btnBg=referenceMode?'#1c1d20':theme?.button??'#5d131a',
+    btnLine=referenceMode?'#daa025':theme?.buttonOutline??'#4a1518',
+    iconColor=referenceMode?'#f6bb34':theme?.icon??'#f4d69a';
   const barGroup=new Group();ui.add(barGroup);
   const panelGroup=new Group();ui.add(panelGroup);
   const noticeGroup=new Group();ui.add(noticeGroup);
@@ -405,7 +405,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let barPlacedPhi=0;
   const buildBar=async()=>{
     clearGroup(barGroup);
-    if(opts.referenceTest){
+    if(referenceMode){
       // Maquette issue des trois captures : bandeau panorama, barre d'étage
       // à gauche, options à droite, galerie/plan dans le panneau central.
       // Position du décor fixe dans l'espace, manettes WebXR interactives.
@@ -435,17 +435,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const gallery=project().bottomBar.find(b=>b.type==='gallery');
       const fallback={id:'vr-test-gallery',title:'Panoramas',type:'gallery',gallery:first.map(s=>({sceneId:s.id,label:s.name}))} as BottomBarItem;
       const plan=project().bottomBar.find(b=>b.type==='plan');
-      control(-.86,.16,'▱',()=>{void showGallery(gallery??fallback);});
-      control(-.86,-.03,'▲',()=>{const s=first[Math.max(0,sceneIndex-1)];if(s)void goTo(s.id);});
-      addPlane(barGroup,.13,.10,plate((sceneIndex+1)+' / '+first.length),4,-.86,-.16);
-      control(-.86,-.29,'▼',()=>{const s=first[Math.min(first.length-1,sceneIndex+1)];if(s)void goTo(s.id);});
-      control(-.86,-.49,'⌂',()=>{if(first[0])void goTo(first[0].id);});
-      control(.86,.11,getPrefs().sound==='off'?'◌':'♫',()=>{
+      control(-.95,.16,'▦',()=>{void showGallery(gallery??fallback);});
+      control(-.95,-.03,'▲',()=>{const s=first[Math.max(0,sceneIndex-1)];if(s)void goTo(s.id);});
+      addPlane(barGroup,.13,.10,plate((sceneIndex+1)+' / '+first.length),4,-.95,-.16);
+      control(-.95,-.29,'▼',()=>{const s=first[Math.min(first.length-1,sceneIndex+1)];if(s)void goTo(s.id);});
+      control(-.95,-.49,'⌂',()=>{if(first[0])void goTo(first[0].id);});
+      control(.95,.11,getPrefs().sound==='off'?'◌':'♫',()=>{
         setSound(getPrefs().sound==='off'?'on':'off');void buildBar();
       });
-      control(.86,-.09,'◉',()=>{if(plan)void showFloorPlan(plan);else showText('Plan','Aucun plan défini pour cette visite.');});
-      control(.86,-.29,'?',()=>showText('Navigation VR','Vise une icône avec la manette, puis presse la gâchette. Les boutons utilisent la charte anthracite et or.'));
-      control(.86,-.49,'✕',()=>{void session.end();});
+      // Le plan vient directement du projet, indépendamment des vignettes.
+      const planAction={id:'vr-test-plan',title:project().floorPlan?.name||'Plan',type:'plan'} as BottomBarItem;
+      control(.95,-.09,'▧',()=>{void showFloorPlan(plan??planAction);});
+      control(.95,-.29,'?',()=>showText('Navigation VR','Vise une icône et presse la gâchette. A ou B (manette droite) : afficher ou masquer la nouvelle interface VR.'));
+      control(.95,-.49,'✕',()=>{void session.end();});
       placeInFront(barGroup,1.75,.3);
       barPlacedPhi=headForward().phi;
       return;
@@ -557,10 +559,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const galleryChrome=(W:number,H:number,title:string,count:string,pages:number,page:number,onPrev:()=>void,onNext:()=>void)=>{
     addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
       roundRect(c,6,6,W*1000-12,H*1000-12,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-      c.fillStyle=opts.referenceTest?'#ffffff':'#1b1b1f';c.font='bold 58px sans-serif';c.textAlign='left';c.textBaseline='middle';
+      c.fillStyle=referenceMode?'#ffffff':'#1b1b1f';c.font='bold 58px sans-serif';c.textAlign='left';c.textBaseline='middle';
       let t=title;while(c.measureText(t).width>W*1000-420&&t.length>3)t=t.slice(0,-2);
       c.fillText(t,64,92);
-      c.font='34px sans-serif';c.fillStyle=opts.referenceTest?'#e8bf65':'#4a4a52';c.textAlign='right';
+      c.font='34px sans-serif';c.fillStyle=referenceMode?'#e8bf65':'#4a4a52';c.textAlign='right';
       c.fillText(count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:''),W*1000-170,92);
     }),5,0,0).userData.blocker=true;
     addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
@@ -817,12 +819,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const entries=galleryEntries(item,project().scenes,project().spaces).map(e=>{const sc=project().scenes.find(x=>x.id===e.sceneId);return sc&&sc.name===e.label?{...e,label:pick(sc.name,sc.nameTranslations,vlang())}:e;});
     // Deux colonnes plus larges : dans le casque les vignettes restent lisibles
     // et ne se chevauchent pas avec les flèches de navigation.
-    const cols=opts.referenceTest?4:2,rows=opts.referenceTest?2:3,perPage=cols*rows;
+    const cols=referenceMode?4:2,rows=referenceMode?2:3,perPage=cols*rows;
     let page=0;
     const render=async()=>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=opts.referenceTest?.37:.62,ch=opts.referenceTest?.28:.34,gx=opts.referenceTest?.025:.06,gy=.05;
+      const cw=referenceMode?.31:.62,ch=referenceMode?.28:.34,gx=referenceMode?.025:.06,gy=.05;
       const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
@@ -987,6 +989,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Clic sur le joystick : masque toute l'interface (barre, fenêtres, repères) ; un second clic la fait réapparaître.
   let uiHidden=false;
   const thumbDown:Record<string,boolean>={};
+  const abDown:Record<string,boolean>={};
+  let switchingReference=false;
   let lastTick=performance.now();
   const tick=()=>{
     const tnow=performance.now();const dt=Math.min(.1,(tnow-lastTick)/1000);lastTick=tnow;
@@ -998,6 +1002,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const key=source.handedness||'x';
       if(pressed&&!thumbDown[key])uiHidden=!uiHidden;
       thumbDown[key]=pressed;
+      // Profil WebXR xr-standard : A et B sont les boutons 4 et 5 à droite.
+      if(source.handedness==='right'){
+        const down=!!source.gamepad?.buttons?.[4]?.pressed||!!source.gamepad?.buttons?.[5]?.pressed;
+        if(down&&!abDown[key]&&!switchingReference){
+          switchingReference=true;
+          referenceMode=!referenceMode;
+          closePanels();uiHidden=false;
+          void buildBar().then(()=>setNotice(referenceMode?'Interface VR dorée · A/B pour revenir':'Interface VR classique · A/B pour changer'))
+            .finally(()=>{switchingReference=false;});
+        }
+        abDown[key]=down;
+      }
     }
     barGroup.visible=!uiHidden;panelGroup.visible=!uiHidden;noticeGroup.visible=!uiHidden;
     let turn=0;
