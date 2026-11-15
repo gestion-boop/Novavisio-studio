@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState,type CSSProperties} from 'react';
 import {Plus,Trash2} from 'lucide-react';
 import type {CustomIcon} from './storage';
+import {IconSetCreator,type IconSetImages} from './IconSetCreator';
 
 /**
  * Bibliothèque d'icônes : une carte = un jeu complet (normal · survol · pressé), classé par couleur.
@@ -81,8 +82,8 @@ function dominantFamily(dataUrl:string):Promise<string>{
   });
 }
 
-export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
-  icons:CustomIcon[];onImport:()=>void;onDeleteSet:(ids:string[],name:string)=>void;
+export function IconLibrary({icons,onImport,onCreateSet,onDeleteSet,applyLabel,onApply}:{
+  icons:CustomIcon[];onImport:()=>void;onCreateSet:(name:string,images:IconSetImages)=>Promise<void>;onDeleteSet:(ids:string[],name:string)=>void;
   applyLabel?:string;onApply?:(set:IconSet)=>void;
 }){
   const sets=useMemo(()=>buildIconSets(icons),[icons]);
@@ -107,6 +108,7 @@ export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
     .sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})||a.key.localeCompare(b.key)),[sets,families,filter]);
   return <div className="nv-iconlib">
     <div className="nv-iconlib-bar">
+      <IconSetCreator onCreate={onCreateSet}/>
       <button type="button" className="nv-iconlib-import" onClick={onImport}><Plus size={17}/> Importer des icônes</button>
       <span className="nv-iconlib-count">{sets.length} jeu{sets.length>1?'x':''} · {icons.length} icône{icons.length>1?'s':''}</span>
     </div>
@@ -116,7 +118,7 @@ export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
         style={{'--chip':f.swatch} as CSSProperties} onClick={()=>setFilter(filter===f.id?null:f.id)}><span aria-hidden="true"/><i>{f.label}</i></button>)}
     </div>}
     {applyLabel&&<p className="nv-iconlib-apply">Touche un jeu pour l’appliquer à : <b>{applyLabel}</b></p>}
-    {!icons.length&&<p className="nv-iconlib-empty">Ta bibliothèque est vide. Importe tes icônes (normal, survol, pressé) : elles seront rangées par jeu et par couleur.</p>}
+    {!icons.length&&<p className="nv-iconlib-empty">Ta bibliothèque est vide. Clique sur « Créer un pack de 3 » pour ajouter les états normal, survol et pressé.</p>}
     <div className="nv-iconlib-grid">
       {shown.map(set=><div key={set.key} className={'nv-iconset'+(onApply?' is-clickable':'')}>
         <button type="button" className="nv-iconset-main" disabled={!onApply} onClick={()=>onApply?.(set)} title={onApply?'Appliquer ce jeu':set.name}>
@@ -128,7 +130,7 @@ export function IconLibrary({icons,onImport,onDeleteSet,applyLabel,onApply}:{
           </span>
           <strong title={set.name}>{set.name}</strong>
         </button>
-        <button type="button" className="nv-iconset-del" aria-label={'Supprimer '+set.name} title="Supprimer ce jeu" onClick={()=>onDeleteSet(set.ids,set.name)}><Trash2 size={14}/></button>
+        <button type="button" className="nv-iconset-del" aria-label={'Supprimer '+set.name} title="Supprimer définitivement ce pack" onClick={()=>onDeleteSet(set.ids,set.name)}><Trash2 size={14}/></button>
       </div>)}
     </div>
   </div>;
