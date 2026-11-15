@@ -5594,6 +5594,14 @@ function App(){
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Visite immersive 360° et VR (facultatif)" initiallyOpen>
+            <p className="hint">La visite fonctionne toujours sur mobile, ordinateur et tablette. Le mode casque VR est une option à activer uniquement pour les clients qui le souhaitent.</p>
+            <label className="toggle-row"><input type="checkbox" checked={project.vrEnabled!==false}
+              onChange={e=>{const enabled=e.target.checked;setProject(p=>({...p,vrEnabled:enabled}));setStatus(enabled?'VR activée pour cette visite. Enregistre avec la disquette.':'VR désactivée : la visite 360° classique reste disponible. Enregistre avec la disquette.');}}/>
+              Autoriser le mode casque VR dans cette visite
+            </label>
+            <small className="hint-inline">Avec l'option activée, les navigateurs WebXR compatibles proposent l'entrée immersive. Sans l'option, aucun bouton ni écran d'accueil VR n'apparaît. La fonction n'est pas activée automatiquement sur les nouveaux projets.</small>
+          </InspectorSection>
           <InspectorSection title="Plan interactif de la visite" initiallyOpen>
             <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
