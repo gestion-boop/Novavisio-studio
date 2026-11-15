@@ -32,6 +32,8 @@ import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
 import {autoIconZoom} from './iconFit';
+import {MediaLibraryPanel} from './MediaLibraryPanel';
+import {resolveLink} from './mediaLinks';
 import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
@@ -74,7 +76,7 @@ import './media.css';
 import {XMark} from './XMark';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client';
+type PanelTab = 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -1343,12 +1345,13 @@ function App(){
     {key:'icons',label:'Mes icônes'},
     {key:'intro',label:'Intro'},
     {key:'elements',label:'Éléments'},
+    {key:'medialib',label:'Photos & Vidéos'},
     {key:'music',label:'Musique'},
     {key:'settings',label:'Bouton Paramètres'},
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','music','client','notes','comments'];
+  const TOOL_KEYS=['spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
@@ -1370,7 +1373,7 @@ function App(){
     const look:Record<string,{icon:ReactNode;tone:string}>={
       panoramas:{icon:<Images size={ic}/>,tone:'#ff8a3d'},points:{icon:<PinIcon size={ic}/>,tone:'#2fbf8f'},bar:{icon:<PanelBottom size={ic}/>,tone:'#a468f0'},
       icons:{icon:<Star size={ic}/>,tone:'#f0b429'},intro:{icon:<Play size={ic}/>,tone:'#ef5b7b'},elements:{icon:<Plus size={ic}/>,tone:'#2bb3d6'},
-      music:{icon:<Music size={ic}/>,tone:'#ff6fa8'},client:{icon:<Smile size={ic}/>,tone:'#7f8cff'}
+      medialib:{icon:<Images size={ic}/>,tone:'#3ec6a8'},music:{icon:<Music size={ic}/>,tone:'#ff6fa8'},client:{icon:<Smile size={ic}/>,tone:'#7f8cff'}
     };
     const l=look[key]??{icon:<Layers size={ic}/>,tone:'#4f7cff'};
     return {label:key==='points'?'Scène & Points':option.label,icon:l.icon,tone:l.tone,active:!rightHidden&&panel===key,run:()=>toggleToolPanel(key as PanelTab)};
@@ -4140,7 +4143,7 @@ function App(){
                         onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
                       {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.imageBounce!==false}
                         onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>}
-                      {selected.imageDataUrl&&<button type="button" className="nv-quick-primary"
+                      {(selected.imageDataUrl||selected.imageUrl)&&<button type="button" className="nv-quick-primary"
                         onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
                         <Eye size={15}/> Tester le popup photo
                       </button>}
@@ -4430,7 +4433,7 @@ function App(){
               entries={galleryEntries(item,preview?visibleScenes.filter(sc=>!sc.excluded):visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
               onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
-          {imageZoom?.imageDataUrl && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={imageZoom.imageDataUrl} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
+          {(imageZoom?.imageDataUrl||imageZoom?.imageUrl) && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={(imageZoom.imageDataUrl||imageZoom.imageUrl)!} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
             <section className="embed-shell" aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
               <div className="embed-header">
@@ -4625,6 +4628,7 @@ function App(){
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
+                <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Choisir dans ma bibliothèque Photos & Vidéos (Drive, kDrive…)</button>
                 <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'image',fresh:false});}}>🖼 Choisir une photo déjà utilisée</button>
                 <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
                   onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
@@ -4648,7 +4652,7 @@ function App(){
                 </>}
                 <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
                 {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.imageBounce!==false} onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>}
-                {selected.imageDataUrl&&<button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
+                {(selected.imageDataUrl||selected.imageUrl)&&<button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
                   <Eye size={15}/> Tester le popup photo
                 </button>}
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
@@ -4658,6 +4662,7 @@ function App(){
                 {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
+                <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Choisir dans ma bibliothèque Photos & Vidéos (Drive, kDrive…)</button>
                 <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'video',fresh:false});}}>🎞 Choisir une vidéo déjà utilisée</button>
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
                 <small className="hint-inline">45 Mo max en local, ou renseigne une URL HTTPS directe :</small>
@@ -4920,6 +4925,17 @@ function App(){
             {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/></>},
             {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)}
           ]}/>
+        </div>}
+        {panel==='medialib' && <div className="properties">
+          <InspectorSection title="Photos & Vidéos de cette visite" initiallyOpen>
+            <MediaLibraryPanel items={project.mediaLibrary??[]} onChange={items=>setProject(p=>({...p,mediaLibrary:items}))} selected={selected}
+              onApply={item=>{
+                const r=resolveLink(item);
+                if(item.kind==='photo'&&r.image)patchPoint({imageUrl:r.image,imageDataUrl:undefined,mediaDisplay:'popup',...(selected&&(!selected.title||/^(photo|image)/i.test(selected.title))?{title:item.name}:{})});
+                else if(item.kind==='video')patchPoint(r.video?{videoUrl:r.video,videoEmbed:undefined,videoDataUrl:undefined,mediaDisplay:'popup',videoOpenFullscreen:true}:{videoEmbed:r.embed,videoUrl:'',videoDataUrl:undefined,mediaDisplay:'popup',videoOpenFullscreen:true});
+                setStatus('« '+item.name+' » appliqué au point sélectionné');
+              }}/>
+          </InspectorSection>
         </div>}
         {panel==='elements' && <div className="properties">
           <div className="section-title">ÉLÉMENTS DE CE PANORAMA</div>

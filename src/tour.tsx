@@ -438,7 +438,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         entries={galleryEntries(item,project.scenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)}))}
         onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
-    {photo?.imageDataUrl&&<ZoomImage variant="tour" frameStyle={photo.imageFrameStyle} src={photo.imageDataUrl} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
+    {(photo?.imageDataUrl||photo?.imageUrl)&&<ZoomImage variant="tour" frameStyle={photo.imageFrameStyle} src={(photo.imageDataUrl||photo.imageUrl)!} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
     {!showIntro&&!firstPanoramaReady&&<div className="nv-tour-startup-mask" role="status" aria-live="polite">
       <div className="nv-tour-startup-spinner" aria-hidden="true"/>
       <span>Préparation de votre visite immersive…</span>

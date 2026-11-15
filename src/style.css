@@ -5349,3 +5349,22 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 }
 
 .nv-vs-colors{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0}.nv-vs-colors label{display:flex;align-items:center;gap:8px;font-size:13px}
+
+/* Bibliothèque Photos et Vidéos */
+.nv-medialib{display:flex;flex-direction:column;gap:10px}
+.nv-medialib-add{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px dashed #365b69;border-radius:12px}
+.nv-medialib input{width:100%;box-sizing:border-box}
+.nv-medialib-filter{margin-top:2px}
+.nv-medialib .nv-vs-row button,.nv-medialib-actions button,.nv-medialib-actions a{font:700 12px system-ui;cursor:pointer;border:1px solid #35606f;border-radius:8px;background:#143543;color:#e6f6f8;padding:6px 8px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.nv-medialib .nv-vs-row button.is-on,.nv-medialib-actions .is-primary{background:#1f8aa8;border-color:#7ad6ee;color:#fff}
+.nv-medialib-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.nv-medialib-list li{display:grid;grid-template-columns:56px 1fr auto;gap:8px;align-items:center;padding:6px;border:1px solid #2c5361;border-radius:10px;background:#0f2530}
+.nv-medialib-thumb{width:56px;height:42px;border-radius:7px;overflow:hidden;background:#0a1a22;display:grid;place-items:center;color:#8fb3be}
+.nv-medialib-thumb img{width:100%;height:100%;object-fit:cover}
+.nv-medialib-info{min-width:0;display:flex;flex-direction:column;gap:2px}
+.nv-medialib-info input{padding:3px 6px;font-size:13px}
+.nv-medialib-info small{color:#9fb7bf;font-size:11px}
+.nv-medialib-actions{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+
+.nv-video-embed{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000;display:block}
+.nv-video-open{display:inline-block;margin:6px 0 0;font-size:12px;color:#9fdcf3}

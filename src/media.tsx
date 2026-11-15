@@ -122,6 +122,7 @@ export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=
   const z=useZoomTransition(origin,hotspot.fadeOnClick!==false,onClose);
   const [blocked,setBlocked]=useState(false);
   const url=hotspot.videoDataUrl||hotspot.videoUrl;
+  const embed=!url?hotspot.videoEmbed:undefined;
   useEffect(()=>{
     const el=ref.current;
     if(!el)return;
@@ -130,11 +131,12 @@ export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=
     el.play().then(()=>{if(live)setBlocked(false);}).catch(()=>{if(live)setBlocked(true);});
     return ()=>{live=false;el.pause();};
   },[url]);
-  if(!url)return null;
+  if(!url&&!embed)return null;
   return <div ref={z.overlay} className={'nv-video-overlay'+z.overlayClass} onClick={z.requestClose} role="presentation">
     <section ref={z.body} className={'nv-video-dialog'+z.bodyClass} onClick={e=>e.stopPropagation()} aria-label={'Vidéo : '+hotspot.title}>
       <button type="button" onClick={z.requestClose} className="nv-video-close" aria-label="Fermer la vidéo"><X size={24}/></button>
-      <video ref={ref} src={url} controls playsInline loop={hotspot.videoLoop!==false} preload="metadata"/>
+      {embed?<><iframe className="nv-video-embed" src={embed} title={hotspot.title} allow="autoplay; fullscreen; encrypted-media" allowFullScreen referrerPolicy="no-referrer"/><a className="nv-video-open" href={embed} target="_blank" rel="noopener noreferrer">Ouvrir dans un nouvel onglet</a></>
+        :<video ref={ref} src={url} controls playsInline loop={hotspot.videoLoop!==false} preload="metadata"/>}
       {blocked&&<button type="button" className="nv-video-start" onClick={()=>{
         const el=ref.current;if(!el)return;
         el.muted=false;

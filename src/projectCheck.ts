@@ -29,8 +29,8 @@ export function checkProject(project:StudioProject):CheckIssue[]{
       const base={sceneId:scene.id,hotspotId:h.id};
       if(h.type==='navigation'&&h.target&&hidden.has(h.target))out.push({level:'warn',kind:'nav',hint:'Recoche le panorama de destination ou choisis-en un autre : cette flèche sera retirée de la visite.',text:where+' : la flèche mène à un panorama décoché (masqué de la visite).',...base});
       else if(h.type==='navigation'&&(!h.target||!ids.has(h.target)))out.push({level:'error',kind:'nav',hint:'Choisis le panorama de destination dans la galerie.',text:where+' : la flèche ne mène à aucun panorama.',...base});
-      if(h.type==='image'&&!h.imageDataUrl)out.push({level:'error',kind:'photo',hint:'Choisis ou importe la photo dans la fenêtre ouverte.',text:where+' : point photo sans photo.',...base});
-      if(h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)out.push({level:'error',kind:'video',hint:'Choisis ou importe la vidéo dans la fenêtre ouverte.',text:where+' : point vidéo sans vidéo.',...base});
+      if(h.type==='image'&&!h.imageDataUrl&&!h.imageUrl)out.push({level:'error',kind:'photo',hint:'Choisis ou importe la photo dans la fenêtre ouverte.',text:where+' : point photo sans photo.',...base});
+      if(h.type==='video'&&!h.videoDataUrl&&!h.videoUrl&&!h.videoEmbed)out.push({level:'error',kind:'video',hint:'Choisis ou importe la vidéo dans la fenêtre ouverte.',text:where+' : point vidéo sans vidéo.',...base});
       if(h.type==='lien'&&!h.url)out.push({level:'error',kind:'link',hint:'Colle l’adresse du lien dans le champ ci-contre.',text:where+' : lien sans adresse.',...base});
       if(h.type==='information'&&!h.text.trim()&&!h.url)out.push({level:'warn',kind:'info',hint:'Écris le texte de l’information dans le champ ci-contre.',text:where+' : point information vide.',...base});
     }
