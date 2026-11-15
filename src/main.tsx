@@ -63,7 +63,8 @@ import {MediaPicker} from './MediaPicker';
 import {SpacesActions} from './SpacesActions';
 import {mergeImportedSpaces} from './spaceTransfer';
 import {rememberMedia} from './mediaLibrary';
-import {IconLibrary} from './IconLibrary';
+import {IconLibrary,buildIconSets} from './IconLibrary';
+import type {IconSetImages} from './IconSetCreator';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
@@ -3234,35 +3235,60 @@ function App(){
     }catch{setStatus('Impossible de remplacer cette icône');}
     if(replaceIconInput.current)replaceIconInput.current.value='';
   }
-  function deleteIcon(id:string,confirmed=false){
-    if(!confirmed&&!window.confirm('Supprimer cette icône de la bibliothèque et de ses utilisations ?'))return;
-    setProject(p=>({...p,
-      icons:p.icons.filter(i=>i.id!==id),
-      ...Object.fromEntries((['defaultPhotoIcon','defaultVideoIcon'] as const).map(key=>{const v=p[key];return [key,!v||v.iconId===id?undefined:{...v,hoverIconId:v.hoverIconId===id?undefined:v.hoverIconId,pressedIconId:v.pressedIconId===id?undefined:v.pressedIconId}]})),
-      buttonSets:p.buttonSets?.filter(set=>set.iconId!==id).map(set=>({...set,hoverIconId:set.hoverIconId===id?undefined:set.hoverIconId,pressedIconId:set.pressedIconId===id?undefined:set.pressedIconId})),
-      defaultNavigationIcon:p.defaultNavigationIcon?.iconId===id?undefined:p.defaultNavigationIcon?{...p.defaultNavigationIcon,hoverIconId:p.defaultNavigationIcon.hoverIconId===id?undefined:p.defaultNavigationIcon.hoverIconId,pressedIconId:p.defaultNavigationIcon.pressedIconId===id?undefined:p.defaultNavigationIcon.pressedIconId}:undefined,
-      closeIconId:p.closeIconId===id?undefined:p.closeIconId,
-      closeIconHoverId:p.closeIconHoverId===id?undefined:p.closeIconHoverId,
-      closeIconPressedId:p.closeIconPressedId===id?undefined:p.closeIconPressedId,
-      soundOnIconId:p.soundOnIconId===id?undefined:p.soundOnIconId,
-      soundOnHoverIconId:p.soundOnHoverIconId===id?undefined:p.soundOnHoverIconId,
-      soundOnPressedIconId:p.soundOnPressedIconId===id?undefined:p.soundOnPressedIconId,
-      soundOffIconId:p.soundOffIconId===id?undefined:p.soundOffIconId,
-      soundOffHoverIconId:p.soundOffHoverIconId===id?undefined:p.soundOffHoverIconId,
-      soundOffPressedIconId:p.soundOffPressedIconId===id?undefined:p.soundOffPressedIconId,
-      settingsIconId:p.settingsIconId===id?undefined:p.settingsIconId,
-      settingsHoverIconId:p.settingsHoverIconId===id?undefined:p.settingsHoverIconId,
-      settingsPressedIconId:p.settingsPressedIconId===id?undefined:p.settingsPressedIconId,
-      // Nettoie aussi les PNG de survol et de clic : une référence orpheline empêcherait de rouvrir le projet.
-      scenes:p.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>({...h,
-        iconId:h.iconId===id?undefined:h.iconId,
-        hoverIconId:h.hoverIconId===id?undefined:h.hoverIconId,
-        pressedIconId:h.pressedIconId===id?undefined:h.pressedIconId}))})),
-      bottomBar:p.bottomBar.map(b=>({...b,
-        iconId:b.iconId===id?undefined:b.iconId,
-        hoverIconId:b.hoverIconId===id?undefined:b.hoverIconId,
-        pressedIconId:b.pressedIconId===id?undefined:b.pressedIconId}))
+  // Supprimer les trois états en une seule mise à jour : aucun état intermédiaire
+  // ne doit laisser de référence vers une icône supprimée dans le projet.
+  function deleteIcons(ids:string[],confirmed=false){
+    const removed=new Set(ids);
+    if(!removed.size)return;
+    if(!confirmed&&!window.confirm('Supprimer ces icônes et les retirer des boutons et points qui les utilisent ?'))return;
+    const keep=(id?:string)=>id&&!removed.has(id)?id:undefined;
+    setProject(p=>({
+      ...p,
+      icons:p.icons.filter(icon=>!removed.has(icon.id)),
+      defaultPhotoIcon:p.defaultPhotoIcon&&!removed.has(p.defaultPhotoIcon.iconId)?{
+        ...p.defaultPhotoIcon,hoverIconId:keep(p.defaultPhotoIcon.hoverIconId),pressedIconId:keep(p.defaultPhotoIcon.pressedIconId)
+      }:undefined,
+      defaultVideoIcon:p.defaultVideoIcon&&!removed.has(p.defaultVideoIcon.iconId)?{
+        ...p.defaultVideoIcon,hoverIconId:keep(p.defaultVideoIcon.hoverIconId),pressedIconId:keep(p.defaultVideoIcon.pressedIconId)
+      }:undefined,
+      defaultNavigationIcon:p.defaultNavigationIcon&&!removed.has(p.defaultNavigationIcon.iconId)?{
+        ...p.defaultNavigationIcon,hoverIconId:keep(p.defaultNavigationIcon.hoverIconId),pressedIconId:keep(p.defaultNavigationIcon.pressedIconId)
+      }:undefined,
+      buttonSets:p.buttonSets?.filter(set=>!removed.has(set.iconId)).map(set=>({
+        ...set,hoverIconId:keep(set.hoverIconId),pressedIconId:keep(set.pressedIconId)
+      })),
+      closeIconId:keep(p.closeIconId),closeIconHoverId:keep(p.closeIconHoverId),closeIconPressedId:keep(p.closeIconPressedId),
+      soundOnIconId:keep(p.soundOnIconId),soundOnHoverIconId:keep(p.soundOnHoverIconId),soundOnPressedIconId:keep(p.soundOnPressedIconId),
+      soundOffIconId:keep(p.soundOffIconId),soundOffHoverIconId:keep(p.soundOffHoverIconId),soundOffPressedIconId:keep(p.soundOffPressedIconId),
+      settingsIconId:keep(p.settingsIconId),settingsHoverIconId:keep(p.settingsHoverIconId),settingsPressedIconId:keep(p.settingsPressedIconId),
+      hiddenAvailableIcons:p.hiddenAvailableIcons?.filter(id=>!removed.has(id)),
+      hiddenIconSets:p.hiddenIconSets?.filter(key=>!ids.some(id=>key.includes(id))),
+      favoriteNavigationIconSet:p.favoriteNavigationIconSet&&ids.some(id=>p.favoriteNavigationIconSet!.includes(id))?undefined:p.favoriteNavigationIconSet,
+      scenes:p.scenes.map(scene=>({...scene,hotspots:scene.hotspots.map(point=>({
+        ...point,iconId:keep(point.iconId),hoverIconId:keep(point.hoverIconId),pressedIconId:keep(point.pressedIconId)
+      }))})),
+      bottomBar:p.bottomBar.map(button=>({
+        ...button,iconId:keep(button.iconId),hoverIconId:keep(button.hoverIconId),pressedIconId:keep(button.pressedIconId)
+      }))
     }));
+  }
+  function deleteIcon(id:string,confirmed=false){deleteIcons([id],confirmed);}
+
+  async function createLibraryIconSet(name:string,images:IconSetImages):Promise<void>{
+    const label=name.trim().replace(/[\\/]/g,' ').trim();
+    if(!label||label.length>100)throw Error('Donne un nom au pack (100 caractères maximum).');
+    if(buildIconSets(project.icons).some(set=>set.name.toLocaleLowerCase('fr')===label.toLocaleLowerCase('fr'))){
+      throw Error('Un pack porte déjà ce nom. Choisis un autre nom pour éviter de mélanger les états.');
+    }
+    if(project.icons.length+3>150)throw Error('La bibliothèque est pleine (150 icônes maximum). Supprime un ancien pack avant de continuer.');
+    const suffixes=[['normal','Normal'],['hover','Survol'],['pressed','Pressé']] as const;
+    const added:CustomIcon[]=suffixes.map(([state,suffix])=>({
+      id:uid(),name:label+' · '+suffix,dataUrl:images[state]
+    }));
+    // Contrôle de sécurité avant insertion, identique à celui de la sauvegarde.
+    validateProject({...project,icons:[...project.icons,...added]});
+    setProject(p=>({...p,icons:[...p.icons,...added]}));
+    setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé. Sauvegarde avec la disquette.');
   }
   // Jeux d'icônes déjà utilisés dans le projet (barre + points) : la même combinaison normal / survol / clic n'apparaît qu'une fois.
   type IconSet={key:string;iconId:string;hoverIconId?:string;pressedIconId?:string;size:number;users:string[]};
@@ -5616,7 +5642,8 @@ function App(){
           <details className="nv-icons-library" open>
             <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
-            onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer le jeu « '+name+' » ('+ids.length+' icône'+(ids.length>1?'s':'')+') de la bibliothèque et de ses utilisations ?'))return;ids.forEach(id=>deleteIcon(id,true));}}
+            onCreateSet={createLibraryIconSet}
+            onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
             applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
             onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
               const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
