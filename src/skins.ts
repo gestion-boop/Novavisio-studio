@@ -78,6 +78,25 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
   return validateProject(next);
 }
 
+const DEFAULT_SKIN_KEY='novavisio-default-skin-id';
+/** Préférence locale : ce modèle est appliqué uniquement à la création d'un nouveau projet. */
+export function defaultSkinId():string|null{
+  try{return localStorage.getItem(DEFAULT_SKIN_KEY);}catch{return null;}
+}
+export function chooseDefaultSkin(id:string|null):void{
+  try{if(id)localStorage.setItem(DEFAULT_SKIN_KEY,id);else localStorage.removeItem(DEFAULT_SKIN_KEY);}
+  catch{throw Error('Impossible de mémoriser le modèle par défaut dans ce navigateur.');}
+}
+export async function newProjectFromDefaultSkin():Promise<StudioProject>{
+  const fresh=newProject(),id=defaultSkinId();
+  if(!id)return fresh;
+  try{
+    const skins=await listSkins();
+    const selected=skins.find(s=>s.id===id);
+    return selected?applySkin(fresh,selected):fresh;
+  }catch{return fresh;}
+}
+
 async function skinDb():Promise<IDBDatabase>{
   return new Promise((resolve,reject)=>{const req=indexedDB.open('novavisio-skins-v1',1);
     req.onupgradeneeded=()=>req.result.createObjectStore('skins',{keyPath:'id'});
