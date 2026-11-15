@@ -5824,3 +5824,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-vr-ref-bottom .nv-vr-ref-enter{background:#8c611f;color:#fff}
 .nv-vr-ref-bottom button:hover{background:#4d3921}
 @media(max-width:680px){.nv-vr-ref-top{top:1%}.nv-vr-ref-compass{width:39px;height:39px}.nv-vr-ref-panel{width:calc(100% - 146px);padding:8px;gap:6px}.nv-vr-ref-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.nv-vr-ref-thumb{height:55px}.nv-vr-ref-gallery button{font-size:10px}.nv-vr-ref-round{width:42px;height:42px}.nv-vr-ref-round svg{width:23px;height:23px}.nv-vr-ref-floors{width:43px}.nv-vr-ref-left,.nv-vr-ref-right{gap:6px}.nv-vr-ref-bottom>span{display:none}}
+
+/* L'accès au prototype est aussi visible dans l'éditeur, sans publication. */
+.view-area .nv-vr-ref-studio-launch{bottom:100px;right:14px;z-index:81;pointer-events:auto}
+.view-area .nv-vr-ref{z-index:82}
+.view-area .nv-vr-ref-bottom{bottom:12px}
+@media(max-width:780px){.view-area .nv-vr-ref-studio-launch{bottom:85px;right:8px;padding:9px 11px;font-size:11px}}

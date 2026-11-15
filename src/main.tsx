@@ -14,6 +14,7 @@ import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisp
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
+import {VrReferenceTest} from './VrReferenceTest';
 import {cloudHasDefaultSkin,cloudNewProjectFromDefault} from './cloudSkins';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
@@ -1032,6 +1033,7 @@ function App(){
   },[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null>(null);
   const [preview,setPreview]=useState(false);
+  const [vrInterfaceTestOpen,setVrInterfaceTestOpen]=useState(false);
   useEffect(()=>{if(preview||panel!=='panoramas')setPanoModalId(null);},[preview,panel]);
 
   const [clientVideoPlacement,setClientVideoPlacement]=useState<(ImportedClientVideo&{sceneId:string})|null>(null);
@@ -5014,6 +5016,13 @@ function App(){
                 <button type="button" key={l.code} title={l.name} aria-label={l.name} aria-pressed={effectiveLang(visitorPrefs,activeLanguages)===l.code} className={effectiveLang(visitorPrefs,activeLanguages)===l.code?'is-on':''} onClick={()=>setLang(l.code)}>{l.flag}</button>)}</div></>}
             </div>}
           </div>}
+          {active&&!vrInterfaceTestOpen&&<button type="button" className="nv-vr-ref-launch nv-vr-ref-studio-launch"
+            onClick={()=>{setPreview(true);setVrInterfaceTestOpen(true);setSettingsOpen(false);}}
+            title="Tester l’interface anthracite et dorée dans NovaStudio">🥽 Test interface VR</button>}
+          {active&&vrInterfaceTestOpen&&<VrReferenceTest project={projectForSpaceExport(project,currentSpace)}
+            currentId={active.id} onPick={id=>{selectScene(id);setPreview(true);}}
+            onClose={()=>setVrInterfaceTestOpen(false)} vrAvailable={false}
+            onEnterVr={()=>setStatus('Pour entrer en immersion WebXR, ouvre le lien publié depuis le navigateur du casque.')}/>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
           {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plan={project.floorPlan} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
