@@ -867,7 +867,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const geo=new BufferGeometry();geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-POINTER_MAX],3));
     const line=new Line(geo,new LineBasicMaterial({color:0xbce6fb,transparent:true,opacity:.65,depthTest:false}));
     line.renderOrder=9;c.add(line);scene.add(c);
-    const dot=new Mesh(new SphereGeometry(.022,12,8),new MeshBasicMaterial({color:0x13c7ff,depthTest:false,depthWrite:false}));
+    const dot=new Mesh(new SphereGeometry(.0035,12,8),new MeshBasicMaterial({color:0x13c7ff,depthTest:false,depthWrite:false}));
     dot.renderOrder=12;dot.visible=false;scene.add(dot);
     c.userData.vrPointer={geo,dot};
     disposables.push(dot.geometry,dot.material as MeshBasicMaterial);
@@ -896,11 +896,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   /** Vibration de la manette (impulsion courte). Ignorée si le casque ne la prend pas en charge. */
   const pulse=(c:Object3D,intensity:number,ms:number)=>{
     try{
-      const gp=(c.userData.source as {gamepad?:{hapticActuators?:{pulse?:(i:number,d:number)=>unknown}[];vibrationActuator?:{playEffect?:(t:string,o:object)=>unknown}}}|undefined)?.gamepad;
-      const act=gp?.hapticActuators?.[0];
-      if(act?.pulse)void act.pulse(intensity,ms);
-      else gp?.vibrationActuator?.playEffect?.('dual-rumble',{startDelay:0,duration:ms,strongMagnitude:intensity,weakMagnitude:intensity});
-    }catch{/* pas de vibration */}
+      type Haptic={pulse?:(intensity:number,duration:number)=>Promise<boolean>|boolean;playEffect?:(type:string,options:object)=>Promise<unknown>|unknown};
+      const source=c.userData.source as {gamepad?:{hapticActuators?:Haptic[];vibrationActuator?:Haptic}}|undefined;
+      const actuator=source?.gamepad?.hapticActuators?.[0]??source?.gamepad?.vibrationActuator;
+      if(actuator?.pulse)void Promise.resolve(actuator.pulse(intensity,ms)).catch(()=>{});
+      else if(actuator?.playEffect)void Promise.resolve(actuator.playEffect('dual-rumble',{startDelay:0,duration:ms,strongMagnitude:intensity,weakMagnitude:intensity})).catch(()=>{});
+    }catch{/* La manette ou le navigateur ne gère pas les vibrations */}
   };
   controllers.forEach(c=>{
     c.addEventListener('connected',e=>{c.userData.source=(e as unknown as {data?:unknown}).data;});
@@ -908,15 +909,26 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const h=hits(c),target=h.target;
       if(target){
         const states=target.userData.vrIconStates as {pressedUntil:number}|undefined;
-        if(states)states.pressedUntil=performance.now()+180;
-        target.userData.pressedUntil=performance.now()+180;
-        if(target.userData.onSelect){pulse(c,.7,45);target.userData.onSelect();}
+        if(states)states.pressedUntil=performance.now()+260;
+        target.userData.pressedUntil=performance.now()+260;
+        if(target.userData.onSelect){
+          pulse(c,.8,65);
+          if(states){
+            const mat=(target as Mesh).material as MeshBasicMaterial;
+            const texture=(states as {pressed?:Texture|null}).pressed;
+            if(texture){mat.map=texture;mat.needsUpdate=true;}
+          }
+          target.userData.onSelect();
+        }
       }
     });
     // Prise (gâchette latérale) : ramène la barre devant soi.
     c.addEventListener('squeezestart',()=>{void buildBar();});
   });
 
+  // Vibration une seule fois lorsqu'un bouton est pointé, et non à chaque image.
+  const hoveredByController=new Map<Object3D,Clickable>();
+  const lastHoverHaptic=new Map<Object3D,number>();
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let lastRefreshCheck=0;
   let turnArmed=true;
@@ -989,14 +1001,32 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const hovered=new Set<Clickable>();
     controllers.forEach(c=>{
       const hit=hits(c),pointer=c.userData.vrPointer as {geo:BufferGeometry;dot:Mesh}|undefined;
-      if(hit.target)hovered.add(hit.target);
+      const target=hit.target?.userData.onSelect?hit.target:null;
+      const old=hoveredByController.get(c);
+      if(target){
+        hovered.add(target);
+        if(old!==target){
+          hoveredByController.set(c,target);
+          if(now-(lastHoverHaptic.get(c)??0)>110){
+            pulse(c,.2,24);
+            lastHoverHaptic.set(c,now);
+          }
+        }
+      }else hoveredByController.delete(c);
       if(pointer){
-        // Le faisceau va jusqu'à la cible, même lointaine (flèches du panorama), et pas plus loin ; sans cible il reste court.
-        const length=hit.target?hit.distance:POINTER_MAX;
         const pos=pointer.geo.getAttribute('position') as Float32BufferAttribute;
-        pos.setXYZ(1,0,0,-length);pos.needsUpdate=true;pointer.geo.computeBoundingSphere();
-        pointer.dot.visible=!!hit.point&&c.visible;
-        if(hit.point){pointer.dot.position.copy(hit.point);pointer.dot.scale.setScalar(hit.distance>3?3:1);}
+        if(hit.point){
+          // Point d'impact exact en coordonnées locales de la manette.
+          const tip=c.worldToLocal(hit.point.clone());
+          pos.setXYZ(1,tip.x,tip.y,tip.z);
+          pointer.dot.position.copy(hit.point);
+          pointer.dot.scale.setScalar(1);
+          pointer.dot.visible=c.visible;
+        }else{
+          pos.setXYZ(1,0,0,-POINTER_MAX);
+          pointer.dot.visible=false;
+        }
+        pos.needsUpdate=true;pointer.geo.computeBoundingSphere();
       }
     });
     for(const m of clickables){
@@ -1013,10 +1043,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
       const states=m.userData.vrIconStates as {normal:Texture;hover:Texture|null;pressed:Texture|null;pressedUntil:number}|undefined;
       if(states){
-        // Les textures « hover » sont désactivées en VR : le rayon peut
-        // osciller d'un pixel avec le suivi du casque et faire clignoter tous
-        // les logos de la barre. L'état pressé reste visible brièvement.
-        const selected=states.pressedUntil>now&&states.pressed?states.pressed:states.normal;
+        // Les trois véritables états du pack : Pressé > Survol > Normal.
+        const selected=states.pressedUntil>now&&states.pressed?states.pressed:
+          hovered.has(m)&&states.hover?states.hover:states.normal;
         const material=(m as Mesh).material as MeshBasicMaterial;
         if(material.map!==selected){material.map=selected;material.needsUpdate=true;}
       }
