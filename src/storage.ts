@@ -133,7 +133,7 @@ export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIc
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 /** Commentaire d'équipe accroché à un endroit d'un panorama (jamais publié dans la visite). */
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
-export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+export type StudioProject = { version: 1; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -224,6 +224,9 @@ export function validateProject(value:unknown):StudioProject {
   for(const field of ['soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId','settingsIconId','settingsHoverIconId','settingsPressedIconId'] as const){
     if(p[field]!==undefined && (typeof p[field]!=='string'||!icons.some(icon=>icon.id===p[field]))) throw new Error('Icône de son introuvable');
   }
+  if((p.settingsIconSize!==undefined&&(!Number.isFinite(p.settingsIconSize)||p.settingsIconSize<32||p.settingsIconSize>120))||
+     (p.settingsIconZoom!==undefined&&(!Number.isFinite(p.settingsIconZoom)||p.settingsIconZoom<100||p.settingsIconZoom>300))||
+     [p.settingsColor,p.settingsIconColor].some(c=>c!==undefined&&!(typeof c==='string'&&/^#[0-9a-fA-F]{6}$/.test(c))))throw new Error('Réglages du bouton Paramètres invalides');
   if(p.clientProfile!==undefined){
     if(!p.clientProfile||typeof p.clientProfile!=='object')throw new Error('Fiche client invalide');
     const profile=p.clientProfile as ClientProfile;

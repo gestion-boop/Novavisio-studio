@@ -31,6 +31,7 @@ import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
+import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
@@ -4408,7 +4409,7 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={44}/>:<SettingsIcon size={22}/>}</button>
+            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label="Paramètres" aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
             {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
               <strong>Son</strong>
               <div className="nv-vs-row">
@@ -4992,6 +4993,17 @@ function App(){
             id=>setProject(p=>({...p,settingsHoverIconId:id})),'⚙')}
           {iconStateEditor('settings-pressed','Paramètres · Clic',project.settingsPressedIconId,
             id=>setProject(p=>({...p,settingsPressedIconId:id})),'⚙')}
+          <div className="section-title">TAILLE ET COULEURS</div>
+          <label className="nv-size-control">Taille du bouton : <b>{settingsSize(project)} px</b>
+            <input type="range" min="32" max="120" step="2" value={settingsSize(project)} onChange={e=>setProject(p=>({...p,settingsIconSize:Number(e.target.value)}))}/></label>
+          {settingsIconSrc&&<label className="nv-size-control">Zoom de l’icône : <b>{project.settingsIconZoom??100} %</b>
+            <input type="range" min="100" max="300" step="5" value={project.settingsIconZoom??100} onChange={e=>setProject(p=>({...p,settingsIconZoom:Number(e.target.value)}))}/>
+            <small className="hint-inline">Agrandit l’image dans le bouton si ton icône a des marges transparentes et paraît trop petite.</small></label>}
+          {!settingsIconSrc&&<div className="nv-vs-colors">
+            <label>Fond du bouton <input type="color" value={project.settingsColor??'#0b1826'} onChange={e=>setProject(p=>({...p,settingsColor:e.target.value}))}/></label>
+            <label>Roue crantée <input type="color" value={project.settingsIconColor??'#ffffff'} onChange={e=>setProject(p=>({...p,settingsIconColor:e.target.value}))}/></label>
+          </div>}
+          <button type="button" className="style-reset" onClick={()=>setProject(p=>({...p,settingsIconSize:undefined,settingsIconZoom:undefined,settingsColor:undefined,settingsIconColor:undefined}))}>Réinitialiser taille et couleurs</button>
           </InspectorSection>
         </div>}
         {panel==='music' && <div className="properties">
