@@ -94,6 +94,15 @@ export type BottomBarItem = {
 };
 // Single source of truth for the size of a bottom-bar button (editor, preview and exported tour).
 export const BAR_ICON_DEFAULT = 48;
+/** Animations d'ouverture des fenêtres d'information (choisies par l'auteur du projet). */
+export const WINDOW_ANIMATIONS = [
+  {id:'fade',label:'Fondu'},
+  {id:'unfold',label:'Déploiement (la fenêtre s’ouvre depuis une fine barre)'},
+  {id:'slide',label:'Glissement depuis le bas'},
+  {id:'zoom',label:'Zoom (grossit depuis le centre)'},
+  {id:'drop',label:'Chute depuis le haut, avec rebond'},
+] as const;
+export type WindowAnimation = typeof WINDOW_ANIMATIONS[number]['id'];
 /** One lock for the bar: its height always follows the biggest button (button + 16 px of air). */
 export const barHeightFor = (items:{iconSize?:number}[]) => Math.max(56, Math.min(160, Math.max(BAR_ICON_DEFAULT, ...items.map(i=>barIconSize(i))) + 18));
 export const withBarSize = <T extends {bottomBar:BottomBarItem[];barStyle:BarStyle}>(p:T,size:number):T => {
@@ -150,7 +159,7 @@ export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;t
 /** Positions in percentages of the plan image, independent of screen size. */
 export type FloorPlanPoint = {sceneId:string;x:number;y:number};
 export type FloorPlan = {imageDataUrl:string;name:string;points:FloorPlanPoint[]};
-export type StudioProject = { version: 1; floorPlan?:FloorPlan; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+export type StudioProject = { version: 1; windowAnimation?: WindowAnimation; floorPlan?:FloorPlan; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
