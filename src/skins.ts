@@ -6,9 +6,6 @@ export type Skin={version:1;id:string;name:string;updatedAt:string;appearance:St
 export function captureSkin(project:StudioProject,name:string,id:string=crypto.randomUUID()):Skin {
   const appearances=project.bottomBar.map(item=>({id:item.id,title:item.title,type:item.type,...(item.type==='gallery'?{gallery:[]}:{}),text:'',url:'',target:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize}));
   const nav=project.defaultNavigationIcon??(project.iconPackId==='classic'?undefined:inferNavigation(project));
-  const used=new Set<string>();
-  for(const item of [...appearances,...(nav?[nav]:[]),...(project.buttonSets??[]),...[project.defaultPhotoIcon,project.defaultVideoIcon].filter((v):v is NonNullable<typeof v>=>!!v)])for(const key of ['iconId','hoverIconId','pressedIconId'] as const){if(item[key])used.add(item[key]!);}
-  for(const key of globalIcons)if(project[key])used.add(project[key]!);
   const appearance:StudioProject={...newProject(),name:'Skin',vrEnabled:project.vrEnabled,defaultPhotoIcon:project.defaultPhotoIcon,defaultVideoIcon:project.defaultVideoIcon,barStyle:{...project.barStyle},bottomBar:appearances,
     icons:project.icons,buttonSets:project.buttonSets,languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId,
     barIconTrim:project.barIconTrim,settingsIconSize:project.settingsIconSize,settingsIconZoom:project.settingsIconZoom,
