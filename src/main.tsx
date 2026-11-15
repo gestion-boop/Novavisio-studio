@@ -2768,6 +2768,23 @@ function App(){
     patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch}:h)}));
   }
   function dropIcon(payload:string,yaw:number,pitch:number){
+    if(payload.startsWith('media:')){
+      if(!active)return;
+      const mediaId=payload.slice(6);
+      const item=(project.mediaLibrary??[]).find(m=>m.id===mediaId);
+      if(!item)return;
+      const r=resolveLink(item);
+      if(r.problem)return;
+      const h:Hotspot=item.kind==='photo'
+        ?{id:uid(),type:'image',title:item.name,text:'',target:'',yaw,pitch,mediaDisplay:'popup',
+          ...(item.provider==='local'&&item.data?{imageDataUrl:item.data}:{imageUrl:r.image})}
+        :{id:uid(),type:'video',title:item.name,text:'',target:'',yaw,pitch,mediaDisplay:'popup',videoOpenFullscreen:true,
+          ...(item.provider==='local'&&item.data?{videoDataUrl:item.data}:r.video?{videoUrl:r.video}:{videoEmbed:r.embed,videoUrl:''})};
+      patchScene(sc=>({...sc,hotspots:[...sc.hotspots,h]}));
+      setPanel('points');setSelectedId(h.id);setMode(null);
+      setStatus((item.kind==='photo'?'Photo':'Vidéo')+' « '+item.name+' » positionnée dans le panorama');
+      return;
+    }
     // `payload` = identifiant d'une icône seule, ou JSON d'un jeu complet (normal + survol + clic).
     let set:{iconId:string;hoverIconId?:string;pressedIconId?:string;size?:number}|null=null;
     if(payload.startsWith('{')){
