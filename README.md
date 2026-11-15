@@ -170,3 +170,5 @@ Vérification : `npm run build`, `node scripts/check-export.mjs`, puis `node scr
 L’outil **Plan** ouvre directement cette fenêtre agrandie, sans formulaire de coordonnées ni liste déroulante. Dans **Panoramas**, cliquer sur une vignette ouvre un aperçu 360° à gauche de la liste. Modifier son nom puis cliquer sur **Enregistrer** le conserve localement et, si le compte est connecté, dans le cloud. Les paramètres du visiteur proposent **Afficher le plan** dès qu’un dessin est importé.
 
 La configuration des galeries propose **Agrandir la galerie avec les aperçus** : photos et vidéos ont une grande visionneuse à côté de leur liste de sélection ; la galerie des panoramas permet de consulter chaque vue 360° en cliquant sur sa vignette et de modifier le nom affiché sur ses cartes.
+
+Dans l’éditeur du plan, l’œil d’une vignette affiche sa vue 360° à gauche. La liste de droite reste accessible : cliquer sur une autre vignette actualise l’aperçu. Commencer un glisser-déposer rétablit le plan pour y déposer le panorama. Dans la visite, le plan s’ouvre avec un fondu et un léger zoom ; l’animation est désactivée si le navigateur demande une réduction des mouvements.
