@@ -409,6 +409,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     roundRect(c,6,6,w-12,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
     c.fillStyle=iconColor;c.font='bold 52px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,w/2,58);
   });
+  /** Cadre commun des galeries : titre en haut à gauche, compteur, bouton ✕ rond en haut à droite, flèches ◀ ▶ au milieu des côtés (hors des vignettes). */
+  const closeIconTexture=()=>canvasTexture(110,110,c=>{
+    c.beginPath();c.arc(55,55,49,0,Math.PI*2);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
+    c.strokeStyle=iconColor;c.lineWidth=9;c.lineCap='round';
+    c.beginPath();c.moveTo(36,36);c.lineTo(74,74);c.moveTo(74,36);c.lineTo(36,74);c.stroke();
+  });
+  const sideArrowTexture=(label:string)=>canvasTexture(110,230,c=>{
+    roundRect(c,6,6,98,218,44);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
+    c.fillStyle=iconColor;c.font='bold 62px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,55,120);
+  });
+  const galleryChrome=(W:number,H:number,title:string,count:string,pages:number,page:number,onPrev:()=>void,onNext:()=>void)=>{
+    addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
+      roundRect(c,6,6,W*1000-12,H*1000-12,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
+      c.fillStyle='#1b1b1f';c.font='bold 58px sans-serif';c.textAlign='left';c.textBaseline='middle';
+      let t=title;while(c.measureText(t).width>W*1000-420&&t.length>3)t=t.slice(0,-2);
+      c.fillText(t,64,92);
+      c.font='34px sans-serif';c.fillStyle='#4a4a52';c.textAlign='right';
+      c.fillText(count+(pages>1?'  ·  page '+(page+1)+'/'+pages:''),W*1000-170,92);
+    }),5,0,0).userData.blocker=true;
+    addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
+    if(pages>1){
+      addPanelButton(.1,.21,sideArrowTexture('◀'),-(W/2-.075),-.04,onPrev);
+      addPanelButton(.1,.21,sideArrowTexture('▶'),W/2-.075,-.04,onNext);
+    }
+  };
   const showPages=(title:string,pages:{title?:string;text:string}[],extra?:{label:string;onSelect:()=>void})=>{
     closePanels();
     const measure=document.createElement('canvas').getContext('2d')!;
@@ -590,7 +615,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     closePanels();
     const entries=(item.photos??[]).map(m=>({m,r:resolveLink(m)})).filter(e=>e.r.image||e.r.video||e.r.embed);
     if(!entries.length){showText(item.title||'Photos','Aucune photo dans cette galerie.');return;}
-    const perPage=8,cols=4;
     let page=0;
     const open=async(i:number)=>{
       const e=entries[i];
@@ -602,39 +626,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     };
     const renderGrid=async()=>{
       closePanels();
-      const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const W=1.7,H=1.12;
-      const bgTex=canvasTexture(1700,1120,c=>{
-        roundRect(c,6,6,1688,1108,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-        c.fillStyle='#1b1b1f';c.font='bold 60px sans-serif';c.textAlign='left';c.textBaseline='top';c.fillText(item.title||'Photos',70,48);
-        c.font='34px sans-serif';c.fillStyle='#4a4a52';c.textAlign='right';c.fillText(entries.length+' éléments',1630,62);
-      });
-      addPlane(panelGroup,W,H,bgTex,5,0,0);
+      const cols=4,rows=2,cw=.34,ch=.30,gx=.04,gy=.05;
+      const perPageP=cols*rows;
+      const slice=entries.slice(page*perPageP,page*perPageP+perPageP);
+      const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
+      const pages=Math.max(1,Math.ceil(entries.length/perPageP));
+      galleryChrome(W,H,item.title||'Photos',entries.length+' éléments',pages,page,
+        ()=>{page=(page-1+pages)%pages;void renderGrid();},()=>{page=(page+1)%pages;void renderGrid();});
       for(let k=0;k<slice.length;k++){
         const e=slice[k];
         const col=k%cols,row=Math.floor(k/cols);
-        const cw=.38,ch=.34;
-        const x=(col-1.5)*(cw+.04),y=.17-row*(ch+.05);
+        const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
         let thumb:HTMLCanvasElement|null=null;
         const src=e.r.thumb??e.r.image;
-        if(e.m.kind==='photo'&&src){try{thumb=await loadReduced(src,320);}catch{thumb=null;}}
-        const tex=canvasTexture(380,340,c=>{
-          roundRect(c,6,6,368,328,30);c.fillStyle=btnBg;c.fill();c.lineWidth=7;c.strokeStyle=btnLine;c.stroke();
-          c.save();roundRect(c,20,20,340,226,22);c.clip();
-          if(thumb)c.drawImage(thumb,20,20,340,226);else{c.fillStyle='#222';c.fillRect(20,20,340,226);c.fillStyle='#fff';c.font='bold 90px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',190,134);}
+        if(e.m.kind==='photo'&&src){try{thumb=await loadReduced(src,480);}catch{thumb=null;}}
+        const tex=canvasTexture(340,300,c=>{
+          roundRect(c,5,5,330,290,28);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
+          c.save();roundRect(c,16,16,308,196,20);c.clip();
+          if(thumb)c.drawImage(thumb,16,16,308,196);else{c.fillStyle='#222';c.fillRect(16,16,308,196);c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',170,116);}
           c.restore();
-          c.fillStyle=iconColor;c.font='bold 32px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
-          let t=e.m.name;while(c.measureText(t).width>330&&t.length>2)t=t.slice(0,-2);
-          c.fillText(t===e.m.name?t:t.trimEnd()+'…',190,296);
+          c.fillStyle=iconColor;c.font='bold 30px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
+          let t=e.m.name;while(c.measureText(t).width>300&&t.length>2)t=t.slice(0,-2);
+          c.fillText(t===e.m.name?t:t.trimEnd()+'…',170,258);
         });
-        addPanelButton(cw,ch,tex,x,y,()=>{void open(page*perPage+k);});
+        addPanelButton(cw,ch,tex,x,y,()=>{void open(page*perPageP+k);});
       }
-      const pages=Math.max(1,Math.ceil(entries.length/perPage));
-      if(pages>1){
-        addPanelButton(.2,.11,navTexture('◀'),-.6,-H/2+.1,()=>{page=(page-1+pages)%pages;void renderGrid();});
-        addPanelButton(.2,.11,navTexture('▶'),.6,-H/2+.1,()=>{page=(page+1)%pages;void renderGrid();});
-      }
-      addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
       placePanel(1.7,-.0);
     };
     await renderGrid();
@@ -666,25 +682,23 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const showGallery=async(item:BottomBarItem)=>{
     closePanels();
     const entries=galleryEntries(item,project().scenes,project().spaces);
-    const perPage=6,cols=3;
+    const cols=3,rows=2,perPage=cols*rows;
     let page=0;
     const render=async()=>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const W=1.5,H=1.12;
-      const bgTex=canvasTexture(1500,1120,c=>{
-        roundRect(c,6,6,1488,1108,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-        c.fillStyle='#1b1b1f';c.font='bold 60px sans-serif';c.textAlign='left';c.textBaseline='top';c.fillText(item.galleryTitle||item.title||'Panoramas',70,48);
-      });
-      addPlane(panelGroup,W,H,bgTex,5,0,0);
+      const cw=.44,ch=.40,gx=.04,gy=.05;
+      const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
+      const pages=Math.max(1,Math.ceil(entries.length/perPage));
+      galleryChrome(W,H,item.galleryTitle||item.title||'Panoramas',entries.length+' panoramas',pages,page,
+        ()=>{page=(page-1+pages)%pages;void render();},()=>{page=(page+1)%pages;void render();});
       for(let i=0;i<slice.length;i++){
         const e=slice[i];
         const col=i%cols,row=Math.floor(i/cols);
-        const cw=.44,ch=.4;
-        const x=(col-1)*(cw+.04),y=.16-row*(ch+.06);
+        const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
         let thumb:HTMLCanvasElement|null=null;
         const src=sceneOf(e.sceneId)?.dataUrl;
-        if(src){try{thumb=await loadReduced(src,320);}catch{thumb=null;}}
+        if(src){try{thumb=await loadReduced(src,480);}catch{thumb=null;}}
         const tex=canvasTexture(440,400,c=>{
           roundRect(c,6,6,428,388,34);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=7;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
           c.save();roundRect(c,22,22,396,250,24);c.clip();
@@ -696,15 +710,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         });
         addPanelButton(cw,ch,tex,x,y,()=>{void goTo(e.sceneId);});
       }
-      const pages=Math.max(1,Math.ceil(entries.length/perPage));
-      if(pages>1){
-        const nav=(label:string,dx:number,to:number)=>addPanelButton(.2,.11,canvasTexture(200,110,c=>{
-          roundRect(c,6,6,188,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-          c.fillStyle=iconColor;c.font='bold 52px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,100,58);
-        }),dx,-H/2+.1,()=>{page=(to+pages)%pages;void render();});
-        nav('◀',-.55,page-1);nav('▶',.55,page+1);
-      }
-      addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
       placePanel(1.6,-.0);
     };
     await render();
@@ -754,7 +759,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     c.getWorldPosition(origin);
     dir.transformDirection(c.matrixWorld);
     raycaster.set(origin,dir);
-    const live=clickables.filter(m=>m.parent&&m.visible);
+    // Les fonds de fenêtres et de la barre arrêtent aussi le laser (il ne traverse plus les panneaux) ; seuls les boutons sont sélectionnables.
+    const blockers=[...panelGroup.children,...barGroup.children].filter(m=>m.visible&&m.userData.onSelect===undefined) as Clickable[];
+    const live=[...clickables.filter(m=>m.parent&&m.visible),...blockers];
     // Les panneaux devant les yeux doivent passer avant les hotspots plus
     // éloignés. Parmi des cibles de même plan, on choisit la plus proche.
     const found=raycaster.intersectObjects(live,false);
@@ -765,13 +772,23 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
     return {target:found[0].object as Clickable,point:found[0].point,distance:found[0].distance};
   };
+  /** Vibration de la manette (impulsion courte). Ignorée si le casque ne la prend pas en charge. */
+  const pulse=(c:Object3D,intensity:number,ms:number)=>{
+    try{
+      const gp=(c.userData.source as {gamepad?:{hapticActuators?:{pulse?:(i:number,d:number)=>unknown}[];vibrationActuator?:{playEffect?:(t:string,o:object)=>unknown}}}|undefined)?.gamepad;
+      const act=gp?.hapticActuators?.[0];
+      if(act?.pulse)void act.pulse(intensity,ms);
+      else gp?.vibrationActuator?.playEffect?.('dual-rumble',{startDelay:0,duration:ms,strongMagnitude:intensity,weakMagnitude:intensity});
+    }catch{/* pas de vibration */}
+  };
   controllers.forEach(c=>{
+    c.addEventListener('connected',e=>{c.userData.source=(e as unknown as {data?:unknown}).data;});
     c.addEventListener('selectstart',()=>{
       const h=hits(c),target=h.target;
       if(target){
         const states=target.userData.vrIconStates as {pressedUntil:number}|undefined;
         if(states)states.pressedUntil=performance.now()+180;
-        target.userData.onSelect?.();
+        if(target.userData.onSelect){pulse(c,.85,45);target.userData.onSelect();}
       }
     });
     // Prise (gâchette latérale) : ramène la barre devant soi.
@@ -834,8 +851,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     controllers.forEach(c=>{
       const hit=hits(c),pointer=c.userData.vrPointer as {geo:BufferGeometry;dot:Mesh}|undefined;
       if(hit.target)hovered.add(hit.target);
+      // Légère vibration quand le laser arrive sur une cible sélectionnable.
+      const selectable=hit.target&&hit.target.userData.onSelect?hit.target:null;
+      if(selectable&&c.userData.lastSelectable!==selectable)pulse(c,.2,12);
+      c.userData.lastSelectable=selectable;
       if(pointer){
-        const length=Math.min(POINTER_MAX,hit.distance);
+        // Le faisceau va jusqu'à la cible, même lointaine (flèches du panorama), et pas plus loin ; sans cible il reste court.
+        const length=hit.target?hit.distance:POINTER_MAX;
         const pos=pointer.geo.getAttribute('position') as Float32BufferAttribute;
         pos.setXYZ(1,0,0,-length);pos.needsUpdate=true;pointer.geo.computeBoundingSphere();
         pointer.dot.visible=!!hit.point&&c.visible;

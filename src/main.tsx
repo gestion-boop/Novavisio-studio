@@ -770,6 +770,7 @@ function App(){
   const visitorPrefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [photoGalleryId,setPhotoGalleryId]=useState<string|null>(null);
+  const [panoModalId,setPanoModalId]=useState<string|null>(null);
   const sphereImage=(id:string)=>projectRef.current.scenes.find(sc=>sc.id===id)?.dataUrl;
   const settingsIconSrc=project.icons.find(i=>i.id===(project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId))?.dataUrl;
   const [activeSpaceId,setActiveSpaceId]=useState<string|null>(null);
@@ -3252,6 +3253,27 @@ function App(){
       setActiveId(alternative?.id??'');setSelectedId('');setMode(null);
     }
   }
+  /** Supprime un panorama du projet (avec nettoyage des espaces, de la galerie, des flèches qui y menaient). Annulable avec Ctrl+Z. */
+  function deleteScene(id:string){
+    const sc=project.scenes.find(x=>x.id===id);
+    if(!sc)return;
+    if(project.scenes.length<=1){setStatus('Impossible de supprimer le seul panorama du projet.');return;}
+    const incoming=project.scenes.reduce((n,x)=>n+x.hotspots.filter(h=>h.type==='navigation'&&h.target===id).length,0);
+    if(!window.confirm('Supprimer « '+sc.name+' » du projet ?\n'+(incoming?incoming+' flèche'+(incoming>1?'s qui y mènent seront':' qui y mène sera')+' à reconfigurer.\n':'')+'Tu pourras annuler avec le bouton Annuler (Ctrl+Z).'))return;
+    const remaining=project.scenes.filter(x=>x.id!==id);
+    setProject(p=>({...p,
+      scenes:p.scenes.filter(x=>x.id!==id).map(x=>({...x,
+        nightSourceSceneId:x.nightSourceSceneId===id?undefined:x.nightSourceSceneId,
+        hotspots:x.hotspots.map(h=>h.type==='navigation'&&h.target===id?{...h,target:'',arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined}:h)})),
+      spaces:(p.spaces??[]).map(sp=>({...sp,sceneIds:sp.sceneIds.filter(sid=>sid!==id)})),
+      bottomBar:p.bottomBar.map(b=>({...b,target:b.target===id?'':b.target,
+        ...(b.gallery?{gallery:b.gallery.filter(g=>g.sceneId!==id)}:{}),
+        galleryBackground:b.galleryBackground==='scene:'+id?undefined:b.galleryBackground})),
+      comments:(p.comments??[]).filter(c=>c.sceneId!==id)}));
+    if(activeId===id){setActiveId(startSceneId(remaining));setSelectedId('');}
+    setPanoModalId(null);
+    setStatus('« '+sc.name+' » supprimé du projet.');
+  }
   function removeSceneFromSpace(spaceId:string,sceneId:string){
     const sc=project.scenes.find(item=>item.id===sceneId);
     if(!sc)return;
@@ -4533,6 +4555,8 @@ function App(){
               moveScene(s.id,e.key==='ArrowUp'?i-1:i+2);
             }}
             onClick={()=>{
+              // Hors mode Auto : un clic ouvre une fenêtre pour tourner dans le panorama à 360° avant de décider (ouvrir ou supprimer).
+              if(!autoNavigation&&!preview){setPanoModalId(s.id);return;}
               selectScene(s.id);
               if(!autoNavigation){returnTo.current=null;setRightHidden(true);} // on va simplement au panorama choisi
               setMode(autoNavigation&&!preview?'navigation':null);
@@ -5147,6 +5171,31 @@ function App(){
         <ul className="nv-publish-check">{publishIssues.slice(0,40).map((is,i)=><li key={i} className={'is-'+is.level}><span>{is.level==='error'?'⛔':'⚠️'}</span><span>{is.text}</span>
           {is.sceneId&&<button type="button" onClick={()=>goToIssue(is)}>Corriger</button>}</li>)}</ul></>}
       <div><button type="button" onClick={()=>setPublishConfirm(false)}>Annuler</button><button type="button" onClick={()=>{setPublishConfirm(false);void manualSave(true)}}>{publishIssues.some(i=>i.level==='error')?'Publier quand même':'Confirmer la publication'}</button></div></section></div>}
+    {panoModalId&&(()=>{
+      const list=filteredScenes.length?filteredScenes:visibleScenes;
+      const idx=list.findIndex(x=>x.id===panoModalId);
+      const sc=project.scenes.find(x=>x.id===panoModalId);
+      if(!sc)return null;
+      const go=(d:number)=>{if(list.length>1)setPanoModalId(list[(idx+d+list.length)%list.length].id);};
+      return <div className="nv-pano-modal-backdrop" onClick={()=>setPanoModalId(null)} role="presentation"
+        onKeyDown={e=>{if(e.key==='Escape')setPanoModalId(null);else if(e.key==='ArrowRight')go(1);else if(e.key==='ArrowLeft')go(-1);}}>
+        <section className="nv-pano-modal" role="dialog" aria-modal="true" aria-label={'Panorama '+sc.name} onClick={e=>e.stopPropagation()} tabIndex={-1} ref={el=>el?.focus({preventScroll:true})}>
+          <header><div><strong title={sc.name}>{sc.name}</strong><small>Scène {Math.max(1,project.scenes.findIndex(x=>x.id===sc.id)+1)} / {project.scenes.length} · {sc.hotspots.length} point{sc.hotspots.length>1?'s':''}{sc.excluded?' · décoché':''}</small></div>
+            <button type="button" onClick={()=>setPanoModalId(null)} aria-label="Fermer"><XMark/></button></header>
+          <div className="nv-pano-modal-viewer">
+            {list.length>1&&<button type="button" className="nv-pano-modal-nav is-prev" onClick={()=>go(-1)} aria-label="Panorama précédent"><ChevronLeft size={26}/></button>}
+            <FullscreenGalleryHoverPreview key={sc.id} scene={sc} thumb={sceneThumbs[sc.id]}/>
+            {list.length>1&&<button type="button" className="nv-pano-modal-nav is-next" onClick={()=>go(1)} aria-label="Panorama suivant"><ChevronRight size={26}/></button>}
+          </div>
+          <small className="nv-pano-modal-hint">Glisse pour tourner à 360° · molette ou pincement pour zoomer · ◀ ▶ pour changer de panorama</small>
+          <footer>
+            <button type="button" className="is-primary" onClick={()=>{selectScene(sc.id);returnTo.current=null;setRightHidden(true);setMode(null);setPanoModalId(null);setStatus('Panorama '+sc.name+' ouvert dans la grande vue.');}}>Ouvrir ce panorama</button>
+            <button type="button" onClick={()=>{setProject(p=>({...p,scenes:p.scenes.map(x=>x.id===sc.id?{...x,excluded:x.excluded?undefined:true}:x)}));}}>{sc.excluded?'✓ Remettre dans la visite':'Retirer de la visite'}</button>
+            <button type="button" className="is-danger" onClick={()=>deleteScene(sc.id)}><Trash2 size={15}/> Supprimer</button>
+          </footer>
+        </section>
+      </div>;
+    })()}
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
     {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}
