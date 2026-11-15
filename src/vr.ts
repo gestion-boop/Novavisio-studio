@@ -731,7 +731,45 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     await render();
   };
 
+  // Plan de visite dans le casque : image plane flottante et destinations
+  // cliquables avec le laser des manettes Quest.
+  const showFloorPlan=async(item:BottomBarItem)=>{
+    const plan=project().floorPlan;
+    if(!plan?.imageDataUrl){showText(item.title||'Plan','Le plan de cette visite n’est pas configuré.');return;}
+    setNotice('Chargement du plan…');
+    let bitmap:HTMLCanvasElement;
+    try{bitmap=await loadReduced(plan.imageDataUrl,2048);}catch{setNotice('Impossible de charger le plan.');return;}
+    if(ended)return;
+    closePanels();
+    const ratio=bitmap.width/Math.max(1,bitmap.height);
+    const maxW=1.48,maxH=1.02;
+    const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
+    const W=imageW+.16,H=imageH+.30;
+    addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);
+    const imageTex=new CanvasTexture(bitmap);imageTex.colorSpace=SRGBColorSpace;imageTex.minFilter=LinearFilter;
+    addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
+    addPlane(panelGroup,Math.min(1.25,W-.12),.09,canvasTexture(1000,80,c=>{
+      c.fillStyle=iconColor;c.font='bold 42px sans-serif';c.textAlign='center';c.textBaseline='middle';
+      c.fillText(plan.name||item.title||'Plan de la visite',500,42);
+    }),7,0,H/2-.075);
+    const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,c=>{
+      c.beginPath();c.arc(90,90,76,0,Math.PI*2);c.fillStyle=current?iconColor:btnBg;c.fill();
+      c.lineWidth=8;c.strokeStyle=current?btnLine:iconColor;c.stroke();
+      c.fillStyle=current?btnLine:iconColor;c.font='bold 64px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,90,94);
+    });
+    const visible=plan.points.filter(point=>{const scene=sceneOf(point.sceneId);return !!scene&&!scene.excluded;});
+    visible.forEach((point,index)=>{
+      const target=sceneOf(point.sceneId)!;
+      const x=(point.x/100-.5)*imageW;
+      const y=(.5-point.y/100)*imageH-.025;
+      addPanelButton(.105,.105,pointTexture(String(index+1),target.id===currentId),x,y,()=>{void goTo(target.id);});
+    });
+    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.075,closePanels);
+    placePanel(1.55,0);
+  };
+
   function onBarItem(item:BottomBarItem){
+    if(item.type==='plan'){void showFloorPlan(item);return;}
     if(item.type==='gallery'){void showGallery(item);return;}
     if(item.type==='navigation'){
       if(item.target){void goTo(item.target);return;}
