@@ -5644,21 +5644,6 @@ function App(){
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties nv-icons-panel">
-          <InspectorSection title="Croix de fermeture">
-            <p className="hint">Choisis une croix personnalisée pour fermer toutes les fenêtres interactives : photos, vidéos, informations, galerie, plan et autres popups.</p>
-            <div className="nv-close-current">
-              <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
-              <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Aucune croix personnalisée sélectionnée'}</small></div>
-            </div>
-            {iconStateEditor('global-close-icon','Croix globale',project.closeIconId,
-              id=>setProject(p=>({...p,closeIconId:id})),'Croix classique')}
-            {iconStateEditor('global-close-hover-icon','Croix · Survol',project.closeIconHoverId,
-              id=>setProject(p=>({...p,closeIconHoverId:id})),'Identique au normal')}
-            {iconStateEditor('global-close-pressed-icon','Croix · Pressé',project.closeIconPressedId,
-              id=>setProject(p=>({...p,closeIconPressedId:id})),'Identique au survol')}
-            {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
-            <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
-          </InspectorSection>
           <details className="nv-icons-library" open>
             <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
@@ -5672,6 +5657,25 @@ function App(){
               else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
             }:undefined}/>
           </details>
+          <InspectorSection title="Croix de fermeture">
+            <p className="hint">Une croix pour fermer toutes les fenêtres interactives : photos, vidéos, informations, galerie, plan et autres popups.</p>
+            <div className="nv-close-current">
+              <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
+              <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Croix classique par défaut'}</small></div>
+            </div>
+            {libraryPackPicker(project.closeIconId,patch=>setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId})))}
+            <details className="nv-icons-states">
+              <summary>Croix : PNG normal, survol et clic un par un</summary>
+              {iconStateEditor('global-close-icon','Croix globale',project.closeIconId,
+                id=>setProject(p=>({...p,closeIconId:id})),'Croix classique')}
+              {iconStateEditor('global-close-hover-icon','Croix · Survol',project.closeIconHoverId,
+                id=>setProject(p=>({...p,closeIconHoverId:id})),'Identique au normal')}
+              {iconStateEditor('global-close-pressed-icon','Croix · Pressé',project.closeIconPressedId,
+                id=>setProject(p=>({...p,closeIconPressedId:id})),'Identique au survol')}
+              {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
+            </details>
+            <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
+          </InspectorSection>
           <details className="nv-icons-advanced">
             <summary>Autres réglages : créateur d’icônes</summary>
             {svgIconWorkshop()}

@@ -5717,3 +5717,6 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-iconset-del{opacity:1;z-index:2;background:#243744;color:#f7e5e5;border:1px solid #647783}
 .nv-iconset-del:hover{background:#9c3545}
 @media(max-width:400px){.nv-iconset-create-panel{padding:9px}.nv-iconset-create-states{gap:5px}.nv-iconset-create-state{padding:5px 3px}.nv-iconset-create-file{font-size:10px;padding:6px 3px}}
+
+.nv-icons-states{margin:8px 0;border:1px solid #2c5361;border-radius:10px;padding:6px 10px}
+.nv-icons-states>summary{cursor:pointer;font-weight:700;font-size:13px;color:#cfe3ea;padding:4px 0}
