@@ -25,7 +25,6 @@ import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
-import {VrReferenceTest} from './VrReferenceTest';
 import './visitor.css';
 import './windowAnim.css';
 import './media.css';
@@ -242,7 +241,6 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const vrAvailable=vrCapability==='available';
   const [vrActive,setVrActive]=useState(false);
   // Mode d'essai temporaire, jamais sauvegardé dans le projet ni activé par défaut.
-  const [vrReferenceTest,setVrReferenceTest]=useState(false);
   const [vrError,setVrError]=useState('');
   const [vrSceneId,setVrSceneId]=useState<string|null>(null);
   const projectRef=useRef<StudioProject|null>(null);
@@ -374,7 +372,6 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       vrStop.current=await startVr({
         getProject:()=>projectRef.current as StudioProject,
         startSceneId:current.id,
-        referenceTest:vrReferenceTest,
         ensureScene:id=>needSceneRef.current?.(id),
         onSceneChange:id=>setVrSceneId(id),
         onOpenEmbedded:(title,url)=>{
@@ -411,7 +408,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={(fullscreen||mobileExpanded)?'Réduire la visite':'Agrandir la visite'}>
       {(fullscreen||mobileExpanded)?<Minimize size={21}/>:<Maximize size={21}/>}
     </button>
-    {vrAllowed&&vrAvailable&&!vrEntry&&!vrReferenceTest&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Passer de la visite 360° à l'immersion dans le casque">{vrActive?'VR en cours…':'🥽 Mode immersif VR'}</button>}
+    {vrAllowed&&vrAvailable&&!vrEntry&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Passer de la visite 360° à l'immersion dans le casque">{vrActive?'VR en cours…':'🥽 Mode immersif VR'}</button>}
     {vrAllowed&&vrEntry&&!vrPromptDismissed&&!vrActive&&<div role="dialog" aria-label="Mode casque Immosphera360 VR" style={{position:'absolute',inset:0,zIndex:120,background:'rgba(4,19,28,.88)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
       <div style={{maxWidth:470,width:'100%',background:'#102f3d',border:'1px solid #79aab5',borderRadius:22,padding:28,textAlign:'center',color:'#f5fbfc',boxShadow:'0 16px 70px #0009'}}>
         <div style={{fontSize:44}}>🥽</div>
@@ -428,14 +425,6 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       </div>
     </div>}
 
-    {!showIntro&&firstPanoramaReady&&!vrReferenceTest&&<button type="button" className="nv-vr-ref-launch"
-      onClick={()=>{setSettingsOpen(false);setVrReferenceTest(true);}} aria-label="Tester l'interface VR anthracite et or">
-      🥽 Test interface VR
-    </button>}
-    {vrReferenceTest&&!vrActive&&<VrReferenceTest
-      project={project} currentId={current.id} onPick={id=>move(id)}
-      onClose={()=>setVrReferenceTest(false)} vrAvailable={vrAllowed&&vrAvailable}
-      onEnterVr={()=>void enterVr()}/>}
     {vrError&&<div className="tour-vr-error" role="alert" onClick={()=>setVrError('')}>{vrError}</div>}
     {project.bottomBar?.length>0&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
