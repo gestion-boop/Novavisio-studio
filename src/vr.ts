@@ -29,6 +29,8 @@ export type VrOptions={
   /** Demande le téléchargement d'un panorama pas encore chargé (lien public). */
   ensureScene?:(id:string)=>void;
   onSceneChange?:(id:string)=>void;
+  /** Afficher une page externe dans l'iframe absolue de la visite 2D après sortie de WebXR. */
+  onOpenEmbedded?:(title:string,url:string)=>void;
   onEnd?:(lastSceneId:string)=>void;
 };
 
@@ -412,9 +414,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         c.fillText('↗ Ouvrir le site',325,78);
       });
       addPanelButton(.58,.135,action,0,-.19,()=>{
-        // Le navigateur conserve la destination après la sortie WebXR.
-        void session.end().then(()=>window.location.assign(valid))
-          .catch(()=>window.location.assign(valid));
+        // Un iframe HTML ne peut pas être dessiné à l'intérieur d'une
+        // scène WebXR immersive. On quitte la session VR puis on affiche
+        // l'iframe ABSOLUE existante dans le même onglet de NovaStudio.
+        // Aucun window.open ni changement d'adresse.
+        void session.end().then(()=>opts.onOpenEmbedded?.(title||'Page web',valid))
+          .catch(()=>opts.onOpenEmbedded?.(title||'Page web',valid));
       });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.055,closePanels);
