@@ -15,7 +15,7 @@ import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star,Settings} from 'lucide-react';
-import {barIconSize,defaultBarStyle,defaultFrameCorners,STUDIO_LANGUAGES,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
+import {barIconSize,barHeightFor,defaultBarStyle,defaultFrameCorners,STUDIO_LANGUAGES,type StudioProject,type Scene,type Hotspot,type BottomBarItem,type CustomIcon} from './storage';
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
@@ -309,7 +309,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     '--nv-button-border-width':theme.buttonOutlineWidth+'px',
     '--nv-bar-roundness':theme.roundness+'px',
     '--nv-bar-width':theme.width?theme.width+'px':'max-content',
-    '--nv-bar-height':(theme.height??82)+'px'
+    '--nv-bar-height':Math.max(theme.height??82,project?.bottomBar?.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const activeLanguages=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
@@ -405,7 +405,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       {project.bottomBar.map(item=>{
         const icon=project.icons?.find(i=>i.id===item.iconId);
         return <button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={item.title} title={item.title}>
-          <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
+          <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
         </button>;
       })}
     </nav>}

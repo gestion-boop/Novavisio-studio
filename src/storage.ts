@@ -64,6 +64,8 @@ export const defaultBarStyle = ():BarStyle => ({
 export type GalleryItem = { sceneId: string; label: string };
 export type BottomBarItem = {
   id: string;
+  /** Zoom de l'icône dans son bouton (100–250 %) : compense les marges transparentes de l'image. */
+  iconZoom?: number;
   title: string;
   type: 'navigation' | 'information' | 'lien' | 'gallery';
   gallery?: GalleryItem[];
@@ -284,6 +286,7 @@ export function validateProject(value:unknown):StudioProject {
       (item.hoverIconId !== undefined && (typeof item.hoverIconId !== 'string' || !icons.some(icon => icon.id === item.hoverIconId))) ||
       (item.pressedIconId !== undefined && (typeof item.pressedIconId !== 'string' || !icons.some(icon => icon.id === item.pressedIconId))) ||
       (item.iconSize !== undefined && (!Number.isFinite(item.iconSize) || item.iconSize < 20 || item.iconSize > 100)) ||
+      (item.iconZoom !== undefined && (!Number.isFinite(item.iconZoom) || item.iconZoom < 100 || item.iconZoom > 250)) ||
       (item.builtinIcon !== undefined && typeof item.builtinIcon !== 'string')
     ) throw new Error('Bouton de la barre non valide');
   }

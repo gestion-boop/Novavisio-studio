@@ -19,10 +19,10 @@ export function iconStateHtml(icons:CustomIcon[],normal?:string,hover?:string,pr
   '</span>';
 }
 
-export function IconStateVisual({icons,normal,hover,pressed,size}:{icons:CustomIcon[];normal?:string;hover?:string;pressed?:string;size:number}) {
+export function IconStateVisual({icons,normal,hover,pressed,size,zoom=1}:{icons:CustomIcon[];normal?:string;hover?:string;pressed?:string;size:number;zoom?:number}) {
   const main=iconById(icons,normal);
   if(!main)return null;
-  return <span className="nv-icon-states nv-bar-png" style={{width:size,height:size}}>
+  return <span className="nv-icon-states nv-bar-png" style={{width:size,height:size,...(zoom!==1?{transform:'scale('+zoom+')'}:{})}}>
     <img alt="" draggable={false} className="nv-state-normal" src={main}/>
     <img alt="" draggable={false} className="nv-state-hover" src={iconById(icons,hover)??main}/>
     <img alt="" draggable={false} className="nv-state-press" src={iconById(icons,pressed)??iconById(icons,hover)??main}/>

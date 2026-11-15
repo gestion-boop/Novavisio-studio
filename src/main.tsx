@@ -31,6 +31,7 @@ import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
+import {autoIconZoom} from './iconFit';
 import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
@@ -1919,7 +1920,7 @@ function App(){
     '--nv-button-border-width':project.barStyle.buttonOutlineWidth+'px',
     '--nv-bar-roundness':project.barStyle.roundness+'px',
     '--nv-bar-width':project.barStyle.width?project.barStyle.width+'px':'max-content',
-    '--nv-bar-height':(project.barStyle.height??82)+'px'
+    '--nv-bar-height':Math.max(project.barStyle.height??82,project.bottomBar.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
   function changeBarStyle(update:Partial<BarStyle>) {
     setProject(p=>({...p,barStyle:{...p.barStyle,...update}}));
@@ -4399,7 +4400,7 @@ function App(){
               const icon=project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
               return <div key={item.id}><div className="nv-bar-sort-item"><button type="button" style={{'--nv-bar-btn':(barIconSize(item)+(icon?0:10))+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
-                <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
+                <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
                 <span className="visitor-bar-label">{item.title}</span>
               </button></div></div>;
             })}
@@ -4888,6 +4889,10 @@ function App(){
             </InspectorSection>
             <InspectorSection title="Taille et position">
             <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
+            {selectedBar.iconId&&<>
+              <label>Zoom de l’icône : {selectedBar.iconZoom??100} %<input type="range" min="100" max="250" step="5" value={selectedBar.iconZoom??100} onChange={e=>patchBar({iconZoom:Number(e.target.value)})}/></label>
+              <button type="button" className="style-reset" onClick={()=>{const src=project.icons.find(i=>i.id===selectedBar.iconId)?.dataUrl;if(!src)return;void autoIconZoom(src).then(z=>{patchBar({iconZoom:z});setStatus('Icône ajustée automatiquement : zoom '+z+' %');});}} title="Mesure les marges transparentes de l’image et l’agrandit pour qu’elle remplisse son bouton comme les autres icônes">Ajuster automatiquement la taille de l’icône</button>
+            </>}
             <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>withBarSize(p,size));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
             <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
             </InspectorSection>
