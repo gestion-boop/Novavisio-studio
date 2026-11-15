@@ -9,6 +9,7 @@ import {resolveLink} from './mediaLinks';
 import {frameWorldCorners} from './sphericalFrame';
 import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
+import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
@@ -289,6 +290,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       g.remove(child);
       const m=child as Mesh;
       const mat=m.material as MeshBasicMaterial|undefined;
+      const states=m.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null}|undefined;
+      for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==mat?.map)texture.dispose();
       mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
       const vid=m.userData.video as HTMLVideoElement|null|undefined;
       if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
@@ -333,7 +336,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     fadeTarget=1;
     busy=false;
     if(!ok)setNotice(tt('unavailable'));
-    else{renderRoomHeader();if(referenceMode)void buildBar();}
+    else{
+      renderRoomHeader();
+      if(referenceMode)void buildBar().then(()=>{
+        const first=project().scenes.filter(s=>!s.excluded);
+        const gallery=project().bottomBar.find(item=>item.type==='gallery');
+        const fallback={id:'vr-room-gallery',title:'Panoramas',type:'gallery',
+          gallery:first.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
+        void showGallery(gallery??fallback);
+      });
+    }
   }
 
   // ---- panneaux flottants (barre, galerie, texte) ----------------------------------------------------------
@@ -352,10 +364,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     btnLine=referenceMode?'#daa025':theme?.buttonOutline??'#4a1518';
     iconColor=referenceMode?'#f6bb34':theme?.icon??'#f4d69a';
   };
-  const barGroup=new Group();ui.add(barGroup);
-  // Nom et superficie de la pièce : seule information persistante en haut.
+  // Les commandes gauche/droite et le contenu central sont dans LE MÊME
+  // repère spatial. Déplacer le groupe parent déplace l'ensemble sans décalage.
+  const vrInterfaceGroup=new Group();ui.add(vrInterfaceGroup);
+  const vrShellGroup=new Group();vrInterfaceGroup.add(vrShellGroup);
+  const barGroup=new Group();vrInterfaceGroup.add(barGroup);
+  const panelGroup=new Group();vrInterfaceGroup.add(panelGroup);
+  // En-tête nom + superficie indépendant, ancré à deux mètres du casque.
   const headerGroup=new Group();ui.add(headerGroup);
-  const panelGroup=new Group();ui.add(panelGroup);
   const noticeGroup=new Group();ui.add(noticeGroup);
 
   const addPlane=(parent:Group,w:number,h:number,tex:Texture,order:number,x:number,y:number,z=0):Mesh=>{
@@ -427,59 +443,66 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
     addPlane(headerGroup,1.12,.215,tex,6,0,0);
     // Plus loin de l'utilisateur : moins intrusif dans le champ de vision du casque.
-    placeInFront(headerGroup,2.25,-.70);
+    placeInFront(headerGroup,2.0,-.62);
   };
   const buildBar=async()=>{
-    // Pas de barre en bas en VR. Le panneau est fermé à l'entrée ;
-    // A/B de la manette droite le fait apparaître dans le casque.
-    if(!referenceMode){clearGroup(barGroup);return;}
-    clearGroup(barGroup);
-    if(referenceMode){
-      // Maquette issue des trois captures : bandeau panorama, barre d'étage
-      // à gauche, options à droite, galerie/plan dans le panneau central.
-      // Position du décor fixe dans l'espace, manettes WebXR interactives.
-      const emblem=(glyph:string,label?:string)=>canvasTexture(300,300,ctx=>{
-        ctx.beginPath();ctx.arc(150,150,136,0,Math.PI*2);
-        ctx.fillStyle='#1c1d20';ctx.fill();
-        ctx.lineWidth=11;ctx.strokeStyle='#f6b72d';ctx.stroke();
-        ctx.fillStyle='#f6b72d';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.font='bold 132px sans-serif';ctx.fillText(glyph,150,153);
-        if(label){ctx.fillStyle='#fff';ctx.font='bold 31px sans-serif';ctx.fillText(label,150,256);}
-      });
-      const plate=(value:string)=>canvasTexture(1000,175,ctx=>{
-        roundRect(ctx,6,6,988,163,44);ctx.fillStyle='rgba(38,39,42,.92)';ctx.fill();
-        ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 58px sans-serif';
-        let label=value;while(ctx.measureText(label).width>925&&label.length>4)label=label.slice(0,-2);
-        ctx.fillText(label===value?label:label+'…',500,86);
-      });
-      // L'en-tête permanent est dans headerGroup, pas dans ce panneau.
-      const control=(x:number,y:number,sign:string,action:()=>void)=>{
-        const button=addButton(barGroup,.122,.122,emblem(sign),x,y,action,5);
-        button.userData.referenceUi=true;
-      };
-      const first=project().scenes.filter(s=>!s.excluded);
-      const sceneIndex=Math.max(0,first.findIndex(s=>s.id===currentId));
-      const gallery=project().bottomBar.find(b=>b.type==='gallery');
-      const fallback={id:'vr-test-gallery',title:'Panoramas',type:'gallery',gallery:first.map(s=>({sceneId:s.id,label:s.name}))} as BottomBarItem;
-      const plan=project().bottomBar.find(b=>b.type==='plan');
-      control(-.91,.16,'▦',()=>{void showGallery(gallery??fallback);});
-      control(-.91,-.03,'▲',()=>{const s=first[Math.max(0,sceneIndex-1)];if(s)void goTo(s.id);});
-      addPlane(barGroup,.13,.10,plate((sceneIndex+1)+' / '+first.length),4,-.91,-.16);
-      control(-.91,-.29,'▼',()=>{const s=first[Math.min(first.length-1,sceneIndex+1)];if(s)void goTo(s.id);});
-      control(-.91,-.49,'⌂',()=>{if(first[0])void goTo(first[0].id);});
-      control(.91,.11,getPrefs().sound==='off'?'◌':'♫',()=>{
-        setSound(getPrefs().sound==='off'?'on':'off');void buildBar();
-      });
-      // Le plan vient directement du projet, indépendamment des vignettes.
-      const planAction={id:'vr-test-plan',title:project().floorPlan?.name||'Plan',type:'plan'} as BottomBarItem;
-      control(.91,-.09,'▧',()=>{void showFloorPlan(plan??planAction);});
-      control(.91,-.29,'?',()=>showText('Navigation VR','Vise une icône et presse la gâchette. A ou B (manette droite) : afficher ou masquer la nouvelle interface VR.'));
-      control(.91,-.49,'✕',()=>{void session.end();});
-      // Colonnes à la même profondeur et hauteur que le panneau central.
-      placeInFront(barGroup,1.55,0);
-      barPlacedPhi=headForward().phi;
+    // Le casque démarre sans barre. A/B ouvre ou ferme l'unique bloc VR.
+    if(!referenceMode){
+      clearGroup(barGroup);clearGroup(vrShellGroup);
       return;
     }
+    clearGroup(barGroup);clearGroup(vrShellGroup);
+    // Une plaque commune (fond + bord fin) soude les trois colonnes,
+    // au lieu de les laisser flotter à des profondeurs indépendantes.
+    addPlane(vrShellGroup,2.13,1.15,canvasTexture(1200,650,ctx=>{
+      roundRect(ctx,7,7,1186,636,54);
+      ctx.fillStyle='rgba(30,31,35,.79)';ctx.fill();
+      ctx.lineWidth=7;ctx.strokeStyle='rgba(238,180,52,.72)';ctx.stroke();
+    }),3,0,0,-.03);
+    const button=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
+      const normal=makeVrControlTexture(icon,'normal');
+      const hover=makeVrControlTexture(icon,'hover');
+      const pressed=makeVrControlTexture(icon,'pressed');
+      const mesh=addButton(barGroup,.124,.124,normal,x,y,onSelect,9);
+      mesh.userData.vrIconStates={normal,hover,pressed,pressedUntil:0};
+      mesh.userData.referenceUi=true;
+      return mesh;
+    };
+    const floorLabel=(label:string)=>canvasTexture(280,180,ctx=>{
+      roundRect(ctx,8,8,264,164,36);ctx.fillStyle='#25262a';ctx.fill();
+      ctx.strokeStyle='#d6a13d';ctx.lineWidth=7;ctx.stroke();
+      ctx.fillStyle='#ffffff';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(label,140,90);
+    });
+    const scenes=project().scenes.filter(scene=>!scene.excluded);
+    const sceneIndex=Math.max(0,scenes.findIndex(scene=>scene.id===currentId));
+    const gallery=project().bottomBar.find(item=>item.type==='gallery');
+    const galleryDefault={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
+      gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
+    const plan=project().bottomBar.find(item=>item.type==='plan');
+    const planAction={id:'vr-menu-plan',title:project().floorPlan?.name||'Plan',type:'plan'} as BottomBarItem;
+    const left=-.936,right=.936;
+    button(left,.33,'gallery',()=>{void showGallery(gallery??galleryDefault);});
+    button(left,.12,'up',()=>{const target=scenes[Math.max(0,sceneIndex-1)];if(target)void goTo(target.id);});
+    addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,left,-.09);
+    button(left,-.29,'down',()=>{const target=scenes[Math.min(scenes.length-1,sceneIndex+1)];if(target)void goTo(target.id);});
+    button(left,-.49,'home',()=>{if(scenes[0])void goTo(scenes[0].id);});
+    button(right,.32,getPrefs().sound==='off'?'mute':'sound',()=>{
+      setSound(getPrefs().sound==='off'?'on':'off');
+      void buildBar();
+    });
+    // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
+    button(right,.07,'plan',()=>{void showFloorPlan(plan??planAction);});
+    button(right,-.18,'help',()=>showText('Navigation VR',
+      'Manette droite : laser et gâchette. Manette gauche : joystick et gâchette. A/B : ouvrir ou fermer le bloc. Clic joystick : tout masquer.'));
+    button(right,-.43,'exit',()=>{void session.end();});
+    // Premier affichage : une seule pose pour le bloc complet.
+    if(!panelAnchor){
+      placeInFront(vrInterfaceGroup,VR_UI_DIST,0);
+      panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
+    }
+    barPlacedPhi=headForward().phi;
+  };
     const items=project().bottomBar??[];
     const bw=.145,bh=.145,gap=.013;
     const entries:{item?:BottomBarItem;label:string}[]=[...items.map(item=>({item,label:pick(item.title,item.titleTranslations,vlang())})),{label:tt('quitVr')}];
@@ -511,12 +534,28 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Les fenêtres gardent leur place quand on passe de l'une à l'autre (photo suivante, page, retour galerie) : elles ne suivent plus le regard.
   // Distance des panneaux (galeries, textes, photos) : assez loin pour ne pas occuper tout le champ de vision.
   const PANEL_DIST=2.25;
+  const VR_UI_DIST=2.0;
   let panelAnchor:{pos:Vector3;quat:Quaternion}|null=null;
   let panelReplace=false;
   const placePanel=(distance:number,drop:number)=>{
-    if(panelReplace&&panelAnchor){panelGroup.position.copy(panelAnchor.pos);panelGroup.quaternion.copy(panelAnchor.quat);return;}
-    placeInFront(panelGroup,distance,drop);
-    panelAnchor={pos:panelGroup.position.clone(),quat:panelGroup.quaternion.clone()};
+    if(referenceMode){
+      // Ni la galerie ni le plan ne possèdent de pose autonome.
+      // Ils restent au centre du groupe parent même si l'on change de panneau.
+      panelGroup.position.set(0,0,0);
+      panelGroup.quaternion.identity();
+      if(!panelAnchor){
+        placeInFront(vrInterfaceGroup,VR_UI_DIST,0);
+        panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
+      }
+      return;
+    }
+    if(panelReplace&&panelAnchor){
+      vrInterfaceGroup.position.copy(panelAnchor.pos);
+      vrInterfaceGroup.quaternion.copy(panelAnchor.quat);
+      return;
+    }
+    placeInFront(vrInterfaceGroup,distance,drop);
+    panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
   };
   let activeVideo:{el:HTMLVideoElement;tex:VideoTexture}|null=null;
   const stopVideo=()=>{
@@ -992,8 +1031,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(!referenceMode||uiHidden)return [];
     const shown=(obj:Object3D)=>{let x:Object3D|null=obj;while(x){if(!x.visible)return false;x=x.parent;}return true;};
     const panel=clickables.filter(m=>m.parent===panelGroup&&shown(m)&&!!m.userData.onSelect);
-    if(panel.length)return panel;
-    return clickables.filter(m=>m.parent===barGroup&&shown(m)&&!!m.userData.onSelect);
+    const sides=clickables.filter(m=>m.parent===barGroup&&shown(m)&&!!m.userData.onSelect);
+    return [...panel,...sides];
   };
   const remotePositions=(items:Clickable[])=>{
     const xrCamera=renderer.xr.getCamera();
@@ -1082,6 +1121,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           switchingReference=true;
           referenceMode=!referenceMode;
           remoteTarget=null;
+          panelAnchor=null;
           updateVrPalette();
           closePanels();uiHidden=false;
           void buildBar().then(()=>{
@@ -1162,10 +1202,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const mat=(m as Mesh).material as MeshBasicMaterial|undefined;
       if(m.userData.spin&&mat?.map)mat.map.offset.x=(mat.map.offset.x+dt*.05)%1;
     }
-    // Barre : suit doucement le regard quand on s'en détourne trop.
+    // Le monobloc reste ancré dans l'espace : il ne suit pas chaque mouvement de tête.
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
-    if(Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
+    if(!referenceMode&&Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
     // Laser visible exclusivement depuis la manette droite. Son extrémité
     // est placée au point d'intersection réel, sans dépasser le bouton.
     const right=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness==='right');
@@ -1226,7 +1266,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     ended=true;
     renderer.setAnimationLoop(null);
     clearTimeout(noticeTimer);
-    clearGroup(hotspotGroup);clearGroup(headerGroup);clearGroup(barGroup);clearGroup(panelGroup);clearGroup(noticeGroup);
+    clearGroup(hotspotGroup);clearGroup(headerGroup);clearGroup(barGroup);clearGroup(panelGroup);clearGroup(vrShellGroup);clearGroup(noticeGroup);
     panoTexture?.dispose();disposables.forEach(d=>d.dispose());
     renderer.dispose();
     opts.onEnd?.(currentId);
