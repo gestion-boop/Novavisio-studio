@@ -10,6 +10,7 @@ import {frameWorldCorners} from './sphericalFrame';
 import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
+import {setVrMusicPlaying} from './vrAudioBridge';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
@@ -68,6 +69,20 @@ async function loadReduced(src:string,maxWidth:number):Promise<HTMLCanvasElement
   return canvas;
 }
 
+/** Texte toujours contenu dans sa zone : réduit la police, puis ajoute une ellipse si nécessaire. */
+function fitCanvasLabel(ctx:CanvasRenderingContext2D,label:string,maxWidth:number,maxSize:number,minSize:number):string{
+  const clean=(label||'').replace(/\\s+/g,' ').trim();
+  let font=maxSize;
+  ctx.font='bold '+font+'px sans-serif';
+  while(font>minSize&&ctx.measureText(clean).width>maxWidth){
+    font-=2;ctx.font='bold '+font+'px sans-serif';
+  }
+  let result=clean;
+  while(result.length>2&&ctx.measureText(result).width>maxWidth){
+    result=result.slice(0,-2).trimEnd()+'…';
+  }
+  return result;
+}
 function roundRect(c:CanvasRenderingContext2D,x:number,y:number,w:number,h:number,r:number){
   c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();
 }
@@ -427,23 +442,43 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
 
   let barPlacedPhi=0;
+  // Panneau du haut : ~4 m au lieu de 2 m, à ~1,7 m au-dessus du regard.
+  // En coordonnées locales du casque, il suit aussi la rotation / inclinaison.
+  const headerCameraPosition=new Vector3();
+  const headerCameraRotation=new Quaternion();
+  const headerTargetPosition=new Vector3();
+  const headerOffset=new Vector3(0,1.7,-4);
+  const syncRoomHeaderPose=(instant=false)=>{
+    const xrCamera=renderer.xr.getCamera();
+    xrCamera.updateMatrixWorld(true);
+    xrCamera.getWorldPosition(headerCameraPosition);
+    xrCamera.getWorldQuaternion(headerCameraRotation);
+    headerTargetPosition.copy(headerOffset).applyQuaternion(headerCameraRotation).add(headerCameraPosition);
+    const smooth=instant?1:.13;
+    headerGroup.position.lerp(headerTargetPosition,smooth);
+    headerGroup.quaternion.slerp(headerCameraRotation,smooth);
+  };
   const renderRoomHeader=()=>{
     clearGroup(headerGroup);
     const room=sceneOf(currentId);
-    const name=room?.name||project().name;
+    const name=room?pick(room.name,room.nameTranslations,vlang()):project().name;
     const area=room?.surfaceM2!==undefined?room.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})+' m²':'';
-    const tex=canvasTexture(1100,210,ctx=>{
-      roundRect(ctx,8,8,1084,194,44);ctx.fillStyle='rgba(28,29,32,.9)';ctx.fill();
+    const tex=canvasTexture(1100,230,ctx=>{
+      roundRect(ctx,8,8,1084,214,44);ctx.fillStyle='rgba(28,29,32,.93)';ctx.fill();
       ctx.lineWidth=7;ctx.strokeStyle='#d9a32e';ctx.stroke();
       ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-      let title=name;ctx.font='bold 70px sans-serif';
-      while(ctx.measureText(title).width>1000&&title.length>4)title=title.slice(0,-2);
-      ctx.fillText(title===name?title:title+'…',550,area?78:107);
-      if(area){ctx.font='bold 48px sans-serif';ctx.fillStyle='#eec464';ctx.fillText(area,550,151);}
+      const title=fitCanvasLabel(ctx,name,980,78,46);
+      ctx.fillText(title,550,area?87:116);
+      if(area){
+        ctx.fillStyle='#f1c767';
+        const surface=fitCanvasLabel(ctx,area,900,49,38);
+        ctx.fillText(surface,550,169);
+      }
     });
-    addPlane(headerGroup,1.12,.215,tex,6,0,0);
-    // Plus loin de l'utilisateur : moins intrusif dans le champ de vision du casque.
-    placeInFront(headerGroup,2.0,-.62);
+    addPlane(headerGroup,1.35,.283,tex,6,0,0);
+    // Le titre reste indépendamment du monobloc, très loin et très haut.
+    // La position sera mise à jour progressivement avec le regard dans tick().
+    syncRoomHeaderPose(true);
   };
   const buildBar=async()=>{
     // Le casque démarre sans barre. A/B ouvre ou ferme l'unique bloc VR.
@@ -488,8 +523,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,left,-.09);
     button(left,-.29,'down',()=>{const target=scenes[Math.min(scenes.length-1,sceneIndex+1)];if(target)void goTo(target.id);});
     button(left,-.49,'home',()=>{if(scenes[0])void goTo(scenes[0].id);});
-    button(right,.32,getPrefs().sound==='off'?'mute':'sound',()=>{
-      setSound(getPrefs().sound==='off'?'on':'off');
+    button(right,.32,getPrefs().sound==='on'?'sound':'mute',()=>{
+      // "undecided" est traité comme éteint : le premier clic démarre la musique.
+      // play() doit être appelé dans cet événement XR avant toute opération await.
+      const enable=getPrefs().sound!=='on';
+      setSound(enable?'on':'off');
+      const playback=setVrMusicPlaying(enable);
+      void playback.then(status=>{
+        if(!enable)return;
+        if(status==='no-source')setNotice('Aucune musique configurée pour cette pièce');
+        else if(status==='paused')setNotice('Musique momentanément suspendue');
+        else if(status==='blocked'||status==='unavailable')setNotice('Lecture audio indisponible : vérifier le son du casque');
+      });
       void buildBar();
     });
     // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
@@ -1013,7 +1058,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     laserRaycaster.set(pos,dir);
     const shown=(item:Object3D)=>{let p:Object3D|null=item;while(p){if(!p.visible)return false;p=p.parent;}return true;};
     const buttons=clickables.filter(item=>item.parent&&shown(item)&&!!item.userData.onSelect);
-    const blockers=[...panelGroup.children,...barGroup.children].filter(item=>shown(item)&&!item.userData.onSelect);
+    // La plaque commune ne doit pas laisser le laser sélectionner un hotspot derrière elle.
+    const blockers=[...panelGroup.children,...barGroup.children,...vrShellGroup.children].filter(item=>shown(item)&&!item.userData.onSelect);
     const intersections=laserRaycaster.intersectObjects([...buttons,...blockers],false);
     if(!intersections.length)return {target:null,point:null};
     // Surface interactive la plus proche ; le laser ne traverse pas les panneaux.
@@ -1194,6 +1240,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Attend la première vraie pose de la tête.
       if(h.x!==0||h.y!==0||h.z!==0){alignToHead(alignYaw);alignPending=false;}
     }
+    // Seul le bandeau supérieur accompagne doucement le regard. Le monobloc,
+    // lui, reste fixe pour permettre à la manette de pointer sans oscillation.
+    syncRoomHeaderPose();
     fade+=(fadeTarget-fade)*.35;
     if(Math.abs(fadeTarget-fade)<.01)fade=fadeTarget;
     if(panoTexture)sphereMat.color.setScalar(fade);
