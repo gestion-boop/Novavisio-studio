@@ -1,5 +1,5 @@
 import {BUCKET,supabase} from './cloud';
-import {applySkin,captureSkin,validateSkin,type Skin} from './skins';
+import {applySkin,validateSkin,type Skin} from './skins';
 import type {StudioProject} from './storage';
 
 /** Bibliothèque Cloud : modèles privés par utilisateur Supabase.
