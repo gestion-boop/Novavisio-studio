@@ -5347,3 +5347,12 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
   .nv-studio-pro.nv-sheet-open .nv-panorama-settings-toggle:not(.is-fullscreen){visibility:hidden}
   .nv-panorama-settings-toggle.is-fullscreen{top:64px;right:14px}
 }
+.nv-translate-content{max-height:calc(100dvh - 145px);overflow:auto;display:flex;flex-direction:column;gap:12px}
+.nv-translate-content button{padding:10px 14px;border:1px solid #4f9b9c;border-radius:9px;background:#1b5a64;color:#fff;font-weight:700;cursor:pointer}
+.nv-translate-content button:disabled{opacity:.5;cursor:not-allowed}
+.nv-translate-content small{color:#bdd2d7;line-height:1.5}
+.nv-translate-list{display:grid;gap:12px;max-height:55dvh;overflow:auto}
+.nv-translate-row{display:grid;gap:7px;padding:12px;border:1px solid #335f6c;border-radius:10px;background:#102c38}
+.nv-translate-row span{white-space:pre-wrap;color:#b9ccd1;font-size:12px}
+.nv-translate-row textarea{width:100%;padding:9px;border:1px solid #477780;border-radius:8px;background:#091f2b;color:white;resize:vertical}
+.nv-translate-actions{display:flex;gap:10px;justify-content:flex-end}
