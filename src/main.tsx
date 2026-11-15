@@ -3022,6 +3022,7 @@ function App(){
   }
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
+  const [windowDemo,setWindowDemo]=useState(false);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
   useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -5039,6 +5040,7 @@ function App(){
               <EmbeddedPage url={frame.url} title={frame.title}/>
             </section>
           </div>}
+          {windowDemo && <div className="overlay info-in-view" onClick={()=>setWindowDemo(false)}><div className="modal" onClick={e=>e.stopPropagation()}><h2>Test de l’animation</h2><p>Cette fenêtre s’ouvre avec le style et la durée choisis.</p><button className="primary" onClick={()=>setWindowDemo(false)}>Fermer</button></div></div>}
           {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
             <div className="modal" onClick={event=>event.stopPropagation()}>
               <button className="close" onClick={()=>setInfo(null)} aria-label={ui('close',infoLanguage)}><XMark/></button>
@@ -5466,7 +5468,7 @@ function App(){
           {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
-            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label><TranslationInputs label="Libellé traduit" values={selectedBar.titleTranslations} onChange={t=>patchBar({titleTranslations:t})}/><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label><TranslationInputs label="Libellé traduit" values={selectedBar.titleTranslations} onChange={t=>patchBar({titleTranslations:t})}/><button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester cet effet</button><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
             {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
@@ -5618,6 +5620,7 @@ function App(){
         {panel==='settings' && <div className="properties">
           <InspectorSection title="Animation des fenêtres (info, photo, vidéo, galeries, plan)" initiallyOpen>
             <p className="hint">Ce style s’applique à toutes les fenêtres de la visite : informations, photos, vidéos, galeries et plan. Il s’applique aussi à l’aperçu.</p>
+            <button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester l’animation</button>
             <label>Durée d’ouverture : {project.windowAnimationMs??700} ms
               <input type="range" min={200} max={2000} step={50} value={project.windowAnimationMs??700} onChange={e=>setProject(p=>({...p,windowAnimationMs:Number(e.target.value)}))}/>
             </label>

@@ -1,12 +1,12 @@
 /* Animations d'ouverture des fenêtres (réglage « Animation des fenêtres ») : le style est posé sur <html> (data-window-anim). scale/translate ne gênent pas le centrage. */
 :root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-fade calc(var(--nv-win-dur,700ms)*.64) ease both}
-:root[data-window-anim="unfold"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-unfold var(--nv-win-dur,700ms) cubic-bezier(.2,.8,.2,1) both}
+:root[data-window-anim="unfold"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-unfold var(--nv-win-dur,700ms) cubic-bezier(.2,1,.3,1) both}
 :root[data-window-anim="unfold"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal)>*{animation:nv-win-content calc(var(--nv-win-dur,700ms)*.6) ease calc(var(--nv-win-dur,700ms)*.64) both}
 :root[data-window-anim="slide"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-slide var(--nv-win-dur,700ms) cubic-bezier(.2,.8,.2,1) both}
 :root[data-window-anim="zoom"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-zoom var(--nv-win-dur,700ms) cubic-bezier(.2,.9,.3,1.1) both}
 :root[data-window-anim="drop"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-drop var(--nv-win-dur,700ms) cubic-bezier(.3,1.25,.5,1) both}
 @keyframes nv-win-fade{from{opacity:0}to{opacity:1}}
-@keyframes nv-win-unfold{0%{opacity:0;scale:1 .03}30%{opacity:1}100%{opacity:1;scale:1 1}}
+@keyframes nv-win-unfold{0%{opacity:0;scale:1 .02}30%{opacity:1}72%{scale:1 1.025}100%{opacity:1;scale:1 1}}
 @keyframes nv-win-content{from{opacity:0}to{opacity:1}}
 @keyframes nv-win-slide{from{opacity:0;translate:0 70px}to{opacity:1;translate:0 0}}
 @keyframes nv-win-zoom{from{opacity:0;scale:.82}to{opacity:1;scale:1}}
