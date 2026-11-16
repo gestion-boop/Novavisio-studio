@@ -1272,8 +1272,9 @@ function App(){
     return next;
   });
   useEffect(()=>{
-    if(!/^(Enregistré dans le Cloud|Sauvegardé|Publication|Échec|Cloud déconnecté)/.test(status))return;
-    pushNotif(/^(Échec|Cloud déconnecté)/.test(status)?'⚠️':/^Publication/.test(status)?'🚀':'💾',status.slice(0,120));
+    // Seules les erreurs entrent dans la cloche : les enregistrements et publications réussis ne sont pas notifiés.
+    if(!/^(Échec|Cloud déconnecté)/.test(status))return;
+    pushNotif('⚠️',status.slice(0,120));
   },[status]);
   useEffect(()=>{
     for(const n of liveInvite.notesIn)pushNotif('📝',n.fromLabel+' : '+n.body.slice(0,80),'note-'+n.id);
