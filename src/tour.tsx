@@ -416,9 +416,6 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
       <button type="button" className={nightActive?'is-active':''} aria-pressed={nightActive} onClick={()=>setNightSceneId(current.id)}>☾ <span>Nuit</span></button>
     </div>}
-    <button type="button" className="tour-fullscreen" onClick={()=>void toggleFull()} aria-label={(fullscreen||mobileExpanded)?'Réduire la visite':'Agrandir la visite'}>
-      {(fullscreen||mobileExpanded)?<Minimize size={21}/>:<Maximize size={21}/>}
-    </button>
     {vrAllowed&&vrAvailable&&!vrEntry&&<button type="button" className="tour-vr" onClick={()=>void enterVr()} disabled={vrActive} aria-label="Passer de la visite 360° à l'immersion dans le casque">{vrActive?'VR en cours…':'🥽 Mode immersif VR'}</button>}
     {vrAllowed&&vrEntry&&!vrPromptDismissed&&!vrActive&&<div role="dialog" aria-label="Mode casque Immosphera360 VR" style={{position:'absolute',inset:0,zIndex:120,background:'rgba(4,19,28,.88)',display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
       <div style={{maxWidth:470,width:'100%',background:'#102f3d',border:'1px solid #79aab5',borderRadius:22,padding:28,textAlign:'center',color:'#f5fbfc',boxShadow:'0 16px 70px #0009'}}>
@@ -450,6 +447,9 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         {hasSettingsIcon?<IconStateVisual icons={project.icons??[]} normal={settingsIcon} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<Settings size={Math.round(settingsSize(project)*0.42)}/>}
       </button>
       {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label={ui('settings',lang)}>
+        <button type="button" className="nv-vs-fullscreen" onClick={()=>void toggleFull()} aria-label={(fullscreen||mobileExpanded)?'Réduire la visite':'Agrandir la visite'}>
+          {(fullscreen||mobileExpanded)?<Minimize size={18}/>:<Maximize size={18}/>} {(fullscreen||mobileExpanded)?'Réduire la visite':'Plein écran'}
+        </button>
         <strong>{ui('sound',lang)}</strong><div className="nv-vs-row">
           <button type="button" className={prefs.sound==='on'?'is-on':''} onClick={()=>setSound('on')}>🔊 {ui('soundOn',lang)}</button>
           <button type="button" className={prefs.sound==='off'?'is-on':''} onClick={()=>setSound('off')}>🔇 {ui('soundOff',lang)}</button>
