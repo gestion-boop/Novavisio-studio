@@ -1364,10 +1364,10 @@ function App(){
   const notedIds=useMemo(()=>new Set((project.comments??[]).filter(c=>c.issueId&&!c.done).map(c=>c.issueId!)),[project.comments]);
   useEffect(()=>{
     if(!ready)return;
-    const present=new Set(projectIssues.map(i=>i.id));
+    const present=new Set(allProjectIssues.map(i=>i.id));
     const stale=(project.comments??[]).filter(c=>c.issueId&&!c.done&&!present.has(c.issueId));
     if(stale.length)setProject(p=>({...p,comments:(p.comments??[]).map(c=>c.issueId&&!c.done&&!present.has(c.issueId)?{...c,done:true}:c)}));
-  },[projectIssues,ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  },[allProjectIssues,ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const openCommentCount=(project.comments??[]).filter(c=>!c.done).length;
   // Pastille 📝 sur les vignettes des panoramas qui ont un correctif « à faire » en attente.
   const todoByScene=useMemo(()=>{const m=new Map<string,number>();for(const c of project.comments??[])if(c.issueId&&!c.done)m.set(c.sceneId,(m.get(c.sceneId)??0)+1);return m;},[project.comments]);
@@ -2709,6 +2709,7 @@ function App(){
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
     if(visibleScenes.length<2){setStatus('Il faut au moins deux panoramas pour créer une flèche.');return;}
     setAutoPending({yaw,pitch});
+    setFullscreenGalleryOpen(false);setNavigationPickerOpen(false);
     setClassicDestinationSearch('');
     setClassicDestinationPreviewId(suggestDestinations(active.id)[0]?.id??visibleScenes[index+1]?.id??visibleScenes.find(sc=>sc.id!==active.id)?.id??null);
     setClassicDestinationOpen(true);
@@ -2863,8 +2864,11 @@ function App(){
   async function saveArrivalImmediately(){
     if(arrivalSavingRef.current||savingManually||savingRef.current)return;
     if(!active||lock){setStatus('Échec : enregistrement de la vue indisponible');return;}
-    const {sceneId,yaw,pitch,zoom}=cameraRef.current;
-    if(sceneId!==active.id){setStatus('Échec : attends le chargement du panorama puis réessaie');return;}
+    const camera=cameraRef.current;
+    const sceneId=active.id;
+    const yaw=camera.sceneId===sceneId?camera.yaw:active.arrivalYaw??0;
+    const pitch=camera.sceneId===sceneId?camera.pitch:active.arrivalPitch??0;
+    const zoom=camera.sceneId===sceneId?camera.zoom:panoramaArrivalZoom(active);
     const snapshot:StudioProject={...projectRef.current,scenes:projectRef.current.scenes.map(sc=>sc.id===sceneId?
       {...sc,arrivalYaw:yaw,arrivalPitch:pitch,arrivalZoom:zoom,arrivalZoomModel:'wide'}:sc)};
     const name=active.name;
