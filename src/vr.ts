@@ -1,7 +1,4 @@
-import {
-  CanvasTexture,Color,LinearFilter,DoubleSide,Group,Line,LineBasicMaterial,BufferGeometry,Float32BufferAttribute,Mesh,MeshBasicMaterial,
-  PerspectiveCamera,PlaneGeometry,Quaternion,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
-} from 'three';
+import {CanvasTexture, Color, LinearFilter, DoubleSide, Group, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
 import {getFloorPlans,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
@@ -93,7 +90,7 @@ function canvasTexture(w:number,h:number,draw:(c:CanvasRenderingContext2D)=>void
   const c=k.getContext('2d')!;
   c.scale(TEX_Q,TEX_Q);            // on dessine toujours en coordonnées « logiques » w × h
   draw(c);
-  const t=new CanvasTexture(k);t.colorSpace=SRGBColorSpace;t.anisotropy=8;return t;
+  const t=new CanvasTexture(k);t.colorSpace=SRGBColorSpace;t.anisotropy=16;t.generateMipmaps=true;t.minFilter=LinearMipmapLinearFilter;t.magFilter=LinearFilter;return t;
 }
 function loadImage(src:string):Promise<HTMLImageElement|null>{
   return new Promise(ok=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ok(null);i.src=src;});
@@ -214,7 +211,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Même ouverture que l'icône : la photo ou la vidéo s'affiche en grand dans le casque.
       const live=sceneOf(currentId)?.hotspots.find(p=>p.id===h.id)??h;
       if(live.type==='image'){void showPhoto(live);return;}
-      const direct=live.videoDataUrl||live.videoUrl;
+      const direct=live.videoDataUrl||live.videoUrl||video?.currentSrc||video?.src;
       if(direct)void showVideoPanel(direct,pick(live.title,live.titleTranslations,vlang())||tt('videoTitle'));
     }};
     return mesh;
@@ -431,7 +428,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const m=addPlane(parent,w,h,tex,order,x,y,0.002) as unknown as Clickable;
     // Les boutons restent géométriquement fixes : le rayon du contrôleur ne
     // peut plus les faire grossir/rétrécir et provoquer un scintillement.
-    m.userData={baseScale:1,hoverScale:1,onSelect};clickables.push(m);return m;
+    m.userData={baseScale:1,hoverScale:1.14,onSelect};clickables.push(m);return m;
   };
 
   const placeInFront=(g:Group,distance:number,drop:number)=>{
@@ -1045,7 +1042,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const gen=panelGen;
     setNotice(tt('planLoading'));
     let bitmap:HTMLCanvasElement;
-    try{bitmap=await loadReduced(plan.imageDataUrl,2048);}
+    try{bitmap=await loadReduced(plan.imageDataUrl,3072);}
     catch{if(req===floorPlanRequest)setNotice(tt('planFail'));return;}
     if(ended||req!==floorPlanRequest||gen!==panelGen)return;
     closePanels();
@@ -1396,7 +1393,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
         const mm=(m as Mesh).material as MeshBasicMaterial;
-        const tint=isPressed?.66:hovered.has(m)?1.2:1;
+        const tint=isPressed?.55:hovered.has(m)?1.5:1;
         if(!m.userData.spin)mm.color.setScalar(tint);
       }
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
