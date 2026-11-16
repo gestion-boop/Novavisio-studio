@@ -459,15 +459,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const name=room?pick(room.name,room.nameTranslations,vlang()):project().name;
     const area=room?.surfaceM2!==undefined?room.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})+' m²':'';
     const tex=canvasTexture(1400,180,ctx=>{
-      roundRect(ctx,8,8,1384,164,42);ctx.fillStyle='rgba(28,29,32,.93)';ctx.fill();
-      ctx.lineWidth=6;ctx.strokeStyle='#d9a32e';ctx.stroke();
+      // Pastille crème à bordure dorée, comme la barre du bas : nom et superficie en noir.
+      roundRect(ctx,8,8,1384,164,82);ctx.fillStyle='#f7f5ef';ctx.fill();
+      ctx.lineWidth=12;ctx.strokeStyle='#dcc38f';ctx.stroke();
       ctx.textBaseline='middle';
       const surfaceWidth=area?Math.min(250,Math.max(145,area.length*30)):0;
-      ctx.fillStyle='#fff';ctx.textAlign='left';
+      ctx.fillStyle='#111';ctx.textAlign='left';
       const title=fitCanvasLabel(ctx,name,1260-surfaceWidth-(area?36:0),78,40);
       ctx.fillText(title,62,93);
       if(area){
-        ctx.fillStyle='#f1c767';ctx.textAlign='right';
+        // séparateur fin puis superficie
+        ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(1330-surfaceWidth-22,38,2,110);
+        ctx.fillStyle='#111';ctx.textAlign='right';
         const surface=fitCanvasLabel(ctx,area,surfaceWidth,59,37);
         ctx.fillText(surface,1330,93);
       }
