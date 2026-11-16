@@ -100,6 +100,7 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
       // le mot de passe d'un membre déjà connu.
       const result=chosenKnown?'exists':await createCollaboratorAccount(clean,password);
       const granted:string[]=[];
+      let lastGrantedProjectId:string|null=null;
       if(shareWholeProject){
         let link;
         if(space){
@@ -114,6 +115,7 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
         if(!done||!link)throw new Error('Le projet complet n’est pas encore enregistré dans le Cloud.');
         await addMember(link.projectId,clean,includeSpaces);
         setProjectId(link.projectId);
+        lastGrantedProjectId=link.projectId;
         granted.push('Projet complet');
         if(giveHand){
           const state=await getWriteState(link.projectId);
@@ -131,6 +133,7 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
           writeSpaceCloudLink(selectedSpace.id,'private',saved);
           await addMember(saved.projectId,clean,false);
           setProjectId(saved.projectId);
+          lastGrantedProjectId=saved.projectId;
           granted.push(selectedSpace.name);
         }
       }
@@ -139,7 +142,7 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
       setOutcome({email:clean,password,result});
       onStatus('Accès privé créé pour '+clean+' · '+granted.join(', '));
       setEmail('');setChosenKnown('');setPassword(generatePassword());
-      await refresh(projectId);
+      await refresh(lastGrantedProjectId);
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy('');}
   }
