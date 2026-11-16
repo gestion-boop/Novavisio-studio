@@ -14,6 +14,8 @@ export type Hotspot = {
   id:string;
   type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
+  /** Navigation vers un espace existant du même projet : sa première scène est résolue à l'ouverture. */
+  targetSpaceId?:string;
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   /** Titre dans les autres langues. */
   titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
@@ -387,6 +389,7 @@ export function validateProject(value:unknown):StudioProject {
        ) throw new Error('Piste audio non valide');
     for (const h of scene.hotspots) {
       if (!h || typeof h.id !== 'string' || !['navigation','information','lien','image','video'].includes(h.type) || typeof h.title !== 'string' || typeof h.text !== 'string' || typeof h.target !== 'string' || !Number.isFinite(h.yaw) || !Number.isFinite(h.pitch) ||
+        (h.targetSpaceId !== undefined && (typeof h.targetSpaceId !== 'string' || h.targetSpaceId.length>100)) ||
         (h.iconId !== undefined && (typeof h.iconId !== 'string' || !icons.some(icon=>icon.id===h.iconId))) ||
         (h.hoverIconId !== undefined && (typeof h.hoverIconId !== 'string' || !icons.some(icon=>icon.id===h.hoverIconId))) ||
         (h.pressedIconId !== undefined && (typeof h.pressedIconId !== 'string' || !icons.some(icon=>icon.id===h.pressedIconId))) ||
