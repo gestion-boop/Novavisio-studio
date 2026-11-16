@@ -246,12 +246,15 @@ export function validateProject(value:unknown):StudioProject {
   if(p.floorPlans!==undefined&&(!Array.isArray(p.floorPlans)||p.floorPlans.length>200))
     throw new Error('La galerie des plans est invalide');
   const knownPlanIds=new Set<string>();
-  for(const plan of [...(p.floorPlan?[p.floorPlan]:[]),...(p.floorPlans??[])]){
+  // Dans les nouveaux projets, floorPlan est volontairement le miroir du
+  // premier floorPlans. Ne pas valider deux fois cet identifiant.
+  const allPlans=p.floorPlans!==undefined?p.floorPlans:(p.floorPlan?[p.floorPlan]:[]);
+  for(const plan of allPlans){
     if(!plan||typeof plan!=='object'||!isSafeFrameImage(plan.imageDataUrl)||plan.imageDataUrl.length>6_000_000||
       typeof plan.name!=='string'||plan.name.length>200||!Array.isArray(plan.points)||plan.points.length>500||
       (plan.id!==undefined&&(typeof plan.id!=='string'||plan.id.length>120||!plan.id.trim())))
       throw new Error('Plan de la visite invalide');
-    if(plan.id&&p.floorPlans?.includes(plan)){
+    if(plan.id){
       if(knownPlanIds.has(plan.id))throw new Error('Identifiant de plan en double');
       knownPlanIds.add(plan.id);
     }
