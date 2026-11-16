@@ -351,15 +351,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     busy=false;
     if(!ok)setNotice(tt('unavailable'));
     else{
-      // Arrivée dans une pièce : l'interface jaune (en-tête et panneaux) s'efface pour profiter du panorama.
-      clearGroup(headerGroup);
-      if(referenceMode)void buildBar().then(()=>{
-        const first=project().scenes.filter(s=>!s.excluded);
-        const gallery=project().bottomBar.find(item=>item.type==='gallery');
-        const fallback={id:'vr-room-gallery',title:'Panoramas',type:'gallery',
-          gallery:first.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
-        void showGallery(gallery??fallback);
-      });
+      renderRoomHeader();
+      // Arrivée : seule la barre reste ; l'interface jaune ne s'ouvre plus toute seule (galerie à la demande).
+      if(referenceMode)void buildBar();
     }
   }
 
