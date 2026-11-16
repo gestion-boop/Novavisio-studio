@@ -1,4 +1,4 @@
-import {BackSide,CanvasTexture,Color,Group,Mesh,MeshBasicMaterial,ShaderMaterial,SphereGeometry,SRGBColorSpace,Vector3,RepeatWrapping,AdditiveBlending} from 'three';
+import {BackSide,CanvasTexture,Group,Mesh,MeshBasicMaterial,ShaderMaterial,SphereGeometry,SRGBColorSpace,Vector3,RepeatWrapping} from 'three';
 import type {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 
@@ -49,7 +49,7 @@ const geometry=new SphereGeometry(1,44,30);
 function waterDropMaterial(){
   return new ShaderMaterial({
     transparent:true,
-    uniforms:{panorama:{value:null},hasPanorama:{value:false},spin:{value:0},opacity:{value:SPHERE_ALPHA},rimColor:{value:new Color(DEFAULT_RIM)},rimStrength:{value:DEFAULT_GLOW/100}},
+    uniforms:{panorama:{value:null},hasPanorama:{value:false},spin:{value:0},opacity:{value:SPHERE_ALPHA}},
     vertexShader:`
       varying vec2 panoramaUv;
       varying vec3 viewNormal;
@@ -63,8 +63,6 @@ function waterDropMaterial(){
       uniform bool hasPanorama;
       uniform float spin;
       uniform float opacity;
-      uniform vec3 rimColor;
-      uniform float rimStrength;
       varying vec2 panoramaUv;
       varying vec3 viewNormal;
       void main(){
@@ -83,9 +81,6 @@ function waterDropMaterial(){
         float bounce=pow(max(dot(n,normalize(vec3(0.5,-0.65,0.57))),0.0),45.0);
         color=mix(color,vec3(1.0),min(0.88,soft*0.28+shine*0.78));
         color+=vec3(0.55,0.82,0.9)*bounce*0.24;
-        // Contour : teinte de la couleur choisie sur le bord de la sphère, selon l'intensité (0 à 1).
-        float edge=pow(1.0-facing,2.2);
-        color=mix(color,rimColor,clamp(edge*rimStrength,0.0,1.0));
         gl_FragColor=vec4(color,opacity);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -113,12 +108,11 @@ export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string
   const create=(id:string,data:SphereData):Entry=>{
     // transparent:true même à pleine opacité : le panorama du visualiseur est dessiné après les objets opaques et les recouvrirait.
     const mat=waterDropMaterial();
-    mat.uniforms.rimColor.value.set(data.rim??DEFAULT_RIM);
-    mat.uniforms.rimStrength.value=Math.min(1,(data.glow??DEFAULT_GLOW)/100);
-    const haloMat=new MeshBasicMaterial({color:data.rim??DEFAULT_RIM,transparent:true,opacity:(data.glow??DEFAULT_GLOW)/100,side:BackSide,blending:AdditiveBlending,depthWrite:false});
+    // Contour extérieur : anneau coloré qui dépasse le bord de la boule, dessiné sous elle (sans test de profondeur).
+    const haloMat=new MeshBasicMaterial({color:data.rim??DEFAULT_RIM,transparent:true,opacity:(data.glow??DEFAULT_GLOW)/100,side:BackSide,depthWrite:false,depthTest:false});
     const ball=new Mesh(geometry,mat),halo=new Mesh(geometry,haloMat);
-    halo.scale.setScalar(1.025);
-    ball.renderOrder=10;halo.renderOrder=11;
+    halo.scale.setScalar(1.09);
+    ball.renderOrder=10;halo.renderOrder=9;
     const group=new Group();group.add(ball,halo);
     viewer.renderer.addObject(group);
     const url=imageOf(data.target);
@@ -156,8 +150,6 @@ export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string
       e.group.scale.setScalar(Math.max(0.001,dist*Math.tan(ang/2)));
       e.spin=(e.spin+dt*SPIN*(1+2.5*e.hover)/(2*Math.PI))%1;
       e.mat.uniforms.spin.value=e.spin;
-      e.mat.uniforms.rimColor.value.set(data.rim??DEFAULT_RIM);
-      e.mat.uniforms.rimStrength.value=Math.min(1,(data.glow??DEFAULT_GLOW)/100);
       const op=Math.max(0,Math.min(1,cfg.opacity??1));
       e.group.visible=op>0.01;
       e.mat.uniforms.opacity.value=op*SPHERE_ALPHA;e.haloMat.color.set(data.rim??DEFAULT_RIM);
