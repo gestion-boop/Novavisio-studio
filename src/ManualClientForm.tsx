@@ -1,6 +1,8 @@
 import {useState} from 'react';
 import {ArrowLeft,Building2,FolderPlus,Save} from 'lucide-react';
 import {emptyClientProfile,type ClientProfile} from './storage';
+import {ClientSkinPicker} from './ClientSkinPicker';
+import type {CloudSkin} from './cloudSkins';
 
 type Field=keyof Pick<ClientProfile,'name'|'category'|'address'|'city'|'phone'|'email'|'website'|'description'>;
 
@@ -13,6 +15,8 @@ export function ManualClientForm({saving,notice,onSave,onCreateVisit,onCancel}:{
 }){
   const [profile,setProfile]=useState<ClientProfile>(emptyClientProfile);
   const [propertyName,setPropertyName]=useState('');
+  const [selectedSkin,setSelectedSkin]=useState<CloudSkin|null>(null);
+  const [skinBusy,setSkinBusy]=useState(false);
   const [error,setError]=useState('');
   const patch=(key:Field,value:string)=>setProfile(p=>({...p,[key]:value}));
   const normalized=():ClientProfile=>({
@@ -24,7 +28,8 @@ export function ManualClientForm({saving,notice,onSave,onCreateVisit,onCancel}:{
     phone:profile.phone.trim(),
     email:profile.email.trim(),
     website:profile.website.trim(),
-    description:profile.description.trim()
+    description:profile.description.trim(),
+    preferredSkinId:selectedSkin?.id
   });
   const valid=()=>{
     if(!profile.name.trim()){setError('Renseigne le nom du client avant de continuer.');return false;}
@@ -75,6 +80,7 @@ export function ManualClientForm({saving,notice,onSave,onCreateVisit,onCancel}:{
           placeholder="Informations utiles pour ce client"/>
       </label>
     </div>
+    <ClientSkinPicker selected={selectedSkin} onChange={setSelectedSkin} onBusy={setSkinBusy}/>
     <section className="nv-manual-client-property">
       <strong><FolderPlus size={17}/> Biens / visites immobilières</strong>
       <p>Exemple : crée « ImmoSphera » comme client, puis des visites nommées « Maison Narbonne-Plage », « Appartement centre-ville »… Toutes seront rattachées à ImmoSphera.</p>
@@ -86,10 +92,10 @@ export function ManualClientForm({saving,notice,onSave,onCreateVisit,onCancel}:{
     {(error||notice)&&<p role="status" className={error?'nv-directory-warning':'nv-client-ok'}>{error||notice}</p>}
     <div className="nv-manual-client-actions">
       <button type="button" className="nv-directory-secondary-action" onClick={onCancel}><ArrowLeft size={15}/> Annuler</button>
-      <button type="submit" className="nv-directory-associate" disabled={saving||!profile.name.trim()}>
+      <button type="submit" className="nv-directory-associate" disabled={saving||skinBusy||!profile.name.trim()}>
         <Save size={16}/> {saving?'Enregistrement…':'Enregistrer le client dans le Cloud'}
       </button>
-      <button type="button" className="nv-directory-associate" disabled={saving||!profile.name.trim()||!propertyName.trim()}
+      <button type="button" className="nv-directory-associate" disabled={saving||skinBusy||!profile.name.trim()||!propertyName.trim()}
         onClick={()=>{if(valid())onCreateVisit(normalized(),propertyName.trim());}}>
         <FolderPlus size={16}/> Créer le premier bien
       </button>
