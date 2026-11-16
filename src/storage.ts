@@ -16,6 +16,8 @@ export type Hotspot = {
   title:string;text:string;target:string;yaw:number;pitch:number;
   /** Navigation vers un espace existant du même projet : sa première scène est résolue à l'ouverture. */
   targetSpaceId?:string;
+  /** Vue d'arrivée réglée à la main sur cette flèche : seule cette vue passe avant « Vue d’arrivée » du panorama. */
+  arrivalCustom?:boolean;
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   /** Titre dans les autres langues. */
   titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
