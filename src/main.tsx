@@ -3727,7 +3727,7 @@ function App(){
   function applySphereToAll(){
     if(!selected||selected.type!=='navigation')return;
     const size=Math.max(40,Math.min(120,selected.iconSize??90));
-    setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.type==='navigation'?{...h,sphere:true,iconSize:size}:h)}))}));
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.type==='navigation'?{...h,sphere:true,iconSize:size,sphereRimColor:selected.sphereRimColor,sphereRimIntensity:selected.sphereRimIntensity}:h)}))}));
     setStatus('Sphère de '+size+' px appliquée à toutes les flèches de la visite');
   }
   function navigationEditor(){
@@ -3757,7 +3757,16 @@ function App(){
         <button type="button" className="nv-act is-danger" onClick={()=>removeAutoNavigationArrow(selected.id)} title="Supprimer cette flèche"><Trash2 size={26}/><span>Supprimer</span></button>
       </div>
       {iconSizeControl()}
-      {selected.sphere&&<button type="button" className="style-reset" onClick={applySphereToAll} title="Toutes les flèches de la visite deviennent des sphères de ce diamètre">Appliquer à toute la visite</button>}
+      {selected.sphere&&<div style={{display:'grid',gap:8}}>
+        <span>Contour de la sphère</span>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+          {['#9fe3ff','#e6c17c','#ffffff','#ff6fa8','#7fe08a','#ff9f43'].map(c=><button key={c} type="button" aria-label={'Contour '+c} title={c} onClick={()=>patchPoint({sphereRimColor:c})} style={{width:28,height:28,borderRadius:'50%',background:c,cursor:'pointer',border:(selected.sphereRimColor??'#9fe3ff')===c?'3px solid #111':'1px solid #0004'}}/>)}
+          <input type="color" aria-label="Couleur personnalisée du contour" value={selected.sphereRimColor??'#9fe3ff'} onChange={e=>patchPoint({sphereRimColor:e.target.value})}/>
+        </div>
+        <label>Intensité du contour : <b>{selected.sphereRimIntensity??7}</b>
+          <input type="range" min="0" max="100" step="1" value={selected.sphereRimIntensity??7} onChange={e=>patchPoint({sphereRimIntensity:Number(e.target.value)})}/></label>
+      </div>}
+      {selected.sphere&&<button type="button" className="style-reset" onClick={applySphereToAll} title="Toutes les flèches de la visite deviennent des sphères de ce diamètre, avec ce contour et cette intensité">Appliquer à toute la visite</button>}
       <small>✥ Glisse la poignée à côté de la flèche pour la déplacer.</small>
     </div>;
   }

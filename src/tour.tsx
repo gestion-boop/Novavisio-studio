@@ -64,7 +64,7 @@ function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lan
     '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},
     anchor:'center center',html,tooltip:pick(h.title,h.titleTranslations,lang),
-    ...(isSphere?{data:{nvSphere:{size:w,target:h.target}}}:{})};
+    ...(isSphere?{data:{nvSphere:{size:w,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
 type ViewerProps={
   sphereImage:(sceneId:string)=>string|undefined;

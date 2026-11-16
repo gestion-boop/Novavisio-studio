@@ -9,7 +9,9 @@ import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
  * Le clic, l'infobulle et l'édition restent gérés par un marqueur HTML transparent de même taille (data.nvSphere) :
  * la sphère est donc purement visuelle, et suit exactement la vie de ces marqueurs (ajout, retrait, fondu, déplacement).
  */
-export type SphereData={size:number;target:string};
+/** rim : couleur du contour lumineux (défaut bleu clair). glow : intensité du contour, 0 à 100 (défaut 7). */
+export type SphereData={size:number;target:string;rim?:string;glow?:number};
+const DEFAULT_RIM='#9fe3ff', DEFAULT_GLOW=7;
 const DEPTH=7;          // distance de la sphère à la caméra (le panorama est à 10 : elle passe devant)
 const HOVER_GROW=0.16;  // grossissement apparent au survol
 const HOVER_PULL=0.9;   // et elle se rapproche d'autant
@@ -106,7 +108,7 @@ export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string
   const create=(id:string,data:SphereData):Entry=>{
     // transparent:true même à pleine opacité : le panorama du visualiseur est dessiné après les objets opaques et les recouvrirait.
     const mat=waterDropMaterial();
-    const haloMat=new MeshBasicMaterial({color:0x9fe3ff,transparent:true,opacity:0.07,side:BackSide,blending:AdditiveBlending,depthWrite:false});
+    const haloMat=new MeshBasicMaterial({color:data.rim??DEFAULT_RIM,transparent:true,opacity:(data.glow??DEFAULT_GLOW)/100,side:BackSide,blending:AdditiveBlending,depthWrite:false});
     const ball=new Mesh(geometry,mat),halo=new Mesh(geometry,haloMat);
     halo.scale.setScalar(1.025);
     ball.renderOrder=10;halo.renderOrder=11;
@@ -149,7 +151,8 @@ export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string
       e.mat.uniforms.spin.value=e.spin;
       const op=Math.max(0,Math.min(1,cfg.opacity??1));
       e.group.visible=op>0.01;
-      e.mat.uniforms.opacity.value=op*SPHERE_ALPHA;e.haloMat.opacity=0.07*op*(1+e.hover);
+      e.mat.uniforms.opacity.value=op*SPHERE_ALPHA;e.haloMat.color.set(data.rim??DEFAULT_RIM);
+      e.haloMat.opacity=Math.min(1,((data.glow??DEFAULT_GLOW)/100)*op*(1+e.hover));
       // On ne redessine en continu que si une sphère est dans le champ de vision (batterie).
       const dy=Math.atan2(Math.sin(cfg.position.yaw-cam.yaw),Math.cos(cfg.position.yaw-cam.yaw)),dp=cfg.position.pitch-cam.pitch;
       if(Math.abs(dy)<vfov*2&&Math.abs(dp)<vfov)needsRender=true;

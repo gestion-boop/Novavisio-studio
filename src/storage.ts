@@ -23,7 +23,7 @@ export type Hotspot = {
   titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   /** Style d'ouverture propre à ce point (sinon : réglage général des Paramètres). */
   openAnimation?: WindowAnimation;
-  iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;/** Flèche « Sphère » : boule 3D qui tourne et montre le panorama de destination (diamètre = iconSize). */sphere?:boolean;/** Photo hébergée ailleurs (https) : affichée en fenêtre. */imageUrl?:string;/** Vidéo à lire dans un lecteur intégré (ex. Google Drive). */videoEmbed?:string;url?:string;
+  iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;/** Flèche « Sphère » : boule 3D qui tourne et montre le panorama de destination (diamètre = iconSize). */sphere?:boolean;/** Contour de la sphère : couleur (#rrggbb) et intensité 0-100. */sphereRimColor?:string;sphereRimIntensity?:number;/** Photo hébergée ailleurs (https) : affichée en fenêtre. */imageUrl?:string;/** Vidéo à lire dans un lecteur intégré (ex. Google Drive). */videoEmbed?:string;url?:string;
   mediaDisplay?:'popup'|'inline';
   fontFamily?:string;linkMode?:'embed'|'tab';
   imageDataUrl?:string;
