@@ -9,6 +9,8 @@ import {ClientMediaEditor,type Palette} from './ClientMediaEditor';
 import {DiscoveryDetail,DiscoveryList,useWebDiscovery} from './ClientDiscovery';
 import type {ImportedClientVideo} from './novagenVideos';
 import {ManualClientForm} from './ManualClientForm';
+import {cloudListSkins} from './cloudSkins';
+import {applySkin} from './skins';
 
 type Group={key:string;name:string;city:string;projects:CloudProject[];records:RemoteClient[];logoUrl:string;current:boolean};
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
@@ -91,7 +93,15 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    if(studio.some(p=>norm(p.clientName||p.name)===norm(profile.name))&&!window.confirm('Le client « '+profile.name+' » existe déjà dans votre Cloud. Créer une nouvelle fiche quand même ?'))return false;
    setSavingClient(true);setSavedNotice('');
    try{
-     const record={...newProject(),name:profile.name||'Nouveau client',clientProfile:profile,barStyle:{...defaultBarStyle(),...(style??{})}};
+     // La fiche client conserve son skin : il servira aussi pour les biens futurs.
+     let base=newProject();
+     if(profile.preferredSkinId){
+       const skin=(await cloudListSkins()).find(item=>item.id===profile.preferredSkinId);
+       if(!skin)throw Error('Le skin choisi n’est plus disponible dans ce compte Cloud.');
+       base=applySkin({...base,bottomBar:[]},skin);
+     }
+     const record={...base,name:profile.name||'Nouveau client',clientProfile:profile,
+       ...(style?{barStyle:{...base.barStyle,...style}}:{})};
      await saveToCloud(record,null,()=>{});
      setSavedNotice('✓ Client « '+profile.name+' » enregistré dans votre Cloud NovaStudio : il apparaît dans la liste (Studio).');
      setSelectedKey(norm(profile.name));setCloudClient(null);
