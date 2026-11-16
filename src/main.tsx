@@ -48,7 +48,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -1282,8 +1282,20 @@ function App(){
   const deleteComment=(id:string)=>setProject(p=>({...p,comments:(p.comments??[]).filter(c=>c.id!==id)}));
   // Contrôle avant publication
   const [checkOpen,setCheckOpen]=useState(false);
-  const projectIssues=useMemo(()=>ready?checkProject(project):[],[project,ready]);
-  const publishIssues=projectIssues;
+  const allProjectIssues=useMemo(()=>ready?checkProject(project):[],[project,ready]);
+  const ignoredIds=useMemo(()=>new Set(project.ignoredChecks??[]),[project.ignoredChecks]);
+  const projectIssues=useMemo(()=>allProjectIssues.filter(issue=>!ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
+  const hiddenIssues=useMemo(()=>allProjectIssues.filter(issue=>ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
+  // Ne pas masquer les vrais blocages dans la confirmation de publication.
+  const publishIssues=allProjectIssues;
+  function ignoreCheck(id:string){
+    setProject(p=>({...p,ignoredChecks:[...new Set([...(p.ignoredChecks??[]),id])].slice(-500)}));
+    setIssueFocus(null);setGuided(null);
+    setStatus('Contrôle ignoré pour cette visite. Enregistre pour conserver ce choix.');
+  }
+  function restoreCheck(id:string){
+    setProject(p=>({...p,ignoredChecks:(p.ignoredChecks??[]).filter(value=>value!==id)}));
+  }
   const issueErrors=projectIssues.filter(i=>i.level==='error').length;
   // Correctifs notés « à faire » : un commentaire lié au problème, résolu tout seul dès que le problème disparaît.
   const notedIds=useMemo(()=>new Set((project.comments??[]).filter(c=>c.issueId&&!c.done).map(c=>c.issueId!)),[project.comments]);
@@ -4286,7 +4298,10 @@ function App(){
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
     {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} noteText={noteText} onNoteText={setNoteText} onNote={noteIssueForLater} onChoose={issueFocus.kind==='nav'||issueFocus.kind==='scene-empty'?chooseDestination:undefined} onRemove={issueFocus.kind==='dup-nav'&&issueFocus.hotspotId?()=>{removeAutoNavigationArrow(issueFocus.hotspotId!);setStatus('Flèche en double supprimée');}:undefined} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
-    {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
+    {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} hidden={hiddenIssues}
+      onIgnore={ignoreCheck} onRestore={restoreCheck}
+      onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}}
+      onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>
