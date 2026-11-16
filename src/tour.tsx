@@ -401,6 +401,10 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     setMobileExpanded(true);
   };
   return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
+    {!showIntro&&firstPanoramaReady&&<div className="nv-tour-room-heading" aria-label="Pièce actuellement visitée">
+      <strong title={pick(current.name,current.nameTranslations,lang)}>{pick(current.name,current.nameTranslations,lang)}</strong>
+      {current.surfaceM2!==undefined&&<span>{current.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})} m²</span>}
+    </div>}
     {current.dataUrl?<Pano lang={lang} sphereImage={id=>project.scenes.find(x=>x.id===id)?.dataUrl} scene={current} icons={project.icons??[]} night={nightActive} nightTexture={nightTexture} arrival={arrival} navigate={move} info={information} linked={openLink} image={(h,from)=>{openWith(h.openAnimation);setZoomFrom(from??null);setPhoto(h);}} video={(h,from)=>{openWith(h.openAnimation);setZoomFrom(from??null);setVideo(h);}} onReady={reportPanoramaReady}/>:<div className="tour-loading">Chargement du panorama…</div>}
     {nightTexture&&<div className="nv-daynight-switch" role="group" aria-label="Mode jour et nuit">
       <button type="button" className={!nightActive?'is-active':''} aria-pressed={!nightActive} onClick={()=>setNightSceneId(null)}>☀ <span>Jour</span></button>
