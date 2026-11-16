@@ -442,7 +442,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const headerCameraRotation=new Quaternion();
   const headerTargetPosition=new Vector3();
   // Le bandeau reste éloigné mais descend d'environ 60 cm dans le champ visuel.
-  const headerOffset=new Vector3(0,1.12,-4);
+  const headerOffset=new Vector3(0,.98,-4);
   const syncRoomHeaderPose=(instant=false)=>{
     const xrCamera=renderer.xr.getCamera();
     xrCamera.updateMatrixWorld(true);
@@ -476,7 +476,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
     });
     // Libellé compact sur une ligne ; même distance et même suivi du regard.
-    addPlane(headerGroup,1.65,.214,tex,6,0,0);
+    addPlane(headerGroup,1.1,.14,tex,6,0,0);
     // Le titre reste indépendamment du monobloc, très loin et très haut.
     // La position sera mise à jour progressivement avec le regard dans tick().
     syncRoomHeaderPose(true);
@@ -963,20 +963,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     el.preload='auto';el.muted=true;
     const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=16;
     activeVideo={el,tex};
-    // Panneau jaune de la galerie (mêmes dimensions et même habillage) : la vidéo s'y incruste.
-    const cw=.62,ch=.34,gx=.06,gy=.05;
-    const cols=referenceMode?4:2,rows=referenceMode?2:3;
-    // Le panneau jaune est agrandi pour que la vidéo reste grande et lisible.
+    // Le panneau jaune est agrandi pour que la vidéo reste grande et lisible ; les commandes verticales sont à droite.
     const videoW=referenceMode?2.2:1.6,Hv=videoW*9/16;
-    const W=Math.max(cols*cw+(cols-1)*gx+.32,videoW+.4);
-    const H=Math.max(.17+rows*ch+(rows-1)*gy+.1,Hv+.5);
+    const W=Math.max(2.4,videoW+1);
+    const H=Math.max(1.2,Hv+.5);
     galleryChrome(W,H,title,'',1,0,()=>{},()=>{});
     const vy=H/2-.17-Hv/2-.05;
-    addPlane(panelGroup,videoW,Hv,tex,6,0,vy);
-    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-W/4,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
-    addPanelButton(.3,.11,navTexture(el.muted?'🔇 Son':'🔊 Son',300),W/4,-H/2+.1,()=>{el.muted=!el.muted;setNotice(el.muted?'Son coupé':'Son activé');});
+    addPlane(panelGroup,videoW,Hv,tex,6,-.25,vy);
+    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.25,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    // Colonne verticale à droite de la vidéo (mêmes actions que la colonne latérale).
+    const scenesNow=project().scenes.filter(scene=>!scene.excluded);
+    const idx=Math.max(0,scenesNow.findIndex(scene=>scene.id===currentId));
+    const galleryItem=project().bottomBar.find(item=>item.type==='gallery');
+    const galleryFallback={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
+      gallery:scenesNow.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
+    const sideX=videoW/2+.42;
+    const sideButton=(y:number,icon:VrControlIcon,onSelect:()=>void)=>{
+      const tex2=makeVrControlTexture(icon,'normal');
+      addButton(panelGroup,.14,.14,tex2,sideX,y,onSelect,9);
+    };
+    sideButton(vy+.45,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
+    sideButton(vy+.15,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
+    sideButton(vy-.15,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
+    sideButton(vy-.45,'home',()=>{if(scenesNow[0])void goTo(scenesNow[0].id);});
     placePanel(PANEL_DIST,0);
-    void el.play().then(()=>{el.muted=getPrefs().sound==='off';}).catch(()=>setNotice(tt('videoPlayHint')));
+    void el.play().catch(()=>setNotice(tt('videoPlayHint')));
   };
 
   const showGallery=async(item:BottomBarItem)=>{
@@ -1279,8 +1290,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }).finally(()=>{switchingReference=false;});
     }
     faceButtonDown=facesPressed;
-    barGroup.visible=referenceMode&&!uiHidden;
-    vrShellGroup.visible=referenceMode&&!uiHidden;
+    barGroup.visible=referenceMode&&!uiHidden&&!activeVideo;
+    vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo;
     panelGroup.visible=!uiHidden;
     headerGroup.visible=!uiHidden;
     noticeGroup.visible=!uiHidden;
