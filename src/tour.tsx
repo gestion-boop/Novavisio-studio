@@ -1,4 +1,5 @@
 import {FloorPlanDialog} from './FloorPlan';
+import {getFloorPlans} from './storage';
 import {EmbeddedPage} from './EmbeddedPage';
 import {informationFont} from './InformationEditor';
 import {projectForSpaceExport} from './spaces';
@@ -456,7 +457,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       </section>
     </div>}
     {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
-    {floorPlanOpen&&<FloorPlanDialog lang={lang} plan={project.floorPlan} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
+    {floorPlanOpen&&<FloorPlanDialog lang={lang} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
     {photosId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===photosId&&b.type==='photos');
       return item?<PhotoGallery title={pick(item.title,item.titleTranslations,lang)||ui('photos',lang)} items={item.photos??[]} onClose={()=>setPhotosId(null)}/>:null;
