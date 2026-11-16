@@ -343,7 +343,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const nightTexture=current.nightDataUrl??nightSource?.dataUrl;
   const nightActive=nightSceneId===current.id&&!!nightTexture;
   const move=(id:string,via?:Hotspot)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);
-    setArrival(via&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:panoramaArrivalZoom(via)}:null);
+    setArrival(via&&via.arrivalCustom&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:panoramaArrivalZoom(via)}:null);
     setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
   const openLink=(title:string,url:string,mode?:'embed'|'tab')=>{
     const checked=checkedLink(url);

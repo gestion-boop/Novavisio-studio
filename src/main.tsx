@@ -2706,6 +2706,8 @@ function App(){
   function confirmNavigationDirection(draftOverride?:{
     sourceId:string;targetId:string;sourceYaw:number;sourcePitch:number;existingPointId?:string;
     arrivalOverride?:{yaw:number;pitch:number;zoom:number};
+    /** false : arrivée automatique (pas visée) ; sinon la vue de la flèche est une vue propre. */
+    arrivalCustom?:boolean;
   }){
     const draft=draftOverride??navigationDraft;
     if(!draft)return;
@@ -2721,7 +2723,7 @@ function App(){
       id,type:'navigation',title:'Aller vers '+destination.name,text:'',
       target:destination.id,yaw:draft.sourceYaw,pitch:draft.sourcePitch,
       arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,
-      arrivalZoomModel:'wide',
+      arrivalZoomModel:'wide',arrivalCustom:draftOverride?.arrivalCustom??true,
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
     };
@@ -2729,7 +2731,7 @@ function App(){
       ...sc,hotspots:draft.existingPointId?
         sc.hotspots.map(h=>h.id===draft.existingPointId?{
           ...h,target:destination.id,arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,
-          arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const
+          arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const,arrivalCustom:draftOverride?.arrivalCustom??true
         }:h):[...sc.hotspots,point]
     })}));
     // Arriver automatiquement au panorama de destination avec l'orientation choisie.
@@ -2772,7 +2774,7 @@ function App(){
     const arrival=aim?{yaw:aim.yaw,pitch:aim.pitch,zoom:aim.zoom??panoramaArrivalZoom(next)}:{yaw:existing?.yaw??yaw,pitch:0,zoom:panoramaArrivalZoom(next)};
     confirmNavigationDirection({
       sourceId:active.id,targetId:next.id,sourceYaw:existing?.yaw??yaw,sourcePitch:existing?.pitch??pitch,
-      existingPointId:existing?.id,arrivalOverride:arrival
+      existingPointId:existing?.id,arrivalOverride:arrival,arrivalCustom:!!aim
     });
     const fwdYaw=existing?.yaw??yaw,fwdPitch=existing?.pitch??pitch;
     if(alreadyBack){setGuide({phase:'forward',fwdYaw,fwdPitch});return;}
@@ -2837,13 +2839,13 @@ function App(){
   }
   function goThroughArrow(h:Hotspot,fromSceneId:string){
     if(!h.target||!visibleIds.has(h.target))return;
-    nextArrivalRef.current=h.arrivalYaw!==undefined?{sceneId:h.target,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:panoramaArrivalZoom(h)}:null;
+    nextArrivalRef.current=h.arrivalCustom&&h.arrivalYaw!==undefined?{sceneId:h.target,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:panoramaArrivalZoom(h)}:null;
     setArrivedVia({sceneId:h.target,hotspotId:h.id,fromSceneId});
     setActiveId(h.target);setSelectedId('');setMode(null);
   }
   function setArrowArrival(fromSceneId:string,hotspotId:string,view:{yaw:number;pitch:number;zoom:number}|null){
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==fromSceneId?sc:{...sc,hotspots:sc.hotspots.map(h=>h.id!==hotspotId?h:
-      view?{...h,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom,arrivalZoomModel:'wide' as const}:{...h,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalZoomModel:undefined})})}));
+      view?{...h,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom,arrivalZoomModel:'wide' as const,arrivalCustom:true}:{...h,arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalZoomModel:undefined})})}));
   }
   function saveArrivalForArrow(){
     if(!active||!viaHotspot)return;
@@ -5479,8 +5481,8 @@ function App(){
                       </div>
                       <small>Tourne et zoome le panorama « {dest.name} » : au centre de la cible, c’est la vue exacte qu’aura le visiteur en arrivant.</small>
                       <div className="nv-arrival-actions">
-                        <button type="button" className="nv-arrival-save" onClick={()=>{const d=arrivalDraftRef.current;if(!d||d.id!==selected.id){setStatus('Bouge un peu le panorama pour définir la vue');return;}patchPoint({arrivalYaw:d.yaw,arrivalPitch:d.pitch,arrivalZoom:d.zoom,arrivalZoomModel:'wide'});setStatus('Vue d’arrivée enregistrée · enregistre avec la disquette');}}>✓ Utiliser cette vue à l’arrivée</button>
-                        {selected.arrivalYaw!==undefined&&<button type="button" onClick={()=>{patchPoint({arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined});setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser</button>}
+                        <button type="button" className="nv-arrival-save" onClick={()=>{const d=arrivalDraftRef.current;if(!d||d.id!==selected.id){setStatus('Bouge un peu le panorama pour définir la vue');return;}patchPoint({arrivalYaw:d.yaw,arrivalPitch:d.pitch,arrivalZoom:d.zoom,arrivalZoomModel:'wide',arrivalCustom:true});setStatus('Vue d’arrivée enregistrée · enregistre avec la disquette');}}>✓ Utiliser cette vue à l’arrivée</button>
+                        {selected.arrivalYaw!==undefined&&<button type="button" onClick={()=>{patchPoint({arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined,arrivalCustom:undefined});setStatus('Vue d’arrivée de la flèche réinitialisée');}}>Réinitialiser</button>}
                       </div>
                       {selected.arrivalYaw!==undefined?<small className="arrival-saved">✓ Vue enregistrée · angle {Math.round(selected.arrivalYaw*180/Math.PI)}° · zoom {Math.round(selected.arrivalZoom??60)}%</small>:<small>Pas de vue propre : la vue par défaut du panorama de destination est utilisée.</small>}
                     </>;

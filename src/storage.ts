@@ -14,6 +14,8 @@ export type Hotspot = {
   id:string;
   type:'navigation'|'information'|'lien'|'image'|'video';
   title:string;text:string;target:string;yaw:number;pitch:number;
+  /** Vue d'arrivée réglée à la main sur cette flèche : seule cette vue passe avant « Vue d’arrivée » du panorama. */
+  arrivalCustom?:boolean;
   translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
   /** Titre dans les autres langues. */
   titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
