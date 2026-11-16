@@ -960,13 +960,29 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     el.preload='auto';el.muted=true;
     const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=16;
     activeVideo={el,tex};
-    // Même cadre que les galeries (plans, photos) : titre, fermeture, dessous avec les commandes.
+    // Cadre crème à bordure dorée (même style que l'en-tête de pièce), titre en noir, croix dorée, commandes en pastilles dorées.
     const videoW=1.6,Hv=videoW*9/16;
     const W=1.85,H=Hv+.46;
-    galleryChrome(W,H,title,'',1,0,()=>{},()=>{});
-    addPlane(panelGroup,videoW,Hv,tex,6,0,H/2-.2-Hv/2);
-    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.36,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
-    addPanelButton(.3,.11,navTexture(el.muted?'🔇 Son':'🔊 Son',300),.36,-H/2+.1,()=>{el.muted=!el.muted;setNotice(el.muted?'Son coupé':'Son activé');});
+    const vy=H/2-.2-Hv/2;
+    addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
+      roundRect(c,10,10,W*1000-20,H*1000-20,70);c.fillStyle='#f7f5ef';c.fill();
+      c.lineWidth=14;c.strokeStyle='#dcc38f';c.stroke();
+      c.fillStyle='#111';c.font='bold 46px sans-serif';c.textAlign='left';c.textBaseline='middle';
+      let t=title;while(c.measureText(t).width>W*1000-260&&t.length>3)t=t.slice(0,-2);
+      c.fillText(t===title?t:t+'…',60,92);
+    }),5,0,0);
+    // Fond blanc derrière la vidéo
+    addPlane(panelGroup,videoW+.06,Hv+.06,canvasTexture((videoW+.06)*1000,(Hv+.06)*1000,c=>{
+      roundRect(c,8,8,(videoW+.06)*1000-16,(Hv+.06)*1000-16,36);c.fillStyle='#ffffff';c.fill();
+    }),5.5,0,vy);
+    addPlane(panelGroup,videoW,Hv,tex,6,0,vy);
+    addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
+    const goldPill=(label:string)=>canvasTexture(300,110,c=>{
+      roundRect(c,6,6,288,98,49);c.fillStyle='#c9a24a';c.fill();c.lineWidth=5;c.strokeStyle='#8a6a2a';c.stroke();
+      c.fillStyle='#111';c.font='bold 46px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,150,56);
+    });
+    addPanelButton(.3,.11,goldPill('❚❚ / ▶'),-.36,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    addPanelButton(.3,.11,goldPill(el.muted?'🔇 Son':'🔊 Son'),.36,-H/2+.1,()=>{el.muted=!el.muted;setNotice(el.muted?'Son coupé':'Son activé');});
     placePanel(PANEL_DIST,0);
     void el.play().then(()=>{el.muted=getPrefs().sound==='off';}).catch(()=>setNotice(tt('videoPlayHint')));
   };
