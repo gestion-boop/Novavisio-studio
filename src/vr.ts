@@ -2,7 +2,7 @@ import {
   CanvasTexture,Color,LinearFilter,DoubleSide,Group,Line,LineBasicMaterial,BufferGeometry,Float32BufferAttribute,Mesh,MeshBasicMaterial,
   PerspectiveCamera,PlaneGeometry,Quaternion,Raycaster,Scene as ThreeScene,SphereGeometry,SRGBColorSpace,Vector3,VideoTexture,WebGLRenderer,RepeatWrapping,type Object3D,type Texture
 } from 'three';
-import type {StudioProject,Scene,Hotspot,BottomBarItem} from './storage';
+import {getFloorPlans,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
 import {resolveLink} from './mediaLinks';
@@ -517,7 +517,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const galleryDefault={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
       gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
     const plan=project().bottomBar.find(item=>item.type==='plan');
-    const planAction={id:'vr-menu-plan',title:project().floorPlan?.name||'Plan',type:'plan'} as BottomBarItem;
+    const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
     const left=-.936,right=.936;
     button(left,.33,'gallery',()=>{void showGallery(gallery??galleryDefault);});
     button(left,.12,'up',()=>{const target=scenes[Math.max(0,sceneIndex-1)];if(target)void goTo(target.id);});
@@ -1026,44 +1026,65 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   // Plan de visite dans le casque : image plane flottante et destinations
   // cliquables avec le laser des manettes Quest.
-  const showFloorPlan=async(item:BottomBarItem)=>{
-    const plan=project().floorPlan;
-    if(!plan?.imageDataUrl){showText(pick(item.title,item.titleTranslations,vlang())||tt('plan'),tt('planUnset'));return;}
+  // Les requêtes d'image sont asynchrones : un changement rapide de plan
+  // ne doit jamais laisser revenir un ancien étage au-dessus du nouveau.
+  let floorPlanRequest=0;
+  const showFloorPlan=async(item:BottomBarItem,requestedIndex?:number)=>{
+    const plans=getFloorPlans(project()).filter(plan=>!!plan.imageDataUrl);
+    if(!plans.length){
+      showText(pick(item.title,item.titleTranslations,vlang())||tt('plan'),tt('planUnset'));
+      return;
+    }
+    const found=plans.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
+    const index=requestedIndex===undefined?Math.max(0,found):Math.min(Math.max(0,requestedIndex),plans.length-1);
+    const plan=plans[index];
+    const req=++floorPlanRequest;
+    const gen=panelGen;
     setNotice(tt('planLoading'));
-    // Annule une ancienne demande si l'agent sélectionne entre-temps Galerie.
-    const requestGeneration=panelGen;
     let bitmap:HTMLCanvasElement;
-    try{bitmap=await loadReduced(plan.imageDataUrl,2048);}catch{setNotice(tt('planFail'));return;}
-    if(ended||requestGeneration!==panelGen)return;
+    try{bitmap=await loadReduced(plan.imageDataUrl,2048);}
+    catch{if(req===floorPlanRequest)setNotice(tt('planFail'));return;}
+    if(ended||req!==floorPlanRequest||gen!==panelGen)return;
     closePanels();
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    // Plan limité à l'intérieur du monobloc, sans débordement vertical.
-    const maxW=referenceMode?1.43:1.48,maxH=referenceMode?.78:1.02;
+    const maxW=referenceMode?1.38:1.48,maxH=referenceMode?.76:1.02;
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
-    const W=imageW+.16,H=imageH+(referenceMode?.26:.30);
+    const W=imageW+.32,H=imageH+(referenceMode?.29:.33);
     addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);
-    const imageTex=new CanvasTexture(bitmap);imageTex.colorSpace=SRGBColorSpace;imageTex.minFilter=LinearFilter;
+    const imageTex=new CanvasTexture(bitmap);
+    imageTex.colorSpace=SRGBColorSpace;imageTex.minFilter=LinearFilter;
     addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
-    addPlane(panelGroup,Math.min(1.25,W-.12),.09,canvasTexture(1000,80,c=>{
-      c.fillStyle=iconColor;c.textAlign='center';c.textBaseline='middle';
-      const title=fitCanvasLabel(c,plan.name||pick(item.title,item.titleTranslations,vlang())||tt('planTitle'),930,43,28);
-      c.fillText(title,500,42);
-    }),7,0,H/2-.075);
-    const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,c=>{
-      c.beginPath();c.arc(90,90,76,0,Math.PI*2);c.fillStyle=current?iconColor:btnBg;c.fill();
-      c.lineWidth=8;c.strokeStyle=current?btnLine:iconColor;c.stroke();
-      c.fillStyle=current?btnLine:iconColor;c.font='bold 64px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,90,94);
+    addPlane(panelGroup,Math.min(1.4,W-.12),.11,canvasTexture(1000,115,ctx=>{
+      ctx.fillStyle=iconColor;ctx.textAlign='center';ctx.textBaseline='middle';
+      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+'  ·  '+(index+1)+' / '+plans.length,920,43,27);
+      ctx.fillText(title,500,57);
+    }),7,0,H/2-.068);
+    const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,ctx=>{
+      ctx.beginPath();ctx.arc(90,90,76,0,Math.PI*2);
+      ctx.fillStyle=current?iconColor:btnBg;ctx.fill();
+      ctx.lineWidth=8;ctx.strokeStyle=current?btnLine:iconColor;ctx.stroke();
+      ctx.fillStyle=current?btnLine:iconColor;
+      ctx.font='bold 64px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(label,90,94);
     });
-    const visible=plan.points.filter(point=>{const scene=sceneOf(point.sceneId);return !!scene&&!scene.excluded;});
-    visible.forEach((point,index)=>{
+    const visible=plan.points.filter(point=>{
+      const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;
+    });
+    visible.forEach((point,pointIndex)=>{
       const target=sceneOf(point.sceneId)!;
-      const x=(point.x/100-.5)*imageW;
-      const y=(.5-point.y/100)*imageH-.025;
-      // Le plan est fixe dans l'espace et les points sont rendus au-dessus de
-      // l'image, sinon le mesh de l'image peut les recouvrir selon l'angle.
-      addPanelButton(.105,.105,pointTexture(String(index+1),target.id===currentId),x,y,()=>{void goTo(target.id);},8);
+      const x=(point.x/100-.5)*imageW,y=(.5-point.y/100)*imageH-.025;
+      addPanelButton(.095,.095,pointTexture(String(pointIndex+1),target.id===currentId),
+        x,y,()=>{void goTo(target.id);},9);
     });
-    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.075,closePanels);
+    // Même logique galerie que sur écran : précédent / suivant.
+    if(plans.length>1){
+      const previous=(index-1+plans.length)%plans.length,next=(index+1)%plans.length;
+      addPanelButton(.10,.17,sideArrowTexture('◀'),-W/2+.075,-.025,
+        ()=>{void showFloorPlan(item,previous);},8);
+      addPanelButton(.10,.17,sideArrowTexture('▶'),W/2-.075,-.025,
+        ()=>{void showFloorPlan(item,next);},8);
+    }
+    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
     placePanel(PANEL_DIST,0);
   };
 

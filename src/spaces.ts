@@ -37,6 +37,7 @@ export function stripExcluded(project:StudioProject):StudioProject{
   if(!out.size)return project;
   return {...project,
     floorPlan:project.floorPlan?{...project.floorPlan,points:project.floorPlan.points.filter(point=>!out.has(point.sceneId))}:undefined,
+    floorPlans:project.floorPlans?.map(plan=>({...plan,points:plan.points.filter(point=>!out.has(point.sceneId))})),
     scenes:project.scenes.filter(sc=>!out.has(sc.id)).map(sc=>({...sc,hotspots:sc.hotspots.filter(h=>!(h.type==='navigation'&&h.target&&out.has(h.target)))})),
     bottomBar:project.bottomBar.map(item=>({...item,
       ...(item.gallery?{gallery:item.gallery.filter(g=>!out.has(g.sceneId))}:{}),
@@ -77,6 +78,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     mediaLibrary:undefined,
     name:project.name+' - '+space.name,
     floorPlan:project.floorPlan?{...project.floorPlan,points:project.floorPlan.points.filter(point=>ids.has(point.sceneId))}:undefined,
+    floorPlans:project.floorPlans?.map(plan=>({...plan,points:plan.points.filter(point=>ids.has(point.sceneId))})),
     scenes:scenes.map(scene=>({
       ...scene,
       // Conserve la texture de nuit même si sa source est dans un autre espace.

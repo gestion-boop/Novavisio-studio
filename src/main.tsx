@@ -78,7 +78,7 @@ import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,
 import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
+import {getFloorPlans,withFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './windowAnim.css';
 import './media.css';
@@ -1538,7 +1538,7 @@ function App(){
     const ic=22;
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
-    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:project.floorPlan?1:undefined,
+    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:getFloorPlans(project).length||undefined,
       run:()=>toggleToolPanel('plan' as PanelTab)};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
@@ -3813,6 +3813,7 @@ function App(){
     const remaining=project.scenes.filter(x=>x.id!==id);
     setProject(p=>({...p,
       floorPlan:p.floorPlan?{...p.floorPlan,points:p.floorPlan.points.filter(point=>point.sceneId!==id)}:undefined,
+      floorPlans:p.floorPlans?.map(plan=>({...plan,points:plan.points.filter(point=>point.sceneId!==id)})),
       scenes:p.scenes.filter(x=>x.id!==id).map(x=>({...x,
         nightSourceSceneId:x.nightSourceSceneId===id?undefined:x.nightSourceSceneId,
         hotspots:x.hotspots.map(h=>h.type==='navigation'&&h.target===id?{...h,target:'',arrivalYaw:undefined,arrivalPitch:undefined,arrivalZoom:undefined}:h)})),
@@ -5020,7 +5021,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
-          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plan={project.floorPlan} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={getFloorPlans(project)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -5489,8 +5490,8 @@ function App(){
               <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
               <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
             </div>
-            {selectedBar.type==='plan'?<><p className="hint">Ce bouton affiche le plan interactif en grand. Les points ouvrent les panoramas correspondants.</p>
-              {!project.floorPlan&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
+            {selectedBar.type==='plan'?<><p className="hint">Ce bouton ouvre la galerie des plans interactifs : flèches gauche/droite et points panoramiques pour chaque plan.</p>
+              {!getFloorPlans(project).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
               <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
@@ -5619,8 +5620,8 @@ function App(){
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='plan' && <div className="properties">
-          <InspectorSection title="Plan interactif de la visite" initiallyOpen>
-            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plan={project.floorPlan} scenes={project.scenes} thumbs={sceneThumbs} onChange={floorPlan=>setProject(p=>({...p,floorPlan}))}
+          <InspectorSection title="Galerie de plans interactifs" initiallyOpen>
+            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plans={getFloorPlans(project)} scenes={project.scenes} thumbs={sceneThumbs} onChange={plans=>setProject(p=>withFloorPlans(p,plans))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>

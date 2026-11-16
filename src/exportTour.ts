@@ -31,8 +31,15 @@ function addSoundOrVideo(zip:JSZip,dataUrl:string,path:string):string {
   return file;
 }
 function publicProject(zip:JSZip,source:StudioProject):StudioProject {
+  const originals=source.floorPlans??(source.floorPlan?[source.floorPlan]:[]);
+  const exported=originals.map((plan,index)=>({
+    ...plan,
+    imageDataUrl:addImage(zip,plan.imageDataUrl,
+      index===0?'media/plan/plan':'media/plan/plan-'+String(index+1).padStart(3,'0'))
+  }));
   return {...source,
-    floorPlan:source.floorPlan?{...source.floorPlan,imageDataUrl:addImage(zip,source.floorPlan.imageDataUrl,'media/plan/plan')}:undefined,
+    floorPlans:source.floorPlans?exported:undefined,
+    floorPlan:exported[0],
     bottomBar:source.bottomBar?.map((b,bi)=>b.photos?.length?{...b,photos:b.photos.map((m,mi)=>m.data?{...m,data:m.kind==='photo'?addImage(zip,m.data,'media/galerie/bouton-'+(bi+1)+'-'+String(mi+1).padStart(3,'0')+'-'+m.id):addSoundOrVideo(zip,m.data,'media/galerie/bouton-'+(bi+1)+'-'+String(mi+1).padStart(3,'0')+'-'+m.id)}:m)}:b),
     scenes:source.scenes.map((scene,i)=>({
       ...scene,
