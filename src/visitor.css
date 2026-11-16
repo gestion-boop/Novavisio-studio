@@ -187,12 +187,12 @@ html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
 .nv-tour-room-heading{
   position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:29;
   max-width:min(62vw,760px);display:flex;align-items:center;gap:12px;
-  padding:9px 16px;border:1px solid rgba(230,197,116,.70);border-radius:12px;
-  background:rgba(17,29,34,.83);box-shadow:0 5px 20px rgba(0,0,0,.24);
-  color:#fff;backdrop-filter:blur(8px);pointer-events:none;
+  padding:9px 16px;border:var(--nv-bar-border-width,2px) solid var(--nv-bar-outline,#987974);border-radius:var(--nv-bar-roundness,60px);
+  background:var(--nv-bar-bg,#c2c5c6);box-shadow:0 5px 20px rgba(0,0,0,.24);
+  color:var(--nv-icon-color,#4a1518);pointer-events:none;
 }
 .nv-tour-room-heading strong{font-size:clamp(13px,1.35vw,19px);font-weight:750;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nv-tour-room-heading span{flex:none;white-space:nowrap;font-size:clamp(12px,1.15vw,16px);font-weight:800;color:#f2cf7b;padding-left:11px;border-left:1px solid #bfa16080}
+.nv-tour-room-heading span{flex:none;white-space:nowrap;font-size:clamp(12px,1.15vw,16px);font-weight:800;color:var(--nv-icon-color,#4a1518);padding-left:11px;border-left:1px solid var(--nv-bar-outline,#987974)}
 @media(max-width:700px){
   .nv-tour-room-heading{top:10px;left:11px;right:65px;transform:none;width:max-content;max-width:calc(100vw - 102px);gap:8px;padding:7px 10px}
   .nv-tour-room-heading strong{font-size:12px}
