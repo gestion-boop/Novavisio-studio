@@ -12,7 +12,7 @@ const visiblePoints=(plan:FloorPlan,scenes:Scene[])=>{
 
 // Only the top dialog handles Escape / Tab when a 360 preview is open above the plan.
 const modalStack:HTMLElement[]=[];
-export function PlanModal({children,title,onClose,wide=false,icon,closeLabel='Fermer le plan',onEscape,animated=false}:{children:ReactNode;title:string;onClose:()=>void;wide?:boolean;icon?:ReactNode;closeLabel?:string;onEscape?:()=>void;animated?:boolean}){
+export function PlanModal({children,title,onClose,wide=false,immersive=false,icon,closeLabel='Fermer le plan',onEscape,animated=false}:{children:ReactNode;title:string;onClose:()=>void;wide?:boolean;immersive?:boolean;icon?:ReactNode;closeLabel?:string;onEscape?:()=>void;animated?:boolean}){
   const root=useRef<HTMLElement>(null),close=useRef(onClose);
   close.current=onClose;
   const escape=useRef(onEscape);escape.current=onEscape;
@@ -36,7 +36,7 @@ export function PlanModal({children,title,onClose,wide=false,icon,closeLabel='Fe
     return ()=>{document.removeEventListener('keydown',key,true);if(element){const index=modalStack.indexOf(element);if(index>=0)modalStack.splice(index,1);}previous?.focus();};
   },[]);
   return createPortal(<div className={'nv-plan-overlay'+(animated?' nv-plan-animated':'')} onClick={e=>{e.stopPropagation();if(e.target===e.currentTarget)onClose();}}>
-    <section className={'nv-plan-dialog'+(wide?' nv-plan-dialog-editor':'')} ref={root} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+    <section className={'nv-plan-dialog'+(wide?' nv-plan-dialog-editor':'')+(immersive?' nv-plan-dialog-immersive':'')} ref={root} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header><h2 id={titleId}>{icon??<Map size={22}/>}{title}</h2><button type="button" aria-label={closeLabel} onClick={onClose}><X/></button></header>
       {children}
     </section>
@@ -115,28 +115,29 @@ export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,la
   const plan=plans[index];
   const points=plan?visiblePoints(plan,scenes):[];
   const change=(step:number)=>setSelectedIndex(i=>(i+step+plans.length)%plans.length);
-  return <PlanModal animated title={ui('planTitle',lang)} closeLabel={ui('close',lang)} onClose={onClose}>
-    {plan?.imageDataUrl?<>
-      <nav className="nv-plans-carousel" aria-label="Choisir un plan">
-        <button type="button" disabled={plans.length<2} onClick={()=>change(-1)} aria-label="Plan précédent">‹</button>
-        <div className="nv-plans-current"><strong>{plan.name||'Plan '+(index+1)}</strong><small>{index+1} / {plans.length}</small></div>
-        <button type="button" disabled={plans.length<2} onClick={()=>change(1)} aria-label="Plan suivant">›</button>
-      </nav>
-      {plans.length>1&&<div className="nv-plans-strip" role="group" aria-label="Galerie des plans">
-        {plans.map((item,i)=><button type="button" key={item.id??i} aria-pressed={i===index}
-          onClick={()=>setSelectedIndex(i)}>
-          <img src={item.imageDataUrl} alt=""/>
-          <span>{item.name||'Plan '+(i+1)}</span>
-        </button>)}
-      </div>}
-      <p className="nv-plan-help">{ui('planHelp',lang)}</p>
-      <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes} currentId={currentId} onPick={onPick} thumbs={thumbs} lang={lang}/></div>
-      {points.length?<nav className="nv-plan-destinations" aria-label="Destinations du plan">{points.map((point,number)=>{
-        const scene=scenes.find(item=>item.id===point.sceneId)!;
-        return <button key={scene.id} type="button" aria-current={scene.id===currentId?'location':undefined}
-          onClick={()=>onPick(scene.id)}>{number+1}. {pick(scene.name,scene.nameTranslations,lang)}</button>;
-      })}</nav>:<p role="status" className="nv-plan-help">{ui('noPlanPoint',lang)}</p>}
-    </>:<p role="status" className="nv-plan-help">Aucun plan n'a encore été ajouté à cette visite.</p>}
+  return <PlanModal animated immersive title={ui('planTitle',lang)} closeLabel={ui('close',lang)} onClose={onClose}>
+    {plan?.imageDataUrl?<div className="nv-plan-immersive-layout">
+      <div className="nv-plan-immersive-stage">
+        <div className="nv-plan-immersive-caption">
+          <strong>{plan.name||'Plan '+(index+1)}</strong>
+          <small>{index+1} / {plans.length} · {points.length} panorama{points.length>1?'s':''}</small>
+        </div>
+        <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes}
+          currentId={currentId} onPick={onPick} thumbs={thumbs} lang={lang}/></div>
+        {!points.length&&<small className="nv-plan-immersive-empty">{ui('noPlanPoint',lang)}</small>}
+      </div>
+      {plans.length>1&&<aside className="nv-plan-immersive-rail" aria-label="Changer de plan">
+        <button type="button" className="nv-plan-rail-arrow" onClick={()=>change(-1)} aria-label="Plan précédent">‹</button>
+        <div className="nv-plan-immersive-thumbs" role="group" aria-label="Galerie de plans">
+          {plans.map((item,i)=><button type="button" key={item.id??i} aria-pressed={i===index}
+            title={item.name||'Plan '+(i+1)} aria-label={'Afficher '+(item.name||'plan '+(i+1))}
+            onClick={()=>setSelectedIndex(i)}>
+            <img src={item.imageDataUrl} alt=""/><span>{i+1}</span>
+          </button>)}
+        </div>
+        <button type="button" className="nv-plan-rail-arrow" onClick={()=>change(1)} aria-label="Plan suivant">›</button>
+      </aside>}
+    </div>:<p role="status" className="nv-plan-help">Aucun plan n'a encore été ajouté à cette visite.</p>}
   </PlanModal>;
 }
 

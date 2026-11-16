@@ -5859,3 +5859,25 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
   .nv-directory-head-actions .nv-directory-add-client svg{flex:none}
   .nv-manual-client-actions>button{width:100%}
 }
+
+
+/* Assistant client : skin choisi une fois et réutilisé sur tous les biens. */
+.nv-client-skin-picker select{
+  display:block;box-sizing:border-box;width:100%;min-width:0;
+  padding:11px 12px;background:#0d293a;border:1px solid #476d7e;border-radius:9px;
+  color:#eefbff;font-size:13px
+}
+.nv-client-skin-picker select:focus-visible{outline:2px solid #66d6c5;outline-offset:2px}
+.nv-client-skin-picker>.nv-directory-secondary-action{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px
+}
+.nv-client-skin-selected{color:#9aecd4!important;font-weight:650}
+.nv-check-list .nv-check-dismiss{
+  display:grid;place-items:center;flex:none;width:30px;min-width:30px;
+  height:30px;padding:2px;border:1px solid #c88f89;background:#57282f;
+  color:white;border-radius:8px;cursor:pointer
+}
+.nv-check-list .nv-check-dismiss:hover{background:#a53744}
+.nv-check-ignored{padding:9px 12px;border-top:1px solid #42626a}
+.nv-check-ignored>button{border:0;background:transparent;color:#b5d6dc;text-align:left;font-size:12px;cursor:pointer}
+.nv-check-security{display:block;padding:6px 12px;color:#e8bb89}

@@ -9,7 +9,7 @@ import {sendLiveNote} from './liveSession';
  * Elles sont stockées à part (table nvstudio_notes, protégée par Supabase) : elles ne font jamais partie de la visite publiée ni des exports.
  * Sans connexion Cloud, les notes restent sur cet ordinateur (privées uniquement).
  */
-type Note={id:string;body:string;shared:boolean;authorEmail:string;mine:boolean;createdAt:string};
+type Note={id:string;body:string;shared:boolean;authorEmail:string;mine:boolean;createdAt:string;sceneId?:string};
 type Mode={kind:'cloud';projectId:string;userId:string;email:string}|{kind:'local';key:string;reason:string};
 const MISSING=/nvstudio_notes|schema cache|does not exist|Could not find the table/i;
 const NOT_ACTIVE='Le partage des notes n’est pas encore activé sur ton Cloud (une mise à jour de la base est à lancer une fois) : en attendant, tes notes restent sur cet ordinateur.';
@@ -21,11 +21,12 @@ function localRead(key:string):Note[]{
 }
 function localWrite(key:string,notes:Note[]){try{localStorage.setItem(key,JSON.stringify(notes));}catch{/* stockage indisponible */}}
 
-export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string;onClose:()=>void;onOpenCloud?:()=>void}){
+export function NotesPanel({projectName,onClose,onOpenCloud,onOpenPanorama}:{projectName:string;onClose:()=>void;onOpenCloud?:()=>void;onOpenPanorama?:(sceneId:string)=>void}){
   const [mode,setMode]=useState<Mode|null>(null);
   const [notes,setNotes]=useState<Note[]>([]);
   const [draft,setDraft]=useState('');
-  const [shared,setShared]=useState(false);
+  // Les notes Cloud sont partagées par défaut ; l'utilisateur peut les rendre privées.
+  const [shared,setShared]=useState(true);
   const [error,setError]=useState('');
   const [busy,setBusy]=useState(false);
   // Envoi direct (sans base de données) : possible dès qu'on est connecté au Cloud sur ce projet.
@@ -69,7 +70,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
   const refresh=useCallback(async()=>{
     if(!mode)return;
     if(mode.kind==='local'){setNotes(localRead(mode.key));return;}
-    const {data,error:err}=await supabase().from('nvstudio_notes').select('id,body,shared,author_id,author_email,created_at')
+    const {data,error:err}=await supabase().from('nvstudio_notes').select('id,body,shared,author_id,author_email,scene_id,created_at')
       .eq('project_id',mode.projectId).order('created_at',{ascending:false}).limit(300);
     if(err){
       if(MISSING.test(err.message)){setMode({kind:'local',key:'nvstudio-notes-local:'+(projectName||'projet'),reason:NOT_ACTIVE});return;}
@@ -77,7 +78,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
       return;
     }
     setError('');
-    setNotes((data??[]).map(r=>({id:r.id as string,body:r.body as string,shared:!!r.shared,authorEmail:(r.author_email as string)||'',mine:r.author_id===mode.userId,createdAt:r.created_at as string})));
+    setNotes((data??[]).map(r=>({id:r.id as string,body:r.body as string,shared:!!r.shared,authorEmail:(r.author_email as string)||'',mine:r.author_id===mode.userId,createdAt:r.created_at as string,sceneId:typeof r.scene_id==='string'?r.scene_id:undefined})));
   },[mode,projectName]);
   useEffect(()=>{
     void refresh();
@@ -107,7 +108,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
             const note:Note={id:Math.random().toString(36).slice(2),body,shared:false,authorEmail:'',mine:true,createdAt:new Date().toISOString()};
             const next=[note,...localRead(key)];localWrite(key,next);
             if(ident&&sendTo.size)await sendLiveNote(ident.projectId,ident.email.split('@')[0].slice(0,24),ident.email,[...sendTo],body,projectName);
-            setMode({kind:'local',key,reason:NOT_ACTIVE});setNotes(next);setDraft('');setShared(false);return;
+            setMode({kind:'local',key,reason:NOT_ACTIVE});setNotes(next);setDraft('');setShared(true);return;
           }
           throw new Error(err.message);
         }
@@ -167,6 +168,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud}:{projectName:string
             </span>
           </div>
           <p>{n.body}</p>
+          {n.sceneId&&onOpenPanorama&&<button type="button" className="nv-notes-cloud" onClick={()=>onOpenPanorama(n.sceneId!)}>↗ Ouvrir le panorama de cette note</button>}
         </li>)}
       </ul>
     </section>

@@ -464,19 +464,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const room=sceneOf(currentId);
     const name=room?pick(room.name,room.nameTranslations,vlang()):project().name;
     const area=room?.surfaceM2!==undefined?room.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})+' m²':'';
-    const tex=canvasTexture(1100,230,ctx=>{
-      roundRect(ctx,8,8,1084,214,44);ctx.fillStyle='rgba(28,29,32,.93)';ctx.fill();
-      ctx.lineWidth=7;ctx.strokeStyle='#d9a32e';ctx.stroke();
-      ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
-      const title=fitCanvasLabel(ctx,name,980,78,46);
-      ctx.fillText(title,550,area?87:116);
+    const tex=canvasTexture(1400,180,ctx=>{
+      roundRect(ctx,8,8,1384,164,42);ctx.fillStyle='rgba(28,29,32,.93)';ctx.fill();
+      ctx.lineWidth=6;ctx.strokeStyle='#d9a32e';ctx.stroke();
+      ctx.textBaseline='middle';
+      const surfaceWidth=area?Math.min(250,Math.max(145,area.length*30)):0;
+      ctx.fillStyle='#fff';ctx.textAlign='left';
+      const title=fitCanvasLabel(ctx,name,1260-surfaceWidth-(area?36:0),78,40);
+      ctx.fillText(title,62,93);
       if(area){
-        ctx.fillStyle='#f1c767';
-        const surface=fitCanvasLabel(ctx,area,900,49,38);
-        ctx.fillText(surface,550,169);
+        ctx.fillStyle='#f1c767';ctx.textAlign='right';
+        const surface=fitCanvasLabel(ctx,area,surfaceWidth,59,37);
+        ctx.fillText(surface,1330,93);
       }
     });
-    addPlane(headerGroup,1.35,.283,tex,6,0,0);
+    // Libellé compact sur une ligne ; même distance et même suivi du regard.
+    addPlane(headerGroup,1.65,.214,tex,6,0,0);
     // Le titre reste indépendamment du monobloc, très loin et très haut.
     // La position sera mise à jour progressivement avec le regard dans tick().
     syncRoomHeaderPose(true);

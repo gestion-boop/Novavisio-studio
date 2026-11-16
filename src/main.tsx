@@ -14,7 +14,8 @@ import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisp
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
-import {cloudHasDefaultSkin,cloudNewProjectFromDefault} from './cloudSkins';
+import {cloudHasDefaultSkin,cloudListSkins,cloudNewProjectFromDefault} from './cloudSkins';
+import {applySkin} from './skins';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
@@ -48,7 +49,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -334,6 +335,10 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const onLoaded=()=>{
       viewer.removeEventListener('panorama-loaded',onLoaded);
       try{viewer.rotate(arrivalPos);viewer.zoom(arrivalZoom);}catch{/* vue indisponible : on garde la vue actuelle */}
+      // Important pour le bouton « + » Auto : la caméra doit être rattachée
+      // au nouveau panorama dès la fin du chargement (sans attendre un drag).
+      const position=viewer.getPosition();
+      actions.current.onCameraChange(position.yaw,position.pitch,viewer.getZoomLevel());
       fade=crossfadeMarkers(viewer,markersNow(),260);
     };
     viewer.addEventListener('panorama-loaded',onLoaded);
@@ -346,6 +351,8 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       if(fade)await fade;else resetMarkers(viewer,markersNow());
       if(disposed)return;
       loadedSceneRef.current=next.id;
+      const camera=viewer.getPosition();
+      actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
       currentTextureRef.current=nextTexture;
       syncMarkers(viewer,markersNow()); // met à jour d'éventuelles modifications survenues pendant la transition
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
@@ -1248,6 +1255,7 @@ function App(){
   // Historique des notifications (mémorisé sur cet ordinateur) : enregistrements, publications, échecs, notes et captures reçues.
   type NotifEntry={id:string;icon:string;text:string;at:number};
   const [notifHistory,setNotifHistory]=useState<NotifEntry[]>(()=>{try{const v=JSON.parse(localStorage.getItem('nvstudio-notif-history')||'[]');return Array.isArray(v)?v.slice(0,30):[];}catch{return [];}});
+  const [sharedNotesUnread,setSharedNotesUnread]=useState(0);
   const pushNotif=(icon:string,text:string,id=String(Date.now())+Math.random().toString(36).slice(2,6))=>setNotifHistory(list=>{
     if(list.some(x=>x.id===id)||(list[0]&&list[0].text===text&&Date.now()-list[0].at<3000))return list;
     const next=[{id,icon,text,at:Date.now()},...list].slice(0,30);
@@ -1262,6 +1270,49 @@ function App(){
     for(const n of liveInvite.notesIn)pushNotif('📝',n.fromLabel+' : '+n.body.slice(0,80),'note-'+n.id);
     for(const sh of liveInvite.shots)pushNotif('📷',sh.fromLabel+' a envoyé une capture','shot-'+sh.id);
   },[liveInvite.notesIn,liveInvite.shots]);
+  // Boîte de réception fiable : les notes partagées sont conservées dans le
+  // Cloud et reçues même lorsque le destinataire était déconnecté.
+  // La lecture suit le projet Cloud ouvert, jamais un autre dossier client.
+  useEffect(()=>{
+    if(!cloudConfigured)return;
+    let disposed=false,busy=false;
+    const poll=async()=>{
+      if(disposed||busy||document.visibilityState==='hidden')return;
+      const link=readLink();if(!link)return;
+      busy=true;
+      try{
+        const {data:{session}}=await supabase().auth.getSession();
+        if(!session?.user||disposed)return;
+        const userId=session.user.id;
+        const key='nvstudio-received-notes:'+userId+':'+link.projectId;
+        const saved=JSON.parse(localStorage.getItem(key)||'[]') as unknown;
+        const seen=new Set(Array.isArray(saved)?saved.filter((id):id is string=>typeof id==='string'):[]);
+        const {data,error}=await supabase().from('nvstudio_notes')
+          .select('id,body,author_id,author_email,scene_id,created_at')
+          .eq('project_id',link.projectId).eq('shared',true)
+          .order('created_at',{ascending:false}).limit(80);
+        if(error||disposed||readLink()?.projectId!==link.projectId)return;
+        const next=(data??[]).filter(note=>note.author_id!==userId&&!seen.has(String(note.id))&&
+          Date.parse(String(note.created_at))>Date.now()-7*86400000);
+        for(const note of [...next].reverse().slice(-10)){
+          const author=String(note.author_email||'Un collègue').split('@')[0];
+          const scene=projectRef.current.scenes.find(sc=>sc.id===note.scene_id);
+          const intro=scene?'Sur « '+scene.name+' » · ':'';
+          pushNotif('📝',author+' : '+intro+String(note.body||'').slice(0,105),'shared-note-'+note.id);
+        }
+        if(next.length)setSharedNotesUnread(value=>Math.min(99,value+next.length));
+        try{localStorage.setItem(key,JSON.stringify([
+          ...new Set([...((data??[]).filter(note=>note.author_id!==userId).map(note=>String(note.id))),...seen])
+        ].slice(0,300)));}catch{/* historique facultatif */}
+      }catch{/* prochain contrôle, sans interrompre l'éditeur */}
+      finally{busy=false;}
+    };
+    void poll();
+    const interval=window.setInterval(()=>void poll(),12000);
+    const onFocus=()=>void poll();
+    window.addEventListener('focus',onFocus);
+    return ()=>{disposed=true;window.clearInterval(interval);window.removeEventListener('focus',onFocus);};
+  },[]);
   // Commentaires d'équipe accrochés à un endroit du panorama
   const [commentsOpen,setCommentsOpen]=useState(false);
   function addComment(text:string){
@@ -1269,7 +1320,19 @@ function App(){
     const c:ProjectComment={id:uid(),sceneId,yaw:cam.yaw,pitch:cam.pitch,text,author:inviteIdentity?inviteIdentity.email.split('@')[0].slice(0,24):'Moi',at:Date.now()};
     setProject(p=>({...p,comments:[c,...(p.comments??[])].slice(0,500)}));
     pushNotif('💬','Commentaire ajouté sur « '+(project.scenes.find(sc=>sc.id===sceneId)?.name||'panorama')+' »');
-    setStatus('Commentaire accroché à cet endroit · enregistre pour le partager avec l’équipe');
+    // Notification durable envoyée sans attendre une révision complète du projet.
+    // Cela évite de perdre le message si un collègue édite la même visite.
+    const link=readLink();
+    if(cloudConfigured&&link){
+      const name=project.scenes.find(sc=>sc.id===sceneId)?.name||'panorama';
+      void supabase().from('nvstudio_notes').insert({
+        project_id:link.projectId,body:'Sur « '+name+' » : '+text.slice(0,3800),
+        shared:true,scene_id:sceneId,yaw:cam.yaw,pitch:cam.pitch
+      }).then(({error})=>{
+        if(error)pushNotif('⚠️','Commentaire enregistré, mais notification non envoyée : '+error.message.slice(0,85));
+      });
+    }
+    setStatus('Commentaire accroché · enregistre avec la disquette pour le partager dans la visite');
   }
   function goToComment(c:ProjectComment){
     if(!project.scenes.some(sc=>sc.id===c.sceneId)){setStatus('Ce panorama n’existe plus.');return;}
@@ -1282,17 +1345,29 @@ function App(){
   const deleteComment=(id:string)=>setProject(p=>({...p,comments:(p.comments??[]).filter(c=>c.id!==id)}));
   // Contrôle avant publication
   const [checkOpen,setCheckOpen]=useState(false);
-  const projectIssues=useMemo(()=>ready?checkProject(project):[],[project,ready]);
-  const publishIssues=projectIssues;
+  const allProjectIssues=useMemo(()=>ready?checkProject(project):[],[project,ready]);
+  const ignoredIds=useMemo(()=>new Set(project.ignoredChecks??[]),[project.ignoredChecks]);
+  const projectIssues=useMemo(()=>allProjectIssues.filter(issue=>!ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
+  const hiddenIssues=useMemo(()=>allProjectIssues.filter(issue=>ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
+  // Ne pas masquer les vrais blocages dans la confirmation de publication.
+  const publishIssues=allProjectIssues;
+  function ignoreCheck(id:string){
+    setProject(p=>({...p,ignoredChecks:[...new Set([...(p.ignoredChecks??[]),id])].slice(-500)}));
+    setIssueFocus(null);setGuided(null);
+    setStatus('Contrôle ignoré pour cette visite. Enregistre pour conserver ce choix.');
+  }
+  function restoreCheck(id:string){
+    setProject(p=>({...p,ignoredChecks:(p.ignoredChecks??[]).filter(value=>value!==id)}));
+  }
   const issueErrors=projectIssues.filter(i=>i.level==='error').length;
   // Correctifs notés « à faire » : un commentaire lié au problème, résolu tout seul dès que le problème disparaît.
   const notedIds=useMemo(()=>new Set((project.comments??[]).filter(c=>c.issueId&&!c.done).map(c=>c.issueId!)),[project.comments]);
   useEffect(()=>{
     if(!ready)return;
-    const present=new Set(projectIssues.map(i=>i.id));
+    const present=new Set(allProjectIssues.map(i=>i.id));
     const stale=(project.comments??[]).filter(c=>c.issueId&&!c.done&&!present.has(c.issueId));
     if(stale.length)setProject(p=>({...p,comments:(p.comments??[]).map(c=>c.issueId&&!c.done&&!present.has(c.issueId)?{...c,done:true}:c)}));
-  },[projectIssues,ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  },[allProjectIssues,ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const openCommentCount=(project.comments??[]).filter(c=>!c.done).length;
   // Pastille 📝 sur les vignettes des panoramas qui ont un correctif « à faire » en attente.
   const todoByScene=useMemo(()=>{const m=new Map<string,number>();for(const c of project.comments??[])if(c.issueId&&!c.done)m.set(c.sceneId,(m.get(c.sceneId)??0)+1);return m;},[project.comments]);
@@ -1317,7 +1392,7 @@ function App(){
     setIssueFocus(null);
     if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
   }
-  const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
+  const notifCount=sharedNotesUnread+(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
   // Flèche provisoire créée pour un panorama sans point : supprimée si on ferme la galerie sans choisir de destination.
   const orphanArrow=useRef<{sceneId:string;hotspotId:string;armed:boolean}|null>(null);
@@ -2009,6 +2084,8 @@ function App(){
   const lockRef=useRef<unknown>(null);
   const channelRef=useRef<BroadcastChannel|null>(null);
   const [lock,setLock]=useState<{kind:'unreadable';reason:string}|{kind:'conflict'}|{kind:'saveError';reason:string}|null>(null);
+  // Ne pas supprimer le verrou de conflit : les sessions Cloud sont isolées
+  // de la sauvegarde locale, mais un conflit local réel reste bloquant.
   projectRef.current=project;
   // Enregistrement automatique discret : dès la 6e modification non enregistrée, on sauvegarde en arrière-plan (sans fenêtre ni blocage).
   const autoSaveBlock=useRef(0);
@@ -2628,10 +2705,11 @@ function App(){
   const arrivalDraftRef=useRef<{id:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [autoPending,setAutoPending]=useState<{yaw:number;pitch:number}|null>(null);
   function openAutoGallery(yaw:number,pitch:number){
-    if(!active)return;
+    if(!active||!autoNavigation||preview)return;
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
     if(visibleScenes.length<2){setStatus('Il faut au moins deux panoramas pour créer une flèche.');return;}
     setAutoPending({yaw,pitch});
+    setFullscreenGalleryOpen(false);setNavigationPickerOpen(false);
     setClassicDestinationSearch('');
     setClassicDestinationPreviewId(suggestDestinations(active.id)[0]?.id??visibleScenes[index+1]?.id??visibleScenes.find(sc=>sc.id!==active.id)?.id??null);
     setClassicDestinationOpen(true);
@@ -2786,17 +2864,23 @@ function App(){
   async function saveArrivalImmediately(){
     if(arrivalSavingRef.current||savingManually||savingRef.current)return;
     if(!active||lock){setStatus('Échec : enregistrement de la vue indisponible');return;}
-    const {sceneId,yaw,pitch,zoom}=cameraRef.current;
-    if(sceneId!==active.id){setStatus('Échec : attends le chargement du panorama puis réessaie');return;}
+    const camera=cameraRef.current;
+    const sceneId=active.id;
+    const yaw=camera.sceneId===sceneId?camera.yaw:active.arrivalYaw??0;
+    const pitch=camera.sceneId===sceneId?camera.pitch:active.arrivalPitch??0;
+    const zoom=camera.sceneId===sceneId?camera.zoom:panoramaArrivalZoom(active);
     const snapshot:StudioProject={...projectRef.current,scenes:projectRef.current.scenes.map(sc=>sc.id===sceneId?
       {...sc,arrivalYaw:yaw,arrivalPitch:pitch,arrivalZoom:zoom,arrivalZoomModel:'wide'}:sc)};
     const name=active.name;
     arrivalSavingRef.current=true;setArrivalSaving(true);
     flushSync(()=>setProject(snapshot));
     try{
-      if(!await persist(snapshot))return;
-      if(cloud.signedIn&&!await manualSave(false,true)){
-        setStatus('Sauvegardé localement · Vue d’arrivée de '+name+' · Cloud non synchronisé, réessaie l’enregistrement.');return;
+      // Ne jamais sauver une visite Cloud dans le slot IndexedDB « current » :
+      // plusieurs fenêtres/projets écrasaient ce même slot et créaient un faux conflit.
+      const ok=cloud.signedIn||readLink()?await manualSave(false,true):await persist(snapshot);
+      if(!ok){
+        setStatus('Vue définie mais non sauvegardée : vérifie la connexion Cloud puis enregistre avec la disquette.');
+        return;
       }
       setStatus('Sauvegardé · Vue d’arrivée enregistrée pour '+name);
     }catch(error){setStatus('Échec de sauvegarde de la vue : '+(error instanceof Error?error.message:String(error)));}
@@ -4126,7 +4210,7 @@ function App(){
           <Maximize2 size={21}/>
         </button>
         <div className="nv-share-wrap nv-bell-wrap" ref={bellRef}>
-          <button type="button" className={'nv-v3-icon-btn nv-v3-bell'+(bellOpen?' is-open':'')+(notifCount?' has-new':'')} onClick={()=>setBellOpen(o=>!o)}
+          <button type="button" className={'nv-v3-icon-btn nv-v3-bell'+(bellOpen?' is-open':'')+(notifCount?' has-new':'')} onClick={()=>{setBellOpen(value=>!value);setSharedNotesUnread(0);}}
             aria-haspopup="menu" aria-expanded={bellOpen} aria-label={notifCount?'Notifications ('+notifCount+' nouvelles)':'Notifications'} title="Notifications : notes, captures, invitations, mises à jour">
             <Bell size={21}/>{notifCount>0&&<i className="nv-bell-badge" aria-hidden="true">{notifCount>9?'9+':notifCount}</i>}
           </button>
@@ -4286,7 +4370,10 @@ function App(){
     {liveDialogOpen&&<LiveShareDialog onStart={emails=>void startLiveWith(emails)} onClose={()=>{setLiveDialogOpen(false);backFrom();}}/>}
     {!liveProjectId&&liveInvite.invite&&<div className="nv-live-invite" role="alert"><span><b>{liveInvite.invite.fromLabel}</b> t’invite à partager son écran.</span><button type="button" className="is-join" onClick={()=>{liveInvite.dismiss();void startLiveWith([],false);}}>Rejoindre</button><button type="button" onClick={liveInvite.dismiss}>Plus tard</button></div>}
     {issueFocus&&!classicDestinationOpen&&!mediaPicker&&<IssueCallout docked={!rightHidden} noted={!!(issueFocus.id&&notedIds.has(issueFocus.id))} noteText={noteText} onNoteText={setNoteText} onNote={noteIssueForLater} onChoose={issueFocus.kind==='nav'||issueFocus.kind==='scene-empty'?chooseDestination:undefined} onRemove={issueFocus.kind==='dup-nav'&&issueFocus.hotspotId?()=>{removeAutoNavigationArrow(issueFocus.hotspotId!);setStatus('Flèche en double supprimée');}:undefined} media={(()=>{const sc=project.scenes.find(x=>x.id===issueFocus.sceneId);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:undefined;})()} focus={issueFocus} stillPresent={projectIssues.some(i=>i.id===issueFocus.id)} saving={savingManually} error={fixError} onValidate={validateFix} onClose={()=>{setIssueFocus(null);setGuided(null);if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}}} step={guided?{i:guided.i+1,n:guided.queue.length}:undefined} onNext={guided?nextGuided:undefined} onOpen={()=>{setPanel('points');setRightHidden(false);}}/>}
-    {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}} onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
+    {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} hidden={hiddenIssues}
+      onIgnore={ignoreCheck} onRestore={restoreCheck}
+      onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}}
+      onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>
@@ -4302,7 +4389,14 @@ function App(){
         <button type="button" onClick={()=>setWelcome(null)}>OK</button>
       </div>
     </aside>}
-    {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>{setNotesOpen(false);backFrom();}} onOpenCloud={()=>{returnTo.current=null;setToolsMenuOpen(false);setCloudOpen(true);}}/>}
+    {notesOpen&&<NotesPanel projectName={project.name}
+      onOpenPanorama={sceneId=>{
+        if(!project.scenes.some(sc=>sc.id===sceneId)){setStatus('Ce panorama n’est plus disponible.');return;}
+        setNotesOpen(false);setPreview(false);setActiveSpaceId(null);
+        setActiveId(sceneId);setSelectedId('');setMode(null);setRightHidden(true);
+      }}
+      onClose={()=>{setNotesOpen(false);backFrom();}}
+      onOpenCloud={()=>{returnTo.current=null;setToolsMenuOpen(false);setCloudOpen(true);}}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
       const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
@@ -4493,7 +4587,16 @@ function App(){
               {autoNavigation&&guide?.phase!=='back'&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
                 <button type="button" className="nv-auto-crosshair-place" aria-label="Placer la flèche sur la cible au centre"
                   title="Placer la flèche ici"
-                  onClick={e=>{e.stopPropagation();const v=cameraRef.current;if(active&&v.sceneId===active.id)openAutoGallery(v.yaw,v.pitch);}}>
+                  onPointerDown={e=>e.stopPropagation()}
+                  onClick={e=>{
+                    e.preventDefault();e.stopPropagation();
+                    if(!active)return;
+                    const v=cameraRef.current;
+                    // Si le panorama vient de changer, la caméra peut encore
+                    // porter l'ID précédent : ne jamais ignorer le clic.
+                    openAutoGallery(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),
+                      v.sceneId===active.id?v.pitch:(active.arrivalPitch??0));
+                  }}>
                   <span aria-hidden="true">+</span>
                 </button>}
             </div>}
@@ -5805,13 +5908,28 @@ function App(){
       }}
       onCreateVisit={(clientProfile,style,visitName)=>{
         if((project.scenes.length||projectRef.current!==savedRef.current)&&!window.confirm('Créer une nouvelle visite pour « '+clientProfile.name+' » ? Pense à enregistrer ou exporter le projet actuel avant.'))return;
-        setActiveSpaceId(null);setSpaceManagerOpen(false);
-        // Un client (ex. ImmoSphera) peut posséder plusieurs visites avec des
-        // noms de biens distincts. Le client est conservé dans chaque projet.
-        const name=visitName?.trim()||clientProfile.name||'Nouvelle visite';
-        const fresh={...newProject(),name,clientProfile,barStyle:{...defaultBarStyle(),...(style??{})}};
-        setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
-        cloud.unlink();setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' ». Ajoute les panoramas puis enregistre avec la disquette.');
+        // Le skin préféré de ce client est appliqué avant d'ouvrir la nouvelle
+        // visite ; si le Cloud ne l'a plus, aucune visite vide ne remplace
+        // silencieusement le projet actuel.
+        void (async()=>{
+          try{
+            let fresh=newProject();
+            if(clientProfile.preferredSkinId){
+              const skin=(await cloudListSkins()).find(item=>item.id===clientProfile.preferredSkinId);
+              if(!skin)throw Error('Skin du client introuvable dans ce compte Cloud.');
+              fresh=applySkin({...fresh,bottomBar:[]},skin);
+            }
+            const name=visitName?.trim()||clientProfile.name||'Nouvelle visite';
+            fresh={...fresh,name,clientProfile,
+              ...(style?{barStyle:{...fresh.barStyle,...style}}:{})};
+            setActiveSpaceId(null);setSpaceManagerOpen(false);
+            setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
+            cloud.unlink();
+            setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' »'+(clientProfile.preferredSkinId?' avec son skin':'')+'. Ajoute les panoramas puis enregistre avec la disquette.');
+          }catch(e){
+            setStatus('Impossible de préparer ce bien avec le skin choisi : '+(e instanceof Error?e.message:String(e)));
+          }
+        })();
       }}
       onAssociate={clientProfile=>{
         setProject(p=>({...p,clientProfile}));
@@ -5836,7 +5954,7 @@ function App(){
       const scene=project.scenes.find(sc=>sc.id===panoModalId);
       if(!scene)return null;
       return <PanoramaPreviewEditor key={scene.id} scene={scene} onDelete={()=>deleteScene(scene.id)} onClose={()=>setPanoModalId(null)}
-        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));if(cloud.signedIn&&!await manualSave())return false;return persist(projectRef.current);}}>
+        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));return cloud.signedIn||readLink()?manualSave():persist(projectRef.current);}}>
         <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
       </PanoramaPreviewEditor>;
     })()}
@@ -5863,7 +5981,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
