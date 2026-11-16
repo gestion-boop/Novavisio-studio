@@ -2084,11 +2084,8 @@ function App(){
   const lockRef=useRef<unknown>(null);
   const channelRef=useRef<BroadcastChannel|null>(null);
   const [lock,setLock]=useState<{kind:'unreadable';reason:string}|{kind:'conflict'}|{kind:'saveError';reason:string}|null>(null);
-  // Le verrou IndexedDB du projet local ne concerne pas le projet Cloud lié.
-  // Le Cloud vérifie ses versions indépendamment (CloudConflictError).
-  useEffect(()=>{
-    if(lock?.kind==='conflict'&&readLink())setLock(null);
-  },[lock?.kind]);
+  // Ne pas supprimer le verrou de conflit : les sessions Cloud sont isolées
+  // de la sauvegarde locale, mais un conflit local réel reste bloquant.
   projectRef.current=project;
   // Enregistrement automatique discret : dès la 6e modification non enregistrée, on sauvegarde en arrière-plan (sans fenêtre ni blocage).
   const autoSaveBlock=useRef(0);
