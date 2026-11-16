@@ -2425,7 +2425,8 @@ function App(){
   const selected=active?.hotspots.find(h=>h.id===selectedId) ?? null;
   const viaFrom=arrivedVia?project.scenes.find(sc=>sc.id===arrivedVia.fromSceneId):undefined;
   const viaHotspot=active&&arrivedVia&&arrivedVia.sceneId===active.id?
-    viaFrom?.hotspots.find(h=>h.id===arrivedVia.hotspotId&&h.type==='navigation'&&h.target===active.id)??null:null;
+    viaFrom?.hotspots.find(h=>h.id===arrivedVia.hotspotId&&h.type==='navigation'&&
+      (h.target===active.id||!!h.targetSpaceId))??null:null;
   useEffect(()=>{
     if(!introVisible||!project.introEnabled||!project.introUrl)return;
     // Ne pas rediriger vers le premier panorama du projet complet :
@@ -4553,6 +4554,14 @@ function App(){
           {(issueFocus||(selected&&active&&!selected.target)||(autoPending&&active))&&<IssueBanner focus={issueFocus?{...issueFocus,thumb:undefined,sceneName:undefined}:{level:'warn' as const,text:autoPending?'Mode Auto · tu as placé la flèche. Vers quel panorama doit-elle mener ?':'Cette flèche n’a pas encore de panorama de destination.',hint:'Choisis dans la liste le panorama vers lequel elle doit mener, règle le viseur, puis valide.',thumb:undefined,sceneName:undefined}}/>}
           <div className="nv-classic-destination-layout">
             <div className="nv-classic-destination-list-panel">
+              {(project.spaces??[]).length>0&&!autoNavigation&&selected?.type==='navigation'&&<div className="nv-destination-space-choices">
+                <strong>Ou rejoindre un espace existant</strong>
+                {(project.spaces??[]).filter(sp=>sp.sceneIds.some(id=>project.scenes.some(sc=>sc.id===id&&!sc.excluded))).map(sp=>
+                  <button type="button" key={sp.id} className="nv-classic-destination-row"
+                    onClick={()=>setNavigationSpace(sp.id)}>
+                    <Layers size={17}/><span><strong>{sp.name}</strong><small>Ouvrir le premier panorama, sans duplication</small></span><ChevronRight size={15}/>
+                  </button>)}
+              </div>}
               <input type="search" value={classicDestinationSearch} placeholder="Rechercher un panorama…"
                 aria-label="Rechercher un panorama" onChange={e=>setClassicDestinationSearch(e.target.value)}/>
               <div className="nv-classic-destination-list" ref={destinationListRef}>
