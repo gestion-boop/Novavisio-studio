@@ -5830,3 +5830,32 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .view-area .nv-vr-ref{z-index:82}
 .view-area .nv-vr-ref-bottom{bottom:12px}
 @media(max-width:780px){.view-area .nv-vr-ref-studio-launch{bottom:85px;right:8px;padding:9px 11px;font-size:11px}}
+
+
+/* Répertoire Clients : création indépendante de la recherche, puis biens sous le même client. */
+.nv-directory-head-actions .nv-directory-add-client{background:#256962;border-color:#77ccbe;color:#effff7;font-weight:800}
+.nv-directory-head-actions .nv-directory-add-client:hover{background:#318479}
+.nv-manual-client{max-width:790px}
+.nv-manual-client-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.nv-manual-client-grid label,.nv-directory-create-property label,.nv-manual-client-property label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;font-weight:650;color:#c1dfe4}
+.nv-manual-client-grid label.is-wide{grid-column:1/-1}
+.nv-manual-client-grid input,.nv-manual-client-grid textarea,.nv-manual-client-property input,.nv-directory-create-property input{
+  display:block;width:100%;min-width:0;box-sizing:border-box;border:1px solid #476d7e;border-radius:9px;background:#0d293a;
+  padding:11px 12px;color:#eefbff;font:inherit;font-size:13px;outline:none}
+.nv-manual-client-grid input:focus,.nv-manual-client-grid textarea:focus,.nv-manual-client-property input:focus,.nv-directory-create-property input:focus{
+  border-color:#76d6bc;box-shadow:0 0 0 2px #4a988d55}
+.nv-manual-client-property,.nv-directory-create-property{display:flex;flex-direction:column;gap:11px;padding:15px;border:1px solid #3b7b80;border-radius:13px;background:#133b44}
+.nv-manual-client-property>strong{display:flex;gap:8px;align-items:center;font-size:14px;color:#d1fff3}
+.nv-manual-client-property p{margin:0;font-size:12px;line-height:1.65;color:#b4d5d7}
+.nv-manual-client-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.nv-manual-client-actions button{min-height:42px}
+.nv-directory-create-property small{font-size:11px;color:#acc9d3;line-height:1.5}
+@media(max-width:830px){
+  .nv-manual-client-grid{grid-template-columns:1fr}
+  .nv-directory-head-actions .nv-directory-add-client{font-size:11px}
+}
+@media(max-width:540px){
+  .nv-directory-head-actions .nv-directory-add-client{padding:7px 9px;font-size:0}
+  .nv-directory-head-actions .nv-directory-add-client svg{flex:none}
+  .nv-manual-client-actions>button{width:100%}
+}
