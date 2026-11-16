@@ -334,6 +334,10 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const onLoaded=()=>{
       viewer.removeEventListener('panorama-loaded',onLoaded);
       try{viewer.rotate(arrivalPos);viewer.zoom(arrivalZoom);}catch{/* vue indisponible : on garde la vue actuelle */}
+      // Important pour le bouton « + » Auto : la caméra doit être rattachée
+      // au nouveau panorama dès la fin du chargement (sans attendre un drag).
+      const position=viewer.getPosition();
+      actions.current.onCameraChange(position.yaw,position.pitch,viewer.getZoomLevel());
       fade=crossfadeMarkers(viewer,markersNow(),260);
     };
     viewer.addEventListener('panorama-loaded',onLoaded);
@@ -346,6 +350,8 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       if(fade)await fade;else resetMarkers(viewer,markersNow());
       if(disposed)return;
       loadedSceneRef.current=next.id;
+      const camera=viewer.getPosition();
+      actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
       currentTextureRef.current=nextTexture;
       syncMarkers(viewer,markersNow()); // met à jour d'éventuelles modifications survenues pendant la transition
     }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
@@ -2021,6 +2027,11 @@ function App(){
   const lockRef=useRef<unknown>(null);
   const channelRef=useRef<BroadcastChannel|null>(null);
   const [lock,setLock]=useState<{kind:'unreadable';reason:string}|{kind:'conflict'}|{kind:'saveError';reason:string}|null>(null);
+  // Le verrou IndexedDB du projet local ne concerne pas le projet Cloud lié.
+  // Le Cloud vérifie ses versions indépendamment (CloudConflictError).
+  useEffect(()=>{
+    if(lock?.kind==='conflict'&&readLink())setLock(null);
+  },[lock?.kind]);
   projectRef.current=project;
   // Enregistrement automatique discret : dès la 6e modification non enregistrée, on sauvegarde en arrière-plan (sans fenêtre ni blocage).
   const autoSaveBlock=useRef(0);
@@ -2640,7 +2651,7 @@ function App(){
   const arrivalDraftRef=useRef<{id:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [autoPending,setAutoPending]=useState<{yaw:number;pitch:number}|null>(null);
   function openAutoGallery(yaw:number,pitch:number){
-    if(!active)return;
+    if(!active||!autoNavigation||preview)return;
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
     if(visibleScenes.length<2){setStatus('Il faut au moins deux panoramas pour créer une flèche.');return;}
     setAutoPending({yaw,pitch});
@@ -2806,9 +2817,12 @@ function App(){
     arrivalSavingRef.current=true;setArrivalSaving(true);
     flushSync(()=>setProject(snapshot));
     try{
-      if(!await persist(snapshot))return;
-      if(cloud.signedIn&&!await manualSave(false,true)){
-        setStatus('Sauvegardé localement · Vue d’arrivée de '+name+' · Cloud non synchronisé, réessaie l’enregistrement.');return;
+      // Ne jamais sauver une visite Cloud dans le slot IndexedDB « current » :
+      // plusieurs fenêtres/projets écrasaient ce même slot et créaient un faux conflit.
+      const ok=cloud.signedIn||readLink()?await manualSave(false,true):await persist(snapshot);
+      if(!ok){
+        setStatus('Vue définie mais non sauvegardée : vérifie la connexion Cloud puis enregistre avec la disquette.');
+        return;
       }
       setStatus('Sauvegardé · Vue d’arrivée enregistrée pour '+name);
     }catch(error){setStatus('Échec de sauvegarde de la vue : '+(error instanceof Error?error.message:String(error)));}
@@ -4508,7 +4522,16 @@ function App(){
               {autoNavigation&&guide?.phase!=='back'&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
                 <button type="button" className="nv-auto-crosshair-place" aria-label="Placer la flèche sur la cible au centre"
                   title="Placer la flèche ici"
-                  onClick={e=>{e.stopPropagation();const v=cameraRef.current;if(active&&v.sceneId===active.id)openAutoGallery(v.yaw,v.pitch);}}>
+                  onPointerDown={e=>e.stopPropagation()}
+                  onClick={e=>{
+                    e.preventDefault();e.stopPropagation();
+                    if(!active)return;
+                    const v=cameraRef.current;
+                    // Si le panorama vient de changer, la caméra peut encore
+                    // porter l'ID précédent : ne jamais ignorer le clic.
+                    openAutoGallery(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),
+                      v.sceneId===active.id?v.pitch:(active.arrivalPitch??0));
+                  }}>
                   <span aria-hidden="true">+</span>
                 </button>}
             </div>}
@@ -5851,7 +5874,7 @@ function App(){
       const scene=project.scenes.find(sc=>sc.id===panoModalId);
       if(!scene)return null;
       return <PanoramaPreviewEditor key={scene.id} scene={scene} onDelete={()=>deleteScene(scene.id)} onClose={()=>setPanoModalId(null)}
-        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));if(cloud.signedIn&&!await manualSave())return false;return persist(projectRef.current);}}>
+        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));return cloud.signedIn||readLink()?manualSave():persist(projectRef.current);}}>
         <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
       </PanoramaPreviewEditor>;
     })()}
@@ -5878,7 +5901,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
