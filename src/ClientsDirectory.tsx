@@ -2,7 +2,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Users,X} from 'lucide-react';
 import {listCloudProjects,readCloudClientProfile,saveToCloud,type CloudProject} from './cloud';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
-import {defaultBarStyle,newProject,type BarStyle,type ClientProfile} from './storage';
+import {newProject,type BarStyle,type ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
 import {InfoRow} from './InfoRow';
 import {ClientMediaEditor,type Palette} from './ClientMediaEditor';
