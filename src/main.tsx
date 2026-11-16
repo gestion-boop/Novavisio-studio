@@ -176,7 +176,7 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
   return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
     html,
     size:{width,height},anchor:'center center',tooltip:h.title,
-    ...(isSphere?{data:{nvSphere:{size:sz,target:h.target}}}:{})};
+    ...(isSphere?{data:{nvSphere:{size:sz,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
 function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
