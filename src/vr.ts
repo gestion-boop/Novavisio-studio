@@ -159,7 +159,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     return {x:p.x,y:p.y,z:p.z,phi:Math.atan2(d.x,d.z)};
   };
   /** Place le panorama de sorte que la vue d'arrivée (yaw) se trouve devant le visage actuel. */
-  const alignToHead=(yaw:number)=>{const h=headForward();root.position.set(h.x,h.y,h.z);root.rotation.y=yaw+h.phi;};
+  // Hauteur du regard réglée dans le projet (négative = panorama plus bas, pour retrouver une hauteur réaliste).
+  const eyeOffset=()=>Math.max(-1,Math.min(.5,project().vrEyeOffset??0));
+  const alignToHead=(yaw:number)=>{const h=headForward();root.position.set(h.x,h.y+eyeOffset(),h.z);root.rotation.y=yaw+h.phi;};
 
   const getIconUrl=(id?:string)=>id?project().icons?.find(i=>i.id===id)?.dataUrl:undefined;
   // Les logos Cloud peuvent arriver après le chargement des panoramas.

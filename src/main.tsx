@@ -5840,6 +5840,8 @@ function App(){
             </label>
           </InspectorSection>
           <InspectorSection title="Visite immersive 360° et VR (facultatif)" initiallyOpen>
+            <label>Hauteur du regard dans le casque : {Math.round((project.vrEyeOffset??0)*100)} cm<input type="range" min={-100} max={50} step={5} value={Math.round((project.vrEyeOffset??0)*100)} onChange={e=>setProject(p=>({...p,vrEyeOffset:Number(e.target.value)/100}))}/></label>
+            <small className="hint-inline">Négatif : le panorama descend, vous ne flottez plus au-dessus de l’image. 0 = réglage actuel.</small>
             <p className="hint">La visite fonctionne toujours sur mobile, ordinateur et tablette. Le mode casque VR est une option à activer uniquement pour les clients qui le souhaitent.</p>
             <label className="toggle-row"><input type="checkbox" checked={project.vrEnabled!==false}
               onChange={e=>{const enabled=e.target.checked;setProject(p=>({...p,vrEnabled:enabled}));setStatus(enabled?'VR activée pour cette visite. Enregistre avec la disquette.':'VR désactivée : la visite 360° classique reste disponible. Enregistre avec la disquette.');}}/>
