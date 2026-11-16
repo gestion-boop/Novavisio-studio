@@ -30,7 +30,8 @@ function sceneRefs(scene:StudioProject['scenes'][number]):string[]{
 function hydrate(snapshot:StudioProject,loaded:Map<string,string>):StudioProject{
   const p=structuredClone(snapshot);
   const swap=(v?:string)=>isRef(v)?loaded.get(v):v;
-  if(p.floorPlan)p.floorPlan.imageDataUrl=swap(p.floorPlan.imageDataUrl)??'';
+  // Tous les plans (floorPlan + floorPlans) : après copie, ce sont des objets distincts.
+  [p.floorPlan,...(p.floorPlans??[])].forEach(plan=>{if(plan)plan.imageDataUrl=swap(plan.imageDataUrl)??'';});
   p.icons.forEach(i=>{i.dataUrl=swap(i.dataUrl)??'';});
   p.audioTracks.forEach(t=>{t.dataUrl=swap(t.dataUrl);});
   p.bottomBar?.forEach(b=>(b.photos??[]).forEach(m=>{m.data=swap(m.data);}));
@@ -130,10 +131,11 @@ function Share(){
           }
         };
         const fetchPlan=async()=>{
-          const ref=snap.floorPlan?.imageDataUrl;
-          if(!isRef(ref))return;
-          try{await fetchRef(ref);}catch{/* The plan dialog keeps a loading/unavailable message. */}
-          if(alive.current)setVersion(v=>v+1);
+          const refs=[...new Set([snap.floorPlan,...(snap.floorPlans??[])].map(plan=>plan?.imageDataUrl).filter(isRef))];
+          for(const ref of refs){
+            try{await fetchRef(ref);}catch{/* The plan dialog keeps a loading/unavailable message. */}
+            if(alive.current)setVersion(v=>v+1);
+          }
         };
         void fetchIcons();
         void fetchAudio();
