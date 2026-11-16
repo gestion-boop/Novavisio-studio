@@ -14,7 +14,8 @@ import {isPopupMedia,popupMediaMarkerHtml,MediaDisplayControl} from './mediaDisp
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
-import {cloudHasDefaultSkin,cloudNewProjectFromDefault} from './cloudSkins';
+import {cloudHasDefaultSkin,cloudListSkins,cloudNewProjectFromDefault} from './cloudSkins';
+import {applySkin} from './skins';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
@@ -5906,13 +5907,28 @@ function App(){
       }}
       onCreateVisit={(clientProfile,style,visitName)=>{
         if((project.scenes.length||projectRef.current!==savedRef.current)&&!window.confirm('Créer une nouvelle visite pour « '+clientProfile.name+' » ? Pense à enregistrer ou exporter le projet actuel avant.'))return;
-        setActiveSpaceId(null);setSpaceManagerOpen(false);
-        // Un client (ex. ImmoSphera) peut posséder plusieurs visites avec des
-        // noms de biens distincts. Le client est conservé dans chaque projet.
-        const name=visitName?.trim()||clientProfile.name||'Nouvelle visite';
-        const fresh={...newProject(),name,clientProfile,barStyle:{...defaultBarStyle(),...(style??{})}};
-        setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
-        cloud.unlink();setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' ». Ajoute les panoramas puis enregistre avec la disquette.');
+        // Le skin préféré de ce client est appliqué avant d'ouvrir la nouvelle
+        // visite ; si le Cloud ne l'a plus, aucune visite vide ne remplace
+        // silencieusement le projet actuel.
+        void (async()=>{
+          try{
+            let fresh=newProject();
+            if(clientProfile.preferredSkinId){
+              const skin=(await cloudListSkins()).find(item=>item.id===clientProfile.preferredSkinId);
+              if(!skin)throw Error('Skin du client introuvable dans ce compte Cloud.');
+              fresh=applySkin({...fresh,bottomBar:[]},skin);
+            }
+            const name=visitName?.trim()||clientProfile.name||'Nouvelle visite';
+            fresh={...fresh,name,clientProfile,
+              ...(style?{barStyle:{...fresh.barStyle,...style}}:{})};
+            setActiveSpaceId(null);setSpaceManagerOpen(false);
+            setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
+            cloud.unlink();
+            setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' »'+(clientProfile.preferredSkinId?' avec son skin':'')+'. Ajoute les panoramas puis enregistre avec la disquette.');
+          }catch(e){
+            setStatus('Impossible de préparer ce bien avec le skin choisi : '+(e instanceof Error?e.message:String(e)));
+          }
+        })();
       }}
       onAssociate={clientProfile=>{
         setProject(p=>({...p,clientProfile}));
