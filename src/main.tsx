@@ -5066,14 +5066,15 @@ function App(){
                   </div>
                 </>}
                 {fullscreenToolsTab==='scene'&&<div className="nv-quick-fields">
-                  <label>Nom du panorama
+                  <div className="nv-name-row"><label className="nv-name-main">Nom du panorama
                     <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
-                  <label>Superficie de la pièce (m²)
+                  </label>
+                  <label className="nv-surface-field">Superficie de la pièce (m²)
                     <input type="number" min="0.01" max="100000" step="0.01" placeholder="Ex. 24,5"
                       value={active.surfaceM2??''}
                       onChange={e=>{const v=e.target.value,n=v===''?undefined:Number(v);if(n===undefined||(Number.isFinite(n)&&n>0&&n<=100000))patchScene(sc=>({...sc,surfaceM2:n}));}}/>
                   </label>
-                  </label>
+                  </div>
                   <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
@@ -5600,14 +5601,15 @@ function App(){
                 intro={currentSpace?<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>:null}
                 sections={[
                   {key:'name',title:'Nom du panorama',hint:active.name,icon:<Pencil size={26}/>,tone:'#4f7cff',content:<>
-              <label>Nom de la scène
+              <div className="nv-name-row"><label className="nv-name-main">Nom de la scène
                 <input value={active.name} onChange={e=>patchScene(sc=>({...sc,name:e.target.value}))}/>
-                  <label>Superficie de la pièce (m²)
+              </label>
+                  <label className="nv-surface-field">Superficie de la pièce (m²)
                     <input type="number" min="0.01" max="100000" step="0.01" placeholder="Ex. 24,5"
                       value={active.surfaceM2??''}
                       onChange={e=>{const v=e.target.value,n=v===''?undefined:Number(v);if(n===undefined||(Number.isFinite(n)&&n>0&&n<=100000))patchScene(sc=>({...sc,surfaceM2:n}));}}/>
                   </label>
-              </label>
+              </div>
               <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},

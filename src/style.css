@@ -5881,3 +5881,8 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-check-ignored{padding:9px 12px;border-top:1px solid #42626a}
 .nv-check-ignored>button{border:0;background:transparent;color:#b5d6dc;text-align:left;font-size:12px;cursor:pointer}
 .nv-check-security{display:block;padding:6px 12px;color:#e8bb89}
+
+/* Nom du panorama et superficie sur la même ligne (superficie à droite du nom) */
+.nv-name-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.nv-name-row .nv-name-main{flex:1 1 180px;min-width:0}
+.nv-name-row .nv-surface-field{flex:0 0 150px}
