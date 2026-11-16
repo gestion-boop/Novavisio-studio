@@ -28,6 +28,7 @@ import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
 import './windowAnim.css';
+import {attachSunFlare} from './sunFlare';
 import './media.css';
 
 const symbols={home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid};
@@ -146,6 +147,11 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     const stopBounce=startPosterBounce(instance,()=>handlers.current.scene,()=>loadedScene.current===handlers.current.scene.id);
     return ()=>{detachSpheres();stopBounce();if(pending)cancelAnimationFrame(pending);observer.disconnect();viewer.current=null;loadedScene.current=null;instance.destroy();};
   },[]);
+  useEffect(()=>{
+    const instance=viewer.current;
+    if(!instance)return;
+    return attachSunFlare(instance,scene.sunFlare);
+  },[scene.id,scene.sunFlare?.yaw,scene.sunFlare?.pitch,scene.sunFlare?.intensity,scene.sunFlare?.length,scene.sunFlare?.orientation,scene.sunFlare?.rays]);
   useEffect(()=>{
     const instance=viewer.current;
     if(!instance||loadedScene.current===scene.id)return;

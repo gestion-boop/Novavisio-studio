@@ -43,6 +43,7 @@ import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {ui,pick} from './i18n';
 import {TranslationInputs} from './TranslationFields';
+import {SunFlareEditor} from './SunFlareEditor';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
 import {ClientPanel,type ClientLink} from './ClientPanel';
@@ -74,6 +75,7 @@ import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
 import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
+import {attachSunFlare} from './sunFlare';
 import {startPosterBounce} from './posterBounce';
 import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,paletteFromLogo,type SvgIconDesign} from './svgIcons';
 import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
@@ -401,6 +403,11 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     if(!element||!v||loadedSceneRef.current!==scene.id)return;
     syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel(),autoNavigation));
   },[scene.id,scene.hotspots,icons,selectedId,preview,autoNavigation]);
+  useEffect(()=>{
+    const v=viewerRef.current;
+    if(!v||loadedSceneRef.current!==scene.id)return;
+    return attachSunFlare(v,scene.sunFlare);
+  },[scene.id,scene.sunFlare?.yaw,scene.sunFlare?.pitch,scene.sunFlare?.intensity,scene.sunFlare?.length,scene.sunFlare?.orientation,scene.sunFlare?.rays]);
   useEffect(()=>{
     const root=box.current;
     if(!root)return;
@@ -5036,6 +5043,7 @@ function App(){
                   </label>
                   </label>
                   <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
+                  <SunFlareEditor value={active.sunFlare} onChange={next=>patchScene(sc=>({...sc,sunFlare:next}))}/>
                   {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
                     <Eye size={15}/> Définir cette vue comme arrivée

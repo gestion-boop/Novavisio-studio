@@ -133,10 +133,13 @@ export const validateFrameCorners = (corners:unknown):corners is FrameCorners =>
       Number.isFinite(v.x) && Number.isFinite(v.y) && v.x>=-100 && v.x<=200 && v.y>=-100 && v.y<=200;
   });
 };
+/** Reflet de soleil d'un panorama : position du soleil (degrés), intensité 0–1, longueur des rayons (px), orientation (degrés), nombre de rayons. */
+export type SunFlare = {yaw:number;pitch:number;intensity:number;length:number;orientation:number;rays:number};
 export type Scene = {
   id:string;name:string;
   /** Superficie réelle de la pièce en m² ; ne pas déduire d'une photographie. */
   surfaceM2?:number;
+  sunFlare?:SunFlare;
   /** Nom du panorama dans les autres langues de la visite (le français reste dans « name »). */
   nameTranslations?:Partial<Record<'en'|'es'|'de'|'nl',string>>;
   dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;hotspots:Hotspot[];
