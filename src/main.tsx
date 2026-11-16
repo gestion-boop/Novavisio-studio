@@ -1325,11 +1325,18 @@ function App(){
     const link=readLink();
     if(cloudConfigured&&link){
       const name=project.scenes.find(sc=>sc.id===sceneId)?.name||'panorama';
-      void supabase().from('nvstudio_notes').insert({
-        project_id:link.projectId,body:'Sur « '+name+' » : '+text.slice(0,3800),
-        shared:true,scene_id:sceneId,yaw:cam.yaw,pitch:cam.pitch
-      }).then(({error})=>{
-        if(error)pushNotif('⚠️','Commentaire enregistré, mais notification non envoyée : '+error.message.slice(0,85));
+      // Renseigner explicitement l'auteur pour que la réception filtre bien
+      // les notes émises par un autre compte (y compris le compte gestion).
+      void supabase().auth.getSession().then(({data})=>{
+        const user=data.session?.user;
+        if(!user)throw new Error('Session Cloud expirée : reconnecte-toi.');
+        return supabase().from('nvstudio_notes').insert({
+          project_id:link.projectId,body:'Sur « '+name+' » : '+text.slice(0,3800),
+          shared:true,scene_id:sceneId,yaw:cam.yaw,pitch:cam.pitch,
+          author_id:user.id,author_email:user.email??null
+        }).then(({error})=>{if(error)throw error;});
+      }).catch(error=>{
+        pushNotif('⚠️','Commentaire enregistré, mais notification non envoyée : '+String(error?.message??error).slice(0,85));
       });
     }
     setStatus('Commentaire accroché · enregistre avec la disquette pour le partager dans la visite');
