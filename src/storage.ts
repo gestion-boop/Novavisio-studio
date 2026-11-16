@@ -243,6 +243,8 @@ export function validateProject(value:unknown):StudioProject {
   if (p.version !== 1 || typeof p.name !== 'string' || !Array.isArray(p.scenes) || p.scenes.length > 500) throw new Error('Projet non reconnu');
   // Vérifier TOUS les plans, sans faire dépendre les autres étages de la
   // présence du plan historique. Un panorama peut figurer sur plusieurs plans.
+  if(p.floorPlan!==undefined&&(!p.floorPlan||typeof p.floorPlan!=='object'))
+    throw new Error('Plan de la visite invalide');
   if(p.floorPlans!==undefined&&(!Array.isArray(p.floorPlans)||p.floorPlans.length>200))
     throw new Error('La galerie des plans est invalide');
   const knownPlanIds=new Set<string>();
