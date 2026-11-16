@@ -442,7 +442,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
 
   let barPlacedPhi=0;
-  // Panneau du haut : ~4 m au lieu de 2 m, à ~1,7 m au-dessus du regard.
+  // Panneau du haut : à 4 m, désormais moins haut (1,12 m au-dessus du regard).
   // En coordonnées locales du casque, il suit aussi la rotation / inclinaison.
   const headerCameraPosition=new Vector3();
   const headerCameraRotation=new Quaternion();
@@ -541,8 +541,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
     button(right,.07,'plan',()=>{void showFloorPlan(plan??planAction);});
     button(right,-.18,'help',()=>showText('Navigation VR',
-      'Manette droite : laser et gâchette. Manette gauche : joystick et gâchette. A/B : ouvrir ou fermer le bloc. Clic joystick : tout masquer.'));
-    button(right,-.43,'exit',()=>{void session.end();});
+      'Droite : laser et gâchette. Gauche : joystick et gâchette. A/B à droite ou X/Y à gauche : ouvrir/fermer le menu. Clic joystick : tout masquer.'));
+    // La croix referme le menu VR, sans forcer la sortie du casque.
+    button(right,-.43,'exit',()=>{
+      referenceMode=false;
+      remoteTarget=null;
+      panelAnchor=null;
+      updateVrPalette();
+      closePanels();
+      clearGroup(barGroup);
+      clearGroup(vrShellGroup);
+      barGroup.visible=false;
+      vrShellGroup.visible=false;
+    });
     // Premier affichage : une seule pose pour le bloc complet.
     if(!panelAnchor){
       placeInFront(vrInterfaceGroup,VR_UI_DIST,.12);
@@ -967,7 +978,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     closePanels();
     const configured=galleryEntries(item,project().scenes,project().spaces);
     // Un bouton galerie présent mais non configuré ne doit pas empêcher
-    // l'affichage des panoramas existants dans la visite Immosp​hera.
+    // l'affichage des panoramas existants dans la visite Immosphera.
     const baseEntries=configured.length?configured:
       project().scenes.filter(scene=>!scene.excluded)
         .map(scene=>({sceneId:scene.id,label:scene.name,custom:'',sceneName:scene.name}));
