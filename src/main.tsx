@@ -2610,7 +2610,7 @@ function App(){
     setAutoNavigation(true);setMode('navigation');setClassicDestinationOpen(false);
     setDestinationEditId(null);setNavigationDraft(null);
     setGuide({phase:'forward',fwdYaw:cameraRef.current.yaw,fwdPitch:cameraRef.current.pitch});
-    setStatus('Parcours guidé · Vise avec la cible puis clique sur + : la flèche part vers le panorama suivant.');
+    setStatus('Parcours guidé · Vise avec la cible puis clique sur + : passage direct au panorama suivant.');
   }
   function selectScene(id:string){
     if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
@@ -2890,6 +2890,8 @@ function App(){
     if(!active)return;
     const view=cameraRef.current;
     if(view.sceneId!==active.id){setStatus('Oriente d’abord le panorama puis réessaie');return;}
+    setOpenTopMenu(null);
+    setNavigationDrawerOpen(false);
     patchScene(sc=>({...sc,arrivalYaw:view.yaw,arrivalPitch:view.pitch,arrivalZoom:view.zoom,arrivalZoomModel:'wide'}));
     setStatus('Vue d’arrivée définie pour '+active.name+' · Enregistre le projet avec la disquette.');
   }
@@ -4579,7 +4581,7 @@ function App(){
             <button type="button" onClick={guidedSkipBack}>Passer</button>
           </div>}
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
-            <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : la galerie s’ouvre pour choisir le panorama d’arrivée.</span>
+            <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
           </div>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
@@ -4594,7 +4596,9 @@ function App(){
                     const v=cameraRef.current;
                     // Si le panorama vient de changer, la caméra peut encore
                     // porter l'ID précédent : ne jamais ignorer le clic.
-                    openAutoGallery(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),
+                    // Le + avance directement vers le panorama suivant dans l'ordre visible.
+                    // La galerie de choix reste disponible par les autres commandes de navigation.
+                    guidedForward(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),
                       v.sceneId===active.id?v.pitch:(active.arrivalPitch??0));
                   }}>
                   <span aria-hidden="true">+</span>
