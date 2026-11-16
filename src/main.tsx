@@ -44,6 +44,7 @@ import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {ui,pick} from './i18n';
 import {TranslationInputs} from './TranslationFields';
 import {SunFlareEditor} from './SunFlareEditor';
+const SunGlyph=({size=24}:{size?:number})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
 import {CloudPanel} from './CloudPanel';
 import {ClientPanel,type ClientLink} from './ClientPanel';
@@ -5068,7 +5069,6 @@ function App(){
                   </label>
                   </label>
                   <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
-                  <SunFlareEditor value={active.sunFlare} onChange={next=>patchScene(sc=>({...sc,sunFlare:next}))}/>
                   {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
                     <Eye size={15}/> Définir cette vue comme arrivée
@@ -5606,6 +5606,7 @@ function App(){
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
+                  {key:'sun',title:'Rayon de soleil',hint:active.sunFlare?'✓ Activé':'Désactivé',icon:<SunGlyph size={26}/>,tone:'#ffc53d',content:<SunFlareEditor value={active.sunFlare} onChange={next=>patchScene(sc=>({...sc,sunFlare:next}))}/>},
                   {key:'points',title:'Points interactifs',badge:active.hotspots.length,hint:'Flèches, infos, photos…',icon:<PinIcon size={26}/>,tone:'#ff8a3d',content:<>
               <div className="section-title">
                 <span>POINTS INTERACTIFS</span>
