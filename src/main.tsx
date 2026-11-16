@@ -2133,11 +2133,11 @@ function App(){
   // Ne pas supprimer le verrou de conflit : les sessions Cloud sont isolées
   // de la sauvegarde locale, mais un conflit local réel reste bloquant.
   projectRef.current=project;
-  // Enregistrement automatique discret : dès la 6e modification non enregistrée, on sauvegarde en arrière-plan (sans fenêtre ni blocage).
+  // Enregistrement automatique discret : dès la 5e modification non enregistrée, on sauvegarde en arrière-plan (sans fenêtre ni blocage).
   const autoSaveBlock=useRef(0);
   useEffect(()=>{
     if(!ready||lock||savingManually)return;
-    if(histRef.current.ops<6||project===savedRef.current||Date.now()<autoSaveBlock.current)return;
+    if(histRef.current.ops<5||project===savedRef.current||Date.now()<autoSaveBlock.current)return;
     const t=window.setTimeout(async()=>{
       if(projectRef.current===savedRef.current)return;
       const ok=await manualSave(false,true);
