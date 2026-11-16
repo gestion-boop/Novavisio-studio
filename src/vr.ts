@@ -351,7 +351,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     busy=false;
     if(!ok)setNotice(tt('unavailable'));
     else{
-      renderRoomHeader();
+      // Arrivée dans une pièce : l'interface jaune (en-tête et panneaux) s'efface pour profiter du panorama.
+      clearGroup(headerGroup);
       if(referenceMode)void buildBar().then(()=>{
         const first=project().scenes.filter(s=>!s.excluded);
         const gallery=project().bottomBar.find(item=>item.type==='gallery');
