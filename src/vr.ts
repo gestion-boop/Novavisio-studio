@@ -963,9 +963,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Panneau jaune de la galerie (mêmes dimensions et même habillage) : la vidéo s'y incruste.
     const cw=.62,ch=.34,gx=.06,gy=.05;
     const cols=referenceMode?4:2,rows=referenceMode?2:3;
-    const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
+    // Le panneau jaune est agrandi pour que la vidéo reste grande et lisible.
+    const videoW=referenceMode?2.2:1.6,Hv=videoW*9/16;
+    const W=Math.max(cols*cw+(cols-1)*gx+.32,videoW+.4);
+    const H=Math.max(.17+rows*ch+(rows-1)*gy+.1,Hv+.5);
     galleryChrome(W,H,title,'',1,0,()=>{},()=>{});
-    const videoW=Math.min(W-.5,(H-.5)*16/9),Hv=videoW*9/16;
     const vy=H/2-.17-Hv/2-.05;
     addPlane(panelGroup,videoW,Hv,tex,6,0,vy);
     addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-W/4,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
