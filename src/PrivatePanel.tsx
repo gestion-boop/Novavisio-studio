@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {addMember,getWriteState,setWriteHolder,cloudConfigured,createCollaboratorAccount,listMembers,readLink,removeMember,saveToCloud,supabase,type Member} from './cloud';
+import {addMember,getWriteState,setWriteHolder,cloudConfigured,createCollaboratorAccount,listMembers,listCloudProjects,readLink,removeMember,saveToCloud,supabase,type Member} from './cloud';
 import type {SyncState} from './cloudSync';
 import {studioUrl} from './share';
 import {LoginBox} from './LoginBox';
@@ -22,6 +22,8 @@ const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{day:'2-digit',mont
 export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:{project:StudioProject;space?:StudioSpace|null;onClose:()=>void;onStatus:(m:string)=>void;syncNow:()=>Promise<boolean>;syncState:SyncState}){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [email,setEmail]=useState('');
+  const [knownPeople,setKnownPeople]=useState<string[]>([]);
+  const [chosenKnown,setChosenKnown]=useState('');
   const [password,setPassword]=useState(()=>generatePassword());
   const [showPassword,setShowPassword]=useState(false);
   const [busy,setBusy]=useState('');
@@ -46,6 +48,21 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
     return ()=>sub.subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[]);
+
+  useEffect(()=>{
+    if(!cloudConfigured||!userEmail)return;
+    let cancelled=false;
+    (async()=>{
+      try{
+        const projects=(await listCloudProjects()).slice(0,60);
+        const memberships=await Promise.all(projects.map(p=>listMembers(p.id).catch(()=>[] as Member[])));
+        const contacts=[...new Set(memberships.flat().map(m=>m.email.trim().toLowerCase())
+          .filter(v=>v&&v!==userEmail.toLowerCase()))].sort((a,b)=>a.localeCompare(b,'fr'));
+        if(!cancelled)setKnownPeople(contacts);
+      }catch{/* Saisie manuelle toujours disponible. */}
+    })();
+    return ()=>{cancelled=true;};
+  },[userEmail]);
 
   async function copy(text:string){
     try{await navigator.clipboard.writeText(text);return true;}
@@ -72,7 +89,7 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
     try{
       const clean=email.trim().toLowerCase();
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean))throw new Error('Adresse e-mail non valide.');
-      if(password.length<8)throw new Error('Le mot de passe doit faire au moins 8 caractères.');
+      if(!chosenKnown&&password.length<8)throw new Error('Le mot de passe doit faire au moins 8 caractères.');
       if(!project.scenes.length)throw new Error('Importe au moins un panorama avant d’inviter quelqu’un.');
       // 1) la visite doit être ENTIÈREMENT dans le cloud, à jour : sinon la personne invitée ouvrirait une ancienne version.
       let link;
@@ -92,7 +109,7 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
       // 2) autoriser l'adresse, puis créer le compte (e-mail + mot de passe)
       setBusy('Création de l’accès…');
       await addMember(link.projectId,clean,includeSpaces);
-      const result=await createCollaboratorAccount(clean,password);
+      const result=chosenKnown?'exists':await createCollaboratorAccount(clean,password);
       if(giveHand&&!space){
         setBusy('Transmission de la main pour enregistrer…');
         const state=await getWriteState(link.projectId);
@@ -100,7 +117,7 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
       }
       setOutcome({email:clean,password,result});
       onStatus('Accès privé créé pour '+clean);
-      setEmail('');setPassword(generatePassword());
+      setEmail('');setChosenKnown('');setPassword(generatePassword());
       await refresh(link.projectId);
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy('');}
@@ -128,17 +145,24 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
         :'☁ Ta visite sera envoyée dans le cloud au moment de créer l’accès.'}</div>
       <div className="private-rule"><b>Qui sauvegarde ?</b> Une seule personne à la fois a « la main » pour enregistrer (indicateur « La main » en haut) : le propriétaire la transmet ou la reprend d’un clic. L’autre peut regarder et travailler, et reçoit un message s’il essaie d’enregistrer. L’historique des versions est conservé.</div>
       <form className="login-form" onSubmit={e=>{e.preventDefault();void invite();}}>
-        <label>Adresse e-mail de la personne<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="prenom@exemple.fr" autoComplete="off" required/></label>
-        <label>Mot de passe à lui donner (8 caractères minimum)
+        {knownPeople.length>0&&<label>Choisir un utilisateur déjà connu
+          <select value={chosenKnown} onChange={e=>{const value=e.target.value;setChosenKnown(value);setEmail(value);}}>
+            <option value="">Nouvelle personne / saisie manuelle…</option>
+            {knownPeople.map(value=><option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>}
+        <label>Adresse e-mail de la personne<input type="email" value={email} onChange={e=>{setEmail(e.target.value);setChosenKnown('');}} placeholder="prenom@exemple.fr" autoComplete="off" required/></label>
+        {!chosenKnown&&<label>Mot de passe à lui donner (8 caractères minimum)
           <span className="pw-row">
             <input type={showPassword?'text':'password'} value={password} onChange={e=>setPassword(e.target.value)} autoComplete="new-password" minLength={8} required/>
             <button type="button" className="quiet" onClick={()=>setShowPassword(v=>!v)}>{showPassword?'Masquer':'Afficher'}</button>
             <button type="button" className="quiet" onClick={()=>{setPassword(generatePassword());setShowPassword(true);}}>Générer</button>
           </span>
-        </label>
+        </label>}
+        {chosenKnown&&<p className="hint-inline">Compte existant : aucun mot de passe ne sera créé ou modifié.</p>}
         {!space&&<label className="toggle-row"><input type="checkbox" checked={includeSpaces} onChange={e=>setIncludeSpaces(e.target.checked)}/> Partager aussi tous les espaces liés au projet (accès directs dans son Cloud)</label>}
         {!space&&<label className="toggle-row"><input type="checkbox" checked={giveHand} onChange={e=>setGiveHand(e.target.checked)}/> Donner aussi la main pour enregistrer (vous ne pourrez plus enregistrer tant que vous ne l'avez pas reprise)</label>}
-        <button className="primary" type="submit" disabled={!!busy||!email.includes('@')||password.length<8}>Créer l’accès privé</button>
+        <button className="primary" type="submit" disabled={!!busy||!email.includes('@')||(!chosenKnown&&password.length<8)}>{chosenKnown?'Partager avec cet utilisateur':'Créer l’accès privé'}</button>
       </form>
       {outcome&&<div className="share-result">
         <div className="icon-state-label">ACCÈS CRÉÉ POUR {outcome.email.toUpperCase()}</div>
