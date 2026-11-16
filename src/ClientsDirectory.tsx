@@ -115,7 +115,12 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    }).finally(()=>{if(!cancelled)setCloudClientLoading(false);});
    return ()=>{cancelled=true;};
  },[selectedCloudId,refresh]);
- const selectedCloudProfile=cloudClient?.id===selectedCloudId?cloudClient.profile:null;
+ // Au premier rendu, selectedCloudId et cloudClient?.id sont tous deux undefined.
+ // Il ne faut jamais interpréter "undefined === undefined" comme une fiche chargée
+ // ni dereferencer cloudClient alors qu'il est encore null (écran noir React).
+ const selectedCloudProfile=selectedCloudId&&cloudClient?.id===selectedCloudId
+   ?cloudClient.profile
+   :null;
  const profile=selectedRecord?.profile||
    (selected?.current&&currentProfile?currentProfile:selectedCloudProfile??blankProfile);
  const associated=!!currentProfile?.name&&norm(currentProfile.name)===norm(profile.name) &&
