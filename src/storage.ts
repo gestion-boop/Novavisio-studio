@@ -154,7 +154,7 @@ export const isSafeMediaLinkItem=(m:MediaLinkItem):boolean=>!!m&&typeof m.id==='
   (m.provider==='local'?(m.kind==='photo'?isSafeFrameImage(m.data)&&m.data.length<=12_000_000:isSafeVideoData(m.data)&&m.data.length<=Math.ceil(VIDEO_MAX_BYTES/3)*4+64):isSafeMediaUrl(m.url));
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type ClientProfile = {novagenId:string;name:string;category:string;address:string;city:string;phone:string;email:string;website:string;facebook:string;instagram:string;otherLinks:string;description:string; bookingUrl?:string; openingHours?:string; services?:string; logoUrl?:string; photoUrls?:string[]; sourceNotes?:string[]};
+export type ClientProfile = {novagenId:string;name:string;category:string;address:string;city:string;phone:string;email:string;website:string;facebook:string;instagram:string;otherLinks:string;description:string; bookingUrl?:string; openingHours?:string; services?:string; logoUrl?:string; photoUrls?:string[]; sourceNotes?:string[];preferredSkinId?:string};
 export const emptyClientProfile=():ClientProfile=>({novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''});
 export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
 export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
@@ -310,7 +310,7 @@ export function validateProject(value:unknown):StudioProject {
   }
   if(p.clientProfile){
     const client=p.clientProfile as ClientProfile;
-    for(const field of ['bookingUrl','openingHours','services','logoUrl'] as const){
+    for(const field of ['bookingUrl','openingHours','services','logoUrl','preferredSkinId'] as const){
       if(client[field]!==undefined&&(typeof client[field]!=='string'||client[field].length>4000))
         throw new Error('Informations NovaGen invalides : '+field);
     }
