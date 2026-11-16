@@ -4369,7 +4369,7 @@ function App(){
     {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} hidden={hiddenIssues}
       onIgnore={ignoreCheck} onRestore={restoreCheck}
       onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}}
-      onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}}
+      onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>
