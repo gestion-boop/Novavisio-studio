@@ -2832,10 +2832,16 @@ function App(){
     if(next)chooseFullscreenScene(next.id);
   }
   function goThroughArrow(h:Hotspot,fromSceneId:string){
-    if(!h.target||!visibleIds.has(h.target))return;
-    nextArrivalRef.current=h.arrivalYaw!==undefined?{sceneId:h.target,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:panoramaArrivalZoom(h)}:null;
-    setArrivedVia({sceneId:h.target,hotspotId:h.id,fromSceneId});
-    setActiveId(h.target);setSelectedId('');setMode(null);
+    const space=h.targetSpaceId?(project.spaces??[]).find(item=>item.id===h.targetSpaceId):null;
+    // Le premier panorama de l'espace est recalculé lors de chaque navigation :
+    // pas de copie de médias, et le choix reste valide si l'espace est réorganisé.
+    const destination=space?space.sceneIds.find(id=>project.scenes.some(sc=>sc.id===id&&!sc.excluded)):h.target;
+    if(!destination||!project.scenes.some(sc=>sc.id===destination&&!sc.excluded))return;
+    if(space)setActiveSpaceId(space.id);
+    else if(!visibleIds.has(destination))setActiveSpaceId(null);
+    nextArrivalRef.current=h.arrivalYaw!==undefined?{sceneId:destination,yaw:h.arrivalYaw,pitch:h.arrivalPitch??0,zoom:panoramaArrivalZoom(h)}:null;
+    setArrivedVia({sceneId:destination,hotspotId:h.id,fromSceneId});
+    setActiveId(destination);setSelectedId('');setMode(null);
   }
   function setArrowArrival(fromSceneId:string,hotspotId:string,view:{yaw:number;pitch:number;zoom:number}|null){
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==fromSceneId?sc:{...sc,hotspots:sc.hotspots.map(h=>h.id!==hotspotId?h:
@@ -3719,7 +3725,9 @@ function App(){
   function navigationEditor(){
     if(!selected||selected.type!=='navigation')return null;
     const target=project.scenes.find(sc=>sc.id===selected.target);
-    const canGo=!!selected.target&&visibleIds.has(selected.target);
+    const canGo=!!selected.target&&(selected.targetSpaceId
+      ?!!(project.spaces??[]).find(sp=>sp.id===selected.targetSpaceId&&sp.sceneIds.some(id=>project.scenes.some(sc=>sc.id===id&&!sc.excluded)))
+      :visibleIds.has(selected.target));
     const hasBack=!!target?.hotspots.some(h=>h.type==='navigation'&&h.target===activeId);
     const openDestination=()=>{
       if(!active)return;
@@ -3729,7 +3737,7 @@ function App(){
     };
     const goIcon=()=>document.querySelector<HTMLElement>('aside.right')?.querySelectorAll('.section-title').forEach(el=>{if(el.textContent?.includes('ICÔNE'))el.scrollIntoView({behavior:'smooth',block:'center'});});
     return <div className="nv-navigation-edit-card">
-      <strong>Flèche{target?' → '+target.name:' · sans destination'}</strong>
+      <strong>Flèche{selected.targetSpaceId?' → espace « '+((project.spaces??[]).find(sp=>sp.id===selected.targetSpaceId)?.name??'introuvable')+' »':target?' → '+target.name:' · sans destination'}</strong>
       <div className="nv-action-tiles" role="toolbar" aria-label="Actions sur la flèche">
         <button type="button" className={'nv-act'+(selected.target?'':' is-todo')} onClick={openDestination} title="Choisir le panorama d’arrivée dans la galerie 360°">
           {target&&sceneThumbs[target.id]?<img src={sceneThumbs[target.id]} alt=""/>:<Images size={26}/>}<span>Destination</span></button>
@@ -3762,12 +3770,12 @@ function App(){
   }
   // Le choix d'une destination ne crée JAMAIS un point de retour implicitement.
   // L'utilisateur peut créer ce retour volontairement via reverseNavigation.
-  function setNavigationDestination(targetId:string){
-    if(!active||!selected||selected.type!=='navigation'||(targetId&&(!visibleIds.has(targetId)||targetId===active.id)))return;
+  function setNavigationDestination(targetId:string,spaceId?:string){
+    if(!active||!selected||selected.type!=='navigation'||(targetId&&(!project.scenes.some(sc=>sc.id===targetId&&!sc.excluded)||targetId===active.id)))return;
     const fromId=active.id,pointId=selected.id;
     setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===fromId?
       {...sc,hotspots:sc.hotspots.map(h=>h.id===pointId?
-        {...h,target:targetId,arrivalYaw:galleryOrientationRef.current[targetId]?.yaw??(h.target===targetId?h.arrivalYaw:undefined),
+        {...h,target:targetId,targetSpaceId:spaceId,arrivalYaw:galleryOrientationRef.current[targetId]?.yaw??(h.target===targetId?h.arrivalYaw:undefined),
           arrivalPitch:galleryOrientationRef.current[targetId]?.pitch??(h.target===targetId?h.arrivalPitch:undefined),
           arrivalZoom:galleryOrientationRef.current[targetId]?.zoom??(h.target===targetId?h.arrivalZoom:undefined),
           arrivalZoomModel:'wide' as const}:h)}:sc)}));
@@ -3775,7 +3783,15 @@ function App(){
     setClassicDestinationOpen(false);
     setNavigationPickerHover(null);
     setNavigationPickerPreviewId(null);
-    setStatus(targetId?'Destination sélectionnée · aucun retour créé automatiquement':'Destination retirée');
+    setStatus(targetId?(spaceId?'Espace sélectionné · arrivée sur son premier panorama':'Destination sélectionnée · aucun retour créé automatiquement'):'Destination retirée');
+  }
+  function setNavigationSpace(spaceId:string){
+    const space=(project.spaces??[]).find(s=>s.id===spaceId);
+    if(!space){setStatus('Espace introuvable');return;}
+    const first=space.sceneIds.find(id=>project.scenes.some(sc=>sc.id===id&&!sc.excluded));
+    if(!first){setStatus('Cet espace ne contient aucun panorama disponible.');return;}
+    if(first===activeId){setStatus('Le premier panorama de cet espace est déjà celui de départ.');return;}
+    setNavigationDestination(first,space.id);
   }
   // Une connexion A → B peut créer sa flèche retour B → A en un seul clic.
   // Le point est placé devant la caméra à l'arrivée sur B ; ajustable ensuite.
@@ -4587,7 +4603,7 @@ function App(){
         </section>}
       <main className="editor">
         <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(!visibleIds.has(id))return;if(via&&active)goThroughArrow(via,active.id);else selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -5458,14 +5474,29 @@ function App(){
                 {/* Destination, test, retour et vue d'arrivée : voir les tuiles d'action en haut du panneau */}
                 <div className="arrival-view-card is-inspector nv-arrival-inline">
                   <div className="section-title">VUE D’ARRIVÉE · destination et orientation</div>
-                  <label className="nv-arrival-dest">Panorama de destination
+                  {(project.spaces??[]).length>0&&<label className="nv-arrival-dest">Type de destination
+                    <select aria-label="Type de destination" value={selected.targetSpaceId?'space':'scene'}
+                      onChange={e=>{if(e.target.value==='scene')setNavigationDestination(selected.target,undefined);else if(project.spaces?.[0])setNavigationSpace(project.spaces[0].id);}}>
+                      <option value="scene">Panorama</option>
+                      <option value="space">Espace existant</option>
+                    </select>
+                  </label>}
+                  {selected.targetSpaceId&&<label className="nv-arrival-dest">Espace de destination
+                    <select aria-label="Espace de destination" value={selected.targetSpaceId} onChange={e=>setNavigationSpace(e.target.value)}>
+                      {(project.spaces??[]).filter(sp=>sp.sceneIds.some(id=>project.scenes.some(sc=>sc.id===id&&!sc.excluded))).map(sp=>
+                        <option key={sp.id} value={sp.id}>{sp.name} · premier panorama : {project.scenes.find(sc=>sc.id===sp.sceneIds[0])?.name??'Non défini'}</option>)}
+                    </select>
+                  </label>}
+                  {!selected.targetSpaceId&&<label className="nv-arrival-dest">Panorama de destination
                     <select aria-label="Panorama de destination" value={selected.target||''} onChange={e=>{if(e.target.value)setNavigationDestination(e.target.value);}}>
                       <option value="" disabled>Choisir un panorama…</option>
                       {[...visibleScenes].filter(sc=>sc.id!==activeId).sort((x,y)=>{const sg=suggestDestinations(activeId).map(g=>g.id);const rx=sg.indexOf(x.id),ry=sg.indexOf(y.id);return (rx<0?999:rx)-(ry<0?999:ry);}).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
                     </select>
-                  </label>
+                  </label>}
                   {(()=>{
-                    const dest=project.scenes.find(sc=>sc.id===selected.target);
+                    const space=selected.targetSpaceId?(project.spaces??[]).find(sp=>sp.id===selected.targetSpaceId):null;
+                    const resolvedId=space?space.sceneIds.find(id=>project.scenes.some(sc=>sc.id===id&&!sc.excluded)):selected.target;
+                    const dest=project.scenes.find(sc=>sc.id===resolvedId);
                     if(!dest)return <small>Choisis d’abord le panorama de destination.</small>;
                     const view:Scene={...dest,arrivalYaw:selected.arrivalYaw??dest.arrivalYaw,arrivalPitch:selected.arrivalPitch??dest.arrivalPitch,arrivalZoom:selected.arrivalZoom??dest.arrivalZoom,arrivalZoomModel:selected.arrivalZoomModel??dest.arrivalZoomModel};
                     return <>
