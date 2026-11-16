@@ -1254,6 +1254,7 @@ function App(){
   // Historique des notifications (mémorisé sur cet ordinateur) : enregistrements, publications, échecs, notes et captures reçues.
   type NotifEntry={id:string;icon:string;text:string;at:number};
   const [notifHistory,setNotifHistory]=useState<NotifEntry[]>(()=>{try{const v=JSON.parse(localStorage.getItem('nvstudio-notif-history')||'[]');return Array.isArray(v)?v.slice(0,30):[];}catch{return [];}});
+  const [sharedNotesUnread,setSharedNotesUnread]=useState(0);
   const pushNotif=(icon:string,text:string,id=String(Date.now())+Math.random().toString(36).slice(2,6))=>setNotifHistory(list=>{
     if(list.some(x=>x.id===id)||(list[0]&&list[0].text===text&&Date.now()-list[0].at<3000))return list;
     const next=[{id,icon,text,at:Date.now()},...list].slice(0,30);
@@ -1268,6 +1269,49 @@ function App(){
     for(const n of liveInvite.notesIn)pushNotif('📝',n.fromLabel+' : '+n.body.slice(0,80),'note-'+n.id);
     for(const sh of liveInvite.shots)pushNotif('📷',sh.fromLabel+' a envoyé une capture','shot-'+sh.id);
   },[liveInvite.notesIn,liveInvite.shots]);
+  // Boîte de réception fiable : les notes partagées sont conservées dans le
+  // Cloud et reçues même lorsque le destinataire était déconnecté.
+  // La lecture suit le projet Cloud ouvert, jamais un autre dossier client.
+  useEffect(()=>{
+    if(!cloudConfigured)return;
+    let disposed=false,busy=false;
+    const poll=async()=>{
+      if(disposed||busy||document.visibilityState==='hidden')return;
+      const link=readLink();if(!link)return;
+      busy=true;
+      try{
+        const {data:{session}}=await supabase().auth.getSession();
+        if(!session?.user||disposed)return;
+        const userId=session.user.id;
+        const key='nvstudio-received-notes:'+userId+':'+link.projectId;
+        const saved=JSON.parse(localStorage.getItem(key)||'[]') as unknown;
+        const seen=new Set(Array.isArray(saved)?saved.filter((id):id is string=>typeof id==='string'):[]);
+        const {data,error}=await supabase().from('nvstudio_notes')
+          .select('id,body,author_id,author_email,scene_id,created_at')
+          .eq('project_id',link.projectId).eq('shared',true)
+          .order('created_at',{ascending:false}).limit(80);
+        if(error||disposed||readLink()?.projectId!==link.projectId)return;
+        const next=(data??[]).filter(note=>note.author_id!==userId&&!seen.has(String(note.id))&&
+          Date.parse(String(note.created_at))>Date.now()-7*86400000);
+        for(const note of [...next].reverse().slice(-10)){
+          const author=String(note.author_email||'Un collègue').split('@')[0];
+          const scene=projectRef.current.scenes.find(sc=>sc.id===note.scene_id);
+          const intro=scene?'Sur « '+scene.name+' » · ':'';
+          pushNotif('📝',author+' : '+intro+String(note.body||'').slice(0,105),'shared-note-'+note.id);
+        }
+        if(next.length)setSharedNotesUnread(value=>Math.min(99,value+next.length));
+        try{localStorage.setItem(key,JSON.stringify([
+          ...new Set([...((data??[]).filter(note=>note.author_id!==userId).map(note=>String(note.id))),...seen])
+        ].slice(0,300)));}catch{/* historique facultatif */}
+      }catch{/* prochain contrôle, sans interrompre l'éditeur */}
+      finally{busy=false;}
+    };
+    void poll();
+    const interval=window.setInterval(()=>void poll(),12000);
+    const onFocus=()=>void poll();
+    window.addEventListener('focus',onFocus);
+    return ()=>{disposed=true;window.clearInterval(interval);window.removeEventListener('focus',onFocus);};
+  },[]);
   // Commentaires d'équipe accrochés à un endroit du panorama
   const [commentsOpen,setCommentsOpen]=useState(false);
   function addComment(text:string){
@@ -1275,7 +1319,19 @@ function App(){
     const c:ProjectComment={id:uid(),sceneId,yaw:cam.yaw,pitch:cam.pitch,text,author:inviteIdentity?inviteIdentity.email.split('@')[0].slice(0,24):'Moi',at:Date.now()};
     setProject(p=>({...p,comments:[c,...(p.comments??[])].slice(0,500)}));
     pushNotif('💬','Commentaire ajouté sur « '+(project.scenes.find(sc=>sc.id===sceneId)?.name||'panorama')+' »');
-    setStatus('Commentaire accroché à cet endroit · enregistre pour le partager avec l’équipe');
+    // Notification durable envoyée sans attendre une révision complète du projet.
+    // Cela évite de perdre le message si un collègue édite la même visite.
+    const link=readLink();
+    if(cloudConfigured&&link){
+      const name=project.scenes.find(sc=>sc.id===sceneId)?.name||'panorama';
+      void supabase().from('nvstudio_notes').insert({
+        project_id:link.projectId,body:'Sur « '+name+' » : '+text.slice(0,3800),
+        shared:true,scene_id:sceneId,yaw:cam.yaw,pitch:cam.pitch
+      }).then(({error})=>{
+        if(error)pushNotif('⚠️','Commentaire enregistré, mais notification non envoyée : '+error.message.slice(0,85));
+      });
+    }
+    setStatus('Commentaire accroché · enregistre avec la disquette pour le partager dans la visite');
   }
   function goToComment(c:ProjectComment){
     if(!project.scenes.some(sc=>sc.id===c.sceneId)){setStatus('Ce panorama n’existe plus.');return;}
@@ -1335,7 +1391,7 @@ function App(){
     setIssueFocus(null);
     if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
   }
-  const notifCount=(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
+  const notifCount=sharedNotesUnread+(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
   // Flèche provisoire créée pour un panorama sans point : supprimée si on ferme la galerie sans choisir de destination.
   const orphanArrow=useRef<{sceneId:string;hotspotId:string;armed:boolean}|null>(null);
@@ -4152,7 +4208,7 @@ function App(){
           <Maximize2 size={21}/>
         </button>
         <div className="nv-share-wrap nv-bell-wrap" ref={bellRef}>
-          <button type="button" className={'nv-v3-icon-btn nv-v3-bell'+(bellOpen?' is-open':'')+(notifCount?' has-new':'')} onClick={()=>setBellOpen(o=>!o)}
+          <button type="button" className={'nv-v3-icon-btn nv-v3-bell'+(bellOpen?' is-open':'')+(notifCount?' has-new':'')} onClick={()=>{setBellOpen(value=>!value);setSharedNotesUnread(0);}}
             aria-haspopup="menu" aria-expanded={bellOpen} aria-label={notifCount?'Notifications ('+notifCount+' nouvelles)':'Notifications'} title="Notifications : notes, captures, invitations, mises à jour">
             <Bell size={21}/>{notifCount>0&&<i className="nv-bell-badge" aria-hidden="true">{notifCount>9?'9+':notifCount}</i>}
           </button>
@@ -4331,7 +4387,14 @@ function App(){
         <button type="button" onClick={()=>setWelcome(null)}>OK</button>
       </div>
     </aside>}
-    {notesOpen&&<NotesPanel projectName={project.name} onClose={()=>{setNotesOpen(false);backFrom();}} onOpenCloud={()=>{returnTo.current=null;setToolsMenuOpen(false);setCloudOpen(true);}}/>}
+    {notesOpen&&<NotesPanel projectName={project.name}
+      onOpenPanorama={sceneId=>{
+        if(!project.scenes.some(sc=>sc.id===sceneId)){setStatus('Ce panorama n’est plus disponible.');return;}
+        setNotesOpen(false);setPreview(false);setActiveSpaceId(null);
+        setActiveId(sceneId);setSelectedId('');setMode(null);setRightHidden(true);
+      }}
+      onClose={()=>{setNotesOpen(false);backFrom();}}
+      onOpenCloud={()=>{returnTo.current=null;setToolsMenuOpen(false);setCloudOpen(true);}}/>}
     {liveProjectId&&<LiveOverlay live={live} onClose={()=>setLiveProjectId(null)}/>}
     {spaceDelete&&(()=>{
       const sp=(project.spaces??[]).find(item=>item.id===spaceDelete.id);
