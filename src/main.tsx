@@ -2768,9 +2768,12 @@ function App(){
     const existing=active.hotspots.find(h=>h.type==='navigation'&&h.target===next.id);
     const prevId=active.id;
     const alreadyBack=next.hotspots.some(h=>h.type==='navigation'&&h.target===prevId);
+    // Vue d'arrivée = la vue réellement visée dans l'aperçu de destination (cible + inclinaison), sinon le cap de la flèche.
+    const aim=destinationId?galleryOrientationRef.current[destinationId]:undefined;
+    const arrival=aim?{yaw:aim.yaw,pitch:aim.pitch,zoom:aim.zoom??panoramaArrivalZoom(next)}:{yaw:existing?.yaw??yaw,pitch:0,zoom:panoramaArrivalZoom(next)};
     confirmNavigationDirection({
       sourceId:active.id,targetId:next.id,sourceYaw:existing?.yaw??yaw,sourcePitch:existing?.pitch??pitch,
-      existingPointId:existing?.id,arrivalOverride:{yaw:existing?.yaw??yaw,pitch:0,zoom:panoramaArrivalZoom(next)}
+      existingPointId:existing?.id,arrivalOverride:arrival
     });
     const fwdYaw=existing?.yaw??yaw,fwdPitch=existing?.pitch??pitch;
     if(alreadyBack){setGuide({phase:'forward',fwdYaw,fwdPitch});return;}
