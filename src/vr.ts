@@ -884,7 +884,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
     addPlane(panelGroup,W,H,frame,5,0,0);
     const photoTex=new CanvasTexture(bitmap);photoTex.colorSpace=SRGBColorSpace;
-    photoTex.minFilter=LinearFilter;
+    photoTex.generateMipmaps=true;photoTex.minFilter=LinearMipmapLinearFilter;photoTex.anisotropy=16;
     addPlane(panelGroup,w,hgt,photoTex,6,0,.055);
     const titleTex=canvasTexture(960,120,c=>{
       c.fillStyle='#17232b';c.font='bold 36px sans-serif';c.textAlign='center';c.textBaseline='middle';
@@ -957,7 +957,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     closePanels();
     const el=document.createElement('video');
     el.src=src;el.crossOrigin='anonymous';el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');
-    el.preload='auto';
+    el.preload='auto';el.muted=true;
     const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
     activeVideo={el,tex};
     const W=1.6,Hv=W*9/16,H=Hv+.3;
@@ -971,7 +971,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     void toggle;
     addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.09,closePanels);
     placePanel(PANEL_DIST,0);
-    void el.play().catch(()=>setNotice(tt('videoPlayHint')));
+    void el.play().then(()=>{el.muted=getPrefs().sound==='off';}).catch(()=>setNotice(tt('videoPlayHint')));
   };
 
   const showGallery=async(item:BottomBarItem)=>{
@@ -1042,7 +1042,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const gen=panelGen;
     setNotice(tt('planLoading'));
     let bitmap:HTMLCanvasElement;
-    try{bitmap=await loadReduced(plan.imageDataUrl,3072);}
+    try{bitmap=await loadReduced(plan.imageDataUrl,4096);}
     catch{if(req===floorPlanRequest)setNotice(tt('planFail'));return;}
     if(ended||req!==floorPlanRequest||gen!==panelGen)return;
     closePanels();
@@ -1051,8 +1051,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
     const W=imageW+.32,H=imageH+(referenceMode?.29:.33);
     addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);
-    const imageTex=new CanvasTexture(bitmap);
-    imageTex.colorSpace=SRGBColorSpace;imageTex.minFilter=LinearFilter;
+    const imageTex=new CanvasTexture(bitmap);imageTex.generateMipmaps=true;imageTex.minFilter=LinearMipmapLinearFilter;imageTex.anisotropy=16;
+    imageTex.colorSpace=SRGBColorSpace;
     addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
     addPlane(panelGroup,Math.min(1.4,W-.12),.11,canvasTexture(1000,115,ctx=>{
       ctx.fillStyle=iconColor;ctx.textAlign='center';ctx.textBaseline='middle';
