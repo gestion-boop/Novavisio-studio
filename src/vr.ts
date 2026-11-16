@@ -442,12 +442,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
 
   let barPlacedPhi=0;
-  // Panneau du haut : ~4 m au lieu de 2 m, à ~1,7 m au-dessus du regard.
+  // Panneau du haut : à 4 m, désormais moins haut (1,12 m au-dessus du regard).
   // En coordonnées locales du casque, il suit aussi la rotation / inclinaison.
   const headerCameraPosition=new Vector3();
   const headerCameraRotation=new Quaternion();
   const headerTargetPosition=new Vector3();
-  const headerOffset=new Vector3(0,1.7,-4);
+  // Le bandeau reste éloigné mais descend d'environ 60 cm dans le champ visuel.
+  const headerOffset=new Vector3(0,1.12,-4);
   const syncRoomHeaderPose=(instant=false)=>{
     const xrCamera=renderer.xr.getCamera();
     xrCamera.updateMatrixWorld(true);
@@ -540,11 +541,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
     button(right,.07,'plan',()=>{void showFloorPlan(plan??planAction);});
     button(right,-.18,'help',()=>showText('Navigation VR',
-      'Manette droite : laser et gâchette. Manette gauche : joystick et gâchette. A/B : ouvrir ou fermer le bloc. Clic joystick : tout masquer.'));
-    button(right,-.43,'exit',()=>{void session.end();});
+      'Droite : laser et gâchette. Gauche : joystick et gâchette. A/B à droite ou X/Y à gauche : ouvrir/fermer le menu. Clic joystick : tout masquer.'));
+    // La croix referme le menu VR, sans forcer la sortie du casque.
+    button(right,-.43,'exit',()=>{
+      referenceMode=false;
+      remoteTarget=null;
+      panelAnchor=null;
+      updateVrPalette();
+      closePanels();
+      clearGroup(barGroup);
+      clearGroup(vrShellGroup);
+      barGroup.visible=false;
+      vrShellGroup.visible=false;
+    });
     // Premier affichage : une seule pose pour le bloc complet.
     if(!panelAnchor){
-      placeInFront(vrInterfaceGroup,VR_UI_DIST,0);
+      placeInFront(vrInterfaceGroup,VR_UI_DIST,.12);
       panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
     }
     barPlacedPhi=headForward().phi;
@@ -591,7 +603,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       panelGroup.position.set(0,0,0);
       panelGroup.quaternion.identity();
       if(!panelAnchor){
-        placeInFront(vrInterfaceGroup,VR_UI_DIST,0);
+        placeInFront(vrInterfaceGroup,VR_UI_DIST,.12);
         panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
       }
       return;
@@ -627,18 +639,34 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const cachedThumb=(key:string,src:string)=>{
     let p=thumbCache.get(key);
     // Une vignette à la fois : décoder plusieurs grands panoramas en même temps fait saccader le casque.
-    if(!p){p=thumbQueue.then(()=>ended?null:loadReduced(src,480)).catch(()=>null);thumbQueue=p.then(()=>wait(30));thumbCache.set(key,p);}
+    if(!p){
+      p=thumbQueue.then(()=>ended?null:loadReduced(src,480))
+        .catch(()=>{thumbCache.delete(key);return null;});
+      thumbQueue=p.then(()=>wait(30));
+      thumbCache.set(key,p);
+    }
     return p;
   };
-  const thumbTile=(key:string,src:string|undefined,tw:number,th:number,draw:(c:CanvasRenderingContext2D,thumb:HTMLCanvasElement|null)=>void,w:number,h:number,x:number,y:number,onSelect:()=>void)=>{
+  const thumbTile=(key:string,src:string|undefined,tw:number,th:number,draw:(c:CanvasRenderingContext2D,thumb:HTMLCanvasElement|null)=>void,w:number,h:number,x:number,y:number,onSelect:()=>void,lateSource?:()=>string|undefined)=>{
     const btn=addPanelButton(w,h,canvasTexture(tw,th,c=>draw(c,null)),x,y,onSelect);
-    if(!src)return;
     const gen=panelGen;
-    void cachedThumb(key,src).then(thumb=>{
-      if(!thumb||ended||gen!==panelGen||!(btn as Object3D).parent)return;
+    // Les panoramas Cloud peuvent ne pas être encore téléchargés au moment où
+    // la galerie s'ouvre. La vignette attend sa source plutôt que de rester vide.
+    void (async()=>{
+      let source=src||lateSource?.();
+      for(let i=0;!source&&lateSource&&i<65&&!ended&&gen===panelGen;i++){
+        await wait(200);
+        source=lateSource();
+      }
+      if(!source||ended||gen!==panelGen||!btn.parent)return;
+      const thumb=await cachedThumb(key,source);
+      if(!thumb||ended||gen!==panelGen||!btn.parent)return;
       const mat=(btn as unknown as Mesh).material as MeshBasicMaterial;
-      const old=mat.map;mat.map=canvasTexture(tw,th,c=>draw(c,thumb));mat.needsUpdate=true;old?.dispose();
-    });
+      const old=mat.map;
+      mat.map=canvasTexture(tw,th,c=>draw(c,thumb));
+      mat.needsUpdate=true;
+      old?.dispose();
+    })();
   };
   const closeButtonTexture=()=>canvasTexture(240,110,c=>{
     roundRect(c,6,6,228,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
@@ -948,7 +976,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   const showGallery=async(item:BottomBarItem)=>{
     closePanels();
-    const entries=galleryEntries(item,project().scenes,project().spaces).map(e=>{const sc=project().scenes.find(x=>x.id===e.sceneId);return sc&&sc.name===e.label?{...e,label:pick(sc.name,sc.nameTranslations,vlang())}:e;});
+    const configured=galleryEntries(item,project().scenes,project().spaces);
+    // Un bouton galerie présent mais non configuré ne doit pas empêcher
+    // l'affichage des panoramas existants dans la visite Immosphera.
+    const baseEntries=configured.length?configured:
+      project().scenes.filter(scene=>!scene.excluded)
+        .map(scene=>({sceneId:scene.id,label:scene.name,custom:'',sceneName:scene.name}));
+    const entries=baseEntries.filter(e=>!sceneOf(e.sceneId)?.excluded).map(e=>{
+      const scene=sceneOf(e.sceneId);
+      return scene&&scene.name===e.label?{...e,label:pick(scene.name,scene.nameTranslations,vlang())}:e;
+    });
     // Deux colonnes plus larges : dans le casque les vignettes restent lisibles
     // et ne se chevauchent pas avec les flèches de navigation.
     const cols=referenceMode?4:2,rows=referenceMode?2:3,perPage=cols*rows;
@@ -957,10 +994,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
       const cw=referenceMode?.31:.62,ch=referenceMode?.28:.34,gx=referenceMode?.025:.06,gy=.05;
-      const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
+      const photoItem=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
+      const W=cols*cw+(cols-1)*gx+.32;
+      const H=.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
         ()=>{page=(page-1+pages)%pages;void render();},()=>{page=(page+1)%pages;void render();});
+      // Une vraie entrée Photos, séparée de la galerie des panoramas.
+      // Elle réutilise les photos/vidéos déjà configurées dans NovaStudio.
+      if(photoItem)addPanelButton(.28,.085,navTexture('Photos',280),0,-H/2+.068,()=>{void showPhotoGallery(photoItem);});
       for(let i=0;i<slice.length;i++){
         const e=slice[i];
         const col=i%cols,row=Math.floor(i/cols);
@@ -975,7 +1017,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           c.textAlign='center';c.textBaseline='alphabetic';
           const label=fitCanvasLabel(c,e.label,548,32,23);
           c.fillText(label,310,303);
-        },cw,ch,x,y,()=>{void goTo(e.sceneId);});
+        },cw,ch,x,y,()=>{void goTo(e.sceneId);},()=>sceneOf(e.sceneId)?.dataUrl||undefined);
       }
       placePanel(PANEL_DIST,-.0);
     };
@@ -1171,7 +1213,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Clic sur le joystick : masque toute l'interface (barre, fenêtres, repères) ; un second clic la fait réapparaître.
   let uiHidden=false;
   const thumbDown:Record<string,boolean>={};
-  const abDown:Record<string,boolean>={};
+  let faceButtonDown=false;
   let switchingReference=false;
   let lastTick=performance.now();
   const tick=()=>{
@@ -1184,28 +1226,33 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const key=source.handedness||'x';
       if(pressed&&!thumbDown[key])uiHidden=!uiHidden;
       thumbDown[key]=pressed;
-      // Profil WebXR xr-standard : A et B sont les boutons 4 et 5 à droite.
-      if(source.handedness==='right'){
-        const down=!!source.gamepad?.buttons?.[4]?.pressed||!!source.gamepad?.buttons?.[5]?.pressed;
-        if(down&&!abDown[key]&&!switchingReference){
-          switchingReference=true;
-          referenceMode=!referenceMode;
-          remoteTarget=null;
-          panelAnchor=null;
-          updateVrPalette();
-          closePanels();uiHidden=false;
-          void buildBar().then(()=>{
-            if(referenceMode){
-              const all=project().scenes.filter(s=>!s.excluded);
-              const gallery=project().bottomBar.find(b=>b.type==='gallery');
-              const fallback={id:'vr-ab-gallery',title:'Panoramas',type:'gallery',gallery:all.map(s=>({sceneId:s.id,label:s.name}))} as BottomBarItem;
-              void showGallery(gallery??fallback);
-            }
-          }).finally(()=>{switchingReference=false;});
-        }
-        abDown[key]=down;
-      }
     }
+    // A/B de la manette droite ou X/Y de la manette gauche.
+    // Les touches de façade occupent les mêmes indices WebXR (4 et 5).
+    // Une seule détection globale évite deux inversions si les deux manettes
+    // sont pressées simultanément. Il faut relâcher pour changer à nouveau.
+    const facesPressed=Array.from(inputs).some(source=>
+      (source.handedness==='right'||source.handedness==='left')&&
+      (!!source.gamepad?.buttons?.[4]?.pressed||!!source.gamepad?.buttons?.[5]?.pressed));
+    if(facesPressed&&!faceButtonDown&&!switchingReference){
+      switchingReference=true;
+      referenceMode=!referenceMode;
+      remoteTarget=null;
+      panelAnchor=null;
+      updateVrPalette();
+      closePanels();
+      uiHidden=false;
+      void buildBar().then(()=>{
+        if(referenceMode&&!ended){
+          const scenes=project().scenes.filter(scene=>!scene.excluded);
+          const gallery=project().bottomBar.find(b=>b.type==='gallery');
+          const fallback={id:'vr-ab-gallery',title:'Panoramas',type:'gallery',
+            gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
+          void showGallery(gallery??fallback);
+        }
+      }).finally(()=>{switchingReference=false;});
+    }
+    faceButtonDown=facesPressed;
     barGroup.visible=referenceMode&&!uiHidden;
     vrShellGroup.visible=referenceMode&&!uiHidden;
     panelGroup.visible=!uiHidden;
