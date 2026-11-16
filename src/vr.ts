@@ -963,29 +963,38 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     el.preload='auto';el.muted=true;
     const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=16;
     activeVideo={el,tex};
-    // Le panneau jaune est agrandi pour que la vidéo reste grande et lisible ; les commandes verticales sont à droite.
+    // Panneau jaune centré : vidéo au milieu, colonnes d'icônes à gauche et à droite (même présentation que l'interface classique).
     const videoW=referenceMode?2.2:1.6,Hv=videoW*9/16;
-    const W=Math.max(2.4,videoW+1);
+    const W=videoW+.9;
     const H=Math.max(1.2,Hv+.5);
     galleryChrome(W,H,title,'',1,0,()=>{},()=>{});
     const vy=H/2-.17-Hv/2-.05;
-    addPlane(panelGroup,videoW,Hv,tex,6,-.25,vy);
-    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.25,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
-    // Colonne verticale à droite de la vidéo (mêmes actions que la colonne latérale).
+    addPlane(panelGroup,videoW,Hv,tex,6,0,vy);
+    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),0,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    // Colonnes latérales : mêmes actions que l'interface classique (galerie, haut, libellé, bas, accueil ; plan à droite).
     const scenesNow=project().scenes.filter(scene=>!scene.excluded);
     const idx=Math.max(0,scenesNow.findIndex(scene=>scene.id===currentId));
     const galleryItem=project().bottomBar.find(item=>item.type==='gallery');
     const galleryFallback={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
       gallery:scenesNow.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
-    const sideX=videoW/2+.42;
-    const sideButton=(y:number,icon:VrControlIcon,onSelect:()=>void)=>{
+    const sideButton=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
       const tex2=makeVrControlTexture(icon,'normal');
-      addButton(panelGroup,.14,.14,tex2,sideX,y,onSelect,9);
+      addButton(panelGroup,.124,.124,tex2,x,y,onSelect,9);
     };
-    sideButton(vy+.45,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
-    sideButton(vy+.15,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
-    sideButton(vy-.15,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
-    sideButton(vy-.45,'home',()=>{if(scenesNow[0])void goTo(scenesNow[0].id);});
+    const left=-(videoW/2+.22),right=videoW/2+.22;
+    sideButton(left,.33,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
+    sideButton(left,.12,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
+    addPlane(panelGroup,.15,.09,canvasTexture(280,180,ctx=>{
+      roundRect(ctx,8,8,264,164,36);ctx.fillStyle='#25262a';ctx.fill();
+      ctx.strokeStyle='#d6a13d';ctx.lineWidth=7;ctx.stroke();
+      ctx.fillStyle='#ffffff';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText((idx+1)+' / '+scenesNow.length,140,90);
+    }),8,left,-.09);
+    sideButton(left,-.29,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
+    sideButton(left,-.49,'home',()=>{if(scenesNow[0])void goTo(scenesNow[0].id);});
+    const planFirst=getFloorPlans(project())[0];
+    const planItem=planFirst?{id:'vr-menu-plan',title:planFirst.name||'Plans',type:'plan'} as BottomBarItem:null;
+    if(planItem)sideButton(right,.33,'plan',()=>{void showFloorPlan(planItem);});
     placePanel(PANEL_DIST,0);
     void el.play().catch(()=>setNotice(tt('videoPlayHint')));
   };
