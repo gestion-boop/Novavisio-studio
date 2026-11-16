@@ -954,6 +954,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // Vidéo lue dans le casque (fichier MP4/WebM du projet) : panneau 16:9 avec lecture / pause.
   const showVideoPanel=async(src:string|undefined,title:string)=>{
     if(!src){setNotice(tt('videoClassic'));return;}
+    // Un seul clic sur la télé : on passe en interface jaune (sans appuyer sur A/B) et on affiche l'interface.
+    if(!referenceMode){referenceMode=true;updateVrPalette();void buildBar();}
+    uiHidden=false;
     closePanels();
     const el=document.createElement('video');
     el.src=src;el.crossOrigin='anonymous';el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');

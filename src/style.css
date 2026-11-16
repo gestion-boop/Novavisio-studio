@@ -5886,3 +5886,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-name-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
 .nv-name-row .nv-name-main{flex:1 1 180px;min-width:0}
 .nv-name-row .nv-surface-field{flex:0 0 150px}
+
+/* Notifications : cartes comme la référence (liseré bleu, pastille d'icône, texte et date) */
+.nv-bell-hist{display:flex;gap:12px;align-items:center;margin:8px 6px;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,#14233a,#0d1726);border:1px solid #27466a;border-left:4px solid #4f9cf0;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.nv-bell-hist>span:first-child{flex:0 0 40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#4a90e2,#2d5fd6);font-size:18px}
+.nv-bell-hist>span:last-child{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:13px;line-height:1.35;color:#e6eef8}
+.nv-bell-hist small{color:#9fb3c8;font-size:12px}
