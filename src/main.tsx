@@ -2914,8 +2914,8 @@ function App(){
     </div></InspectorSection>;
   }
   async function saveArrivalImmediately(){
-    if(arrivalSavingRef.current||savingManually||savingRef.current)return;
     if(!active||lock){setStatus('Échec : enregistrement de la vue indisponible');return;}
+    if(arrivalSavingRef.current||savingManually||savingRef.current){setStatus('Une sauvegarde est déjà en cours : clique à nouveau dans un instant');return;}
     const camera=cameraRef.current;
     const sceneId=active.id;
     const yaw=camera.sceneId===sceneId?camera.yaw:active.arrivalYaw??0;
@@ -2927,11 +2927,12 @@ function App(){
     arrivalSavingRef.current=true;setArrivalSaving(true);
     flushSync(()=>setProject(snapshot));
     try{
-      // Ne jamais sauver une visite Cloud dans le slot IndexedDB « current » :
-      // plusieurs fenêtres/projets écrasaient ce même slot et créaient un faux conflit.
-      const ok=cloud.signedIn||readLink()?await manualSave(false,true):await persist(snapshot);
+      // 1) copie locale d'abord : la vue ne se perd jamais, même si le Cloud échoue.
+      const localOk=await persist(snapshot);
+      // 2) puis Cloud si le projet y est lié.
+      const ok=(cloud.signedIn||readLink())?await manualSave(false,true):localOk;
       if(!ok){
-        setStatus('Vue définie mais non sauvegardée : vérifie la connexion Cloud puis enregistre avec la disquette.');
+        setStatus('Vue définie, mais le Cloud n’a pas confirmé : enregistre avec la disquette (la vue reste en mémoire).');
         return;
       }
       setStatus('Sauvegardé · Vue d’arrivée enregistrée pour '+name);
