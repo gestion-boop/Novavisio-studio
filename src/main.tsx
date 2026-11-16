@@ -49,7 +49,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -1256,6 +1256,7 @@ function App(){
   type NotifEntry={id:string;icon:string;text:string;at:number};
   const [notifHistory,setNotifHistory]=useState<NotifEntry[]>(()=>{try{const v=JSON.parse(localStorage.getItem('nvstudio-notif-history')||'[]');return Array.isArray(v)?v.slice(0,30):[];}catch{return [];}});
   const [sharedNotesUnread,setSharedNotesUnread]=useState(0);
+  const [projectSharesUnread,setProjectSharesUnread]=useState(0);
   const pushNotif=(icon:string,text:string,id=String(Date.now())+Math.random().toString(36).slice(2,6))=>setNotifHistory(list=>{
     if(list.some(x=>x.id===id)||(list[0]&&list[0].text===text&&Date.now()-list[0].at<3000))return list;
     const next=[{id,icon,text,at:Date.now()},...list].slice(0,30);
@@ -1270,6 +1271,35 @@ function App(){
     for(const n of liveInvite.notesIn)pushNotif('📝',n.fromLabel+' : '+n.body.slice(0,80),'note-'+n.id);
     for(const sh of liveInvite.shots)pushNotif('📷',sh.fromLabel+' a envoyé une capture','shot-'+sh.id);
   },[liveInvite.notesIn,liveInvite.shots]);
+  // Nouveaux projets partagés : suivi par compte, sans afficher les anciens comme nouveaux.
+  useEffect(()=>{
+    if(!cloudConfigured)return;
+    let gone=false,busy=false;
+    const poll=async()=>{
+      if(gone||busy||document.visibilityState==='hidden')return;
+      busy=true;
+      try{
+        const {data:{user}}=await supabase().auth.getUser();
+        if(!user||gone)return;
+        const key='nvstudio-visible-shares:'+user.id;
+        const projects=(await listCloudProjects()).filter(p=>p.shared);
+        if(gone)return;
+        const saved=localStorage.getItem(key);
+        const oldIds:string[]=saved?JSON.parse(saved):[];
+        const previous=new Set(oldIds);
+        if(saved!==null)for(const item of projects.filter(p=>!previous.has(p.id))){
+          pushNotif('👥','Nouveau projet partagé avec toi : « '+item.name+' »','project-share-'+item.id);
+          setProjectSharesUnread(n=>Math.min(99,n+1));
+        }
+        localStorage.setItem(key,JSON.stringify([...new Set([...oldIds,...projects.map(p=>p.id)])].slice(-1000)));
+      }catch{/* Réessayer à la prochaine synchronisation. */}
+      finally{busy=false;}
+    };
+    void poll();
+    const timer=window.setInterval(()=>void poll(),30000);
+    window.addEventListener('focus',poll);
+    return ()=>{gone=true;window.clearInterval(timer);window.removeEventListener('focus',poll);};
+  },[]);
   // Boîte de réception fiable : les notes partagées sont conservées dans le
   // Cloud et reçues même lorsque le destinataire était déconnecté.
   // La lecture suit le projet Cloud ouvert, jamais un autre dossier client.
@@ -1399,7 +1429,7 @@ function App(){
     setIssueFocus(null);
     if(returnToCheck.current){returnToCheck.current=false;setCheckOpen(true);}
   }
-  const notifCount=sharedNotesUnread+(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
+  const notifCount=sharedNotesUnread+projectSharesUnread+(liveInvite.invite?1:0)+liveInvite.notesIn.length+liveInvite.shots.length+(updateAvailable?1:0)+(issueErrors>0?1:0);
   const [issueFocus,setIssueFocus]=useState<IssueFocus|null>(null);
   // Flèche provisoire créée pour un panorama sans point : supprimée si on ferme la galerie sans choisir de destination.
   const orphanArrow=useRef<{sceneId:string;hotspotId:string;armed:boolean}|null>(null);
@@ -4219,7 +4249,7 @@ function App(){
           <Maximize2 size={21}/>
         </button>
         <div className="nv-share-wrap nv-bell-wrap" ref={bellRef}>
-          <button type="button" className={'nv-v3-icon-btn nv-v3-bell'+(bellOpen?' is-open':'')+(notifCount?' has-new':'')} onClick={()=>{setBellOpen(value=>!value);setSharedNotesUnread(0);}}
+          <button type="button" className={'nv-v3-icon-btn nv-v3-bell'+(bellOpen?' is-open':'')+(notifCount?' has-new':'')} onClick={()=>{setBellOpen(value=>!value);setSharedNotesUnread(0);setProjectSharesUnread(0);}}
             aria-haspopup="menu" aria-expanded={bellOpen} aria-label={notifCount?'Notifications ('+notifCount+' nouvelles)':'Notifications'} title="Notifications : notes, captures, invitations, mises à jour">
             <Bell size={21}/>{notifCount>0&&<i className="nv-bell-badge" aria-hidden="true">{notifCount>9?'9+':notifCount}</i>}
           </button>
@@ -5988,7 +6018,7 @@ function App(){
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
     <input ref={audioInput} hidden type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" onChange={e=>void addAudio(e.target.files?.[0])}/>
-    {privateOpen&&<PrivatePanel project={projectForSpaceExport(stripExcluded({...project,clientProfile:undefined,comments:undefined}),currentSpace)} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} syncNow={cloud.syncNow} syncState={cloud.state}/>}
+    {privateOpen&&<PrivatePanel project={stripExcluded({...project,clientProfile:undefined,comments:undefined})} space={currentSpace} onClose={()=>{setPrivateOpen(false);backFrom();}} onStatus={setStatus} onShared={(email,spaces)=>{pushNotif('👥','Projet « '+project.name+' » partagé avec '+email+' · '+spaces.join(', '));setProjectSharesUnread(n=>Math.min(99,n+1));}} syncNow={cloud.syncNow} syncState={cloud.state}/>}
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
