@@ -4,7 +4,7 @@ import type {SyncState} from './cloudSync';
 import {studioUrl} from './share';
 import {LoginBox} from './LoginBox';
 import type {StudioProject} from './storage';
-import {readSpaceCloudLink,writeSpaceCloudLink,type StudioSpace} from './spaces';
+import {readSpaceCloudLink,writeSpaceCloudLink,projectForSpaceExport,stripExcluded,type StudioSpace} from './spaces';
 import {XMark} from './XMark';
 
 const ALPHABET='abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -19,7 +19,7 @@ const fmt=(iso:string)=>new Date(iso).toLocaleString('fr-FR',{day:'2-digit',mont
  * Lien privé : donner accès à la visite à une autre personne (e-mail + mot de passe) pour qu'elle travaille dessus.
  * Règle de sauvegarde : la dernière personne qui agit a la main (sa sauvegarde remplace la précédente, qui est archivée).
  */
-export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:{project:StudioProject;space?:StudioSpace|null;onClose:()=>void;onStatus:(m:string)=>void;syncNow:()=>Promise<boolean>;syncState:SyncState}){
+export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,syncState}:{project:StudioProject;space?:StudioSpace|null;onClose:()=>void;onStatus:(m:string)=>void;onShared?:(email:string,spaces:string[])=>void;syncNow:()=>Promise<boolean>;syncState:SyncState}){
   const [userEmail,setUserEmail]=useState<string|null>(null);
   const [email,setEmail]=useState('');
   const [knownPeople,setKnownPeople]=useState<string[]>([]);
@@ -31,7 +31,9 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
   const [members,setMembers]=useState<Member[]>([]);
   const [outcome,setOutcome]=useState<Outcome|null>(null);
   const [copied,setCopied]=useState(false);
-  const [includeSpaces,setIncludeSpaces]=useState(true);   // accès direct aux espaces dans le Cloud de la personne
+  const [includeSpaces,setIncludeSpaces]=useState(true);
+  const [selectedSpaceIds,setSelectedSpaceIds]=useState<string[]>(()=>space?[space.id]:[]);
+  const [shareWholeProject,setShareWholeProject]=useState(!space);
   const [giveHand,setGiveHand]=useState(false);              // lui donner aussi la main pour enregistrer
   const [includePw,setIncludePw]=useState(false); // compte créé à la main dans Supabase : le mot de passe saisi ici est celui du compte
   const [projectId,setProjectId]=useState<string|null>((space?readSpaceCloudLink(space.id,'private'):readLink())?.projectId??null);
@@ -84,6 +86,8 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
     'Pour enregistrer tes modifications, clique sur la disquette Enregistrer. Les versions précédentes restent consultables.'
   ].join('\n');
 
+  const allSpaces=project.spaces??[];
+  const toggleSpace=(id:string)=>setSelectedSpaceIds(old=>old.includes(id)?old.filter(x=>x!==id):[...old,id]);
   async function invite(){
     setBusy('Préparation de la visite dans le cloud…');setError('');setOutcome(null);setCopied(false);setIncludePw(false);
     try{
@@ -91,32 +95,49 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean))throw new Error('Adresse e-mail non valide.');
       if(!chosenKnown&&password.length<8)throw new Error('Le mot de passe doit faire au moins 8 caractères.');
       if(!project.scenes.length)throw new Error('Importe au moins un panorama avant d’inviter quelqu’un.');
-      // 1) la visite doit être ENTIÈREMENT dans le cloud, à jour : sinon la personne invitée ouvrirait une ancienne version.
-      let link;
-      if(space){
-        setBusy('Préparation de l’espace privé isolé…');
-        const saved=await saveToCloud(project,readSpaceCloudLink(space.id,'private'),setBusy);
-        writeSpaceCloudLink(space.id,'private',saved);
-        link=saved;
-      }else{
+      if(!shareWholeProject&&!selectedSpaceIds.length)throw new Error('Sélectionne au moins un espace à partager.');
+      // Création du compte seulement pour les nouvelles personnes : ne jamais réinitialiser
+      // le mot de passe d'un membre déjà connu.
+      const result=chosenKnown?'exists':await createCollaboratorAccount(clean,password);
+      const granted:string[]=[];
+      if(shareWholeProject){
+        let link;
+        if(space){
+          // Si l'utilisateur a explicitement choisi tout le projet, utiliser
+          // le lien Cloud principal (jamais la copie privée d'un espace).
+          throw new Error('Ouvre le projet complet pour partager l’ensemble de la visite.');
+        }
         if(syncState.kind==='setup')throw new Error(syncState.message);
-        setBusy('Envoi de ta visite dans le cloud (la personne doit recevoir la version actuelle)…');
+        setBusy('Enregistrement du projet complet dans le Cloud…');
         const done=await syncNow();
         link=readLink();
-        if(!done||!link)throw new Error('Ta visite n’est pas encore entièrement enregistrée dans le cloud'+(syncState.kind==='error'?' ('+syncState.message+')':'')+'. Vérifie les détails dans Cloud, puis réessaie l’envoi.');
+        if(!done||!link)throw new Error('Le projet complet n’est pas encore enregistré dans le Cloud.');
+        await addMember(link.projectId,clean,includeSpaces);
+        setProjectId(link.projectId);
+        granted.push('Projet complet');
+        if(giveHand){
+          const state=await getWriteState(link.projectId);
+          if(state)await setWriteHolder(link.projectId,clean,state.revision);
+        }
+      }else{
+        // Chaque espace sélectionné est une visite Cloud distincte. Aucun accès
+        // n'est accordé au projet maître ou aux autres espaces.
+        for(const selectedId of selectedSpaceIds){
+          const selectedSpace=allSpaces.find(item=>item.id===selectedId);
+          if(!selectedSpace)continue;
+          setBusy('Partage de l’espace « '+selectedSpace.name+' »…');
+          const isolated=projectForSpaceExport(stripExcluded(project),selectedSpace);
+          const saved=await saveToCloud(isolated,readSpaceCloudLink(selectedSpace.id,'private'),setBusy);
+          writeSpaceCloudLink(selectedSpace.id,'private',saved);
+          await addMember(saved.projectId,clean,false);
+          setProjectId(saved.projectId);
+          granted.push(selectedSpace.name);
+        }
       }
-      setProjectId(link.projectId);
-      // 2) autoriser l'adresse, puis créer le compte (e-mail + mot de passe)
-      setBusy('Création de l’accès…');
-      await addMember(link.projectId,clean,includeSpaces);
-      const result=chosenKnown?'exists':await createCollaboratorAccount(clean,password);
-      if(giveHand&&!space){
-        setBusy('Transmission de la main pour enregistrer…');
-        const state=await getWriteState(link.projectId);
-        if(state)await setWriteHolder(link.projectId,clean,state.revision);
-      }
+      if(!granted.length)throw new Error('Aucun espace partagé.');
+      onShared?.(clean,granted);
       setOutcome({email:clean,password,result});
-      onStatus('Accès privé créé pour '+clean);
+      onStatus('Accès privé créé pour '+clean+' · '+granted.join(', '));
       setEmail('');setChosenKnown('');setPassword(generatePassword());
       await refresh(link.projectId);
     }catch(e){setError(e instanceof Error?e.message:String(e));}
@@ -160,9 +181,29 @@ export function PrivatePanel({project,space,onClose,onStatus,syncNow,syncState}:
           </span>
         </label>}
         {chosenKnown&&<p className="hint-inline">Compte existant : aucun mot de passe ne sera créé ou modifié.</p>}
-        {!space&&<label className="toggle-row"><input type="checkbox" checked={includeSpaces} onChange={e=>setIncludeSpaces(e.target.checked)}/> Partager aussi tous les espaces liés au projet (accès directs dans son Cloud)</label>}
-        {!space&&<label className="toggle-row"><input type="checkbox" checked={giveHand} onChange={e=>setGiveHand(e.target.checked)}/> Donner aussi la main pour enregistrer (vous ne pourrez plus enregistrer tant que vous ne l'avez pas reprise)</label>}
-        <button className="primary" type="submit" disabled={!!busy||!email.includes('@')||(!chosenKnown&&password.length<8)}>{chosenKnown?'Partager avec cet utilisateur':'Créer l’accès privé'}</button>
+        <fieldset className="nv-private-space-picker">
+          <legend>Que veux-tu partager avec cette personne ?</legend>
+          {!space&&<label className="toggle-row">
+            <input type="radio" name="private-scope" checked={shareWholeProject} onChange={()=>setShareWholeProject(true)}/> Projet complet
+          </label>}
+          {allSpaces.length>0&&<>
+            <label className="toggle-row">
+              <input type="radio" name="private-scope" checked={!shareWholeProject} onChange={()=>{setShareWholeProject(false);if(!selectedSpaceIds.length)setSelectedSpaceIds([space?.id??allSpaces[0].id]);}}/> Espaces choisis
+            </label>
+            {!shareWholeProject&&<div className="nv-private-space-list">
+              {allSpaces.map(item=><label key={item.id} className="toggle-row">
+                <input type="checkbox" checked={selectedSpaceIds.includes(item.id)} onChange={()=>toggleSpace(item.id)}/>
+                {item.name} ({item.sceneIds.length} panoramas)
+              </label>)}
+            </div>}
+          </>}
+          {shareWholeProject&&!space&&<label className="toggle-row">
+            <input type="checkbox" checked={includeSpaces} onChange={e=>setIncludeSpaces(e.target.checked)}/> Donner également accès aux espaces du projet
+          </label>}
+          {!shareWholeProject&&<small>Seuls les espaces cochés seront accessibles. Le projet complet reste privé.</small>}
+        </fieldset>
+        {!space&&shareWholeProject&&<label className="toggle-row"><input type="checkbox" checked={giveHand} onChange={e=>setGiveHand(e.target.checked)}/> Donner aussi la main pour enregistrer (vous ne pourrez plus enregistrer tant que vous ne l'avez pas reprise)</label>}
+        <button className="primary" type="submit" disabled={!!busy||!email.includes('@')||(!chosenKnown&&password.length<8)||(!shareWholeProject&&!selectedSpaceIds.length)}>{chosenKnown?'Partager avec cet utilisateur':'Créer l’accès privé'}</button>
       </form>
       {outcome&&<div className="share-result">
         <div className="icon-state-label">ACCÈS CRÉÉ POUR {outcome.email.toUpperCase()}</div>
