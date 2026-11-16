@@ -1,5 +1,5 @@
 import {createClient,type SupabaseClient} from '@supabase/supabase-js';
-import {validateProject,type StudioProject} from './storage';
+import {validateProject,type StudioProject,type ClientProfile} from './storage';
 
 /**
  * Cloud sync — ADDITIVE ONLY.
@@ -109,32 +109,69 @@ export async function confirmEmailLink(tokenHash:string,type:string){
 }
 export async function signOut(){await supabase().auth.signOut();}
 
-export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean};
+export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean;clientName?:string};
 export async function listCloudProjects():Promise<CloudProject[]>{
   const db=supabase();
-  let projectsRes=await db.from('nvstudio_projects').select('id,name,created_at,owner_id,working_version,working_updated_at').order('created_at',{ascending:false});
-  if(projectsRes.error&&setupMissing(projectsRes.error.message)){
-    // Sauvegarde automatique pas encore installée : liste simple, sans les copies de travail.
-    projectsRes=await db.from('nvstudio_projects').select('id,name,created_at,owner_id').order('created_at',{ascending:false}) as typeof projectsRes;
+  // Indexe les visites par nom du client via la projection JSON PostgREST.
+  // Le nom du bien (nom du projet) reste indépendant du client.
+  let projectsRes=await db.from('nvstudio_projects')
+    .select('id,name,created_at,owner_id,working_version,working_updated_at,client_name:working->clientProfile->>name')
+    .order('created_at',{ascending:false});
+  if(projectsRes.error){
+    projectsRes=await db.from('nvstudio_projects')
+      .select('id,name,created_at,owner_id,working_version,working_updated_at')
+      .order('created_at',{ascending:false}) as typeof projectsRes;
   }
-  const revisions=await db.from('nvstudio_revisions').select('project_id,revision,name,created_at').order('revision',{ascending:false});
+  if(projectsRes.error&&setupMissing(projectsRes.error.message)){
+    projectsRes=await db.from('nvstudio_projects')
+      .select('id,name,created_at,owner_id').order('created_at',{ascending:false}) as typeof projectsRes;
+  }
+  let revisions=await db.from('nvstudio_revisions')
+    .select('project_id,revision,name,created_at,client_name:snapshot->clientProfile->>name')
+    .order('revision',{ascending:false});
+  if(revisions.error){
+    revisions=await db.from('nvstudio_revisions')
+      .select('project_id,revision,name,created_at')
+      .order('revision',{ascending:false}) as typeof revisions;
+  }
   if(projectsRes.error)throw new Error(projectsRes.error.message);
   if(revisions.error)throw new Error(revisions.error.message);
-  const latest=new Map<string,{revision:number;name:string;created_at:string}>();
+  const latest=new Map<string,{revision:number;name:string;created_at:string;client_name?:string|null}>();
   for(const r of revisions.data??[])if(!latest.has(r.project_id))latest.set(r.project_id,r);
   const me=(await db.auth.getUser()).data.user?.id;
   return (projectsRes.data??[]).map(p=>{
-    const row=p as {id:string;name:string;created_at:string;owner_id?:string;working_version?:number;working_updated_at?:string|null};
+    const row=p as {id:string;name:string;created_at:string;owner_id?:string;working_version?:number;working_updated_at?:string|null;client_name?:string|null};
     const l=latest.get(row.id);
     const hasWorking=(row.working_version??0)>0;
+    const clientName=((hasWorking?row.client_name:null)||l?.client_name||'').trim();
     const times=[l?.created_at,hasWorking?row.working_updated_at??undefined:undefined,row.created_at].filter(Boolean) as string[];
     return {id:row.id,name:row.name||l?.name||'Visite',created_at:row.created_at,revision:l?.revision??0,
-      updated_at:times.sort().reverse()[0],autosave:hasWorking,shared:!!row.owner_id&&!!me&&row.owner_id!==me};
+      updated_at:times.sort().reverse()[0],autosave:hasWorking,shared:!!row.owner_id&&!!me&&row.owner_id!==me,
+      ...(clientName?{clientName}:{})};
   }).sort((a,b)=>{
     // Dernière sauvegarde effective en premier (révision ou copie Cloud).
     const delta=Date.parse(b.updated_at)-Date.parse(a.updated_at);
     return Number.isFinite(delta)&&delta!==0?delta:a.name.localeCompare(b.name,'fr');
   });
+}
+
+/** Lit seulement la fiche client d'un projet (sans hydrater les médias 360).
+ * Les politiques RLS existantes protègent cette lecture. */
+export async function readCloudClientProfile(projectId:string):Promise<ClientProfile|null>{
+  const db=supabase();
+  const working=await db.from('nvstudio_projects')
+    .select('client_profile:working->clientProfile,working_version')
+    .eq('id',projectId).maybeSingle();
+  if(!working.error&&working.data&&Number(working.data.working_version)>0){
+    const profile=working.data.client_profile as ClientProfile|null;
+    if(profile&&typeof profile.name==='string'&&profile.name.trim())return profile;
+  }
+  const revision=await db.from('nvstudio_revisions')
+    .select('profile:snapshot->clientProfile').eq('project_id',projectId)
+    .order('revision',{ascending:false}).limit(1).maybeSingle();
+  if(revision.error)throw new Error('Fiche client Cloud indisponible : '+revision.error.message);
+  const profile=revision.data?.profile as ClientProfile|null|undefined;
+  return profile&&typeof profile.name==='string'&&profile.name.trim()?profile:null;
 }
 
 /** Copie la structure du projet SANS dupliquer les (très longues) chaînes base64 : les chaînes sont immuables, on les partage. */

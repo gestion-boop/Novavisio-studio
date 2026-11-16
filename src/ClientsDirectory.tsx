@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
-import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,Image as ImageIcon,LoaderCircle,RefreshCw,Search,Users,X} from 'lucide-react';
-import {listCloudProjects,saveToCloud,type CloudProject} from './cloud';
+import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Users,X} from 'lucide-react';
+import {listCloudProjects,readCloudClientProfile,saveToCloud,type CloudProject} from './cloud';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
 import {defaultBarStyle,newProject,type BarStyle,type ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
@@ -8,6 +8,7 @@ import {InfoRow} from './InfoRow';
 import {ClientMediaEditor,type Palette} from './ClientMediaEditor';
 import {DiscoveryDetail,DiscoveryList,useWebDiscovery} from './ClientDiscovery';
 import type {ImportedClientVideo} from './novagenVideos';
+import {ManualClientForm} from './ManualClientForm';
 
 type Group={key:string;name:string;city:string;projects:CloudProject[];records:RemoteClient[];logoUrl:string;current:boolean};
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
@@ -20,7 +21,7 @@ const blankProfile:ClientProfile={novagenId:'',name:'',category:'',address:'',ci
 
 export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit,currentStyle,onUpdateCurrent}:{
  currentStyle?:Palette;onUpdateCurrent?:(profile:ClientProfile|undefined,style?:Palette)=>void;
- currentHasProject?:boolean;onSaveDiscovered:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
+ currentHasProject?:boolean;onSaveDiscovered:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>,visitName?:string)=>void;
  currentProjectName:string;currentProfile?:ClientProfile;
  canPlaceVideo:boolean;onPlaceVideo:(video:ImportedClientVideo)=>void;
  onClose:()=>void;onAssociate:(profile:ClientProfile)=>void;onOpenCloud:()=>void
@@ -28,6 +29,11 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  const [studio,setStudio]=useState<CloudProject[]>([]);
  const [remote,setRemote]=useState<RemoteClient[]>([]);
  const [search,setSearch]=useState('');
+ const [manualOpen,setManualOpen]=useState(false);
+ const [newPropertyName,setNewPropertyName]=useState('');
+ const [cloudClient,setCloudClient]=useState<{id:string;profile:ClientProfile|null}|null>(null);
+ const [cloudClientError,setCloudClientError]=useState('');
+ const [cloudClientLoading,setCloudClientLoading]=useState(false);
  const [selectedKey,setSelectedKey]=useState('');
  const [recordId,setRecordId]=useState('');
  const [loading,setLoading]=useState(true);
@@ -62,7 +68,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
      if(!map.has(key))map.set(key,{key,name,city,projects:[],records:[],logoUrl:'',current:false});
      return map.get(key)!;
    };
-   for(const p of studio)make(p.name,'').projects.push(p);
+   for(const p of studio)make(p.clientName||p.name,'').projects.push(p);
    for(const r of remote){
      const g=make(r.profile.name||'Sans nom',r.profile.city||'');
      g.records.push(r);
@@ -79,24 +85,41 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'fr'));
  },[studio,remote,currentProjectName,currentProfile]);
  const visible=groups.filter(g=>norm([g.name,g.city,g.records.map(r=>r.profile.address+' '+r.profile.city).join(' ')].join(' ')).includes(norm(search)));
- const discovery=useWebDiscovery(search,visible.length===0);
+ const discovery=useWebDiscovery(search,visible.length===0&&!manualOpen);
  useEffect(()=>setSavedNotice(''),[discovery.candidate]);
  const saveClient=async(profile:ClientProfile,style?:Partial<BarStyle>)=>{
-   if(studio.some(p=>norm(p.name)===norm(profile.name))&&!window.confirm('Un projet « '+profile.name+' » existe déjà dans votre Cloud. Enregistrer ce client dans un nouveau projet quand même ?'))return;
+   if(studio.some(p=>norm(p.clientName||p.name)===norm(profile.name))&&!window.confirm('Le client « '+profile.name+' » existe déjà dans votre Cloud. Créer une nouvelle fiche quand même ?'))return false;
    setSavingClient(true);setSavedNotice('');
    try{
      const record={...newProject(),name:profile.name||'Nouveau client',clientProfile:profile,barStyle:{...defaultBarStyle(),...(style??{})}};
      await saveToCloud(record,null,()=>{});
      setSavedNotice('✓ Client « '+profile.name+' » enregistré dans votre Cloud NovaStudio : il apparaît dans la liste (Studio).');
+     setSelectedKey(norm(profile.name));setCloudClient(null);
      setRefresh(v=>v+1);
-   }catch(e){setSavedNotice('Enregistrement impossible : '+(e instanceof Error?e.message:String(e)));}
+     return true;
+   }catch(e){setSavedNotice('Enregistrement impossible : '+(e instanceof Error?e.message:String(e)));return false;}
    finally{setSavingClient(false);}
  };
  const selected=groups.find(g=>g.key===selectedKey)||visible[0]||groups[0];
  const selectedRecord=selected?.records.find(r=>r.id===recordId)||selected?.records[0];
+ const selectedCloudProject=selected?.projects.find(p=>norm(p.name)===norm(selected.name))||selected?.projects[0];
+ const selectedCloudId=selectedCloudProject?.id;
+ useEffect(()=>{
+   if(!selectedCloudId){setCloudClient(null);setCloudClientLoading(false);setCloudClientError('');return;}
+   let cancelled=false;
+   setCloudClientLoading(true);setCloudClientError('');
+   void readCloudClientProfile(selectedCloudId).then(profile=>{
+     if(!cancelled)setCloudClient({id:selectedCloudId,profile});
+   }).catch(e=>{
+     if(!cancelled)setCloudClientError(e instanceof Error?e.message:String(e));
+   }).finally(()=>{if(!cancelled)setCloudClientLoading(false);});
+   return ()=>{cancelled=true;};
+ },[selectedCloudId,refresh]);
+ const selectedCloudProfile=cloudClient?.id===selectedCloudId?cloudClient.profile:null;
  const profile=selectedRecord?.profile||
-   (selected?.current&&currentProfile?currentProfile:blankProfile);
- const associated=!!currentProfile?.novagenId&&currentProfile.novagenId===profile.novagenId&&!!profile.novagenId;
+   (selected?.current&&currentProfile?currentProfile:selectedCloudProfile??blankProfile);
+ const associated=!!currentProfile?.name&&norm(currentProfile.name)===norm(profile.name) &&
+   (!profile.novagenId||currentProfile.novagenId===profile.novagenId);
  useEffect(()=>{
   const id=selectedRecord?.id;
   setDetailError('');setDetailLoading(false);
@@ -134,6 +157,9 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
         <div><h2>Clients</h2><p>NovaGen + NovaStudio · Répertoire des établissements</p></div>
       </div>
       <div className="nv-directory-head-actions">
+        <button type="button" className="nv-directory-add-client" onClick={()=>{
+          setManualOpen(true);setSavedNotice('');setSearch('');discovery.close();
+        }}><Plus size={17}/> Nouveau client</button>
         <button type="button" onClick={()=>setRefresh(v=>v+1)} title="Actualiser les clients"><RefreshCw size={16}/> Actualiser</button>
         <button type="button" onClick={onClose} title="Fermer le répertoire" aria-label="Fermer"><X size={20}/></button>
       </div>
@@ -148,7 +174,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
           <span>{loading?'Chargement…':totalNovaGen===null?'NovaGen à connecter':remote.length+' / '+totalNovaGen+' fiche(s) NovaGen'}</span>
         </div>
         <div className="nv-directory-list-scroller">
-          {visible.map(g=><button key={g.key} type="button" onClick={()=>{setSelectedKey(g.key);setRecordId('');}}
+          {visible.map(g=><button key={g.key} type="button" onClick={()=>{setSelectedKey(g.key);setRecordId('');setManualOpen(false);setNewPropertyName('');}}
             className={'nv-directory-client'+(selected?.key===g.key?' selected':'')}>
             <span className="nv-directory-logo">
               {g.logoUrl?<img src={g.logoUrl} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display='none';}}/>:
@@ -163,7 +189,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               </span>
             </span><ChevronRight size={15} className="nv-dir-chevron"/>
           </button>)}
-          <DiscoveryList d={discovery}/>
+          {!manualOpen&&<DiscoveryList d={discovery}/>} 
           {!visible.length&&<div className="nv-directory-empty">
              <Building2 size={24}/>
              <span>{loading||moreLoading?'Chargement du répertoire…':'Aucun établissement visible dans cette recherche.'}</span>
@@ -175,7 +201,16 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
         </div>
       </aside>
       <main className="nv-directory-detail">
-        {discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close} onSaveClient={(p,st)=>void saveClient(p,st)} saving={savingClient} notice={savedNotice}
+        {manualOpen?<ManualClientForm
+          saving={savingClient} notice={savedNotice}
+          onSave={async profile=>{
+            const ok=await saveClient(profile);
+            if(ok){setManualOpen(false);setNewPropertyName('');}
+            return ok;
+          }}
+          onCreateVisit={(profile,propertyName)=>{onCreateVisit(profile,undefined,propertyName);onClose();}}
+          onCancel={()=>{setManualOpen(false);setSavedNotice('');}}
+        />:discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close} onSaveClient={(p,st)=>void saveClient(p,st)} saving={savingClient} notice={savedNotice}
           onSave={(profile,style)=>{
             if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
             if(norm(currentProjectName)!==norm(profile.name)&&!window.confirm('Tu es dans le projet « '+currentProjectName+' ». Enregistrer les informations de « '+profile.name+' » dans ce projet ?'))return;
@@ -210,6 +245,8 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               {detailLoading&&<p role="status">Chargement des détails du client…</p>}
               {detailError&&<p role="alert" className="nv-directory-warning">{detailError} <button type="button" onClick={()=>setDetailRetry(n=>n+1)}>Réessayer les détails</button></p>}
               {selectedRecord?.unavailable&&<p className="nv-directory-warning">Cette fiche NovaGen n'a pas pu être lue.</p>}
+              {cloudClientLoading&&!selectedRecord&&!selected.current&&<p className="nv-directory-muted">Chargement de la fiche client Cloud…</p>}
+              {cloudClientError&&!selectedRecord&&!selected.current&&<p className="nv-directory-warning">{cloudClientError}</p>}
               {detailRow('Activité',profile.category)}
               {detailRow('Adresse',profile.address)}
               {detailRow('Ville',profile.city)}
@@ -222,7 +259,8 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               {detailRow('Horaires',profile.openingHours)}
               {detailRow('Services',profile.services)}
               {profile.description&&<p className="nv-directory-description">{profile.description}</p>}
-              {!selectedRecord&&!selected.current&&<p className="nv-directory-muted">Ce projet n'a pas encore de fiche NovaGen associée.</p>}
+              {!selectedRecord&&!selected.current&&!selectedCloudProfile&&!cloudClientLoading&&
+                <p className="nv-directory-muted">Aucune fiche client rattachée à ce projet. Les projets Studio existants restent accessibles.</p>}
             </section>
             <section>
               <div className="nv-directory-section-head"><FolderOpen size={16}/> Projets NovaStudio ({selected.projects.length})</div>
@@ -231,10 +269,26 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
                   <small>Dernière activité : {new Date(pr.updated_at).toLocaleDateString('fr-FR')}</small></div>
                 {pr.autosave&&<span>Sauvegardé</span>}
               </div>)}
-              {!selected.projects.length&&<p className="nv-directory-muted">Aucun projet Studio portant exactement ce nom.</p>}
+              {!selected.projects.length&&<p className="nv-directory-muted">Aucun projet Studio enregistré pour ce client.</p>}
               <button className="nv-directory-secondary-action" type="button" onClick={onOpenCloud}>
                 <Cloud size={15}/> Ouvrir les projets dans le Cloud
               </button>
+              {(profile.name||selected.name)&&<div className="nv-directory-create-property">
+                <label>Ajouter un bien ou une visite pour {selected.name}
+                  <input value={newPropertyName} maxLength={200}
+                    onChange={e=>setNewPropertyName(e.target.value)}
+                    placeholder="Ex. Maison Narbonne-Plage"/>
+                </label>
+                <button type="button" className="nv-directory-associate" disabled={!newPropertyName.trim()||cloudClientLoading}
+                  onClick={()=>{
+                    const target=profile.name?profile:{...blankProfile,name:selected.name,city:selected.city};
+                    onCreateVisit(target,undefined,newPropertyName.trim());
+                    onClose();
+                  }}>
+                  <FolderPlus size={16}/> Créer le bien
+                </button>
+                <small>Un bien = un projet NovaStudio distinct, rattaché à ce client. Les projets déjà enregistrés sont conservés.</small>
+              </div>}
             </section>
             {selected.current&&currentProfile&&onUpdateCurrent&&<section className="nv-directory-edit-section">
               <div className="nv-directory-section-head"><Database size={16}/> Modifier le logo, les photos et les couleurs</div>
@@ -252,6 +306,15 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
             </section>}
             {selectedRecord&&!selectedRecord.unavailable&&!selectedRecord.summaryOnly&&<NovaGenVideos key={selectedRecord.id} clientId={selectedRecord.id} canPlace={canPlaceVideo} onPlace={onPlaceVideo}/>}
           </div>
+          {!selectedRecord&&!!selectedCloudProfile&&!selected.current&&<div className="nv-directory-bottom-actions">
+            <button type="button" className="nv-directory-associate" disabled={associated} onClick={()=>{
+              if(currentProfile?.name&&norm(currentProfile.name)!==norm(selectedCloudProfile.name)&&
+                !window.confirm('Remplacer le client de la visite actuelle par « '+selectedCloudProfile.name+' » ?'))return;
+              onAssociate(selectedCloudProfile);onClose();
+            }}>
+              <Check size={16}/> {associated?'Déjà associé':'Associer ce client à la visite en cours'}
+            </button>
+          </div>}
           {selectedRecord&&!selectedRecord.unavailable&&<div className="nv-directory-bottom-actions">
             <button type="button" className="nv-directory-associate" disabled={associated||!!selectedRecord.summaryOnly} onClick={()=>pair(selected.key)}>
               {associated?<><Check size={16}/> Déjà associé</>:<><Check size={16}/> Associer à la visite en cours</>}
@@ -268,7 +331,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
          {errorNovaGen.toLowerCase().includes('connecte')&&<button type="button" className="nv-directory-status-action" onClick={onOpenCloud}>Se connecter</button>}</p>}
     </div>}
     {truncated&&<div className="nv-directory-status">NovaGen a atteint la limite de son index (1 000 fiches). Une récupération par lots sera nécessaire pour le reste.</div>}
-    <footer className="nv-directory-foot"><span>Lecture seule · Aucune fiche d'origine modifiée · recherche web via NovaGen</span>
+    <footer className="nv-directory-foot"><span>Création manuelle dans NovaStudio Cloud · NovaGen reste en lecture seule</span>
       <span>{loading?<><LoaderCircle size={13}/> Connexion aux deux sources…</>:
            moreLoading?<><LoaderCircle size={13}/> Chargement des clients : {remote.length} / {totalNovaGen??'…'} fiches NovaGen</>:
            'Sources : NovaStudio Cloud et NovaGen'}</span></footer>

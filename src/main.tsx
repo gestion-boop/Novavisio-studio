@@ -5802,12 +5802,15 @@ function App(){
         setPanel('client');pendingClientSaveRef.current=true;
         setStatus('Client « '+clientProfile.name+' » enregistré dans la visite…');
       }}
-      onCreateVisit={(clientProfile,style)=>{
+      onCreateVisit={(clientProfile,style,visitName)=>{
         if((project.scenes.length||projectRef.current!==savedRef.current)&&!window.confirm('Créer une nouvelle visite pour « '+clientProfile.name+' » ? Pense à enregistrer ou exporter le projet actuel avant.'))return;
         setActiveSpaceId(null);setSpaceManagerOpen(false);
-        const fresh={...newProject(),name:clientProfile.name||'Nouvelle visite',clientProfile,barStyle:{...defaultBarStyle(),...(style??{})}};
+        // Un client (ex. ImmoSphera) peut posséder plusieurs visites avec des
+        // noms de biens distincts. Le client est conservé dans chaque projet.
+        const name=visitName?.trim()||clientProfile.name||'Nouvelle visite';
+        const fresh={...newProject(),name,clientProfile,barStyle:{...defaultBarStyle(),...(style??{})}};
         setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
-        cloud.unlink();setStatus('Nouvelle visite créée pour « '+clientProfile.name+' » : ajoute maintenant tes panoramas.');
+        cloud.unlink();setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' ». Ajoute les panoramas puis enregistre avec la disquette.');
       }}
       onAssociate={clientProfile=>{
         setProject(p=>({...p,clientProfile}));
