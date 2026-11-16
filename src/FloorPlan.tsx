@@ -101,17 +101,42 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
   </div>;
 }
 
-export function FloorPlanDialog({plan,scenes,currentId,onPick,onClose,thumbs,lang='fr'}:{plan?:FloorPlan;scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onClose:()=>void;thumbs?:Record<string,string>;lang?:string}){
+
+/** Galerie publique de plans : l'étage actif est prioritaire si le panorama courant y figure. */
+export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,lang='fr'}:{
+  plans:FloorPlan[];scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onClose:()=>void;
+  thumbs?:Record<string,string>;lang?:string;
+}){
+  const [selectedIndex,setSelectedIndex]=useState(()=>{
+    const index=plans.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
+    return index>=0?index:0;
+  });
+  const index=Math.max(0,Math.min(selectedIndex,plans.length-1));
+  const plan=plans[index];
   const points=plan?visiblePoints(plan,scenes):[];
+  const change=(step:number)=>setSelectedIndex(i=>(i+step+plans.length)%plans.length);
   return <PlanModal animated title={ui('planTitle',lang)} closeLabel={ui('close',lang)} onClose={onClose}>
     {plan?.imageDataUrl?<>
+      <nav className="nv-plans-carousel" aria-label="Choisir un plan">
+        <button type="button" disabled={plans.length<2} onClick={()=>change(-1)} aria-label="Plan précédent">‹</button>
+        <div className="nv-plans-current"><strong>{plan.name||'Plan '+(index+1)}</strong><small>{index+1} / {plans.length}</small></div>
+        <button type="button" disabled={plans.length<2} onClick={()=>change(1)} aria-label="Plan suivant">›</button>
+      </nav>
+      {plans.length>1&&<div className="nv-plans-strip" role="group" aria-label="Galerie des plans">
+        {plans.map((item,i)=><button type="button" key={item.id??i} aria-pressed={i===index}
+          onClick={()=>setSelectedIndex(i)}>
+          <img src={item.imageDataUrl} alt=""/>
+          <span>{item.name||'Plan '+(i+1)}</span>
+        </button>)}
+      </div>}
       <p className="nv-plan-help">{ui('planHelp',lang)}</p>
-      <div className="nv-plan-view"><PlanImage plan={plan} scenes={scenes} currentId={currentId} onPick={onPick} thumbs={thumbs} lang={lang}/></div>
-      {points.length?<nav className="nv-plan-destinations" aria-label="Destinations du plan">{points.map((point,index)=>{
-        const scene=scenes.find(scene=>scene.id===point.sceneId)!;
-        return <button key={scene.id} type="button" aria-current={scene.id===currentId?'location':undefined} onClick={()=>onPick(scene.id)}>{index+1}. {pick(scene.name,scene.nameTranslations,lang)}</button>;
+      <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes} currentId={currentId} onPick={onPick} thumbs={thumbs} lang={lang}/></div>
+      {points.length?<nav className="nv-plan-destinations" aria-label="Destinations du plan">{points.map((point,number)=>{
+        const scene=scenes.find(item=>item.id===point.sceneId)!;
+        return <button key={scene.id} type="button" aria-current={scene.id===currentId?'location':undefined}
+          onClick={()=>onPick(scene.id)}>{number+1}. {pick(scene.name,scene.nameTranslations,lang)}</button>;
       })}</nav>:<p role="status" className="nv-plan-help">{ui('noPlanPoint',lang)}</p>}
-    </>:<p role="status" className="nv-plan-help">{plan?"Chargement du plan… S’il ne s’affiche pas, rechargez la visite.":"Le plan de cette visite n’a pas encore été configuré."}</p>}
+    </>:<p role="status" className="nv-plan-help">Aucun plan n'a encore été ajouté à cette visite.</p>}
   </PlanModal>;
 }
 
@@ -134,75 +159,164 @@ async function importPlan(file:File):Promise<string>{
   }finally{bitmap.close();}
 }
 
-export function FloorPlanEditor({plan,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview}:{renderPreview?:(id:string)=>ReactNode;thumbs?:Record<string,string>;plan?:FloorPlan;scenes:Scene[];onChange:(plan:FloorPlan|undefined)=>void;hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void}){
-  const [selectedId,setSelectedId]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[expanded,setExpanded]=useState(!!plan);
+
+export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview}:{
+  renderPreview?:(id:string)=>ReactNode;thumbs?:Record<string,string>;
+  plans:FloorPlan[];scenes:Scene[];onChange:(plans:FloorPlan[])=>void;
+  hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void;
+}){
+  const [selectedIndex,setSelectedIndex]=useState(0);
+  const [selectedId,setSelectedId]=useState('');
+  const [error,setError]=useState(''),[busy,setBusy]=useState(false);
+  const [expanded,setExpanded]=useState(false);
   const [previewId,setPreviewId]=useState<string|null>(null);
   const [draggingSceneId,setDraggingSceneId]=useState<string|null>(null);
-  const previewScene=scenes.find(scene=>scene.id===previewId);
   const fileInput=useRef<HTMLInputElement>(null),importing=useRef(false);
+  const importMode=useRef<'append'|'replace'>('append');
   const available=scenes.filter(scene=>!scene.excluded);
+  const index=Math.max(0,Math.min(selectedIndex,plans.length-1));
+  const plan=plans[index];
   const selected=available.find(scene=>scene.id===selectedId)??available[0];
-  const removePoint=(id:string)=>{if(plan)onChange({...plan,points:plan.points.filter(point=>point.sceneId!==id)});};
+  const previewScene=scenes.find(scene=>scene.id===previewId);
+  const updatePlan=(change:(plan:FloorPlan)=>FloorPlan)=>{
+    if(!plan)return;
+    onChange(plans.map((item,i)=>i===index?change(item):item));
+  };
+  const removePoint=(id:string)=>updatePlan(item=>({...item,points:item.points.filter(point=>point.sceneId!==id)}));
   const movePoint=(sceneId:string,x:number,y:number)=>{
     if(!plan||!available.some(scene=>scene.id===sceneId))return;
     setSelectedId(sceneId);
-    onChange({...plan,points:plan.points.some(point=>point.sceneId===sceneId)?plan.points.map(point=>point.sceneId===sceneId?{sceneId,x,y}:point):[...plan.points,{sceneId,x,y}]});
+    updatePlan(item=>({...item,points:item.points.some(point=>point.sceneId===sceneId)?
+      item.points.map(point=>point.sceneId===sceneId?{sceneId,x,y}:point):
+      [...item.points,{sceneId,x,y}]}));
   };
   const place=(x:number,y:number)=>{if(selected)movePoint(selected.id,x,y);};
+  const choose=(i:number)=>{setSelectedIndex(i);setPreviewId(null);setSelectedId('');};
+  const reorder=(offset:number)=>{
+    const destination=index+offset;
+    if(destination<0||destination>=plans.length)return;
+    const next=[...plans];[next[index],next[destination]]=[next[destination],next[index]];
+    onChange(next);choose(destination);
+  };
+  const removePlan=()=>{
+    if(!plan||!window.confirm('Supprimer « '+plan.name+' » et ses repères ? Les panoramas restent intacts.'))return;
+    onChange(plans.filter((_,i)=>i!==index));
+    choose(Math.max(0,index-1));
+  };
+  const selectFile=(mode:'append'|'replace')=>{
+    importMode.current=mode;
+    if(fileInput.current){fileInput.current.multiple=mode==='append';fileInput.current.click();}
+  };
   const controls=<div className="nv-plan-editor">
-    <p>Glisse un panorama de la liste sur le plan. Pour retirer un point, clique sur sa croix.</p>
-    {plan&&<>
-      <div className="nv-plan-workspace">
-        <div className="nv-plan-workspace-map">
-          <div className="nv-plan-pane-heading"><strong>Plan de la visite</strong><small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small></div>
-          <div className="nv-plan-edit-canvas"><div className="nv-plan-map-surface" style={{visibility:previewScene?'hidden':undefined}}><PlanImage plan={plan} scenes={available} currentId={selected?.id} onPick={setSelectedId} onPlace={selected?place:undefined} onMove={movePoint} onRemove={removePoint} thumbs={thumbs}/></div>
-            {previewScene&&renderPreview&&<section className="nv-plan-inline-preview" role="dialog" aria-modal="false" aria-label={'Aperçu 360° · '+previewScene.name}>
-              <header><strong><Eye size={18}/> {previewScene.name}</strong><button type="button" aria-label="Fermer l’aperçu 360°" title="Revenir au plan" onClick={()=>setPreviewId(null)}><X size={20}/></button></header>
-              <div className="nv-plan-inline-preview-view" key={previewScene.id}>{renderPreview(previewScene.id)}</div>
-              <small>Glisse pour regarder à 360°. Choisis une autre vignette à droite pour changer de vue.</small>
-            </section>}
+    <p>Glisse un panorama sur le plan ou sélectionne-le et clique à l’emplacement souhaité. Le même panorama peut figurer sur plusieurs plans.</p>
+    {plan&&<div className="nv-plan-workspace">
+      <div className="nv-plan-workspace-map">
+        <div className="nv-plan-pane-heading"><strong>{plan.name||'Plan '+(index+1)}</strong>
+          <small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small></div>
+        <div className="nv-plan-edit-canvas">
+          <div className="nv-plan-map-surface" style={{visibility:previewScene?'hidden':undefined}}>
+            <PlanImage key={plan.id??index} plan={plan} scenes={available} currentId={selected?.id}
+              onPick={setSelectedId} onPlace={selected?place:undefined} onMove={movePoint}
+              onRemove={removePoint} thumbs={thumbs}/>
           </div>
+          {previewScene&&renderPreview&&<section className="nv-plan-inline-preview" role="dialog"
+              aria-modal="false" aria-label={'Aperçu 360° · '+previewScene.name}>
+            <header><strong><Eye size={18}/> {previewScene.name}</strong>
+              <button type="button" aria-label="Fermer l’aperçu 360°" onClick={()=>setPreviewId(null)}><X size={20}/></button>
+            </header>
+            <div className="nv-plan-inline-preview-view" key={previewScene.id}>{renderPreview(previewScene.id)}</div>
+            <small>Glisse pour regarder à 360°. Choisis un panorama à droite.</small>
+          </section>}
         </div>
-        <aside className="nv-plan-panorama-pane" aria-label="Liste et aperçu des panoramas">
-          <strong>Panoramas</strong>
-          <div className="nv-plan-source-list" role="group" aria-label="Panoramas à glisser sur le plan">{available.map(scene=>{
-            const index=visiblePoints(plan,available).findIndex(point=>point.sceneId===scene.id);
-            return <div className="nv-plan-source-row" key={scene.id}><button type="button" className={'nv-plan-source-card'+(selected?.id===scene.id?' is-selected':'')+(draggingSceneId===scene.id?' is-dragging':'')} draggable aria-label={scene.name} aria-pressed={selected?.id===scene.id}
-              onClick={()=>{setSelectedId(scene.id);if(previewId)setPreviewId(scene.id);}}
-              onDragStart={e=>{e.dataTransfer.setData('text/plain',scene.id);e.dataTransfer.effectAllowed='move';setPreviewId(null);setSelectedId(scene.id);setDraggingSceneId(scene.id);}}
-              onDragEnd={()=>setDraggingSceneId(null)}>
-              {thumbs[scene.id]?<img src={thumbs[scene.id]} alt="" loading="lazy" draggable={false}/>:<span className="nv-plan-thumb-placeholder">360°</span>}
-              <span className="nv-plan-source-copy"><strong>{scene.name}</strong><small>{index>=0?'✓ Point '+(index+1)+' sur le plan':'À placer sur le plan'}</small></span>
-            </button>
-              {renderPreview&&<button type="button" className="nv-plan-preview-eye" aria-label={'Voir '+scene.name+' en 360°'} title="Aperçu 360°" draggable={false}
-                onPointerDown={e=>e.stopPropagation()} onDragStart={e=>e.preventDefault()} onClick={e=>{e.stopPropagation();setSelectedId(scene.id);setPreviewId(scene.id);}}><Eye size={18}/></button>}
-            </div>;
-          })}</div>
-        </aside>
       </div>
-    </>}
+      <aside className="nv-plan-panorama-pane" aria-label="Panoramas à placer">
+        <strong>Panoramas ({available.length})</strong>
+        <div className="nv-plan-source-list" role="group">{available.map(scene=>{
+          const pointIndex=visiblePoints(plan,available).findIndex(point=>point.sceneId===scene.id);
+          return <div className="nv-plan-source-row" key={scene.id}>
+            <button type="button" draggable aria-label={scene.name}
+              className={'nv-plan-source-card'+(selected?.id===scene.id?' is-selected':'')+
+                (draggingSceneId===scene.id?' is-dragging':'')}
+              aria-pressed={selected?.id===scene.id}
+              onClick={()=>{setSelectedId(scene.id);if(previewId)setPreviewId(scene.id);}}
+              onDragStart={event=>{event.dataTransfer.setData('text/plain',scene.id);
+                event.dataTransfer.effectAllowed='move';setPreviewId(null);
+                setSelectedId(scene.id);setDraggingSceneId(scene.id);}}
+              onDragEnd={()=>setDraggingSceneId(null)}>
+              {thumbs[scene.id]?<img src={thumbs[scene.id]} alt="" loading="lazy" draggable={false}/>:
+                <span className="nv-plan-thumb-placeholder">360°</span>}
+              <span className="nv-plan-source-copy"><strong>{scene.name}</strong>
+                <small>{pointIndex>=0?'✓ Point '+(pointIndex+1):'À placer sur ce plan'}</small></span>
+            </button>
+            {renderPreview&&<button type="button" className="nv-plan-preview-eye" aria-label={'Voir '+scene.name+' en 360°'}
+              onClick={event=>{event.stopPropagation();setSelectedId(scene.id);setPreviewId(scene.id);}}>
+              <Eye size={18}/></button>}
+          </div>;
+        })}</div>
+      </aside>
+    </div>}
   </div>;
   return <div className="nv-plan-editor">
-    <p>Importe le plan de cette visite (PNG, JPG ou WebP), puis associe chaque point à un panorama.</p>
-    <input ref={fileInput} hidden type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={async e=>{
-      const file=e.target.files?.[0];e.target.value='';if(!file||importing.current)return;
-      // Replacing a drawing clears positions because its layout may be different.
-      if(plan&&!window.confirm('Remplacer le plan ? Les points devront être replacés sur la nouvelle image.'))return;
-      importing.current=true;setBusy(true);setError('');
-      try{onChange({imageDataUrl:await importPlan(file),name:file.name.slice(0,200),points:[]});setExpanded(true);}
-      catch(error){setError(error instanceof Error?error.message:'Import impossible.');}
-      finally{importing.current=false;setBusy(false);}
-    }}/>
-    <button type="button" disabled={busy} onClick={()=>fileInput.current?.click()}>{busy?'Import du plan…':plan?'Remplacer le plan':'Importer un plan'}</button>
+    <p>Ajoute autant de plans que nécessaire : RDC, étage, extérieur, dépendance. Chaque plan possède ses propres points panoramiques.</p>
+    <input ref={fileInput} hidden type="file" accept="image/png,image/jpeg,image/webp"
+      disabled={busy} onChange={async event=>{
+        const files=Array.from(event.target.files??[]);
+        event.target.value='';
+        if(!files.length||importing.current)return;
+        const mode=importMode.current;
+        if(mode==='replace'&&plan?.points.length&&!window.confirm('Remplacer l’image de ce plan ? Les repères de ce plan seront retirés.'))return;
+        importing.current=true;setBusy(true);setError('');
+        try{
+          const imported:FloorPlan[]=[];
+          for(const file of files)imported.push({id:crypto.randomUUID(),
+            imageDataUrl:await importPlan(file),name:file.name.replace(/\.[^.]+$/,'').slice(0,200),points:[]});
+          if(mode==='replace'&&plan){
+            onChange(plans.map((old,i)=>i===index?{...imported[0],id:old.id??imported[0].id}:old));
+          }else{
+            onChange([...plans,...imported]);
+            choose(plans.length);
+          }
+          setExpanded(true);
+        }catch(e){setError(e instanceof Error?e.message:'Import des plans impossible.');}
+        finally{importing.current=false;setBusy(false);}
+      }}/>
+    <div className="nv-plans-editor-actions">
+      <button type="button" disabled={busy} onClick={()=>selectFile('append')}>
+        {busy?'Importation…':'+ Ajouter des plans (PNG, JPG, WebP)'}
+      </button>
+      {plan&&<button type="button" disabled={busy} onClick={()=>selectFile('replace')}>Remplacer l’image du plan sélectionné</button>}
+    </div>
     {error&&<p role="alert">{error}</p>}
-    {plan&&<>
-      <button type="button" onClick={()=>setExpanded(true)}><Maximize2 size={16}/> Ouvrir le plan</button>
-      {expanded?<PlanModal wide onEscape={previewId?()=>setPreviewId(null):undefined} title="Plan et panoramas" onClose={()=>setExpanded(false)}><div className="nv-plan-expanded-editor">{controls}</div></PlanModal>:null}
+    {plans.length>0&&<>
+      <nav className="nv-plans-editor-nav" aria-label="Parcourir les plans">
+        <button type="button" disabled={plans.length<2} onClick={()=>choose((index-1+plans.length)%plans.length)}>‹</button>
+        <strong>{plan?.name||'Plan'} <small>{index+1} / {plans.length}</small></strong>
+        <button type="button" disabled={plans.length<2} onClick={()=>choose((index+1)%plans.length)}>›</button>
+      </nav>
+      <div className="nv-plans-strip nv-plans-editor-strip" role="group" aria-label="Plans importés">
+        {plans.map((p,i)=><button type="button" key={p.id??i} onClick={()=>choose(i)}
+          aria-pressed={i===index}>
+          <img src={p.imageDataUrl} alt=""/><span>{p.name||'Plan '+(i+1)}</span>
+        </button>)}
+      </div>
+      <label>Nom du plan sélectionné
+        <input type="text" maxLength={200} value={plan.name}
+          onChange={event=>updatePlan(item=>({...item,name:event.target.value}))}/>
+      </label>
+      <div className="nv-plans-editor-actions">
+        <button type="button" onClick={()=>reorder(-1)} disabled={index===0}>↑ Monter le plan</button>
+        <button type="button" onClick={()=>reorder(1)} disabled={index===plans.length-1}>↓ Descendre le plan</button>
+        <button type="button" onClick={removePlan}>Supprimer ce plan</button>
+      </div>
+      <button type="button" onClick={()=>setExpanded(true)}><Maximize2 size={16}/> Ouvrir le plan et positionner les panoramas</button>
+      {expanded?<PlanModal wide title={'Plan et panoramas · '+(plan.name||'Plan '+(index+1))}
+        onEscape={previewId?()=>setPreviewId(null):undefined} onClose={()=>{setExpanded(false);setPreviewId(null);}}>
+        <div className="nv-plan-expanded-editor">{controls}</div>
+      </PlanModal>:null}
       <div className="nv-plan-editor-actions">
         {!hasPlanButton&&<button type="button" onClick={onAddButton}>＋ Ajouter le bouton Plan à la visite</button>}
-        {hasPlanButton&&<small>✓ Une action Plan est configurée dans la barre de la visite.</small>}
-        <button type="button" onClick={onPreview}>Tester le plan dans la visite</button>
-        <button type="button" disabled={busy} onClick={()=>{if(window.confirm('Supprimer le plan et ses points ? Les panoramas seront conservés.'))onChange(undefined);}}>Supprimer le plan</button>
+        {hasPlanButton&&<small>✓ Le bouton Plan est configuré dans la barre de la visite.</small>}
+        <button type="button" onClick={onPreview}>Tester la galerie de plans dans la visite</button>
       </div>
     </>}
   </div>;
