@@ -164,8 +164,17 @@ export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
 /** Positions in percentages of the plan image, independent of screen size. */
 export type FloorPlanPoint = {sceneId:string;x:number;y:number};
-export type FloorPlan = {imageDataUrl:string;name:string;points:FloorPlanPoint[]};
-export type StudioProject = { version: 1; windowAnimation?: WindowAnimation; /** Durée d'ouverture des fenêtres, en ms (200 à 2000, défaut 700). */ windowAnimationMs?: number; /** Autorise le mode immersif WebXR pour cette visite. Les anciens projets sans ce champ conservent la VR. */ vrEnabled?:boolean; floorPlan?:FloorPlan; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+export type FloorPlan = {id?:string;imageDataUrl:string;name:string;points:FloorPlanPoint[]};
+/** Compatibilité : les anciennes visites n'ont qu'un floorPlan.
+ * Le tableau floorPlans devient la source de vérité dès sa création. */
+export function getFloorPlans(project:Pick<StudioProject,'floorPlan'|'floorPlans'>):FloorPlan[]{
+  if(Array.isArray(project.floorPlans))return project.floorPlans;
+  return project.floorPlan?[project.floorPlan]:[];
+}
+export function withFloorPlans<T extends StudioProject>(project:T,plans:FloorPlan[]):T{
+  return {...project,floorPlans:plans,floorPlan:plans[0]} as T;
+}
+export type StudioProject = { version: 1; windowAnimation?: WindowAnimation; /** Durée d'ouverture des fenêtres, en ms (200 à 2000, défaut 700). */ windowAnimationMs?: number; /** Autorise le mode immersif WebXR pour cette visite. Les anciens projets sans ce champ conservent la VR. */ vrEnabled?:boolean; floorPlan?:FloorPlan; floorPlans?:FloorPlan[]; comments?:ProjectComment[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -232,11 +241,20 @@ export function validateProject(value:unknown):StudioProject {
   if (!value || typeof value !== 'object') throw new Error('Format de projet incorrect');
   const p = value as Partial<StudioProject>;
   if (p.version !== 1 || typeof p.name !== 'string' || !Array.isArray(p.scenes) || p.scenes.length > 500) throw new Error('Projet non reconnu');
-  if(p.floorPlan!==undefined){
-    const plan=p.floorPlan;
+  // Vérifier TOUS les plans, sans faire dépendre les autres étages de la
+  // présence du plan historique. Un panorama peut figurer sur plusieurs plans.
+  if(p.floorPlans!==undefined&&(!Array.isArray(p.floorPlans)||p.floorPlans.length>200))
+    throw new Error('La galerie des plans est invalide');
+  const knownPlanIds=new Set<string>();
+  for(const plan of [...(p.floorPlan?[p.floorPlan]:[]),...(p.floorPlans??[])]){
     if(!plan||typeof plan!=='object'||!isSafeFrameImage(plan.imageDataUrl)||plan.imageDataUrl.length>6_000_000||
-      typeof plan.name!=='string'||plan.name.length>200||!Array.isArray(plan.points)||plan.points.length>500)
+      typeof plan.name!=='string'||plan.name.length>200||!Array.isArray(plan.points)||plan.points.length>500||
+      (plan.id!==undefined&&(typeof plan.id!=='string'||plan.id.length>120||!plan.id.trim())))
       throw new Error('Plan de la visite invalide');
+    if(plan.id&&p.floorPlans?.includes(plan)){
+      if(knownPlanIds.has(plan.id))throw new Error('Identifiant de plan en double');
+      knownPlanIds.add(plan.id);
+    }
     const placed=new Set<string>();
     for(const point of plan.points){
       if(!point||typeof point.sceneId!=='string'||!p.scenes.some(scene=>scene.id===point.sceneId)||placed.has(point.sceneId)||
