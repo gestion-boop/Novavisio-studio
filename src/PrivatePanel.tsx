@@ -139,7 +139,7 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
       setOutcome({email:clean,password,result});
       onStatus('Accès privé créé pour '+clean+' · '+granted.join(', '));
       setEmail('');setChosenKnown('');setPassword(generatePassword());
-      await refresh(link.projectId);
+      await refresh(projectId);
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setBusy('');}
   }
@@ -154,11 +154,11 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
   return <div className="overlay" onClick={onClose}><div className="modal cloud-panel private-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}><XMark/></button>
     <h2>Lien privé{space?' · '+space.name:''}</h2>
-    {space&&<p className="hint-inline"><b>Accès limité à l’espace : {space.name}</b> · {project.scenes.length} panoramas. Les autres espaces ne sont pas inclus. L’invité travaille sur une copie cloud indépendante.</p>}
+    {space&&<p className="hint-inline"><b>Espace actuellement ouvert : {space.name}</b>. Tu peux choisir plusieurs espaces ci-dessous ; seuls ceux que tu coches seront transmis.</p>}
     {!cloudConfigured?<p className="warning">Supabase n’est pas configuré sur ce déploiement : le travail à plusieurs est indisponible.</p>
     :!userEmail?<LoginBox intro="Connecte-toi d’abord : c’est ton compte qui est propriétaire de la visite et qui donne les accès."/>
     :<>
-      <p className="hint-inline">Donne accès à une autre personne pour qu’elle <b>travaille sur la visite avec toi</b>. Elle se connecte au Studio avec l’e-mail et le mot de passe ci-dessous.</p>
+      <p className="hint-inline">Sélectionne un membre existant ou invite une nouvelle personne, puis choisis exactement les espaces auxquels elle aura accès.</p>
       <div className={'private-sync is-'+syncState.kind}>{syncState.kind==='saved'?'☁ Ta visite est à jour dans le cloud ('+new Date(syncState.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'). La personne recevra cette version.'
         :syncState.kind==='setup'?'☁ '+syncState.message
         :syncState.kind==='saving'||syncState.kind==='pending'?'☁ Envoi de ta visite dans le cloud en cours…'
