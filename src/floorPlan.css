@@ -177,3 +177,78 @@
  .nv-plans-strip>button{min-width:88px;width:88px}
  .nv-plans-strip>button>img{height:52px}
 }
+
+
+/* Plan public : la carte occupe presque tout le viewport. Navigation miniature à droite. */
+.nv-plan-dialog.nv-plan-dialog-immersive{
+  width:calc(100vw - 24px);max-width:none;
+  height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);
+  overflow:hidden;
+}
+.nv-plan-dialog-immersive>header{flex:0 0 auto;padding:6px 14px;min-height:46px}
+.nv-plan-dialog-immersive>header h2{font-size:15px}
+.nv-plan-dialog-immersive>header button{min-width:36px;min-height:36px}
+.nv-plan-immersive-layout{
+  display:grid;grid-template-columns:minmax(0,1fr) 76px;flex:1;min-height:0;
+  overflow:hidden;
+}
+.nv-plan-immersive-layout:not(:has(.nv-plan-immersive-rail)){grid-template-columns:minmax(0,1fr)}
+.nv-plan-immersive-stage{
+  display:flex;flex-direction:column;align-items:stretch;justify-content:center;
+  position:relative;min-height:0;min-width:0;overflow:hidden;padding:7px;
+}
+.nv-plan-immersive-caption{
+  position:absolute;z-index:8;left:14px;top:12px;
+  display:flex;flex-direction:column;gap:3px;
+  max-width:min(45vw,360px);pointer-events:none;
+  background:rgba(9,28,39,.84);border:1px solid #638e9c;
+  border-radius:9px;padding:7px 12px;box-shadow:0 4px 16px #0005;
+}
+.nv-plan-immersive-caption strong{color:white;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.nv-plan-immersive-caption small{color:#f4d08b;font-size:11px}
+.nv-plan-immersive-stage>.nv-plan-view{
+  display:flex;align-items:center;justify-content:center;
+  flex:1;min-height:0;min-width:0;overflow:hidden;padding:0;margin:0;
+}
+.nv-plan-immersive-stage .nv-plan-image{
+  display:inline-block;width:auto;max-width:100%;max-height:100%;
+  flex:0 1 auto;overflow:visible;line-height:0;
+}
+.nv-plan-immersive-stage .nv-plan-image>img{
+  width:auto;max-width:100%;max-height:calc(100dvh - 88px);
+  height:auto;object-fit:contain;
+}
+.nv-plan-immersive-empty{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:#092636d9;border-radius:8px;padding:6px 10px;color:#d9e8ec;
+}
+.nv-plan-immersive-rail{
+  display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;
+  min-height:0;padding:7px 5px;background:#0a202dd9;border-left:1px solid #547888;
+}
+.nv-plan-dialog .nv-plan-immersive-rail .nv-plan-rail-arrow{
+  min-width:42px;min-height:36px;flex:0 0 auto;
+  border-radius:9px;border:1px solid #ae9351;
+  padding:1px 7px;font-size:27px;line-height:1;color:#ffda8a;background:#234251;
+}
+.nv-plan-immersive-thumbs{min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:6px;align-items:center;width:100%;scrollbar-width:thin}
+.nv-plan-dialog .nv-plan-immersive-thumbs>button{
+  width:61px;min-height:55px;flex:0 0 auto;padding:3px;border:2px solid #557b8b;
+  background:#153440;border-radius:7px;display:flex;flex-direction:column;align-items:center;gap:1px;
+}
+.nv-plan-immersive-thumbs>button[aria-pressed=true]{border-color:#f8c86c;box-shadow:0 0 0 1px #e8bb4a88}
+.nv-plan-immersive-thumbs img{width:51px;height:37px;object-fit:contain;background:white;border-radius:3px}
+.nv-plan-immersive-thumbs span{color:#fff1cf;font:700 10px system-ui}
+@media(max-width:640px){
+ .nv-plan-dialog.nv-plan-dialog-immersive{width:calc(100vw - 8px);height:calc(100dvh - 8px);max-height:calc(100dvh - 8px)}
+ .nv-plan-immersive-layout{grid-template-columns:minmax(0,1fr) 55px}
+ .nv-plan-immersive-stage{padding:2px}
+ .nv-plan-immersive-stage .nv-plan-image>img{max-height:calc(100dvh - 66px)}
+ .nv-plan-immersive-caption{left:5px;top:5px;padding:5px 7px;max-width:min(55vw,220px)}
+ .nv-plan-immersive-caption strong{font-size:11px}
+ .nv-plan-immersive-caption small{font-size:10px}
+ .nv-plan-immersive-rail{gap:3px;padding:4px 1px}
+ .nv-plan-dialog .nv-plan-immersive-thumbs>button{width:45px;min-height:43px}
+ .nv-plan-immersive-thumbs img{width:36px;height:27px}
+ .nv-plan-dialog .nv-plan-immersive-rail .nv-plan-rail-arrow{min-width:37px;min-height:34px}
+}
