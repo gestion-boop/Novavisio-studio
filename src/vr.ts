@@ -958,18 +958,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const el=document.createElement('video');
     el.src=src;el.crossOrigin='anonymous';el.loop=true;el.playsInline=true;el.setAttribute('playsinline','');
     el.preload='auto';el.muted=true;
-    const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
+    const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=16;
     activeVideo={el,tex};
-    const W=1.6,Hv=W*9/16,H=Hv+.3;
-    addPlane(panelGroup,W+.1,H,canvasTexture(1100,700,c=>{roundRect(c,8,8,1084,684,50);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();}),5,0,0);
-    addPlane(panelGroup,W,Hv,tex,6,0,.06);
-    addPlane(panelGroup,1.2,.09,canvasTexture(960,72,c=>{
-      c.fillStyle='#17232b';c.font='bold 40px sans-serif';c.textAlign='center';c.textBaseline='middle';
-      let t=title;while(c.measureText(t).width>900&&t.length>3)t=t.slice(0,-2);c.fillText(t,480,38);
-    }),7,0,H/2-.07);
-    const toggle=addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.2,-H/2+.09,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
-    void toggle;
-    addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.09,closePanels);
+    // Même cadre que les galeries (plans, photos) : titre, fermeture, dessous avec les commandes.
+    const videoW=1.6,Hv=videoW*9/16;
+    const W=1.85,H=Hv+.46;
+    galleryChrome(W,H,title,'',1,0,()=>{},()=>{});
+    addPlane(panelGroup,videoW,Hv,tex,6,0,H/2-.2-Hv/2);
+    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),-.36,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    addPanelButton(.3,.11,navTexture(el.muted?'🔇 Son':'🔊 Son',300),.36,-H/2+.1,()=>{el.muted=!el.muted;setNotice(el.muted?'Son coupé':'Son activé');});
     placePanel(PANEL_DIST,0);
     void el.play().then(()=>{el.muted=getPrefs().sound==='off';}).catch(()=>setNotice(tt('videoPlayHint')));
   };
