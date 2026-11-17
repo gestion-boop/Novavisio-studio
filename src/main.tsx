@@ -4696,8 +4696,9 @@ function App(){
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
-            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
-            <div className="empty-icon">◎</div><h1>{currentSpace?'Cet espace est vide':'Ta première visite commence ici'}</h1>
+            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className={'empty'+(!currentSpace?' nv-immersive-welcome':'')}>
+            {!currentSpace&&<div className="nv-welcome-brand" aria-label="NOVAVISIO"><span className="nv-welcome-logo" aria-hidden="true"/><span className="nv-welcome-wordmark">NOVAVISIO</span><span className="nv-welcome-subbrand">STUDIO · VISITES IMMERSIVES 360°</span></div>}
+            <div className="empty-icon">{currentSpace?'◎':<span className="nv-welcome-mini-logo" aria-hidden="true"/>}</div><h1>{currentSpace?'Cet espace est vide':'Ta première visite commence ici'}</h1>
             <p>{currentSpace?'Sélectionne les panoramas de la visite principale à inclure dans cet espace.':'Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.'}</p>
             <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):upload.current?.click()}>
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
