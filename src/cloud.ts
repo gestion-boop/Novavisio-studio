@@ -113,47 +113,46 @@ export async function signOut(){await supabase().auth.signOut();}
 export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean;clientName?:string};
 export async function listCloudProjects():Promise<CloudProject[]>{
   const db=supabase();
-  // Indexe les visites par nom du client via la projection JSON PostgREST.
-  // Le nom du bien (nom du projet) reste indépendant du client.
-  let projectsRes=await db.from('nvstudio_projects')
-    .select('id,name,created_at,owner_id,working_version,working_updated_at,client_name:working->clientProfile->>name')
-    .order('created_at',{ascending:false});
-  if(projectsRes.error){
-    projectsRes=await db.from('nvstudio_projects')
-      .select('id,name,created_at,owner_id,working_version,working_updated_at')
-      .order('created_at',{ascending:false}) as typeof projectsRes;
+  const {data:{user},error:authError}=await db.auth.getUser();
+  if(authError||!user)throw new Error('Session Cloud expirée : reconnecte-toi.');
+  // Les projets auxquels un membre est invité sont lus explicitement depuis
+  // nvstudio_members. Cela évite de dépendre exclusivement d'une projection
+  // JSON ou de l'historique des révisions (réservé au propriétaire).
+  const membership=await db.from('nvstudio_members').select('project_id')
+    .eq('email',(user.email??'').trim().toLowerCase());
+  if(membership.error)throw new Error('Lecture des invitations impossible : '+membership.error.message);
+  const invitedIds=[...new Set((membership.data??[]).map(m=>m.project_id).filter(Boolean))];
+  const fields='id,name,created_at,owner_id,working_version,working_updated_at';
+  const ownRes=await db.from('nvstudio_projects').select(fields).eq('owner_id',user.id);
+  if(ownRes.error)throw new Error('Lecture des projets personnels impossible : '+ownRes.error.message);
+  let sharedRows:typeof ownRes.data=[];
+  if(invitedIds.length){
+    const sharedRes=await db.from('nvstudio_projects').select(fields).in('id',invitedIds);
+    if(sharedRes.error)throw new Error('Lecture des projets partagés impossible : '+sharedRes.error.message);
+    sharedRows=sharedRes.data??[];
   }
-  if(projectsRes.error&&setupMissing(projectsRes.error.message)){
-    projectsRes=await db.from('nvstudio_projects')
-      .select('id,name,created_at,owner_id').order('created_at',{ascending:false}) as typeof projectsRes;
-  }
-  let revisions=await db.from('nvstudio_revisions')
-    .select('project_id,revision,name,created_at,client_name:snapshot->clientProfile->>name')
+  const all=new Map<string,(NonNullable<typeof ownRes.data>)[number]>();
+  for(const row of [...(ownRes.data??[]),...(sharedRows??[])])all.set(row.id,row);
+  // Les anciennes révisions ne sont pas indispensables à l'affichage :
+  // leur politique RLS peut en interdire la lecture aux collaborateurs.
+  const revisionRes=await db.from('nvstudio_revisions').select('project_id,revision,created_at')
     .order('revision',{ascending:false});
-  if(revisions.error){
-    revisions=await db.from('nvstudio_revisions')
-      .select('project_id,revision,name,created_at')
-      .order('revision',{ascending:false}) as typeof revisions;
-  }
-  if(projectsRes.error)throw new Error(projectsRes.error.message);
-  if(revisions.error)throw new Error(revisions.error.message);
-  const latest=new Map<string,{revision:number;name:string;created_at:string;client_name?:string|null}>();
-  for(const r of revisions.data??[])if(!latest.has(r.project_id))latest.set(r.project_id,r);
-  const me=(await db.auth.getUser()).data.user?.id;
-  return (projectsRes.data??[]).map(p=>{
-    const row=p as {id:string;name:string;created_at:string;owner_id?:string;working_version?:number;working_updated_at?:string|null;client_name?:string|null};
-    const l=latest.get(row.id);
-    const hasWorking=(row.working_version??0)>0;
-    const clientName=((hasWorking?row.client_name:null)||l?.client_name||'').trim();
-    const times=[l?.created_at,hasWorking?row.working_updated_at??undefined:undefined,row.created_at].filter(Boolean) as string[];
-    return {id:row.id,name:row.name||l?.name||'Visite',created_at:row.created_at,revision:l?.revision??0,
-      updated_at:times.sort().reverse()[0],autosave:hasWorking,shared:!!row.owner_id&&!!me&&row.owner_id!==me,
-      ...(clientName?{clientName}:{})};
-  }).sort((a,b)=>{
-    // Dernière sauvegarde effective en premier (révision ou copie Cloud).
-    const delta=Date.parse(b.updated_at)-Date.parse(a.updated_at);
-    return Number.isFinite(delta)&&delta!==0?delta:a.name.localeCompare(b.name,'fr');
-  });
+  const latest=new Map<string,{revision:number;created_at:string}>();
+  if(!revisionRes.error)for(const row of revisionRes.data??[])
+    if(!latest.has(row.project_id))latest.set(row.project_id,row);
+  return [...all.values()].map(p=>{
+    const last=latest.get(p.id);
+    const workingVersion=Number(p.working_version??0);
+    const updated=[workingVersion>0?p.working_updated_at:null,last?.created_at,p.created_at]
+      .filter((date):date is string=>typeof date==='string'&&!!date).sort().reverse()[0];
+    return {id:p.id,name:p.name||'Visite',created_at:p.created_at,
+      revision:last?.revision??0,updated_at:updated,autosave:workingVersion>0,
+      shared:p.owner_id!==user.id};
+  }).sort((a,b)=>Date.parse(b.updated_at)-Date.parse(a.updated_at)||a.name.localeCompare(b.name,'fr'));
+}
+
+export async function listSharedCloudProjects():Promise<CloudProject[]>{
+  return (await listCloudProjects()).filter(project=>project.shared);
 }
 
 /** Lit seulement la fiche client d'un projet (sans hydrater les médias 360).
