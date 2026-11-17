@@ -4020,8 +4020,15 @@ function App(){
     if(!space)return;
     const target=transferTo?(project.spaces??[]).find(item=>item.id===transferTo&&item.id!==spaceId):undefined;
     const moved=target?space.sceneIds.filter(id=>project.scenes.some(sc=>sc.id===id)):[];
-    setProject(p=>({...p,spaces:(p.spaces??[]).filter(item=>item.id!==spaceId).map(sp=>
-      target&&sp.id===target.id?{...sp,sceneIds:[...sp.sceneIds,...moved.filter(id=>!sp.sceneIds.includes(id))]}:sp)}));
+    setProject(p=>({...p,
+      spaces:(p.spaces??[]).filter(item=>item.id!==spaceId).map(sp=>
+        target&&sp.id===target.id?{...sp,sceneIds:[...sp.sceneIds,...moved.filter(id=>!sp.sceneIds.includes(id))]}:sp),
+      // Les plans de l'espace supprimé restent conservés seulement s'ils
+      // ont été explicitement transférés vers un autre espace.
+      floorPlans:getFloorPlans(p).filter(plan=>plan.spaceId!==spaceId||!!target).map(plan=>
+        plan.spaceId===spaceId&&target?{...plan,spaceId:target.id}:plan),
+      floorPlan:getFloorPlans(p).find(plan=>plan.spaceId!==spaceId)??undefined
+    }));
     if(target){
       setActiveSpaceId(target.id);
       setActiveId(moved[0]??target.sceneIds[0]??'');
@@ -4447,7 +4454,7 @@ function App(){
       </section>
     </div>}
     {spaceAction&&selectedSpaces.length>0&&<SpacesActions mode={spaceAction} project={project} spaces={selectedSpaces} onClose={()=>setSpaceAction(null)} onStatus={setStatus}
-      onMoved={ids=>{setProject(p=>({...p,spaces:(p.spaces??[]).filter(space=>!ids.includes(space.id))}));setSpaceSelection(new Set());if(activeSpaceId&&ids.includes(activeSpaceId)){setActiveSpaceId(null);}}}/>}
+      onMoved={ids=>{setProject(p=>{const remaining=getFloorPlans(p).filter(plan=>!plan.spaceId||!ids.includes(plan.spaceId));return {...p,spaces:(p.spaces??[]).filter(space=>!ids.includes(space.id)),floorPlans:remaining,floorPlan:remaining[0]};});setSpaceSelection(new Set());if(activeSpaceId&&ids.includes(activeSpaceId)){setActiveSpaceId(null);}}}/>}
     {!creationFullscreen&&mediaPickerEl()}
     {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
     {updateAvailable&&Date.now()>=updateSnoozeUntil&&<div className="nv-update-banner" role="alert">
