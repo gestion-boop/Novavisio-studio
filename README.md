@@ -172,3 +172,13 @@ L’outil **Plan** ouvre directement cette fenêtre agrandie, sans formulaire de
 La configuration des galeries propose **Agrandir la galerie avec les aperçus** : photos et vidéos ont une grande visionneuse à côté de leur liste de sélection ; la galerie des panoramas permet de consulter chaque vue 360° en cliquant sur sa vignette et de modifier le nom affiché sur ses cartes.
 
 Dans l’éditeur du plan, l’œil d’une vignette affiche sa vue 360° à gauche. La liste de droite reste accessible : cliquer sur une autre vignette actualise l’aperçu. Commencer un glisser-déposer rétablit le plan pour y déposer le panorama. Dans la visite, le plan s’ouvre avec un fondu et un léger zoom ; l’animation est désactivée si le navigateur demande une réduction des mouvements.
+
+## IA (FreeLLMAPI)
+
+Bouton **« ✨ Traduire automatiquement »** sur les champs de traduction (noms de scènes, libellés de la barre, titres et textes d'information). Les appels passent par `/api/freellm` (réservé au compte administrateur), la clé reste côté serveur.
+
+Variables Vercel à définir :
+
+- `FREELLM_BASE_URL` : URL publique HTTPS de ton instance FreeLLMAPI, terminée par `/v1` (une instance en `localhost` n'est pas joignable depuis Vercel).
+- `FREELLM_API_KEY` : clé unifiée `freellmapi-…` (onglet Keys → Unified API key).
+- `FREELLM_MODEL` (optionnel) : `auto` par défaut.
