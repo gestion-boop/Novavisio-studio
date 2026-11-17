@@ -5317,7 +5317,8 @@ function App(){
         {currentSpace&&<div className="nv-space-sidebar-context">
           <strong>{currentSpace.name}</strong>
           <small>Les originaux restent dans « Projet complet ».</small>
-          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
+          <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}>⬆ Importer plusieurs panoramas 360° (40 Mo chacun)</button>
+          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas existants</button>
         </div>}
         {!preview&&false&&<div className="nv-quick-link-mode nv-sidebar-quick-link">
           <button type="button" className={quickLinkMode?'is-active':''} aria-pressed={quickLinkMode}
@@ -5352,9 +5353,9 @@ function App(){
           </button>
         </div>
         <div className="nv-scene-bulk" role="group" aria-label="Panoramas dans la visite">
-          <span>✓ {project.scenes.filter(sc=>!sc.excluded).length} / {project.scenes.length} dans la visite</span>
-          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.excluded?{...sc,excluded:undefined}:sc)}))}>Tout cocher</button>
-          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===p.scenes[0]?.id||sc.excluded?sc:{...sc,excluded:true})}))} title="Décoche tout sauf le premier panorama (accueil)">Tout décocher</button>
+          <span>✓ {visibleScenes.filter(sc=>!sc.excluded).length} / {visibleScenes.length} dans {currentSpace?'cet espace':'la visite'}</span>
+          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>(!currentSpace||currentSpace.sceneIds.includes(sc.id))&&sc.excluded?{...sc,excluded:undefined}:sc)}))}>Tout cocher</button>
+          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>((!currentSpace||currentSpace.sceneIds.includes(sc.id))&&sc.id!==(currentSpace?.sceneIds[0]??p.scenes[0]?.id)&&!sc.excluded)?{...sc,excluded:true}:sc)}))} title="Décoche tout sauf le premier panorama de cet espace">Tout décocher</button>
         </div>
         <div className={'scenes nv-panorama-list-'+panoramasLayout} ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className={'scene-slot'+(s.excluded?' is-excluded':'')}
           onMouseEnter={()=>{if(autoNavigation)hoverSidePreview(s.id);}} onMouseLeave={leaveSidePreview}
