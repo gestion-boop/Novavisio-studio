@@ -492,10 +492,14 @@ export async function readPanorama(file:File):Promise<string> {
   try {
     const bitmap = await createImageBitmap(file);
     try {
-      if (bitmap.width <= MAX_PANORAMA_WIDTH) return await readImage(file);
-      const ratio = MAX_PANORAMA_WIDTH / bitmap.width;
+      // Les fichiers 360° jusqu'à 40 Mo sont importés sans les conserver
+      // inutilement à leur poids d'origine dans les sauvegardes cloud.
+      // Les petites images restent inchangées ; les grandes sont converties
+      // en JPEG de qualité élevée, jusqu'à 8192 px, sans recadrage.
+      if (bitmap.width <= MAX_PANORAMA_WIDTH && file.size <= 8 * 1024 * 1024) return await readImage(file);
+      const ratio = Math.min(1, MAX_PANORAMA_WIDTH / bitmap.width);
       const canvas = document.createElement('canvas');
-      canvas.width = MAX_PANORAMA_WIDTH;
+      canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
       canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
       const ctx = canvas.getContext('2d');
       if (!ctx) return await readImage(file);
