@@ -51,6 +51,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   const timerRef=useRef<number|undefined>(undefined);
   const blockedRef=useRef<'setup'|null>(null);
   const attemptRef=useRef(0);
+  const lastErrorRef=useRef<string|null>(null);
   const canRunRef=useRef(false);
   const runRef=useRef<(snapshot?:StudioProject)=>Promise<void>>(async()=>{});
   const startedRef=useRef(false);
@@ -85,12 +86,13 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
       const saved=plainLink(link);
       writeLink(saved);
       writeFp({projectId:saved.projectId,version:saved.version??0,fp:fingerprint(target)});
-      syncedRef.current=target;attemptRef.current=0;
+      syncedRef.current=target;attemptRef.current=0;lastErrorRef.current=null;
       setState({kind:'saved',at:Date.now(),note});
     }catch(e){
       if(e instanceof CloudConflictError){
         if(manualOnly){
           // In manual mode, never silently replace an existing cloud version.
+          lastErrorRef.current='Conflit de version : une autre personne a enregistré une version plus récente. Ne recharge pas sans protéger tes modifications locales.';
           setState({kind:'error',message:'Le cloud a une version plus récente. Ouvre l’historique dans Cloud avant de décider.'});
         }else{
           const link=readLink();
@@ -99,10 +101,11 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
           attemptRef.current=0;
           schedule(0);
         }
-      }else if(e instanceof CloudSetupError){blockedRef.current='setup';setState({kind:'setup',message:e.message});}
+      }else if(e instanceof CloudSetupError){lastErrorRef.current=e.message;blockedRef.current='setup';setState({kind:'setup',message:e.message});}
       else{
         attemptRef.current++;
-        setState({kind:'error',message:e instanceof Error?e.message:String(e)});
+        lastErrorRef.current=e instanceof Error?e.message:String(e);
+        setState({kind:'error',message:lastErrorRef.current});
         if(!manualOnly)schedule(Math.min(60000,2000*2**Math.min(attemptRef.current,5)));
       }
     }finally{
@@ -211,6 +214,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
 
   /** Envoie tout de suite et attend la fin. Renvoie vrai si la visite affichée est entièrement enregistrée dans le cloud. */
   const syncNow=useCallback(async(snapshot?:StudioProject):Promise<boolean>=>{
+    lastErrorRef.current=null;
     if(!canRunRef.current)return false;
     window.clearTimeout(timerRef.current);
     const wait=async()=>{
@@ -233,5 +237,5 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     return projectRef.current===syncedRef.current&&!!readLink();
   },[manualOnly]);
 
-  return {state,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,syncNow};
+  return {state,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,syncNow,getLastError:()=>lastErrorRef.current};
 }
