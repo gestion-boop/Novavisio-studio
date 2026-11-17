@@ -28,12 +28,19 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
       const {data}=await supabase().auth.getSession();
       if(!data.session){setState(null);return;}
       const next=await getWriteState(id);
-      if(alive.current){
-        setState(next);
-        if(next&&!next.canWrite){
-          const key=id+':'+next.holderEmail;
-          if(warnedRef.current!==key){warnedRef.current=key;setDenied({holderEmail:next.holderEmail});}
-        }else if(next?.canWrite){warnedRef.current='';}
+      // Une réponse d'un ancien projet ne doit jamais provoquer une alerte
+      // lorsque l'utilisateur vient d'ouvrir un autre projet.
+      if(!alive.current||readLink()?.projectId!==id)return;
+      setState(next);
+      if(next?.canWrite){
+        warnedRef.current='';
+        setDenied(null); // la main a été transmise : l'ancienne alerte est caduque
+      }else if(next){
+        const key=id+':'+next.holderEmail+':'+next.myEmail;
+        if(warnedRef.current!==key){
+          warnedRef.current=key;
+          setDenied({holderEmail:next.holderEmail});
+        }
       }
     }catch{/* réseau coupé : on garde l'état précédent */}
   },[]);
@@ -84,7 +91,8 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
       </button>
       {open&&<div className="nv-hand-pop" role="dialog" aria-label="Qui a la main pour enregistrer ?">
         <div className="nv-hand-head"><b>Qui enregistre ?</b><button type="button" className="quiet" onClick={()=>setOpen(false)} aria-label="Fermer"><XMark/></button></div>
-        <p>{admin?'Choisis qui peut enregistrer dans le Cloud :':'Une seule personne à la fois enregistre dans le Cloud. '+(mine?'C’est vous : les autres voient une fenêtre s’ils essaient d’enregistrer.':'Vous pouvez consulter le projet, mais vous ne pouvez enregistrer que lorsqu’on vous transmet la main.')}</p>
+        <p>Compte connecté : <strong>{state.myEmail}</strong>. Main actuelle : <strong>{holder??state.ownerEmail}</strong>. {state.canWrite?'Vous pouvez sauvegarder.':'Vous ne pouvez pas sauvegarder tant que la main ne vous a pas été transmise.'}</p>
+      {admin&&<p>Choisis ci-dessous la personne autorisée à enregistrer dans le Cloud.</p>}
         <div className="nv-hand-choices" role="radiogroup" aria-label="Qui enregistre">
           {people.map(p=>{
             const isHolder=p.email===holder;
@@ -118,7 +126,7 @@ function DeniedDialog({holder,state,busy,error,onClose,onTake}:{holder:string|nu
   return <div className="overlay nv-hand-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
     <section className="modal nv-hand-denied" role="alertdialog" aria-modal="true" aria-label="Enregistrement impossible">
       <h2>✍ {holder?name(holder)+' a la main':'Une autre personne a la main'}</h2>
-      <p>Attention, vous n’avez pas la main. Vous ne pouvez pas enregistrer pour le moment : la main sur cette visite est à <b>{holder??'une autre personne'}</b>. Demandez-lui de vous la transmettre (bouton « La main » en haut). <b>Vos modifications restent sur cet appareil</b>, rien n’est perdu.</p>
+      <p>Attention, vous n’avez pas la main sur ce projet. Le compte <b>{holder??'propriétaire'}</b> est autorisé à enregistrer. Vérifiez le compte actuellement connecté et demandez le transfert depuis « La main ». <b>Vos modifications locales ne sont pas envoyées au Cloud</b>.</p>
       {(state?.isAdmin??state?.isOwner)&&<p>En tant qu’admin, vous pouvez la reprendre.</p>}
       {error&&<p className="warning">{error}</p>}
       <div className="nv-hand-actions">
