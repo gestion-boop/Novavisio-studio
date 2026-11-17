@@ -927,7 +927,7 @@ function App(){
   // Dernière position (panorama + vue) mémorisée en continu : une mise à jour OU un simple rafraîchissement ramène au même endroit.
   function rememberPosition(){
     if(!activeId)return;
-    try{const cam=cameraRef.current;localStorage.setItem('nvstudio-resume',JSON.stringify({sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
+    try{const cam=cameraRef.current;if(cam.sceneId!==activeId)return;localStorage.setItem('nvstudio-resume',JSON.stringify({projectName:projectRef.current.name,sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
   }
   function reloadToLatestVersion(){
     if(savingManually||savingRef.current){
@@ -943,6 +943,9 @@ function App(){
     updateReloadApproved.current=true;
     // On mémorise où l'on était : après la mise à jour, on revient dans le même panorama (même vue), pas au début de la visite.
     rememberPosition();
+    // La reprise caméra ne doit se produire QUE lors d'une mise à jour demandée,
+    // jamais pendant l'ouverture normale d'un autre projet ni au rechargement d'une visite.
+    try{sessionStorage.setItem('nvstudio-update-resume','1');}catch{/* mode privé */}
     window.location.reload();
   }
   const [activeId,setActiveId]=useState('');
@@ -1032,18 +1035,24 @@ function App(){
   useEffect(()=>{
     if(!ready||resumeDone.current)return;
     resumeDone.current=true;
-    let saved:{sceneId?:string;spaceId?:string|null;yaw?:number;pitch?:number;zoom?:number;at?:number}|null=null;
+    let explicitUpdate=false;
+    try{explicitUpdate=sessionStorage.getItem('nvstudio-update-resume')==='1';sessionStorage.removeItem('nvstudio-update-resume');}catch{/* stockage indisponible */}
+    if(!explicitUpdate)return;
+    let saved:{projectName?:string;sceneId?:string;spaceId?:string|null;yaw?:number;pitch?:number;zoom?:number;at?:number}|null=null;
     try{saved=JSON.parse(localStorage.getItem('nvstudio-resume')||'null');}catch{saved=null;}
-    if(!saved||!saved.sceneId||Date.now()-(saved.at??0)>24*3600_000)return;
+    if(!saved||saved.projectName!==projectRef.current.name||!saved.sceneId||Date.now()-(saved.at??0)>10*60_000)return;
     const sceneId=saved.sceneId;
     if(!projectRef.current.scenes.some(sc=>sc.id===sceneId))return;
-    setActiveSpaceId(saved.spaceId&&(projectRef.current.spaces??[]).some(sp=>sp.id===saved!.spaceId)?saved.spaceId:null);
-    setActiveId(sceneId);setSelectedId('');
-    if(typeof saved.yaw==='number'&&typeof saved.pitch==='number'){
-      const v={yaw:saved.yaw,pitch:saved.pitch,zoom:saved.zoom};
-      window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true}),1400);
+    const spaceId=saved.spaceId&&(projectRef.current.spaces??[]).some(sp=>sp.id===saved!.spaceId&&sp.sceneIds.includes(sceneId))?saved.spaceId:null;
+    setActiveSpaceId(spaceId);setActiveId(sceneId);setSelectedId('');
+    if(Number.isFinite(saved.yaw)&&Number.isFinite(saved.pitch)&&Number.isFinite(saved.zoom)){
+      const v={yaw:saved.yaw!,pitch:saved.pitch!,zoom:saved.zoom!};
+      window.setTimeout(()=>{
+        // N'écrase pas une nouvelle vue si l'utilisateur a changé de panorama entre-temps.
+        if(cameraRef.current.sceneId===sceneId)setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true});
+      },1400);
     }
-    setStatus('Mise à jour appliquée · tu es revenu dans le même panorama');
+    setStatus('Mise à jour appliquée · vue de travail restaurée sans modifier les vues enregistrées');
   },[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null>(null);
   const [preview,setPreview]=useState(false);
@@ -4431,8 +4440,8 @@ function App(){
             spacePanoramasInput.current?.click();
           }}>＋ Importer plusieurs panoramas (40 Mo chacun)…</button>
           <button type="button" onClick={()=>setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{
-            ...sp,sceneIds:p.scenes.map(sc=>sc.id)
-          }:sp)}))}>Tout inclure</button>
+            ...sp,sceneIds:p.scenes.filter(sc=>sp.sceneIds.includes(sc.id)||!p.spaces?.some(other=>other.id!==sp.id&&other.sceneIds.includes(sc.id))).map(sc=>sc.id)
+          }:sp)}))}>Ajouter les panoramas libres</button>
           <button type="button" onClick={()=>{
             setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{...sp,sceneIds:[]}:sp)}));
             setActiveId('');setSelectedId('');
@@ -4448,8 +4457,9 @@ function App(){
           <strong>⬆ Glisse ici tous tes panoramas 360°</strong>
           <small>Ou clique pour choisir plusieurs fichiers · JPG, PNG, WebP · 40 Mo / fichier</small>
         </div>
+        <p>Les panoramas déjà affectés à un autre espace restent séparés. Pour les réutiliser, utilise l'action de copie ou de transfert entre espaces.</p>
         <div className="nv-space-scene-picker">
-          {project.scenes.map(scene=><label key={scene.id} className="nv-space-scene-option">
+          {project.scenes.filter(scene=>currentSpace.sceneIds.includes(scene.id)||!(project.spaces??[]).some(other=>other.id!==currentSpace.id&&other.sceneIds.includes(scene.id))).map(scene=><label key={scene.id} className="nv-space-scene-option">
             <input type="checkbox" checked={currentSpace.sceneIds.includes(scene.id)}
               onChange={e=>setSceneInSpace(currentSpace.id,scene.id,e.target.checked)}/>
             {sceneThumbs[scene.id]?<img src={sceneThumbs[scene.id]} alt="" draggable={false}/>:<span className="nv-space-no-thumb">◎</span>}{todoPin(scene.id)}
