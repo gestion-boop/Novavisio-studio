@@ -30,7 +30,7 @@ import {exportStaticTour} from './exportTour';
 import {useLiveSession,LiveOverlay,useLiveInvites,sendLiveInvite,sendLiveShot} from './liveSession';
 import {LiveShareDialog} from './LiveShareDialog';
 import {WriteHand} from './WriteHand';
-import {scenesInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type StudioSpace} from './spaces';
+import {scenesInSpace,plansInSpace,updatePlansInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
@@ -1661,7 +1661,7 @@ function App(){
     const ic=22;
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
-    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:getFloorPlans(project).length||undefined,
+    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:plansInSpace(project,(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null).length||undefined,
       run:()=>toggleToolPanel('plan' as PanelTab)};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
@@ -5223,7 +5223,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
-          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={getFloorPlans(project)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -5710,7 +5710,7 @@ function App(){
               <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
             </div>
             {selectedBar.type==='plan'?<><p className="hint">Ce bouton ouvre la galerie des plans interactifs : flèches gauche/droite et points panoramiques pour chaque plan.</p>
-              {!getFloorPlans(project).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
+              {!plansInSpace(project,currentSpace).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
               <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
@@ -5839,8 +5839,9 @@ function App(){
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='plan' && <div className="properties">
-          <InspectorSection title="Galerie de plans interactifs" initiallyOpen>
-            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plans={getFloorPlans(project)} scenes={project.scenes} thumbs={sceneThumbs} onChange={plans=>setProject(p=>withFloorPlans(p,plans))}
+          <InspectorSection title={currentSpace?'Plans de l’espace « '+currentSpace.name+' »':'Plans du projet principal'} initiallyOpen>
+            <p className="hint-inline">{currentSpace?'Ces plans et leurs repères sont propres à cet espace. Les autres espaces conservent leurs propres plans et panoramas.':'Ces plans appartiennent au projet principal. Choisis un espace pour lui attribuer ses propres plans.'}</p>
+            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} thumbs={sceneThumbs} onChange={plans=>setProject(p=>updatePlansInSpace(p,currentSpace,plans))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
