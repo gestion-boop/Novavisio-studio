@@ -2322,7 +2322,8 @@ function App(){
         setStatus('Sauvegarde dans Supabase…');
         const synced=await cloud.syncNow(snapshot);
         if(!synced){
-          setStatus('Échec de la sauvegarde Cloud : rien n’a été écrasé. Vérifie le panneau Cloud et réessaie.');
+          const reason=cloud.getLastError();
+          setStatus('Échec de la sauvegarde Cloud : '+(reason??'synchronisation non confirmée. Vérifie la connexion, les droits et le panneau Cloud.')+' · Tes modifications restent sur cet appareil. Ne ferme pas cette fenêtre avant de les sécuriser.');
           return false;
         }
         savedRef.current=snapshot;
