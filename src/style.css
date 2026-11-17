@@ -5892,3 +5892,37 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-bell-hist>span:first-child{flex:0 0 40px;height:40px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#4a90e2,#2d5fd6);font-size:18px}
 .nv-bell-hist>span:last-child{display:flex;flex-direction:column;gap:4px;min-width:0;font-size:13px;line-height:1.35;color:#e6eef8}
 .nv-bell-hist small{color:#9fb3c8;font-size:12px}
+
+
+/* NovaVisio — écran de présentation immersif (sans panorama importé). */
+.nv-immersive-welcome{
+  --nv-welcome-logo:url("data:image/webp;base64,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");
+  position:relative;isolation:isolate;box-sizing:border-box;overflow:hidden;
+  background:radial-gradient(ellipse 65% 50% at 77% 48%,rgba(28,104,122,.38),transparent 75%),
+    radial-gradient(ellipse 65% 50% at 15% 76%,rgba(17,126,133,.28),transparent 80%),
+    linear-gradient(130deg,#061624 2%,#0c2a39 51%,#071722 100%);
+  padding-top:150px;
+}
+.nv-immersive-welcome:before{
+  content:"";pointer-events:none;position:absolute;inset:0;z-index:-1;opacity:.48;
+  background:repeating-radial-gradient(ellipse 66% 27% at 50% 105%,transparent 0 74px,rgba(67,218,214,.16) 75px 76px,transparent 77px 118px),
+    radial-gradient(ellipse 90% 33% at 50% 110%,rgba(14,203,192,.16),transparent 75%);
+}
+.nv-immersive-welcome:after{
+  content:"";pointer-events:none;position:absolute;width:min(46vw,520px);height:min(46vw,520px);
+  right:-6%;bottom:-22%;z-index:-1;opacity:.10;background:var(--nv-welcome-logo) center/contain no-repeat;filter:drop-shadow(0 0 30px #20d6cb);
+}
+.nv-welcome-brand{
+  position:absolute;top:clamp(20px,6vh,64px);left:50%;transform:translateX(-50%);
+  width:min(92%,600px);display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px 17px;
+}
+.nv-welcome-logo{width:74px;height:74px;flex:0 0 74px;background:var(--nv-welcome-logo) center/contain no-repeat;filter:drop-shadow(0 0 18px rgba(42,216,207,.26))}
+.nv-welcome-wordmark{font-size:clamp(26px,4vw,49px);font-weight:650;line-height:1.15;letter-spacing:.19em;color:#f3ffff;text-shadow:0 3px 28px rgba(21,230,218,.24)}
+.nv-welcome-subbrand{width:100%;font-size:10px;letter-spacing:.26em;color:#82c9d0;font-weight:600}
+.nv-immersive-welcome .empty-icon{width:78px;height:78px;line-height:78px;display:grid;place-items:center;border-radius:22px;background:rgba(10,44,58,.75);box-shadow:0 10px 44px rgba(0,0,0,.28)}
+.nv-welcome-mini-logo{width:56px;height:56px;display:block;background:var(--nv-welcome-logo) center/contain no-repeat}
+.nv-immersive-welcome h1{color:#f5ffff;text-shadow:0 3px 18px rgba(0,0,0,.6)}
+.nv-immersive-welcome p{color:#c4dfe6}
+.nv-immersive-welcome small{color:#a0c2ca}
+@media(max-height:650px){.nv-immersive-welcome{padding-top:110px}.nv-welcome-brand{top:10px}.nv-welcome-logo{width:44px;height:44px;flex-basis:44px}.nv-welcome-wordmark{font-size:25px}}
+@media(max-width:600px){.nv-welcome-logo{width:54px;height:54px;flex-basis:54px}.nv-welcome-wordmark{font-size:28px;letter-spacing:.09em}.nv-immersive-welcome{padding-top:130px}}
