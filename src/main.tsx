@@ -4423,13 +4423,13 @@ function App(){
           <input aria-label="Renommer cet espace" value={currentSpace.name}
             onChange={e=>renameSpace(currentSpace.id,e.target.value)} maxLength={100}/>
         </label>
-        <p>Décoche les panoramas à exclure. Ils restent dans le projet complet et les autres espaces.</p>
+        <p>Panoramas 360° de cet espace : sélectionne plusieurs JPG, PNG ou WebP en une seule fois (40 Mo maximum par panorama). Les fichiers sont ajoutés à cet espace sans toucher aux autres espaces.</p>
         <div className="nv-space-select-actions">
           <span>{currentSpace.sceneIds.length} / {project.scenes.length} panoramas inclus</span>
           <button type="button" className="primary" onClick={()=>{
             spacePanoramasTarget.current=currentSpace.id;
             spacePanoramasInput.current?.click();
-          }}>＋ Importer plusieurs panoramas…</button>
+          }}>＋ Importer plusieurs panoramas (40 Mo chacun)…</button>
           <button type="button" onClick={()=>setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{
             ...sp,sceneIds:p.scenes.map(sc=>sc.id)
           }:sp)}))}>Tout inclure</button>
@@ -4437,6 +4437,16 @@ function App(){
             setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{...sp,sceneIds:[]}:sp)}));
             setActiveId('');setSelectedId('');
           }}>Tout retirer</button>
+        </div>
+        <div className="nv-pano-import-dropzone" role="button" tabIndex={0}
+          aria-label="Déposer plusieurs panoramas dans cet espace"
+          onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}
+          onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}}
+          onDragOver={e=>{if(e.dataTransfer?.types.includes('Files')){e.preventDefault();e.currentTarget.classList.add('drag-hover');}}}
+          onDragLeave={e=>e.currentTarget.classList.remove('drag-hover')}
+          onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addImages(e.dataTransfer.files,currentSpace.id);}}>
+          <strong>⬆ Glisse ici tous tes panoramas 360°</strong>
+          <small>Ou clique pour choisir plusieurs fichiers · JPG, PNG, WebP · 40 Mo / fichier</small>
         </div>
         <div className="nv-space-scene-picker">
           {project.scenes.map(scene=><label key={scene.id} className="nv-space-scene-option">
