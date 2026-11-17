@@ -1,7 +1,20 @@
-import type {StudioProject,Scene,BottomBarItem} from './storage';
+import {getFloorPlans,withFloorPlans,type StudioProject,type Scene,type BottomBarItem,type FloorPlan} from './storage';
 import type {CloudLink} from './cloud';
 
 export type StudioSpace={id:string;name:string;sceneIds:string[];coverDataUrl?:string};
+/** Plans visibles dans le contexte ouvert : les anciens plans non rattachés
+ * restent dans le projet principal, sans se mélanger aux plans des espaces. */
+export function plansInSpace(project:StudioProject,space:StudioSpace|null):FloorPlan[]{
+  return getFloorPlans(project).filter(plan=>space?plan.spaceId===space.id:!plan.spaceId);
+}
+/** Ne remplace que les plans de l'espace actif, sans toucher aux autres. */
+export function updatePlansInSpace(project:StudioProject,space:StudioSpace|null,edited:FloorPlan[]):StudioProject{
+  const current=getFloorPlans(project);
+  const belongs=(plan:FloorPlan)=>space?plan.spaceId===space.id:!plan.spaceId;
+  const changed=edited.map(plan=>({...plan,spaceId:space?.id}));
+  return withFloorPlans(project,[...current.filter(plan=>!belongs(plan)),...changed]);
+}
+
 
 /**
  * Master project is immutable to space selection: a space contains REFERENCES
@@ -77,8 +90,10 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     comments:undefined,
     mediaLibrary:undefined,
     name:project.name+' - '+space.name,
-    floorPlan:project.floorPlan?{...project.floorPlan,points:project.floorPlan.points.filter(point=>ids.has(point.sceneId))}:undefined,
-    floorPlans:project.floorPlans?.map(plan=>({...plan,points:plan.points.filter(point=>ids.has(point.sceneId))})),
+    floorPlan:plansInSpace(project,space)[0]?{...plansInSpace(project,space)[0],spaceId:undefined,
+      points:plansInSpace(project,space)[0].points.filter(point=>ids.has(point.sceneId))}:undefined,
+    floorPlans:plansInSpace(project,space).map(plan=>({...plan,spaceId:undefined,
+      points:plan.points.filter(point=>ids.has(point.sceneId))})),
     scenes:scenes.map(scene=>({
       ...scene,
       // Conserve la texture de nuit même si sa source est dans un autre espace.
