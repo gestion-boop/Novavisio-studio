@@ -5650,9 +5650,11 @@ function App(){
             /* SCENE OVERVIEW (AUCUN POINT SÉLECTIONNÉ)                        */
             /* ============================================================== */
             <div className="scene-overview">
-              {currentSpace&&<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>}
               <SectionHub id="scene" open={hubOpen.scene??null} onOpenChange={k=>setHubOpen(h=>({...h,scene:k}))}
-                intro={currentSpace?<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>:null}
+                intro={currentSpace?<div className="nv-action-rectangles" style={{display:'flex',flexDirection:'column',gap:8}}>
+                  <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}>⬆ Importer plusieurs panoramas 360° (40 Mo chacun)</button>
+                  <button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button>
+                </div>:null}
                 sections={[
                   {key:'name',title:'Nom du panorama',hint:active.name,icon:<Pencil size={26}/>,tone:'#4f7cff',content:<>
               <div className="nv-name-row"><label className="nv-name-main">Nom de la scène
