@@ -51,7 +51,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -1073,6 +1073,7 @@ function App(){
   const [introEnding,setIntroEnding]=useState(false);
   const [exporting,setExporting]=useState(false);
   const [cloudOpen,setCloudOpen]=useState(false);
+  const [saveWarning,setSaveWarning]=useState<string|null>(null);
   const [authNotice,setAuthNotice]=useState<string|null>(null);
   // Lien de confirmation « à bouton » : ?token_hash=…&type=… (le jeton n'est consommé qu'au clic).
   const [emailLink,setEmailLink]=useState<{tokenHash:string;type:string;busy:boolean;error:string;done:boolean}|null>(()=>{
@@ -2319,11 +2320,26 @@ function App(){
     setSavingManually(true);
     try{
       if(cloud.signedIn){
+        const link=readLink();
+        if(link){
+          const hand=await getWriteState(link.projectId);
+          if(!hand){
+            const message='Impossible de vérifier les droits de sauvegarde de cette visite. Par sécurité, aucune modification ne sera envoyée au Cloud.';
+            setSaveWarning(message);setStatus(message);return false;
+          }
+          if(!hand.canWrite){
+            const message='Attention, vous n’avez pas la main. '+(hand.holderEmail??'Le propriétaire du projet')+' est la seule personne autorisée à enregistrer cette visite. Demandez la main avant de sauvegarder.';
+            setStatus(message);
+            window.dispatchEvent(new CustomEvent('nv-write-denied',{detail:{holderEmail:hand.holderEmail}}));
+            return false;
+          }
+        }
         setStatus('Sauvegarde dans Supabase…');
         const synced=await cloud.syncNow(snapshot);
         if(!synced){
           const reason=cloud.getLastError();
-          setStatus('Échec de la sauvegarde Cloud : '+(reason??'synchronisation non confirmée. Vérifie la connexion, les droits et le panneau Cloud.')+' · Tes modifications restent sur cet appareil. Ne ferme pas cette fenêtre avant de les sécuriser.');
+          const message='Échec de la sauvegarde Cloud : '+(reason??'synchronisation non confirmée. Vérifie la connexion, les droits et le panneau Cloud.')+' · Tes modifications restent sur cet appareil. Ne ferme pas cette fenêtre avant de les sécuriser.';
+          setStatus(message);setSaveWarning(message);
           return false;
         }
         savedRef.current=snapshot;
@@ -2388,7 +2404,10 @@ function App(){
       if(silent)setStatus('Enregistrement automatique effectué');
       histRef.current.ops=0;setHistTick(t=>t+1);
       return true;
-    }catch(error){setStatus('Échec : '+(error instanceof Error?error.message:String(error)));return false;}finally{setSavingManually(false);}
+    }catch(error){
+      const message='Échec de sauvegarde : '+(error instanceof Error?error.message:String(error))+'. Les modifications locales ne sont pas supprimées.';
+      setStatus(message);setSaveWarning(message);return false;
+    }finally{setSavingManually(false);}
   }
   useEffect(()=>{
     const onSaveShortcut=(event:KeyboardEvent)=>{
@@ -6143,6 +6162,14 @@ function App(){
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
       onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
+    {saveWarning&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSaveWarning(null);}}>
+      <section className="modal" role="alertdialog" aria-modal="true" aria-label="Sauvegarde impossible" onClick={e=>e.stopPropagation()}>
+        <h2>⚠ Sauvegarde impossible</h2>
+        <p>{saveWarning}</p>
+        <p><strong>Aucune version cloud n’a été remplacée par cette tentative.</strong> Sauvegarde une copie locale avant de fermer cette fenêtre.</p>
+        <button type="button" className="primary" onClick={()=>setSaveWarning(null)}>J’ai compris</button>
+      </section>
+    </div>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
