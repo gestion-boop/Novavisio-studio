@@ -3848,12 +3848,13 @@ function App(){
   async function addImages(list:FileList|null,targetSpaceId?:string|null){
     if(!list?.length)return;
     const next:Scene[]=[];
+    const errors:string[]=[];
     for(const file of Array.from(list)){
       if(!['image/jpeg','image/png','image/webp'].includes(file.type))continue;
-      if(file.size>40*1024*1024){setStatus('Image trop lourde (40 Mo maximum pour ce prototype)');continue;}
+      if(file.size>100*1024*1024){setStatus('Panorama trop volumineux : '+file.name+' (limite de sécurité 100 Mo par fichier).');continue;}
       try {
         next.push({id:uid(),name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:await readPanorama(file),hotspots:[]});
-      } catch { setStatus('Erreur de lecture : '+file.name); }
+      } catch(e) { errors.push(file.name+' : '+(e instanceof Error?e.message:'lecture impossible')); }
     }
     if(next.length){
       const spaceId=targetSpaceId===undefined?activeSpaceId:targetSpaceId;
@@ -3863,8 +3864,9 @@ function App(){
         }:space):p.spaces
       }));
       if(!activeId)setActiveId(next[0].id);
-      setStatus(next.length+' panorama(s) importé(s)');
+      setStatus(next.length+' panorama(s) importé(s)'+(errors.length?' · '+errors.length+' échec(s) : '+errors.slice(0,2).join(' ; '):''));
     }
+    if(!next.length&&errors.length)setStatus('Import impossible : '+errors.slice(0,2).join(' ; '));
     if(upload.current)upload.current.value='';
     if(spacePanoramasInput.current)spacePanoramasInput.current.value='';
   }
