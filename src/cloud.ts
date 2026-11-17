@@ -151,6 +151,24 @@ export async function listCloudProjects():Promise<CloudProject[]>{
   }).sort((a,b)=>Date.parse(b.updated_at)-Date.parse(a.updated_at)||a.name.localeCompare(b.name,'fr'));
 }
 
+/** Membres invités, visibles uniquement sur les visites dont l'utilisateur est propriétaire.
+ * Les politiques RLS interdisent aux autres comptes d'énumérer ces destinataires. */
+export async function listOwnedProjectRecipients(projectIds:string[]):Promise<Record<string,string[]>>{
+  if(!projectIds.length)return {};
+  const db=supabase();
+  const {data:{user}}=await db.auth.getUser();
+  if(!user)throw new Error('Session Cloud expirée.');
+  const {data,error}=await db.from('nvstudio_members')
+    .select('project_id,email').in('project_id',projectIds);
+  if(error)throw new Error('Liste des invitations indisponible : '+error.message);
+  const recipients:Record<string,string[]>={};
+  for(const member of data??[]){
+    if(!recipients[member.project_id])recipients[member.project_id]=[];
+    if(member.email)recipients[member.project_id].push(member.email);
+  }
+  return recipients;
+}
+
 export async function listSharedCloudProjects():Promise<CloudProject[]>{
   return (await listCloudProjects()).filter(project=>project.shared);
 }
