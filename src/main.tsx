@@ -3849,9 +3849,15 @@ function App(){
     if(!list?.length)return;
     const next:Scene[]=[];
     const errors:string[]=[];
+    let imported=0;
     for(const file of Array.from(list)){
-      if(!['image/jpeg','image/png','image/webp'].includes(file.type))continue;
-      if(file.size>100*1024*1024){setStatus('Panorama trop volumineux : '+file.name+' (limite de sécurité 100 Mo par fichier).');continue;}
+      if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
+        errors.push(file.name+' : utiliser JPG, PNG ou WebP.');
+        continue;
+      }
+      imported++;
+      setStatus('Préparation du panorama '+imported+'/'+list.length+' : '+file.name+'…');
+      if(file.size>40*1024*1024){errors.push(file.name+' : limite 40 Mo par panorama.');continue;}
       try {
         next.push({id:uid(),name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:await readPanorama(file),hotspots:[]});
       } catch(e) { errors.push(file.name+' : '+(e instanceof Error?e.message:'lecture impossible')); }
@@ -4655,7 +4661,7 @@ function App(){
             <p>{currentSpace?'Sélectionne les panoramas de la visite principale à inclure dans cet espace.':'Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.'}</p>
             <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):upload.current?.click()}>
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
-            </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
+            </button>{!currentSpace&&<small>JPG, PNG ou WebP · 40 Mo maximum par panorama · rapport 2:1 recommandé</small>}
           </div>}
           {navigationDraft&&visibleScenes.some(sc=>sc.id===navigationDraft.targetId)&&
             <section className="nv-direction-preview" role="dialog" aria-modal="true" aria-label="Valider la direction de la destination">
