@@ -178,9 +178,9 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
     size:{width,height},anchor:'center center',tooltip:h.title,
     ...(isSphere?{data:{nvSphere:{size:sz,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
-function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig[]{
+function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false,night=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
-  for(const h of preview?visibleVideoFrames(scene.hotspots):scene.hotspots){
+  for(const h of (preview?visibleVideoFrames(scene.hotspots):scene.hotspots).filter(point=>!night||point.type!=='navigation')){
     all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation));
     if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
@@ -237,8 +237,8 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
   const currentTextureRef=useRef(scene.dataUrl);
   const lastPointer=useRef<ZoomOrigin|null>(null);
   const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
-  const actions = useRef({sphereImage,scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {sphereImage,scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
+  const actions = useRef({sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     const root=box.current;
@@ -277,7 +277,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>
           (h.type==='image'&&!h.imageDataUrl)||
           (h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)))return;
-        syncMarkers(viewer,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel(),a.autoNavigation));
+        syncMarkers(viewer,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel(),a.autoNavigation,a.night));
       });
     };
     viewer.addEventListener('zoom-updated',onZoom);
@@ -293,7 +293,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       if (!h) return;
       if(suppressMarkerClick.current===marker.id){suppressMarkerClick.current=null;return;}
       if (a.preview) {
-        if(h.type==='navigation' && h.target) a.onNavigate(h.target,h);
+        if(h.type==='navigation' && h.target && !a.night) a.onNavigate(h.target,h);
         else if(h.type==='information') {
           if (h.imageDataUrl) a.onImage(h,lastPointer.current);
           else if (h.url && safeLink(h.url)) a.onLink(h.title,h.url,h.linkMode);
@@ -316,7 +316,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       }
     });
     const height=box.current?.clientHeight||550;
-    resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation));
+    resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
     // Aperçu seulement : léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
     const stopBounce=startPosterBounce(viewer,()=>actions.current.scene,()=>actions.current.preview&&loadedSceneRef.current===actions.current.scene.id);
     return ()=>{detachSpheres();window.removeEventListener('nv-frame-dim',onDim);stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
@@ -330,7 +330,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation);
+    const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night);
     // Vue d'arrivée appliquée tout de suite (sans animation de zoom / rotation) : les icônes sont créées à leur vraie place et ne bougent plus,
     // au lieu d'attendre la fin d'une animation de ~0,5 s puis de « se replacer ».
     const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
@@ -389,7 +389,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       const a=actions.current;
       if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
-      syncMarkers(v,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,v.getZoomLevel(),a.autoNavigation));
+      syncMarkers(v,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,v.getZoomLevel(),a.autoNavigation,a.night));
     };
     refresh();
     if(!box.current)return;
@@ -402,8 +402,8 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const element=box.current;
     const v=viewerRef.current;
     if(!element||!v||loadedSceneRef.current!==scene.id)return;
-    syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel(),autoNavigation));
-  },[scene.id,scene.hotspots,icons,selectedId,preview,autoNavigation]);
+    syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel(),autoNavigation,night));
+  },[scene.id,scene.hotspots,icons,selectedId,preview,autoNavigation,night]);
   useEffect(()=>{
     const v=viewerRef.current;
     if(!v||loadedSceneRef.current!==scene.id)return;
