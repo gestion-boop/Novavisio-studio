@@ -1191,6 +1191,8 @@ function App(){
   const [spaceSelection,setSpaceSelection]=useState<Set<string>>(new Set());
   const [spaceAction,setSpaceAction]=useState<'share'|'transfer'|null>(null);
   const spaceImportInput=useRef<HTMLInputElement>(null);
+  const spacePanoramasInput=useRef<HTMLInputElement>(null);
+  const spacePanoramasTarget=useRef<string|null>(null);
   const [shareMenuOpen,setShareMenuOpen]=useState(false);
   const [bellOpen,setBellOpen]=useState(false);
   const [bellTab,setBellTab]=useState<'notifs'|'comments'>('notifs');
@@ -3843,7 +3845,7 @@ function App(){
     setFullscreenToolsOpen(true);setMode(null);
     setStatus('Retour créé dans '+destination.name+' : déplace la flèche si nécessaire puis enregistre.');
   }
-  async function addImages(list:FileList|null){
+  async function addImages(list:FileList|null,targetSpaceId?:string|null){
     if(!list?.length)return;
     const next:Scene[]=[];
     for(const file of Array.from(list)){
@@ -3854,8 +3856,9 @@ function App(){
       } catch { setStatus('Erreur de lecture : '+file.name); }
     }
     if(next.length){
+      const spaceId=targetSpaceId===undefined?activeSpaceId:targetSpaceId;
       setProject(p=>({...p,scenes:[...p.scenes,...next.map(scene=>({...scene,musicTrackId:p.defaultMusicTrackId}))],
-        spaces:activeSpaceId?(p.spaces??[]).map(space=>space.id===activeSpaceId?{
+        spaces:spaceId?(p.spaces??[]).map(space=>space.id===spaceId?{
           ...space,sceneIds:[...space.sceneIds,...next.map(scene=>scene.id)]
         }:space):p.spaces
       }));
@@ -3863,6 +3866,7 @@ function App(){
       setStatus(next.length+' panorama(s) importé(s)');
     }
     if(upload.current)upload.current.value='';
+    if(spacePanoramasInput.current)spacePanoramasInput.current.value='';
   }
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
@@ -4407,6 +4411,10 @@ function App(){
         <p>Décoche les panoramas à exclure. Ils restent dans le projet complet et les autres espaces.</p>
         <div className="nv-space-select-actions">
           <span>{currentSpace.sceneIds.length} / {project.scenes.length} panoramas inclus</span>
+          <button type="button" className="primary" onClick={()=>{
+            spacePanoramasTarget.current=currentSpace.id;
+            spacePanoramasInput.current?.click();
+          }}>＋ Importer plusieurs panoramas…</button>
           <button type="button" onClick={()=>setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{
             ...sp,sceneIds:p.scenes.map(sc=>sc.id)
           }:sp)}))}>Tout inclure</button>
@@ -6078,6 +6086,9 @@ function App(){
       if(placement.type==='image')void addFrameImage(file,placement);else void addVideo(file,placement);
     }}/>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
+    <input ref={spacePanoramasInput} hidden type="file" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+      aria-label="Importer plusieurs panoramas dans cet espace"
+      onChange={e=>{const files=e.currentTarget.files;const spaceId=spacePanoramasTarget.current;spacePanoramasTarget.current=null;void addImages(files,spaceId);}}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
