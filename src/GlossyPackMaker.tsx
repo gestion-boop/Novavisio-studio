@@ -13,7 +13,7 @@ const PRESETS:ReadonlyArray<{name:string;base:string}>=[
   {name:'Anthracite',base:'#3d4248'},
 ];
 
-export function GlossyPackMaker({onCreate,onCreateBar,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle,applyBar:boolean)=>void;onCreateBar?:(style:GlossyStyle)=>void;defaultLabel:string;initial?:GlossyStyle}){
+export function GlossyPackMaker({onCreate,onCreateBar,onCreateMotifs,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle,applyBar:boolean)=>void;onCreateBar?:(style:GlossyStyle)=>void;onCreateMotifs?:(style:GlossyStyle)=>void;defaultLabel:string;initial?:GlossyStyle}){
   const [applyBar,setApplyBar]=useState(false);
   const [base,setBase]=useState(initial?.base??'#2f7f9e');
   const [rim,setRim]=useState(initial?.rim??'');
@@ -71,5 +71,7 @@ export function GlossyPackMaker({onCreate,onCreateBar,defaultLabel,initial}:{onC
       ✦ Créer et utiliser ce pack glossy (Normal · Survol · Pressé)</button>
     {onCreateBar&&<button type="button" className="import" onClick={()=>onCreateBar({base,rim:rim||undefined,gloss,shadow})}>
       ✦ Créer une icône glossy avec son pictogramme pour chaque bouton de la barre</button>}
+    {onCreateMotifs&&<button type="button" className="import" onClick={()=>onCreateMotifs({base,rim:rim||undefined,gloss,shadow})}>
+      ✦ Créer les icônes glossy de la visite : flèche, photo, vidéo, localisation, images, carte, panorama, restaurant</button>}
   </div>;
 }

@@ -36,7 +36,8 @@ import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
 import {GlossyPackMaker} from './GlossyPackMaker';
-import {glossyBarPacks} from './barGlossy';
+import {glossyBarPacks,glyphPng} from './barGlossy';
+import {glossyIconStates} from './glossyIcon';
 import {autoIconZoom} from './iconFit';
 import {MediaLibraryPanel} from './MediaLibraryPanel';
 import {PhotoGallery} from './PhotoGallery';
@@ -61,6 +62,7 @@ import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
 import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
+import {Video,Rotate3d} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
@@ -107,7 +109,12 @@ const barColorFields:Array<{key:'background'|'outline'|'button'|'buttonOutline'|
   {key:'buttonOutline',label:'Contour des boutons'},
   {key:'icon',label:'Couleur des pictogrammes'}
 ];
-const glyphs = {home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid};
+const glyphs = {home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid,camera:Camera,video:Video,plan:MapIcon,panorama:Rotate3d};
+/** Motifs de la visite (flèche, photo, vidéo…) : une icône glossy chacun, avec son pictogramme. */
+const VISIT_MOTIFS:ReadonlyArray<{key:keyof typeof glyphs;label:string}>=[
+  {key:'arrow',label:'Flèche'},{key:'camera',label:'Photo'},{key:'video',label:'Vidéo'},{key:'map',label:'Localisation'},
+  {key:'images',label:'Images'},{key:'plan',label:'Carte'},{key:'panorama',label:'Panorama'},{key:'utensils',label:'Restaurant'},
+];
 type GlyphKey = keyof typeof glyphs;
 function BarGlyph({name}:{name:string}) {
   const Glyph = glyphs[name as GlyphKey] ?? Info;
@@ -5983,6 +5990,30 @@ function App(){
             }catch(e){setStatus('Impossible de créer le pack Paramètres : '+String(e));}
           }}>⚙ Créer et utiliser mon pack Paramètres doré 3D (Normal · Survol · Pressé)</button>
           <GlossyPackMaker key={JSON.stringify(project.glossyStyle??null)} initial={project.glossyStyle} defaultLabel="Bouton glossy"
+            onCreateMotifs={style=>{
+              void (async()=>{
+                try{
+                  if(project.icons.length+VISIT_MOTIFS.length*3>147){setStatus('Bibliothèque pleine : supprime des packs avant d’en créer.');return;}
+                  const made:Record<string,{iconId:string;hoverIconId:string;pressedIconId:string}>={};
+                  const newIcons:{id:string;name:string;dataUrl:string}[]=[];
+                  for(const motif of VISIT_MOTIFS){
+                    const Glyph=glyphs[motif.key] as unknown as ComponentType<Record<string,unknown>>;
+                    const states=await glossyIconStates({...style,glyph:await glyphPng(Glyph)});
+                    const a={id:uid(),name:motif.label+' · glossy · Normal',dataUrl:states.normal};
+                    const b={id:uid(),name:motif.label+' · glossy · Survol',dataUrl:states.hover};
+                    const c={id:uid(),name:motif.label+' · glossy · Pressé',dataUrl:states.pressed};
+                    newIcons.push(a,b,c);
+                    made[motif.key]={iconId:a.id,hoverIconId:b.id,pressedIconId:c.id};
+                  }
+                  setProject(validateProject({...project,icons:[...project.icons,...newIcons],glossyStyle:style,
+                    defaultNavigationIcon:{...made.arrow,iconSize:40},
+                    defaultPhotoIcon:{...made.camera,iconSize:40},
+                    defaultVideoIcon:{...made.video,iconSize:40},
+                    bottomBar:project.bottomBar.map(item=>{const k=item.builtinIcon;return item.iconId||!k||!made[k]?item:{...item,...made[k]};})}));
+                  setStatus('Icônes glossy de la visite créées (flèche, photo, vidéo, localisation, images, carte, panorama, restaurant) et utilisées par défaut. Sauvegarde avec la disquette.');
+                }catch(e){setStatus('Impossible de créer les icônes glossy : '+String(e));}
+              })();
+            }}
             onCreateBar={style=>{
               void (async()=>{
                 try{
