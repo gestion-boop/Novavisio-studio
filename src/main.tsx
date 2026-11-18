@@ -337,7 +337,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     veil.setAttribute('aria-hidden','true');
     Object.assign(veil.style,{
       position:'absolute',inset:'0',zIndex:'18',pointerEvents:'none',
-      background:'#071925',opacity:'0',transition:'opacity 175ms ease-in-out'
+      background:'#071925',opacity:'0',transition:'opacity 140ms ease-in-out'
     });
     if(host){
       if(getComputedStyle(host).position==='static')host.style.position='relative';
@@ -350,7 +350,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
       }
       veil.style.opacity='0';
-      timer=setTimeout(finish,190);
+      timer=setTimeout(finish,150);
     };
     const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
     const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
@@ -373,9 +373,9 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         syncMarkers(viewer,markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
         // Deuxième moitié : photo et cadre sont déjà ensemble sur le nouveau panorama.
         veil.style.opacity='0';
-        timer=setTimeout(finish,190);
+        timer=setTimeout(finish,150);
       }).catch(()=>{if(!disposed)restore();});
-    },180);
+    },145);
     return ()=>{disposed=true;if(timer!==undefined)clearTimeout(timer);veil.remove();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
