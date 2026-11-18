@@ -6018,3 +6018,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-settings-panorama-row{display:flex;align-items:center;gap:6px;padding:6px 4px;border-bottom:1px solid #ffffff20}
 .nv-settings-panorama-row>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nv-settings-panorama-row button{flex-shrink:0;font-size:12px;padding:5px 8px}
+
+/* Gestion directe des panoramas dans Réglages > Panoramas */
+.nv-panorama-manage-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 6px}
+.nv-panorama-manage-actions .hint{font-size:11px;opacity:.8}
+.scene-slot .nv-scene-delete-project{position:absolute;right:7px;bottom:7px;z-index:6;min-width:27px;min-height:27px;border-radius:8px;background:#762d31;color:#fff;border:1px solid #f6a7a7;cursor:pointer;font-weight:700}
+.scene-slot .nv-scene-delete-project:hover{background:#b33b43}
