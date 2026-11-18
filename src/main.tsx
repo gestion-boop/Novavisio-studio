@@ -328,41 +328,55 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const next=scene;
     const pending=actions.current.arrival;
     const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
-    // Masquer les marqueurs de l'ancien panorama avant de changer la texture :
-    // une photo incrustée ne doit jamais se superposer à une autre scène.
-    // Aucune coordonnée de hotspot/caméra n'est modifiée ou sauvegardée ici.
-    resetMarkers(viewer,[]);
-    const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
-    const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
-    const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
-    void viewer.setPanorama(nextTexture,{
-      showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
-      position:arrivalPos,zoom:arrivalZoom,
-    }).then(success=>{
-      // setPanorama se résout après la transition : ne pas afficher les cadres
-      // au signal panorama-loaded, qui peut arriver avant la fin du fondu.
-      if(disposed)return;
-      if(!success){
-        // En cas d'échec, restaurer les marqueurs de la scène encore visible.
-        const current=actions.current.scene;
-        if(loadedSceneRef.current===current.id){
-          syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
-        }
-        return;
-      }
-      loadedSceneRef.current=next.id;
-      currentTextureRef.current=nextTexture;
-      const camera=viewer.getPosition();
-      actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
-      syncMarkers(viewer,markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
-    }).catch(()=>{
-      if(disposed)return;
+    // Fondu de l'ensemble du lecteur (panorama + cadres + photos) :
+    // on évite que les images incrustées disparaissent seules au milieu du fondu.
+    // Les coordonnées sauvegardées ne sont jamais modifiées.
+    const host=box.current;
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    const veil=document.createElement('div');
+    veil.setAttribute('aria-hidden','true');
+    Object.assign(veil.style,{
+      position:'absolute',inset:'0',zIndex:'18',pointerEvents:'none',
+      background:'#071925',opacity:'0',transition:'opacity 175ms ease-in-out'
+    });
+    if(host){
+      if(getComputedStyle(host).position==='static')host.style.position='relative';
+      host.appendChild(veil);
+    }
+    const finish=()=>{if(timer!==undefined)clearTimeout(timer);veil.remove();};
+    const restore=()=>{
       const current=actions.current.scene;
       if(loadedSceneRef.current===current.id){
         syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
       }
-    });
-    return ()=>{disposed=true;};
+      veil.style.opacity='0';
+      timer=setTimeout(finish,190);
+    };
+    const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
+    const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
+    const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
+    // Première moitié du fondu : masquer l'ancienne scène et ses incrustations ensemble.
+    requestAnimationFrame(()=>{if(!disposed)veil.style.opacity='1';});
+    timer=setTimeout(()=>{
+      if(disposed)return;
+      resetMarkers(viewer,[]);
+      void viewer.setPanorama(nextTexture,{
+        showLoader:false,transition:{effect:'fade',rotation:false,speed:0},
+        position:arrivalPos,zoom:arrivalZoom,
+      }).then(success=>{
+        if(disposed)return;
+        if(!success){restore();return;}
+        loadedSceneRef.current=next.id;
+        currentTextureRef.current=nextTexture;
+        const camera=viewer.getPosition();
+        actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
+        syncMarkers(viewer,markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
+        // Deuxième moitié : photo et cadre sont déjà ensemble sur le nouveau panorama.
+        veil.style.opacity='0';
+        timer=setTimeout(finish,190);
+      }).catch(()=>{if(!disposed)restore();});
+    },180);
+    return ()=>{disposed=true;if(timer!==undefined)clearTimeout(timer);veil.remove();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
     // Parcours guidé : tourne la vue (ex. demi-tour pour placer le retour) sans changer de panorama.
