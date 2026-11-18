@@ -1,13 +1,14 @@
 import {useState} from 'react';
 import {glossyIconStates,type GlossyStates} from './glossyIcon';
-import {isSafeIconDataUrl} from './storage';
+import {isSafeIconDataUrl,type GlossyStyle} from './storage';
 
-/** Panneau de création d'un pack glossy : couleur, reflet, ombre et pictogramme facultatif. */
-export function GlossyPackMaker({onCreate,defaultLabel}:{onCreate:(states:GlossyStates,label:string)=>void;defaultLabel:string}){
-  const [base,setBase]=useState('#2f7f9e');
-  const [rim,setRim]=useState('');
-  const [gloss,setGloss]=useState(0.7);
-  const [shadow,setShadow]=useState(0.5);
+/** Panneau de création d'un pack glossy : couleur, reflet, ombre et pictogramme facultatif.
+ *  `initial` = charte du projet (ou du thème appliqué) ; la charte utilisée est renvoyée à la création. */
+export function GlossyPackMaker({onCreate,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle)=>void;defaultLabel:string;initial?:GlossyStyle}){
+  const [base,setBase]=useState(initial?.base??'#2f7f9e');
+  const [rim,setRim]=useState(initial?.rim??'');
+  const [gloss,setGloss]=useState(initial?.gloss??0.7);
+  const [shadow,setShadow]=useState(initial?.shadow??0.5);
   const [glyph,setGlyph]=useState<string|undefined>();
   const [label,setLabel]=useState(defaultLabel);
   const [preview,setPreview]=useState<GlossyStates|null>(null);
@@ -51,7 +52,7 @@ export function GlossyPackMaker({onCreate,defaultLabel}:{onCreate:(states:Glossy
       {(['normal','hover','pressed'] as const).map(k=><div key={k} style={{textAlign:'center',fontSize:12}}><img src={preview[k]} alt={k} style={{width:64,height:64}}/><div>{k==='normal'?'Normal':k==='hover'?'Survol':'Pressé'}</div></div>)}
     </div>}
     {error&&<small style={{color:'#ffb4a8'}}>{error}</small>}
-    <button type="button" className="import" onClick={async()=>{const states=preview??await render();if(states)onCreate(states,label.trim()||defaultLabel);}}>
+    <button type="button" className="import" onClick={async()=>{const states=preview??await render();if(states)onCreate(states,label.trim()||defaultLabel,{base,rim:rim||undefined,gloss,shadow});}}>
       ✦ Créer et utiliser ce pack glossy (Normal · Survol · Pressé)</button>
   </div>;
 }
