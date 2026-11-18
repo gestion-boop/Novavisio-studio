@@ -14,6 +14,9 @@ const palettes=[
   {name:'Océan',background:'#e0eff3',outline:'#6591a5',button:'#176a91',buttonOutline:'#62a4bc',icon:'#ffffff'},
   {name:'Graphite',background:'#28333d',outline:'#718692',button:'#15212b',buttonOutline:'#546b7a',icon:'#ffffff'},
   {name:'Bordeaux',...defaultBarStyle()},
+  {name:'Nuit et or',background:'#0b1826',outline:'#c79c5a',button:'#c79c5a',buttonOutline:'#e6c17c',icon:'#f7f5ef'},
+  {name:'Océan profond',background:'#153f59',outline:'#2ad8cf',button:'#153f59',buttonOutline:'#2ad8cf',icon:'#f7f5ef'},
+  {name:'Coucher de soleil',background:'#0b1826',outline:'#e8734a',button:'#e8734a',buttonOutline:'#e6c17c',icon:'#f7f5ef'},
 ];
 export function ProjectPreparation({project,setProject,onClose,onFinish,onImportPanoramas}:{project:StudioProject;setProject:Dispatch<SetStateAction<StudioProject>>;onClose:()=>void;onFinish:()=>void;onImportPanoramas:(files:FileList|null)=>Promise<void>}){
   const [step,setStep]=useState(0),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[saveSkin,setSaveSkin]=useState(false);
