@@ -5942,6 +5942,8 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-immersive-welcome:after {opacity:.08}
 .nv-immersive-welcome .nv-welcome-brand {z-index:2}
 .nv-immersive-welcome .nv-welcome-wordmark {text-shadow:0 3px 18px #001521,0 0 30px #002536}
+/* Le logo et le nom sont déjà dans la nouvelle image d'accueil : pas d'emblème en double par-dessus. */
+.nv-immersive-welcome .empty-icon,.nv-immersive-welcome .nv-welcome-mini-logo{display:none!important}
 
 
 /* Accueil immersif : surcouche optique 360°, sans masquer le paysage ni les commandes. */
