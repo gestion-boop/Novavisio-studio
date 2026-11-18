@@ -4724,12 +4724,12 @@ function App(){
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
             onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className={'empty'+(!currentSpace?' nv-immersive-welcome':'')}>
-            {!currentSpace&&<div className="nv-welcome-brand" aria-label="NOVAVISIO"><span className="nv-welcome-logo" aria-hidden="true"/><span className="nv-welcome-wordmark">NOVAVISIO</span><span className="nv-welcome-subbrand">STUDIO · VISITES IMMERSIVES 360°</span></div>}
-            <div className="empty-icon">{currentSpace?'◎':<span className="nv-welcome-mini-logo" aria-hidden="true"/>}</div><h1>{currentSpace?'Cet espace est vide':'Ta première visite commence ici'}</h1>
-            <p>{currentSpace?'Sélectionne les panoramas de la visite principale à inclure dans cet espace.':'Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.'}</p>
-            <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):upload.current?.click()}>
-              {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
-            </button>{!currentSpace&&<small>JPG, PNG ou WebP · 40 Mo maximum par panorama · rapport 2:1 recommandé</small>}
+            {currentSpace&&<div className="empty-icon">◎</div>}
+            {currentSpace&&<h1>Cet espace est vide</h1>}
+            {currentSpace&&<p>Sélectionne les panoramas de la visite principale à inclure dans cet espace.</p>}
+            <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):setPreparationOpen(true)}>
+              {currentSpace?'Choisir les panoramas':'Démarrer'}
+            </button>
           </div>}
           {navigationDraft&&visibleScenes.some(sc=>sc.id===navigationDraft.targetId)&&
             <section className="nv-direction-preview" role="dialog" aria-modal="true" aria-label="Valider la direction de la destination">
