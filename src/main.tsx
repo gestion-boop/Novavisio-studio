@@ -75,7 +75,7 @@ import {ExistingIconPackPicker} from './ExistingIconPackPicker';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
-import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
+import {syncMarkers,resetMarkers} from './markerSync';
 import {attachSunFlare} from './sunFlare';
 import {startPosterBounce} from './posterBounce';
 import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,paletteFromLogo,type SvgIconDesign} from './svgIcons';
