@@ -77,7 +77,13 @@ export async function publishPermanent(project:StudioProject,link:CloudLink|null
   const {data,error}=await supabase().rpc('nvstudio_publish',{p_project:saved.projectId,p_revision:saved.revision});
   if(error)throw new Error(friendly(error.message));
   const out=data as {token:string;published_at:string;revision:number};
-  return {link:saved,publication:{token:out.token,published_revision:out.revision,published_at:out.published_at,revoked_at:null}};
+  // Ne jamais annoncer une publication réussie sans lecture de contrôle côté serveur.
+  // L'adresse permanente (intégrée une seule fois dans NovaTour) doit rester stable.
+  const confirmed=await getPublication(saved.projectId);
+  if(!confirmed||confirmed.revoked_at||confirmed.published_revision!==saved.revision||confirmed.token!==out.token){
+    throw new Error('La publication n’a pas pu être vérifiée. La version affichée dans NovaTour n’est pas confirmée.');
+  }
+  return {link:saved,publication:confirmed};
 }
 /**
  * Publie automatiquement après un enregistrement manuel, uniquement si le lien
