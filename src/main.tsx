@@ -5908,7 +5908,7 @@ function App(){
             <div className="nv-settings-panorama-list">
               {project.scenes.map(sc=><div key={sc.id} className="nv-settings-panorama-row">
                 <span title={sc.name}>{sc.name}</span>
-                <button type="button" title={'Ouvrir '+sc.name} onClick={()=>{setSceneId(sc.id);setPanel('panoramas');}}>Ouvrir</button>
+                <button type="button" title={'Ouvrir '+sc.name} onClick={()=>{setActiveId(sc.id);setPanel('panoramas');}}>Ouvrir</button>
                 <button type="button" title={'Supprimer '+sc.name} disabled={project.scenes.length<=1} onClick={()=>deleteScene(sc.id)}>Supprimer</button>
               </div>)}
             </div>
