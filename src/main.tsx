@@ -35,6 +35,7 @@ import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
+import {GlossyPackMaker} from './GlossyPackMaker';
 import {autoIconZoom} from './iconFit';
 import {MediaLibraryPanel} from './MediaLibraryPanel';
 import {PhotoGallery} from './PhotoGallery';
@@ -5879,6 +5880,16 @@ function App(){
               setStatus('Pack « '+label+' » créé : Normal, Survol, Pressé. Il est appliqué au bouton Paramètres et disponible dans la bibliothèque. Sauvegarde avec la disquette.');
             }catch(e){setStatus('Impossible de créer le pack Paramètres : '+String(e));}
           }}>⚙ Créer et utiliser mon pack Paramètres doré 3D (Normal · Survol · Pressé)</button>
+          <GlossyPackMaker defaultLabel="Bouton glossy" onCreate={(g,label)=>{
+            if(project.icons.length>147){setStatus('Bibliothèque pleine : supprime un ancien pack avant d’en ajouter un autre.');return;}
+            const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
+            const a=mk(label+' · Normal',g.normal),b=mk(label+' · Survol',g.hover),c=mk(label+' · Pressé',g.pressed);
+            try{
+              setProject(validateProject({...project,icons:[...project.icons,a,b,c],
+                settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id}));
+              setStatus('Pack « '+label+' » créé : Normal, Survol, Pressé. Appliqué au bouton Paramètres. Sauvegarde avec la disquette.');
+            }catch(e){setStatus('Impossible de créer le pack : '+String(e));}
+          }}/>
           {project.settingsIconId&&<div className="nv-settings-three-previews">
             {([['Normal',project.settingsIconId],['Survol',project.settingsHoverIconId],['Pressé',project.settingsPressedIconId]] as const).map(([label,id])=>
               <div key={label}><span>{id&&project.icons.some(i=>i.id===id)?<img src={project.icons.find(i=>i.id===id)!.dataUrl} alt={'Paramètres '+label}/>:<i>⚙</i>}</span><small>{label}</small></div>)}
