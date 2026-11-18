@@ -171,7 +171,7 @@ export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
 /** Positions in percentages of the plan image, independent of screen size. */
 export type FloorPlanPoint = {sceneId:string;x:number;y:number};
-export type FloorPlan = {id?:string;imageDataUrl:string;name:string;points:FloorPlanPoint[]};
+export type FloorPlan = {id?:string;imageDataUrl:string;name:string;points:FloorPlanPoint[];/** Espace auquel appartient le plan, absent pour un plan du projet principal (anciens plans inclus). */spaceId?:string};
 /** Compatibilité : les anciennes visites n'ont qu'un floorPlan.
  * Le tableau floorPlans devient la source de vérité dès sa création. */
 export function getFloorPlans(project:Pick<StudioProject,'floorPlan'|'floorPlans'>):FloorPlan[]{
@@ -261,6 +261,7 @@ export function validateProject(value:unknown):StudioProject {
   for(const plan of allPlans){
     if(!plan||typeof plan!=='object'||!isSafeFrameImage(plan.imageDataUrl)||plan.imageDataUrl.length>6_000_000||
       typeof plan.name!=='string'||plan.name.length>200||!Array.isArray(plan.points)||plan.points.length>500||
+      (plan.spaceId!==undefined&&(typeof plan.spaceId!=='string'||plan.spaceId.length>100||!plan.spaceId.trim()))||
       (plan.id!==undefined&&(typeof plan.id!=='string'||plan.id.length>120||!plan.id.trim())))
       throw new Error('Plan de la visite invalide');
     if(plan.id){
@@ -455,6 +456,8 @@ export function validateProject(value:unknown):StudioProject {
        throw new Error('Un espace contient des références de panoramas invalides');
     spaceIds.add(space.id);
   }
+  for(const plan of allPlans)if(plan.spaceId!==undefined&&!spaceIds.has(plan.spaceId))
+    throw new Error('Le plan appartient à un espace inexistant');
   const languages=p.languages===undefined?(p.name?.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(l=>l.code):['fr' as StudioLanguage]):p.languages;
   if(!Array.isArray(languages)||!languages.length||languages.length>5||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
   if(p.preparationComplete!==undefined && typeof p.preparationComplete!=='boolean')throw new Error('Préparation de projet invalide');
@@ -489,10 +492,14 @@ export async function readPanorama(file:File):Promise<string> {
   try {
     const bitmap = await createImageBitmap(file);
     try {
-      if (bitmap.width <= MAX_PANORAMA_WIDTH) return await readImage(file);
-      const ratio = MAX_PANORAMA_WIDTH / bitmap.width;
+      // Les fichiers 360° jusqu'à 40 Mo sont importés sans les conserver
+      // inutilement à leur poids d'origine dans les sauvegardes cloud.
+      // Les petites images restent inchangées ; les grandes sont converties
+      // en JPEG de qualité élevée, jusqu'à 8192 px, sans recadrage.
+      if (bitmap.width <= MAX_PANORAMA_WIDTH && file.size <= 8 * 1024 * 1024) return await readImage(file);
+      const ratio = Math.min(1, MAX_PANORAMA_WIDTH / bitmap.width);
       const canvas = document.createElement('canvas');
-      canvas.width = MAX_PANORAMA_WIDTH;
+      canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
       canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
       const ctx = canvas.getContext('2d');
       if (!ctx) return await readImage(file);

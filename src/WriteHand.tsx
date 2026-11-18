@@ -7,7 +7,7 @@ import {XMark} from './XMark';
  * Une seule personne à la fois peut enregistrer (contrôle côté Supabase : même une ancienne fenêtre ouverte est refusée).
  * Le propriétaire peut transmettre, reprendre ou libérer la main ; la personne qui l'a peut la transmettre à un autre participant.
  */
-const name=(email:string|null)=>email?email.split('@')[0]:'tout le monde';
+const name=(email:string|null)=>email?email.split('@')[0]:'le propriétaire';
 
 export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
   const [projectId,setProjectId]=useState<string|null>(()=>readLink()?.projectId??null);
@@ -17,6 +17,7 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
   const [error,setError]=useState('');
   const [denied,setDenied]=useState<{holderEmail:string|null}|null>(null);
   const alive=useRef(true);
+  const warnedRef=useRef<string>('');
   useEffect(()=>{alive.current=true;return ()=>{alive.current=false;};},[]);
 
   const refresh=useCallback(async()=>{
@@ -27,7 +28,20 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
       const {data}=await supabase().auth.getSession();
       if(!data.session){setState(null);return;}
       const next=await getWriteState(id);
-      if(alive.current)setState(next);
+      // Une réponse d'un ancien projet ne doit jamais provoquer une alerte
+      // lorsque l'utilisateur vient d'ouvrir un autre projet.
+      if(!alive.current||readLink()?.projectId!==id)return;
+      setState(next);
+      if(next?.canWrite){
+        warnedRef.current='';
+        setDenied(null); // la main a été transmise : l'ancienne alerte est caduque
+      }else if(next){
+        const key=id+':'+next.holderEmail+':'+next.myEmail;
+        if(warnedRef.current!==key){
+          warnedRef.current=key;
+          setDenied({holderEmail:next.holderEmail});
+        }
+      }
     }catch{/* réseau coupé : on garde l'état précédent */}
   },[]);
 
@@ -66,24 +80,20 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
   if(!projectId||!state)return denied?<DeniedDialog holder={denied.holderEmail} state={null} busy={busy} error={error} onClose={()=>setDenied(null)} onTake={()=>{}}/>:null;
   const holder=state.holderEmail;
   const mine=holder===state.myEmail;
-  const label=holder===null?'Tout le monde':mine?'Moi':name(holder);
+  const label=mine?'Moi':name(holder);
   const people=state.participants;
   const admin=state.isAdmin??state.isOwner;
   return <>
     <div className="nv-hand">
-      <button type="button" className={'nv-hand-chip'+(holder===null?' is-free':mine?' is-mine':' is-other')} onClick={()=>setOpen(v=>!v)} aria-expanded={open}
+      <button type="button" className={'nv-hand-chip'+(mine?' is-mine':' is-other')} onClick={()=>setOpen(v=>!v)} aria-expanded={open}
         title="Qui peut enregistrer cette visite dans le Cloud ?">
         <span aria-hidden="true">✍</span> La main : <b>{label}</b>
       </button>
       {open&&<div className="nv-hand-pop" role="dialog" aria-label="Qui a la main pour enregistrer ?">
         <div className="nv-hand-head"><b>Qui enregistre ?</b><button type="button" className="quiet" onClick={()=>setOpen(false)} aria-label="Fermer"><XMark/></button></div>
-        <p>{admin?'Choisis qui peut enregistrer dans le Cloud :':'Une seule personne à la fois enregistre dans le Cloud. '+(holder===null?'Pour l’instant, tout le monde peut enregistrer.':mine?'C’est vous : les autres voient une fenêtre s’ils essaient d’enregistrer.':'Vous pouvez travailler ; vous enregistrez quand un admin vous donne la main.')}</p>
+        <p>Compte connecté : <strong>{state.myEmail}</strong>. Main actuelle : <strong>{holder??state.ownerEmail}</strong>. {state.canWrite?'Vous pouvez sauvegarder.':'Vous ne pouvez pas sauvegarder tant que la main ne vous a pas été transmise.'}</p>
+      {admin&&<p>Choisis ci-dessous la personne autorisée à enregistrer dans le Cloud.</p>}
         <div className="nv-hand-choices" role="radiogroup" aria-label="Qui enregistre">
-          <button type="button" role="radio" aria-checked={holder===null} className={'nv-hand-choice'+(holder===null?' is-on':'')} disabled={busy||!admin||holder===null}
-            onClick={()=>void give(null,'Tout le monde peut enregistrer.')}>
-            <span className="nv-hand-radio" aria-hidden="true"/>
-            <span><b>Tout le monde</b><small>Chaque participant peut enregistrer</small></span>
-          </button>
           {people.map(p=>{
             const isHolder=p.email===holder;
             const isMe=p.email===state.myEmail;
@@ -116,7 +126,7 @@ function DeniedDialog({holder,state,busy,error,onClose,onTake}:{holder:string|nu
   return <div className="overlay nv-hand-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
     <section className="modal nv-hand-denied" role="alertdialog" aria-modal="true" aria-label="Enregistrement impossible">
       <h2>✍ {holder?name(holder)+' a la main':'Une autre personne a la main'}</h2>
-      <p>Vous ne pouvez pas enregistrer pour le moment : la main sur cette visite est à <b>{holder??'une autre personne'}</b>. Demandez-lui de vous la transmettre (bouton « La main » en haut). <b>Vos modifications restent sur cet appareil</b>, rien n’est perdu.</p>
+      <p>Attention, vous n’avez pas la main sur ce projet. Le compte <b>{holder??'propriétaire'}</b> est autorisé à enregistrer. Vérifiez le compte actuellement connecté et demandez le transfert depuis « La main ». <b>Vos modifications locales ne sont pas envoyées au Cloud</b>.</p>
       {(state?.isAdmin??state?.isOwner)&&<p>En tant qu’admin, vous pouvez la reprendre.</p>}
       {error&&<p className="warning">{error}</p>}
       <div className="nv-hand-actions">

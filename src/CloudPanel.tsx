@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {cloudConfigured,supabase,signOut,listCloudProjects,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
+import {cloudConfigured,supabase,signOut,listCloudProjects,listOwnedProjectRecipients,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 import {XMark} from './XMark';
@@ -21,13 +21,20 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
   const [items,setItems]=useState<CloudProject[]>([]);
+  const [recipients,setRecipients]=useState<Record<string,string[]>>({});
   const [historyFor,setHistoryFor]=useState<string|null>(null);
   const [revisions,setRevisions]=useState<CloudRevision[]>([]);
   const [link,setLink]=useState<CloudLink|null>(readLink());
   const [spaces,setSpaces]=useState<CloudSpace[]>([]);
 
   async function refresh(){
-    try{setItems(await listCloudProjects());setError('');setSpaces(await listCloudSpaces().catch(()=>[]));}
+    try{
+      const projects=await listCloudProjects();
+      setItems(projects);
+      const ownedIds=projects.filter(item=>!item.shared).map(item=>item.id);
+      setRecipients(await listOwnedProjectRecipients(ownedIds));
+      setError('');setSpaces(await listCloudSpaces().catch(()=>[]));
+    }
     catch(e){setError(e instanceof Error?e.message:String(e));}
   }
   useEffect(()=>{
@@ -96,10 +103,15 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
         <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void send(true)}>Envoyer comme nouvelle visite</button>
         {link&&<button className="quiet" disabled={!!busy||!project.scenes.length} onClick={()=>void send(false)}>Nouvelle révision (visite liée, rév. {link.revision})</button>}
       </div>
-      <div className="nv-cloud-list-header"><h3>Visites dans le cloud ({items.length})</h3><small>Plus récent en premier · défiler pour voir la suite</small></div>
+      <div className="nv-cloud-list-header"><h3>Visites dans le cloud ({items.length})</h3><small>Partages reçus en premier · puis tes projets par date</small></div>
+      {items.some(item=>item.shared)&&<p className="hint-inline"><b>👥 Projets partagés avec moi ({items.filter(item=>item.shared).length})</b> — ouvre directement l'une des visites ci-dessous.</p>}
       {!items.length&&<p className="hint-inline">Aucune visite cloud pour l’instant.</p>}
-      <div className="nv-cloud-scroll" role="region" aria-label="Liste défilante des sauvegardes Cloud" tabIndex={0}><ul className="cloud-list">{items.map(item=><li key={item.id}>
-        <span><b>{item.name}{item.shared&&<em className="shared-tag"> · partagée avec toi</em>}</b><small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small></span>
+      <div className="nv-cloud-scroll" role="region" aria-label="Liste défilante des sauvegardes Cloud" tabIndex={0}><ul className="cloud-list">{[...items].sort((a,b)=>Number(b.shared)-Number(a.shared)).map(item=><li key={item.id}>
+        <span><b>{item.name}{item.shared&&<em className="shared-tag"> · Partagé avec moi</em>}</b>
+          {!item.shared&&(recipients[item.id]?.length??0)>0&&
+            <small className="shared-tag" title={recipients[item.id].join(' · ')}>👥 Partagé avec {recipients[item.id].map(email=>email.split('@')[0]).join(', ')}</small>}
+          <small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small>
+        </span>
         <div className="nv-cloud-recovery-actions">
           <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
           {item.revision>0&&<button className="quiet" disabled={!!busy} onClick={()=>void showHistory(item)}>{historyFor===item.id?'Masquer':'Sauvegardes'}</button>}

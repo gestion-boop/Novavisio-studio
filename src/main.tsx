@@ -30,7 +30,7 @@ import {exportStaticTour} from './exportTour';
 import {useLiveSession,LiveOverlay,useLiveInvites,sendLiveInvite,sendLiveShot} from './liveSession';
 import {LiveShareDialog} from './LiveShareDialog';
 import {WriteHand} from './WriteHand';
-import {scenesInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type StudioSpace} from './spaces';
+import {scenesInSpace,plansInSpace,updatePlansInSpace,projectForSpaceExport,stripExcluded,safeSpaceName,type StudioSpace} from './spaces';
 import {IconStateVisual,iconStateHtml,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
@@ -52,7 +52,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -76,14 +76,14 @@ import {ExistingIconPackPicker} from './ExistingIconPackPicker';
 import {NotesPanel} from './NotesPanel';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plugin';
-import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
+import {syncMarkers,resetMarkers} from './markerSync';
 import {attachSunFlare} from './sunFlare';
 import {startPosterBounce} from './posterBounce';
 import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,paletteFromLogo,type SvgIconDesign} from './svgIcons';
 import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {getFloorPlans,withFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
+import {getFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './windowAnim.css';
 import './media.css';
@@ -179,9 +179,9 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
     size:{width,height},anchor:'center center',tooltip:h.title,
     ...(isSphere?{data:{nvSphere:{size:sz,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
-function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig[]{
+function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false,night=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
-  for(const h of preview?visibleVideoFrames(scene.hotspots):scene.hotspots){
+  for(const h of (preview?visibleVideoFrames(scene.hotspots):scene.hotspots).filter(point=>!night||point.type!=='navigation')){
     all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation));
     if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
@@ -238,8 +238,8 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
   const currentTextureRef=useRef(scene.dataUrl);
   const lastPointer=useRef<ZoomOrigin|null>(null);
   const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
-  const actions = useRef({sphereImage,scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {sphereImage,scene,icons,mode,preview,autoNavigation,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
+  const actions = useRef({sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     const root=box.current;
@@ -278,7 +278,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         if(!box.current||loadedSceneRef.current!==a.scene.id||!a.scene.hotspots.some(h=>
           (h.type==='image'&&!h.imageDataUrl)||
           (h.type==='video'&&!h.videoDataUrl&&!h.videoUrl)))return;
-        syncMarkers(viewer,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel(),a.autoNavigation));
+        syncMarkers(viewer,markersForScene(a.scene,a.icons,box.current!.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel(),a.autoNavigation,a.night));
       });
     };
     viewer.addEventListener('zoom-updated',onZoom);
@@ -294,7 +294,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       if (!h) return;
       if(suppressMarkerClick.current===marker.id){suppressMarkerClick.current=null;return;}
       if (a.preview) {
-        if(h.type==='navigation' && h.target) a.onNavigate(h.target,h);
+        if(h.type==='navigation' && h.target && !a.night) a.onNavigate(h.target,h);
         else if(h.type==='information') {
           if (h.imageDataUrl) a.onImage(h,lastPointer.current);
           else if (h.url && safeLink(h.url)) a.onLink(h.title,h.url,h.linkMode);
@@ -317,7 +317,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       }
     });
     const height=box.current?.clientHeight||550;
-    resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation));
+    resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
     // Aperçu seulement : léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
     const stopBounce=startPosterBounce(viewer,()=>actions.current.scene,()=>actions.current.preview&&loadedSceneRef.current===actions.current.scene.id);
     return ()=>{detachSpheres();window.removeEventListener('nv-frame-dim',onDim);stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
@@ -329,38 +329,55 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const next=scene;
     const pending=actions.current.arrival;
     const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
-    // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
-    let fade:Promise<void>|null=null;
-    const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation);
-    // Vue d'arrivée appliquée tout de suite (sans animation de zoom / rotation) : les icônes sont créées à leur vraie place et ne bougent plus,
-    // au lieu d'attendre la fin d'une animation de ~0,5 s puis de « se replacer ».
+    // Fondu de l'ensemble du lecteur (panorama + cadres + photos) :
+    // on évite que les images incrustées disparaissent seules au milieu du fondu.
+    // Les coordonnées sauvegardées ne sont jamais modifiées.
+    const host=box.current;
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    const veil=document.createElement('div');
+    veil.setAttribute('aria-hidden','true');
+    Object.assign(veil.style,{
+      position:'absolute',inset:'0',zIndex:'18',pointerEvents:'none',
+      background:'#071925',opacity:'0',transition:'opacity 100ms ease-in-out'
+    });
+    if(host){
+      if(getComputedStyle(host).position==='static')host.style.position='relative';
+      host.appendChild(veil);
+    }
+    const finish=()=>{if(timer!==undefined)clearTimeout(timer);veil.remove();};
+    const restore=()=>{
+      const current=actions.current.scene;
+      if(loadedSceneRef.current===current.id){
+        syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
+      }
+      veil.style.opacity='0';
+      timer=setTimeout(finish,110);
+    };
     const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
     const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
-    const onLoaded=()=>{
-      viewer.removeEventListener('panorama-loaded',onLoaded);
-      try{viewer.rotate(arrivalPos);viewer.zoom(arrivalZoom);}catch{/* vue indisponible : on garde la vue actuelle */}
-      // Important pour le bouton « + » Auto : la caméra doit être rattachée
-      // au nouveau panorama dès la fin du chargement (sans attendre un drag).
-      const position=viewer.getPosition();
-      actions.current.onCameraChange(position.yaw,position.pitch,viewer.getZoomLevel());
-      fade=crossfadeMarkers(viewer,markersNow(),260);
-    };
-    viewer.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
-    void viewer.setPanorama(nextTexture,{
-      showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
-      // La vue d'arrivée (propre à la flèche utilisée, sinon celle du panorama) est posée dans onLoaded, sans animation.
-    }).then(async success=>{
-      if(disposed||!success)return;
-      if(fade)await fade;else resetMarkers(viewer,markersNow());
+    // Première moitié du fondu : masquer l'ancienne scène et ses incrustations ensemble.
+    requestAnimationFrame(()=>{if(!disposed)veil.style.opacity='1';});
+    timer=setTimeout(()=>{
       if(disposed)return;
-      loadedSceneRef.current=next.id;
-      const camera=viewer.getPosition();
-      actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
-      currentTextureRef.current=nextTexture;
-      syncMarkers(viewer,markersNow()); // met à jour d'éventuelles modifications survenues pendant la transition
-    }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
-    return ()=>{disposed=true;viewer.removeEventListener('panorama-loaded',onLoaded);};
+      resetMarkers(viewer,[]);
+      void viewer.setPanorama(nextTexture,{
+        showLoader:false,transition:{effect:'fade',rotation:false,speed:0},
+        position:arrivalPos,zoom:arrivalZoom,
+      }).then(success=>{
+        if(disposed)return;
+        if(!success){restore();return;}
+        loadedSceneRef.current=next.id;
+        currentTextureRef.current=nextTexture;
+        const camera=viewer.getPosition();
+        actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
+        syncMarkers(viewer,markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
+        // Deuxième moitié : photo et cadre sont déjà ensemble sur le nouveau panorama.
+        veil.style.opacity='0';
+        timer=setTimeout(finish,110);
+      }).catch(()=>{if(!disposed)restore();});
+    },105);
+    return ()=>{disposed=true;if(timer!==undefined)clearTimeout(timer);veil.remove();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
     // Parcours guidé : tourne la vue (ex. demi-tour pour placer le retour) sans changer de panorama.
@@ -390,7 +407,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
       const a=actions.current;
       if(loadedSceneRef.current!==a.scene.id)return;
       const height=element.clientHeight||550;
-      syncMarkers(v,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,v.getZoomLevel(),a.autoNavigation));
+      syncMarkers(v,markersForScene(a.scene,a.icons,height,a.selectedId,a.preview,v.getZoomLevel(),a.autoNavigation,a.night));
     };
     refresh();
     if(!box.current)return;
@@ -403,8 +420,8 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const element=box.current;
     const v=viewerRef.current;
     if(!element||!v||loadedSceneRef.current!==scene.id)return;
-    syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel(),autoNavigation));
-  },[scene.id,scene.hotspots,icons,selectedId,preview,autoNavigation]);
+    syncMarkers(v,markersForScene(scene,icons,element.clientHeight||550,selectedId,preview,v.getZoomLevel(),autoNavigation,night));
+  },[scene.id,scene.hotspots,icons,selectedId,preview,autoNavigation,night]);
   useEffect(()=>{
     const v=viewerRef.current;
     if(!v||loadedSceneRef.current!==scene.id)return;
@@ -928,7 +945,7 @@ function App(){
   // Dernière position (panorama + vue) mémorisée en continu : une mise à jour OU un simple rafraîchissement ramène au même endroit.
   function rememberPosition(){
     if(!activeId)return;
-    try{const cam=cameraRef.current;localStorage.setItem('nvstudio-resume',JSON.stringify({sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
+    try{const cam=cameraRef.current;if(cam.sceneId!==activeId)return;localStorage.setItem('nvstudio-resume',JSON.stringify({projectName:projectRef.current.name,sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
   }
   function reloadToLatestVersion(){
     if(savingManually||savingRef.current){
@@ -944,6 +961,9 @@ function App(){
     updateReloadApproved.current=true;
     // On mémorise où l'on était : après la mise à jour, on revient dans le même panorama (même vue), pas au début de la visite.
     rememberPosition();
+    // La reprise caméra ne doit se produire QUE lors d'une mise à jour demandée,
+    // jamais pendant l'ouverture normale d'un autre projet ni au rechargement d'une visite.
+    try{sessionStorage.setItem('nvstudio-update-resume','1');}catch{/* mode privé */}
     window.location.reload();
   }
   const [activeId,setActiveId]=useState('');
@@ -1033,18 +1053,24 @@ function App(){
   useEffect(()=>{
     if(!ready||resumeDone.current)return;
     resumeDone.current=true;
-    let saved:{sceneId?:string;spaceId?:string|null;yaw?:number;pitch?:number;zoom?:number;at?:number}|null=null;
+    let explicitUpdate=false;
+    try{explicitUpdate=sessionStorage.getItem('nvstudio-update-resume')==='1';sessionStorage.removeItem('nvstudio-update-resume');}catch{/* stockage indisponible */}
+    if(!explicitUpdate)return;
+    let saved:{projectName?:string;sceneId?:string;spaceId?:string|null;yaw?:number;pitch?:number;zoom?:number;at?:number}|null=null;
     try{saved=JSON.parse(localStorage.getItem('nvstudio-resume')||'null');}catch{saved=null;}
-    if(!saved||!saved.sceneId||Date.now()-(saved.at??0)>24*3600_000)return;
+    if(!saved||saved.projectName!==projectRef.current.name||!saved.sceneId||Date.now()-(saved.at??0)>10*60_000)return;
     const sceneId=saved.sceneId;
     if(!projectRef.current.scenes.some(sc=>sc.id===sceneId))return;
-    setActiveSpaceId(saved.spaceId&&(projectRef.current.spaces??[]).some(sp=>sp.id===saved!.spaceId)?saved.spaceId:null);
-    setActiveId(sceneId);setSelectedId('');
-    if(typeof saved.yaw==='number'&&typeof saved.pitch==='number'){
-      const v={yaw:saved.yaw,pitch:saved.pitch,zoom:saved.zoom};
-      window.setTimeout(()=>setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true}),1400);
+    const spaceId=saved.spaceId&&(projectRef.current.spaces??[]).some(sp=>sp.id===saved!.spaceId&&sp.sceneIds.includes(sceneId))?saved.spaceId:null;
+    setActiveSpaceId(spaceId);setActiveId(sceneId);setSelectedId('');
+    if(Number.isFinite(saved.yaw)&&Number.isFinite(saved.pitch)&&Number.isFinite(saved.zoom)){
+      const v={yaw:saved.yaw!,pitch:saved.pitch!,zoom:saved.zoom!};
+      window.setTimeout(()=>{
+        // N'écrase pas une nouvelle vue si l'utilisateur a changé de panorama entre-temps.
+        if(cameraRef.current.sceneId===sceneId)setTurnRequest({n:Date.now(),yaw:v.yaw,pitch:v.pitch,zoom:v.zoom,fast:true});
+      },1400);
     }
-    setStatus('Mise à jour appliquée · tu es revenu dans le même panorama');
+    setStatus('Mise à jour appliquée · vue de travail restaurée sans modifier les vues enregistrées');
   },[ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const [turnRequest,setTurnRequest]=useState<{n:number;yaw:number;pitch:number;zoom?:number;fast?:boolean}|null>(null);
   const [preview,setPreview]=useState(false);
@@ -1065,6 +1091,7 @@ function App(){
   const [introEnding,setIntroEnding]=useState(false);
   const [exporting,setExporting]=useState(false);
   const [cloudOpen,setCloudOpen]=useState(false);
+  const [saveWarning,setSaveWarning]=useState<string|null>(null);
   const [authNotice,setAuthNotice]=useState<string|null>(null);
   // Lien de confirmation « à bouton » : ?token_hash=…&type=… (le jeton n'est consommé qu'au clic).
   const [emailLink,setEmailLink]=useState<{tokenHash:string;type:string;busy:boolean;error:string;done:boolean}|null>(()=>{
@@ -1192,6 +1219,8 @@ function App(){
   const [spaceSelection,setSpaceSelection]=useState<Set<string>>(new Set());
   const [spaceAction,setSpaceAction]=useState<'share'|'transfer'|null>(null);
   const spaceImportInput=useRef<HTMLInputElement>(null);
+  const spacePanoramasInput=useRef<HTMLInputElement>(null);
+  const spacePanoramasTarget=useRef<string|null>(null);
   const [shareMenuOpen,setShareMenuOpen]=useState(false);
   const [bellOpen,setBellOpen]=useState(false);
   const [bellTab,setBellTab]=useState<'notifs'|'comments'>('notifs');
@@ -1660,7 +1689,7 @@ function App(){
     const ic=22;
     if(key==='spaces')return {label:'Espaces',icon:<Layers size={ic}/>,tone:'#4f7cff',active:spacesDrawerOpen,badge:(project.spaces?.length??0)+1,
       run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
-    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:getFloorPlans(project).length||undefined,
+    if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:plansInSpace(project,(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null).length||undefined,
       run:()=>toggleToolPanel('plan' as PanelTab)};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
@@ -2309,10 +2338,26 @@ function App(){
     setSavingManually(true);
     try{
       if(cloud.signedIn){
+        const link=readLink();
+        if(link){
+          const hand=await getWriteState(link.projectId);
+          if(!hand){
+            const message='Impossible de vérifier les droits de sauvegarde de cette visite. Par sécurité, aucune modification ne sera envoyée au Cloud.';
+            setSaveWarning(message);setStatus(message);return false;
+          }
+          if(!hand.canWrite){
+            const message='Attention, vous n’avez pas la main. '+(hand.holderEmail??'Le propriétaire du projet')+' est la seule personne autorisée à enregistrer cette visite. Demandez la main avant de sauvegarder.';
+            setStatus(message);
+            window.dispatchEvent(new CustomEvent('nv-write-denied',{detail:{holderEmail:hand.holderEmail}}));
+            return false;
+          }
+        }
         setStatus('Sauvegarde dans Supabase…');
         const synced=await cloud.syncNow(snapshot);
         if(!synced){
-          setStatus('Échec de la sauvegarde Cloud : rien n’a été écrasé. Vérifie le panneau Cloud et réessaie.');
+          const reason=cloud.getLastError();
+          const message='Échec de la sauvegarde Cloud : '+(reason??'synchronisation non confirmée. Vérifie la connexion, les droits et le panneau Cloud.')+' · Tes modifications restent sur cet appareil. Ne ferme pas cette fenêtre avant de les sécuriser.';
+          setStatus(message);setSaveWarning(message);
           return false;
         }
         savedRef.current=snapshot;
@@ -2377,7 +2422,10 @@ function App(){
       if(silent)setStatus('Enregistrement automatique effectué');
       histRef.current.ops=0;setHistTick(t=>t+1);
       return true;
-    }catch(error){setStatus('Échec : '+(error instanceof Error?error.message:String(error)));return false;}finally{setSavingManually(false);}
+    }catch(error){
+      const message='Échec de sauvegarde : '+(error instanceof Error?error.message:String(error))+'. Les modifications locales ne sont pas supprimées.';
+      setStatus(message);setSaveWarning(message);return false;
+    }finally{setSavingManually(false);}
   }
   useEffect(()=>{
     const onSaveShortcut=(event:KeyboardEvent)=>{
@@ -3844,26 +3892,36 @@ function App(){
     setFullscreenToolsOpen(true);setMode(null);
     setStatus('Retour créé dans '+destination.name+' : déplace la flèche si nécessaire puis enregistre.');
   }
-  async function addImages(list:FileList|null){
+  async function addImages(list:FileList|null,targetSpaceId?:string|null){
     if(!list?.length)return;
     const next:Scene[]=[];
+    const errors:string[]=[];
+    let imported=0;
     for(const file of Array.from(list)){
-      if(!['image/jpeg','image/png','image/webp'].includes(file.type))continue;
-      if(file.size>40*1024*1024){setStatus('Image trop lourde (40 Mo maximum pour ce prototype)');continue;}
+      if(!['image/jpeg','image/png','image/webp'].includes(file.type)){
+        errors.push(file.name+' : utiliser JPG, PNG ou WebP.');
+        continue;
+      }
+      imported++;
+      setStatus('Préparation du panorama '+imported+'/'+list.length+' : '+file.name+'…');
+      if(file.size>40*1024*1024){errors.push(file.name+' : limite 40 Mo par panorama.');continue;}
       try {
         next.push({id:uid(),name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:await readPanorama(file),hotspots:[]});
-      } catch { setStatus('Erreur de lecture : '+file.name); }
+      } catch(e) { errors.push(file.name+' : '+(e instanceof Error?e.message:'lecture impossible')); }
     }
     if(next.length){
+      const spaceId=targetSpaceId===undefined?activeSpaceId:targetSpaceId;
       setProject(p=>({...p,scenes:[...p.scenes,...next.map(scene=>({...scene,musicTrackId:p.defaultMusicTrackId}))],
-        spaces:activeSpaceId?(p.spaces??[]).map(space=>space.id===activeSpaceId?{
+        spaces:spaceId?(p.spaces??[]).map(space=>space.id===spaceId?{
           ...space,sceneIds:[...space.sceneIds,...next.map(scene=>scene.id)]
         }:space):p.spaces
       }));
       if(!activeId)setActiveId(next[0].id);
-      setStatus(next.length+' panorama(s) importé(s)');
+      setStatus(next.length+' panorama(s) importé(s)'+(errors.length?' · '+errors.length+' échec(s) : '+errors.slice(0,2).join(' ; '):''));
     }
+    if(!next.length&&errors.length)setStatus('Import impossible : '+errors.slice(0,2).join(' ; '));
     if(upload.current)upload.current.value='';
+    if(spacePanoramasInput.current)spacePanoramasInput.current.value='';
   }
   function newPoint(yaw:number,pitch:number){
     if(!active||!mode)return;
@@ -4017,8 +4075,15 @@ function App(){
     if(!space)return;
     const target=transferTo?(project.spaces??[]).find(item=>item.id===transferTo&&item.id!==spaceId):undefined;
     const moved=target?space.sceneIds.filter(id=>project.scenes.some(sc=>sc.id===id)):[];
-    setProject(p=>({...p,spaces:(p.spaces??[]).filter(item=>item.id!==spaceId).map(sp=>
-      target&&sp.id===target.id?{...sp,sceneIds:[...sp.sceneIds,...moved.filter(id=>!sp.sceneIds.includes(id))]}:sp)}));
+    setProject(p=>({...p,
+      spaces:(p.spaces??[]).filter(item=>item.id!==spaceId).map(sp=>
+        target&&sp.id===target.id?{...sp,sceneIds:[...sp.sceneIds,...moved.filter(id=>!sp.sceneIds.includes(id))]}:sp),
+      // Les plans de l'espace supprimé restent conservés seulement s'ils
+      // ont été explicitement transférés vers un autre espace.
+      floorPlans:getFloorPlans(p).filter(plan=>plan.spaceId!==spaceId||!!target).map(plan=>
+        plan.spaceId===spaceId&&target?{...plan,spaceId:target.id}:plan),
+      floorPlan:getFloorPlans(p).find(plan=>plan.spaceId!==spaceId)??undefined
+    }));
     if(target){
       setActiveSpaceId(target.id);
       setActiveId(moved[0]??target.sceneIds[0]??'');
@@ -4405,19 +4470,34 @@ function App(){
           <input aria-label="Renommer cet espace" value={currentSpace.name}
             onChange={e=>renameSpace(currentSpace.id,e.target.value)} maxLength={100}/>
         </label>
-        <p>Décoche les panoramas à exclure. Ils restent dans le projet complet et les autres espaces.</p>
+        <p>Panoramas 360° de cet espace : sélectionne plusieurs JPG, PNG ou WebP en une seule fois (40 Mo maximum par panorama). Les fichiers sont ajoutés à cet espace sans toucher aux autres espaces.</p>
         <div className="nv-space-select-actions">
           <span>{currentSpace.sceneIds.length} / {project.scenes.length} panoramas inclus</span>
+          <button type="button" className="primary" onClick={()=>{
+            spacePanoramasTarget.current=currentSpace.id;
+            spacePanoramasInput.current?.click();
+          }}>＋ Importer plusieurs panoramas (40 Mo chacun)…</button>
           <button type="button" onClick={()=>setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{
-            ...sp,sceneIds:p.scenes.map(sc=>sc.id)
-          }:sp)}))}>Tout inclure</button>
+            ...sp,sceneIds:p.scenes.filter(sc=>sp.sceneIds.includes(sc.id)||!p.spaces?.some(other=>other.id!==sp.id&&other.sceneIds.includes(sc.id))).map(sc=>sc.id)
+          }:sp)}))}>Ajouter les panoramas libres</button>
           <button type="button" onClick={()=>{
             setProject(p=>({...p,spaces:(p.spaces??[]).map(sp=>sp.id===currentSpace.id?{...sp,sceneIds:[]}:sp)}));
             setActiveId('');setSelectedId('');
           }}>Tout retirer</button>
         </div>
+        <div className="nv-pano-import-dropzone" role="button" tabIndex={0}
+          aria-label="Déposer plusieurs panoramas dans cet espace"
+          onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}
+          onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}}
+          onDragOver={e=>{if(e.dataTransfer?.types.includes('Files')){e.preventDefault();e.currentTarget.classList.add('drag-hover');}}}
+          onDragLeave={e=>e.currentTarget.classList.remove('drag-hover')}
+          onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addImages(e.dataTransfer.files,currentSpace.id);}}>
+          <strong>⬆ Glisse ici tous tes panoramas 360°</strong>
+          <small>Ou clique pour choisir plusieurs fichiers · JPG, PNG, WebP · 40 Mo / fichier</small>
+        </div>
+        <p>Les panoramas déjà affectés à un autre espace restent séparés. Pour les réutiliser, utilise l'action de copie ou de transfert entre espaces.</p>
         <div className="nv-space-scene-picker">
-          {project.scenes.map(scene=><label key={scene.id} className="nv-space-scene-option">
+          {project.scenes.filter(scene=>currentSpace.sceneIds.includes(scene.id)||!(project.spaces??[]).some(other=>other.id!==currentSpace.id&&other.sceneIds.includes(scene.id))).map(scene=><label key={scene.id} className="nv-space-scene-option">
             <input type="checkbox" checked={currentSpace.sceneIds.includes(scene.id)}
               onChange={e=>setSceneInSpace(currentSpace.id,scene.id,e.target.checked)}/>
             {sceneThumbs[scene.id]?<img src={sceneThumbs[scene.id]} alt="" draggable={false}/>:<span className="nv-space-no-thumb">◎</span>}{todoPin(scene.id)}
@@ -4440,7 +4520,7 @@ function App(){
       </section>
     </div>}
     {spaceAction&&selectedSpaces.length>0&&<SpacesActions mode={spaceAction} project={project} spaces={selectedSpaces} onClose={()=>setSpaceAction(null)} onStatus={setStatus}
-      onMoved={ids=>{setProject(p=>({...p,spaces:(p.spaces??[]).filter(space=>!ids.includes(space.id))}));setSpaceSelection(new Set());if(activeSpaceId&&ids.includes(activeSpaceId)){setActiveSpaceId(null);}}}/>}
+      onMoved={ids=>{setProject(p=>{const remaining=getFloorPlans(p).filter(plan=>!plan.spaceId||!ids.includes(plan.spaceId));return {...p,spaces:(p.spaces??[]).filter(space=>!ids.includes(space.id)),floorPlans:remaining,floorPlan:remaining[0]};});setSpaceSelection(new Set());if(activeSpaceId&&ids.includes(activeSpaceId)){setActiveSpaceId(null);}}}/>}
     {!creationFullscreen&&mediaPickerEl()}
     {shotImage&&<ShotEditor image={shotImage.image} defaultTo={shotImage.defaultTo} canSend={!!inviteIdentity} onSend={sendShot} onClose={()=>setShotImage(null)}/>}
     {updateAvailable&&Date.now()>=updateSnoozeUntil&&<div className="nv-update-banner" role="alert">
@@ -4634,12 +4714,13 @@ function App(){
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
-            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className="empty">
-            <div className="empty-icon">◎</div><h1>{currentSpace?'Cet espace est vide':'Ta première visite commence ici'}</h1>
+            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className={'empty'+(!currentSpace?' nv-immersive-welcome':'')}>
+            {!currentSpace&&<div className="nv-welcome-brand" aria-label="NOVAVISIO"><span className="nv-welcome-logo" aria-hidden="true"/><span className="nv-welcome-wordmark">NOVAVISIO</span><span className="nv-welcome-subbrand">STUDIO · VISITES IMMERSIVES 360°</span></div>}
+            <div className="empty-icon">{currentSpace?'◎':<span className="nv-welcome-mini-logo" aria-hidden="true"/>}</div><h1>{currentSpace?'Cet espace est vide':'Ta première visite commence ici'}</h1>
             <p>{currentSpace?'Sélectionne les panoramas de la visite principale à inclure dans cet espace.':'Importe des photos équirectangulaires 360° pour commencer à créer ta visite interactive.'}</p>
             <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):upload.current?.click()}>
               {currentSpace?'Choisir les panoramas':'＋ Importer mes photos 360°'}
-            </button>{!currentSpace&&<small>JPG, PNG ou WebP · rapport 2:1 recommandé</small>}
+            </button>{!currentSpace&&<small>JPG, PNG ou WebP · 40 Mo maximum par panorama · rapport 2:1 recommandé</small>}
           </div>}
           {navigationDraft&&visibleScenes.some(sc=>sc.id===navigationDraft.targetId)&&
             <section className="nv-direction-preview" role="dialog" aria-modal="true" aria-label="Valider la direction de la destination">
@@ -5216,7 +5297,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
-          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={getFloorPlans(project)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -5275,7 +5356,8 @@ function App(){
         {currentSpace&&<div className="nv-space-sidebar-context">
           <strong>{currentSpace.name}</strong>
           <small>Les originaux restent dans « Projet complet ».</small>
-          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas</button>
+          <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}>⬆ Importer plusieurs panoramas 360° (40 Mo chacun)</button>
+          <button type="button" onClick={()=>setSpaceManagerOpen(true)}>＋ / − Choisir les panoramas existants</button>
         </div>}
         {!preview&&false&&<div className="nv-quick-link-mode nv-sidebar-quick-link">
           <button type="button" className={quickLinkMode?'is-active':''} aria-pressed={quickLinkMode}
@@ -5309,10 +5391,14 @@ function App(){
             <span className="nv-gallery-drag-lines" aria-hidden="true">⠿</span> Déplacer la liste <span className="nv-gallery-drag-direction" aria-hidden="true">↕</span>
           </button>
         </div>
+        {!preview&&<div className="nv-panorama-manage-actions" role="group" aria-label="Gestion des panoramas du projet">
+          <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace?.id??null;if(currentSpace)spacePanoramasInput.current?.click();else upload.current?.click();}}>＋ Importer des panoramas</button>
+          <span className="hint">Sélection multiple possible · suppression par panorama ci-dessous</span>
+        </div>}
         <div className="nv-scene-bulk" role="group" aria-label="Panoramas dans la visite">
-          <span>✓ {project.scenes.filter(sc=>!sc.excluded).length} / {project.scenes.length} dans la visite</span>
-          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.excluded?{...sc,excluded:undefined}:sc)}))}>Tout cocher</button>
-          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===p.scenes[0]?.id||sc.excluded?sc:{...sc,excluded:true})}))} title="Décoche tout sauf le premier panorama (accueil)">Tout décocher</button>
+          <span>✓ {visibleScenes.filter(sc=>!sc.excluded).length} / {visibleScenes.length} dans {currentSpace?'cet espace':'la visite'}</span>
+          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>(!currentSpace||currentSpace.sceneIds.includes(sc.id))&&sc.excluded?{...sc,excluded:undefined}:sc)}))}>Tout cocher</button>
+          <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>((!currentSpace||currentSpace.sceneIds.includes(sc.id))&&sc.id!==(currentSpace?.sceneIds[0]??p.scenes[0]?.id)&&!sc.excluded)?{...sc,excluded:true}:sc)}))} title="Décoche tout sauf le premier panorama de cet espace">Tout décocher</button>
         </div>
         <div className={'scenes nv-panorama-list-'+panoramasLayout} ref={scenesRef}>{filteredScenes.map((s,i)=><div key={s.id} className={'scene-slot'+(s.excluded?' is-excluded':'')}
           onMouseEnter={()=>{if(autoNavigation)hoverSidePreview(s.id);}} onMouseLeave={leaveSidePreview}
@@ -5351,6 +5437,7 @@ function App(){
             {s.excluded?'':'✓'}</button>
           {!preview&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
             onClick={()=>setPanoModalId(s.id)}>360°</button>}
+          {!preview&&project.scenes.length>1&&<button type="button" className="nv-scene-delete-project" title={'Supprimer définitivement '+s.name+' du projet (confirmation requise)'} aria-label={'Supprimer '+s.name+' du projet'} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();deleteScene(s.id);}}>✕</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
              onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}><XMark/></button>:
@@ -5607,9 +5694,11 @@ function App(){
             /* SCENE OVERVIEW (AUCUN POINT SÉLECTIONNÉ)                        */
             /* ============================================================== */
             <div className="scene-overview">
-              {currentSpace&&<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>}
               <SectionHub id="scene" open={hubOpen.scene??null} onOpenChange={k=>setHubOpen(h=>({...h,scene:k}))}
-                intro={currentSpace?<div className="nv-action-rectangles"><button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button></div>:null}
+                intro={currentSpace?<div className="nv-action-rectangles" style={{display:'flex',flexDirection:'column',gap:8}}>
+                  <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}>⬆ Importer plusieurs panoramas 360° (40 Mo chacun)</button>
+                  <button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button>
+                </div>:null}
                 sections={[
                   {key:'name',title:'Nom du panorama',hint:active.name,icon:<Pencil size={26}/>,tone:'#4f7cff',content:<>
               <div className="nv-name-row"><label className="nv-name-main">Nom de la scène
@@ -5703,7 +5792,7 @@ function App(){
               <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
             </div>
             {selectedBar.type==='plan'?<><p className="hint">Ce bouton ouvre la galerie des plans interactifs : flèches gauche/droite et points panoramiques pour chaque plan.</p>
-              {!getFloorPlans(project).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
+              {!plansInSpace(project,currentSpace).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
               <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
@@ -5832,14 +5921,26 @@ function App(){
           <p className="hint">Dans le dossier HTML exporté, cette introduction sera présentée avant l’entrée dans la visite.</p>
         </div>}
         {panel==='plan' && <div className="properties">
-          <InspectorSection title="Galerie de plans interactifs" initiallyOpen>
-            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plans={getFloorPlans(project)} scenes={project.scenes} thumbs={sceneThumbs} onChange={plans=>setProject(p=>withFloorPlans(p,plans))}
+          <InspectorSection title={currentSpace?'Plans de l’espace « '+currentSpace.name+' »':'Plans du projet principal'} initiallyOpen>
+            <p className="hint-inline">{currentSpace?'Ces plans et leurs repères sont propres à cet espace. Les autres espaces conservent leurs propres plans et panoramas.':'Ces plans appartiennent au projet principal. Choisis un espace pour lui attribuer ses propres plans.'}</p>
+            <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} thumbs={sceneThumbs} onChange={plans=>setProject(p=>updatePlansInSpace(p,currentSpace,plans))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Panoramas du projet" initiallyOpen={false}>
+            <p className="hint">Ajoute ou supprime des panoramas sans réinitialiser les vues de caméra ni les éléments des autres scènes.</p>
+            <button type="button" className="primary" onClick={()=>upload.current?.click()}>＋ Ajouter des panoramas</button>
+            <div className="nv-settings-panorama-list">
+              {project.scenes.map(sc=><div key={sc.id} className="nv-settings-panorama-row">
+                <span title={sc.name}>{sc.name}</span>
+                <button type="button" title={'Ouvrir '+sc.name} onClick={()=>{setActiveId(sc.id);setPanel('panoramas');}}>Ouvrir</button>
+                <button type="button" title={'Supprimer '+sc.name} disabled={project.scenes.length<=1} onClick={()=>deleteScene(sc.id)}>Supprimer</button>
+              </div>)}
+            </div>
+          </InspectorSection>
           <InspectorSection title="Animation des fenêtres (info, photo, vidéo, galeries, plan)" initiallyOpen>
             <p className="hint">Ce style s’applique à toutes les fenêtres de la visite : informations, photos, vidéos, galeries et plan. Il s’applique aussi à l’aperçu.</p>
             <button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester l’animation</button>
@@ -6089,6 +6190,9 @@ function App(){
       if(placement.type==='image')void addFrameImage(file,placement);else void addVideo(file,placement);
     }}/>
     <input ref={upload} hidden type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>void addImages(e.target.files)}/>
+    <input ref={spacePanoramasInput} hidden type="file" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+      aria-label="Importer plusieurs panoramas dans cet espace"
+      onChange={e=>{const files=e.currentTarget.files;const spaceId=spacePanoramasTarget.current;spacePanoramasTarget.current=null;void addImages(files,spaceId);}}/>
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
@@ -6103,6 +6207,14 @@ function App(){
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
       onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
+    {saveWarning&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSaveWarning(null);}}>
+      <section className="modal" role="alertdialog" aria-modal="true" aria-label="Sauvegarde impossible" onClick={e=>e.stopPropagation()}>
+        <h2>⚠ Sauvegarde impossible</h2>
+        <p>{saveWarning}</p>
+        <p><strong>Aucune version cloud n’a été remplacée par cette tentative.</strong> Sauvegarde une copie locale avant de fermer cette fenêtre.</p>
+        <button type="button" className="primary" onClick={()=>setSaveWarning(null)}>J’ai compris</button>
+      </section>
+    </div>}
     {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
