@@ -328,33 +328,41 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const next=scene;
     const pending=actions.current.arrival;
     const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
-    // La caméra d'arrivée est fixée AVANT la transition. Cela évite de déplacer
-    // la projection des affiches et flèches après leur premier affichage.
-    const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night);
+    // Masquer les marqueurs de l'ancien panorama avant de changer la texture :
+    // une photo incrustée ne doit jamais se superposer à une autre scène.
+    // Aucune coordonnée de hotspot/caméra n'est modifiée ou sauvegardée ici.
+    resetMarkers(viewer,[]);
     const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
     const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
-    const onLoaded=()=>{
-      viewer.removeEventListener('panorama-loaded',onLoaded);
-      if(disposed)return;
-      // Les marqueurs sont placés une seule fois, sur le panorama cible.
-      // Ne pas animer/recréer les affiches pendant un changement de caméra.
-      syncMarkers(viewer,markersNow());
-    };
-    viewer.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
     void viewer.setPanorama(nextTexture,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
       position:arrivalPos,zoom:arrivalZoom,
     }).then(success=>{
-      if(disposed||!success)return;
-      viewer.removeEventListener('panorama-loaded',onLoaded);
+      // setPanorama se résout après la transition : ne pas afficher les cadres
+      // au signal panorama-loaded, qui peut arriver avant la fin du fondu.
+      if(disposed)return;
+      if(!success){
+        // En cas d'échec, restaurer les marqueurs de la scène encore visible.
+        const current=actions.current.scene;
+        if(loadedSceneRef.current===current.id){
+          syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
+        }
+        return;
+      }
       loadedSceneRef.current=next.id;
+      currentTextureRef.current=nextTexture;
       const camera=viewer.getPosition();
       actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
-      currentTextureRef.current=nextTexture;
-      syncMarkers(viewer,markersNow());
-    }).catch(()=>{/* Conserver le panorama et ses marqueurs si le chargement échoue. */});
-    return ()=>{disposed=true;viewer.removeEventListener('panorama-loaded',onLoaded);};
+      syncMarkers(viewer,markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
+    }).catch(()=>{
+      if(disposed)return;
+      const current=actions.current.scene;
+      if(loadedSceneRef.current===current.id){
+        syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
+      }
+    });
+    return ()=>{disposed=true;};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
     // Parcours guidé : tourne la vue (ex. demi-tour pour placer le retour) sans changer de panorama.
