@@ -3,10 +3,11 @@ import {ShieldCheck,X,RotateCcw} from 'lucide-react';
 import type {CheckIssue} from './projectCheck';
 
 /** Un contrôle masqué reste vérifié en arrière-plan pour la sécurité de publication. */
-export function ProjectCheckPanel({issues,hidden,onGo,onClose,onGuided,noted,onIgnore,onRestore}:{
+export function ProjectCheckPanel({issues,hidden,onGo,onClose,onGuided,noted,onIgnore,onRestore,onAutoFix,autoFixCount}:{
   issues:CheckIssue[];hidden:CheckIssue[];noted:Set<string>;
   onGo:(issue:CheckIssue)=>void;onClose:()=>void;onGuided:()=>void;
   onIgnore:(id:string)=>void;onRestore:(id:string)=>void;
+  onAutoFix?:()=>void;autoFixCount?:number;
 }){
   const [only,setOnly]=useState<'all'|'error'|'todo'>('all');
   const [showHidden,setShowHidden]=useState(false);
@@ -21,6 +22,8 @@ export function ProjectCheckPanel({issues,hidden,onGo,onClose,onGuided,noted,onI
       {!issues.length?<p className="nv-publish-ok">✓ Aucun contrôle actif à traiter.</p>:<>
         <p className="nv-comments-tip">{errors} erreur{errors>1?'s':''} · {issues.length-errors} avertissement{issues.length-errors>1?'s':''}.
           « Corriger » ouvre la zone concernée ; la croix masque définitivement cette suggestion pour ce projet.</p>
+        {onAutoFix&&<button type="button" className="nv-check-guided" disabled={!autoFixCount} onClick={onAutoFix}>
+          ✦ Corriger automatiquement ({autoFixCount}) : doublons, flèches cassées, flèches vers les voisins</button>}
         <button type="button" className="nv-check-guided" onClick={onGuided}>
           ▶ Corriger pas à pas ({issues.length-todo})</button>
         <div className="nv-check-filter">

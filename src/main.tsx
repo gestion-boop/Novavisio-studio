@@ -64,6 +64,7 @@ import {useSceneThumbs} from './thumbs';
 import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
 import {Video,Rotate3d,Volume2,VolumeX} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
+import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
 import {ProjectCheckPanel} from './ProjectCheckPanel';
 import {CommentsPanel} from './CommentsPanel';
@@ -1431,6 +1432,7 @@ function App(){
   // Contrôle avant publication
   const [checkOpen,setCheckOpen]=useState(false);
   const allProjectIssues=useMemo(()=>ready?checkProject(project):[],[project,ready]);
+  const autoFixChanges=useMemo(()=>ready?autoFixProject(project).changes:[],[project,ready]);
   const ignoredIds=useMemo(()=>new Set(project.ignoredChecks??[]),[project.ignoredChecks]);
   const projectIssues=useMemo(()=>allProjectIssues.filter(issue=>!ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
   const hiddenIssues=useMemo(()=>allProjectIssues.filter(issue=>ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
@@ -4543,7 +4545,9 @@ function App(){
     {checkOpen&&<ProjectCheckPanel noted={notedIds} issues={projectIssues} hidden={hiddenIssues}
       onIgnore={ignoreCheck} onRestore={restoreCheck}
       onGo={i=>{setGuided(null);returnToCheck.current=true;goToIssue(i);}}
-      onGuided={startGuided} onClose={()=>setCheckOpen(false)}/>}
+      onGuided={startGuided} onClose={()=>setCheckOpen(false)}
+      autoFixCount={autoFixChanges.length}
+      onAutoFix={()=>{const r=autoFixProject(project);try{setProject(validateProject(r.project));setStatus(r.changes.length?'Corrections appliquées ('+r.changes.length+'). Vérifie les flèches créées et déplace-les vers la bonne direction.':'Rien à corriger automatiquement.');}catch(e){setStatus('Correction impossible : '+String(e));}}}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
     {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>
