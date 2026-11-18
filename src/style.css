@@ -5999,3 +5999,12 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 @media (prefers-reduced-motion:reduce) {
   .nv-immersive-welcome::before,.nv-immersive-welcome::after {animation:none}
 }
+
+/* Correctif Figurotta : défilement indépendant de la colonne des espaces
+   dans la galerie de destination (molette, trackpad et tactile). */
+.nv-classic-destination-overlay .nv-classic-destination-layout{min-height:0!important;overflow:hidden}
+.nv-classic-destination-overlay .nv-classic-destination-list-panel{min-height:0!important;max-height:100%;overflow-y:auto!important;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;touch-action:pan-y}
+.nv-classic-destination-overlay .nv-classic-destination-list{min-height:0!important;max-height:100%;overflow-y:auto!important;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;touch-action:pan-y}
+.nv-classic-destination-overlay .nv-classic-destination-list-panel::-webkit-scrollbar,.nv-classic-destination-overlay .nv-classic-destination-list::-webkit-scrollbar{width:8px}
+.nv-classic-destination-overlay .nv-classic-destination-list-panel::-webkit-scrollbar-thumb,.nv-classic-destination-overlay .nv-classic-destination-list::-webkit-scrollbar-thumb{background:#4b8897;border-radius:8px}
+@media(max-width:820px){.nv-classic-destination-overlay .nv-classic-destination-list-panel{overflow-y:auto!important}}
