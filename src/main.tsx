@@ -5368,6 +5368,10 @@ function App(){
             <span className="nv-gallery-drag-lines" aria-hidden="true">⠿</span> Déplacer la liste <span className="nv-gallery-drag-direction" aria-hidden="true">↕</span>
           </button>
         </div>
+        {!preview&&<div className="nv-panorama-manage-actions" role="group" aria-label="Gestion des panoramas du projet">
+          <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace?.id??null;if(currentSpace)spacePanoramasInput.current?.click();else upload.current?.click();}}>＋ Importer des panoramas</button>
+          <span className="hint">Sélection multiple possible · suppression par panorama ci-dessous</span>
+        </div>}
         <div className="nv-scene-bulk" role="group" aria-label="Panoramas dans la visite">
           <span>✓ {visibleScenes.filter(sc=>!sc.excluded).length} / {visibleScenes.length} dans {currentSpace?'cet espace':'la visite'}</span>
           <button type="button" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>(!currentSpace||currentSpace.sceneIds.includes(sc.id))&&sc.excluded?{...sc,excluded:undefined}:sc)}))}>Tout cocher</button>
@@ -5410,6 +5414,7 @@ function App(){
             {s.excluded?'':'✓'}</button>
           {!preview&&<button type="button" className="nv-scene-360-preview-btn" title={'Prévisualiser '+s.name+' en 360°'}
             onClick={()=>setPanoModalId(s.id)}>360°</button>}
+          {!preview&&project.scenes.length>1&&<button type="button" className="nv-scene-delete-project" title={'Supprimer définitivement '+s.name+' du projet (confirmation requise)'} aria-label={'Supprimer '+s.name+' du projet'} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();deleteScene(s.id);}}>✕</button>}
           {currentSpace?<button type="button" className="nv-space-exclude" title={'Retirer '+s.name+' de cet espace uniquement'}
              aria-label={'Retirer '+s.name+' de cet espace'}
              onClick={()=>removeSceneFromSpace(currentSpace.id,s.id)}><XMark/></button>:
