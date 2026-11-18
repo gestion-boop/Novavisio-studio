@@ -328,37 +328,32 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const next=scene;
     const pending=actions.current.arrival;
     const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
-    // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
-    let fade:Promise<void>|null=null;
+    // La caméra d'arrivée est fixée AVANT la transition. Cela évite de déplacer
+    // la projection des affiches et flèches après leur premier affichage.
     const markersNow=()=>markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night);
-    // Vue d'arrivée appliquée tout de suite (sans animation de zoom / rotation) : les icônes sont créées à leur vraie place et ne bougent plus,
-    // au lieu d'attendre la fin d'une animation de ~0,5 s puis de « se replacer ».
     const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
     const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
     const onLoaded=()=>{
       viewer.removeEventListener('panorama-loaded',onLoaded);
-      try{viewer.rotate(arrivalPos);viewer.zoom(arrivalZoom);}catch{/* vue indisponible : on garde la vue actuelle */}
-      // Important pour le bouton « + » Auto : la caméra doit être rattachée
-      // au nouveau panorama dès la fin du chargement (sans attendre un drag).
-      const position=viewer.getPosition();
-      actions.current.onCameraChange(position.yaw,position.pitch,viewer.getZoomLevel());
-      fade=crossfadeMarkers(viewer,markersNow(),260);
+      if(disposed)return;
+      // Les marqueurs sont placés une seule fois, sur le panorama cible.
+      // Ne pas animer/recréer les affiches pendant un changement de caméra.
+      syncMarkers(viewer,markersNow());
     };
     viewer.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
     void viewer.setPanorama(nextTexture,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:260},
-      // La vue d'arrivée (propre à la flèche utilisée, sinon celle du panorama) est posée dans onLoaded, sans animation.
-    }).then(async success=>{
+      position:arrivalPos,zoom:arrivalZoom,
+    }).then(success=>{
       if(disposed||!success)return;
-      if(fade)await fade;else resetMarkers(viewer,markersNow());
-      if(disposed)return;
+      viewer.removeEventListener('panorama-loaded',onLoaded);
       loadedSceneRef.current=next.id;
       const camera=viewer.getPosition();
       actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
       currentTextureRef.current=nextTexture;
-      syncMarkers(viewer,markersNow()); // met à jour d'éventuelles modifications survenues pendant la transition
-    }).catch(()=>{/* Keep the previous panorama if the image fails to load. */});
+      syncMarkers(viewer,markersNow());
+    }).catch(()=>{/* Conserver le panorama et ses marqueurs si le chargement échoue. */});
     return ()=>{disposed=true;viewer.removeEventListener('panorama-loaded',onLoaded);};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
