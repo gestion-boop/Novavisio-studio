@@ -5902,6 +5902,17 @@ function App(){
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Panoramas du projet" initiallyOpen={false}>
+            <p className="hint">Ajoute ou supprime des panoramas sans réinitialiser les vues de caméra ni les éléments des autres scènes.</p>
+            <button type="button" className="primary" onClick={()=>upload.current?.click()}>＋ Ajouter des panoramas</button>
+            <div className="nv-settings-panorama-list">
+              {project.scenes.map(sc=><div key={sc.id} className="nv-settings-panorama-row">
+                <span title={sc.name}>{sc.name}</span>
+                <button type="button" title={'Ouvrir '+sc.name} onClick={()=>{setSceneId(sc.id);setPanel('panoramas');}}>Ouvrir</button>
+                <button type="button" title={'Supprimer '+sc.name} disabled={project.scenes.length<=1} onClick={()=>deleteScene(sc.id)}>Supprimer</button>
+              </div>)}
+            </div>
+          </InspectorSection>
           <InspectorSection title="Animation des fenêtres (info, photo, vidéo, galeries, plan)" initiallyOpen>
             <p className="hint">Ce style s’applique à toutes les fenêtres de la visite : informations, photos, vidéos, galeries et plan. Il s’applique aussi à l’aperçu.</p>
             <button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester l’animation</button>
