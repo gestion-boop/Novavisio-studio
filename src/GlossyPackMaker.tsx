@@ -4,6 +4,20 @@ import {isSafeIconDataUrl,type GlossyStyle} from './storage';
 
 /** Panneau de création d'un pack glossy : couleur, reflet, ombre et pictogramme facultatif.
  *  `initial` = charte du projet (ou du thème appliqué) ; la charte utilisée est renvoyée à la création. */
+/** Boutons que l'on peut ajouter à la barre du bas, avec leur type de bouton. */
+export const BAR_CHOICES:ReadonlyArray<{key:string;label:string;type:'navigation'|'information'|'lien'|'gallery'|'plan'}>=[
+  {key:'arrow',label:'Flèche',type:'navigation'},
+  {key:'camera',label:'Photo',type:'information'},
+  {key:'video',label:'Vidéo',type:'information'},
+  {key:'map',label:'Localisation',type:'information'},
+  {key:'images',label:'Images',type:'gallery'},
+  {key:'plan',label:'Carte',type:'plan'},
+  {key:'panorama',label:'Panorama',type:'navigation'},
+  {key:'utensils',label:'Restaurant',type:'information'},
+  {key:'phone',label:'Appeler',type:'lien'},
+  {key:'info',label:'Information',type:'information'},
+];
+
 /** Couleurs prêtes à l'emploi pour une charte rapide. */
 const PRESETS:ReadonlyArray<{name:string;base:string}>=[
   {name:'Or',base:'#c79c5a'},
@@ -13,8 +27,9 @@ const PRESETS:ReadonlyArray<{name:string;base:string}>=[
   {name:'Anthracite',base:'#3d4248'},
 ];
 
-export function GlossyPackMaker({onCreate,onCreateBar,onCreateMotifs,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle,applyBar:boolean)=>void;onCreateBar?:(style:GlossyStyle)=>void;onCreateMotifs?:(style:GlossyStyle)=>void;defaultLabel:string;initial?:GlossyStyle}){
+export function GlossyPackMaker({onCreate,onCreateBar,onCreateMotifs,onAddToBar,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle,applyBar:boolean)=>void;onCreateBar?:(style:GlossyStyle)=>void;onCreateMotifs?:(style:GlossyStyle)=>void;onAddToBar?:(keys:string[],style:GlossyStyle)=>void;defaultLabel:string;initial?:GlossyStyle}){
   const [applyBar,setApplyBar]=useState(false);
+  const [chosen,setChosen]=useState<string[]>([]);
   const [base,setBase]=useState(initial?.base??'#2f7f9e');
   const [rim,setRim]=useState(initial?.rim??'');
   const [gloss,setGloss]=useState(initial?.gloss??0.7);
@@ -72,6 +87,15 @@ export function GlossyPackMaker({onCreate,onCreateBar,onCreateMotifs,defaultLabe
     {onCreateBar&&<button type="button" className="import" onClick={()=>onCreateBar({base,rim:rim||undefined,gloss,shadow})}>
       ✦ Créer une icône glossy avec son pictogramme pour chaque bouton de la barre</button>}
     {onCreateMotifs&&<button type="button" className="import" onClick={()=>onCreateMotifs({base,rim:rim||undefined,gloss,shadow})}>
-      ✦ Créer les icônes glossy de la visite : flèche, photo, vidéo, localisation, images, carte, panorama, restaurant</button>}
+      ✦ Créer les icônes glossy de la visite : flèche, photo, vidéo, localisation, images, carte, panorama, restaurant, son, paramètres</button>}
+    {onAddToBar&&<div style={{display:'grid',gap:6}}>
+      <span className="section-title">Boutons de la barre du bas à ajouter</span>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))',gap:6}}>
+        {BAR_CHOICES.map(choice=><label key={choice.key} className="toggle-row"><input type="checkbox" checked={chosen.includes(choice.key)}
+          onChange={e=>setChosen(list=>e.target.checked?[...list,choice.key]:list.filter(k=>k!==choice.key))}/> {choice.label}</label>)}
+      </div>
+      <button type="button" className="import" disabled={!chosen.length} onClick={()=>{onAddToBar(chosen,{base,rim:rim||undefined,gloss,shadow});setChosen([]);}}>
+        ✦ Ajouter les boutons cochés à la barre ({chosen.length})</button>
+    </div>}
   </div>;
 }
