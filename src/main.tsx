@@ -21,7 +21,7 @@ import './preparation.css';
 import {PhotoFramePicker,framedPhotoSource} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
 
-import {useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,type ReactNode} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, type CSSProperties,type ComponentType,type ReactNode} from 'react';
 import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {FrameLoupe} from './FrameLoupe';
@@ -36,6 +36,7 @@ import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
 import {GlossyPackMaker} from './GlossyPackMaker';
+import {glossyBarPacks} from './barGlossy';
 import {autoIconZoom} from './iconFit';
 import {MediaLibraryPanel} from './MediaLibraryPanel';
 import {PhotoGallery} from './PhotoGallery';
@@ -5981,7 +5982,29 @@ function App(){
               setStatus('Pack « '+label+' » créé : Normal, Survol, Pressé. Il est appliqué au bouton Paramètres et disponible dans la bibliothèque. Sauvegarde avec la disquette.');
             }catch(e){setStatus('Impossible de créer le pack Paramètres : '+String(e));}
           }}>⚙ Créer et utiliser mon pack Paramètres doré 3D (Normal · Survol · Pressé)</button>
-          <GlossyPackMaker key={JSON.stringify(project.glossyStyle??null)} initial={project.glossyStyle} defaultLabel="Bouton glossy" onCreate={(g,label,style,applyBar)=>{
+          <GlossyPackMaker key={JSON.stringify(project.glossyStyle??null)} initial={project.glossyStyle} defaultLabel="Bouton glossy"
+            onCreateBar={style=>{
+              void (async()=>{
+                try{
+                  const packs=await glossyBarPacks(project.bottomBar,style,glyphs as unknown as Record<string,ComponentType<Record<string,unknown>>>,Info as unknown as ComponentType<Record<string,unknown>>);
+                  if(!packs.length){setStatus('Tous les boutons ont déjà une icône personnalisée.');return;}
+                  if(project.icons.length+packs.length*3>147){setStatus('Bibliothèque pleine : supprime des packs avant d’en créer.');return;}
+                  const newIcons:{id:string;name:string;dataUrl:string}[]=[];
+                  const byItem=new Map<string,{iconId:string;hoverIconId:string;pressedIconId:string}>();
+                  for(const {item,states} of packs){
+                    const a={id:uid(),name:(item.title||'Bouton')+' · glossy · Normal',dataUrl:states.normal};
+                    const b={id:uid(),name:(item.title||'Bouton')+' · glossy · Survol',dataUrl:states.hover};
+                    const c={id:uid(),name:(item.title||'Bouton')+' · glossy · Pressé',dataUrl:states.pressed};
+                    newIcons.push(a,b,c);
+                    byItem.set(item.id,{iconId:a.id,hoverIconId:b.id,pressedIconId:c.id});
+                  }
+                  setProject(validateProject({...project,icons:[...project.icons,...newIcons],glossyStyle:style,
+                    bottomBar:project.bottomBar.map(item=>{const ids=byItem.get(item.id);return ids?{...item,...ids}:item;})}));
+                  setStatus(packs.length+' icône(s) glossy créée(s) avec leur pictogramme. Sauvegarde avec la disquette.');
+                }catch(e){setStatus('Impossible de créer les icônes glossy : '+String(e));}
+              })();
+            }}
+            onCreate={(g,label,style,applyBar)=>{
             if(project.icons.length>147){setStatus('Bibliothèque pleine : supprime un ancien pack avant d’en ajouter un autre.');return;}
             const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
             const a=mk(label+' · Normal',g.normal),b=mk(label+' · Survol',g.hover),c=mk(label+' · Pressé',g.pressed);

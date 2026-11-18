@@ -13,7 +13,7 @@ const PRESETS:ReadonlyArray<{name:string;base:string}>=[
   {name:'Anthracite',base:'#3d4248'},
 ];
 
-export function GlossyPackMaker({onCreate,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle,applyBar:boolean)=>void;defaultLabel:string;initial?:GlossyStyle}){
+export function GlossyPackMaker({onCreate,onCreateBar,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle,applyBar:boolean)=>void;onCreateBar?:(style:GlossyStyle)=>void;defaultLabel:string;initial?:GlossyStyle}){
   const [applyBar,setApplyBar]=useState(false);
   const [base,setBase]=useState(initial?.base??'#2f7f9e');
   const [rim,setRim]=useState(initial?.rim??'');
@@ -69,5 +69,7 @@ export function GlossyPackMaker({onCreate,defaultLabel,initial}:{onCreate:(state
     <label className="toggle-row"><input type="checkbox" checked={applyBar} onChange={e=>setApplyBar(e.target.checked)}/> Utiliser aussi pour tous les boutons de la barre</label>
     <button type="button" className="import" onClick={async()=>{const states=preview??await render();if(states)onCreate(states,label.trim()||defaultLabel,{base,rim:rim||undefined,gloss,shadow},applyBar);}}>
       ✦ Créer et utiliser ce pack glossy (Normal · Survol · Pressé)</button>
+    {onCreateBar&&<button type="button" className="import" onClick={()=>onCreateBar({base,rim:rim||undefined,gloss,shadow})}>
+      ✦ Créer une icône glossy avec son pictogramme pour chaque bouton de la barre</button>}
   </div>;
 }
