@@ -4,7 +4,17 @@ import {isSafeIconDataUrl,type GlossyStyle} from './storage';
 
 /** Panneau de création d'un pack glossy : couleur, reflet, ombre et pictogramme facultatif.
  *  `initial` = charte du projet (ou du thème appliqué) ; la charte utilisée est renvoyée à la création. */
-export function GlossyPackMaker({onCreate,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle)=>void;defaultLabel:string;initial?:GlossyStyle}){
+/** Couleurs prêtes à l'emploi pour une charte rapide. */
+const PRESETS:ReadonlyArray<{name:string;base:string}>=[
+  {name:'Or',base:'#c79c5a'},
+  {name:'Bleu nuit',base:'#2f4f7a'},
+  {name:'Vert olive',base:'#5f7a3a'},
+  {name:'Bordeaux',base:'#7a2435'},
+  {name:'Anthracite',base:'#3d4248'},
+];
+
+export function GlossyPackMaker({onCreate,defaultLabel,initial}:{onCreate:(states:GlossyStates,label:string,style:GlossyStyle,applyBar:boolean)=>void;defaultLabel:string;initial?:GlossyStyle}){
+  const [applyBar,setApplyBar]=useState(false);
   const [base,setBase]=useState(initial?.base??'#2f7f9e');
   const [rim,setRim]=useState(initial?.rim??'');
   const [gloss,setGloss]=useState(initial?.gloss??0.7);
@@ -36,6 +46,10 @@ export function GlossyPackMaker({onCreate,defaultLabel,initial}:{onCreate:(state
 
   return <div className="nv-glossy-maker" style={{display:'grid',gap:8,marginTop:10}}>
     <span className="section-title">Style glossy réutilisable</span>
+    <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+      {PRESETS.map(p=><button key={p.base} type="button" className="style-reset" title={p.name} aria-label={'Couleur '+p.name} onClick={()=>{setBase(p.base);setPreview(null);}}
+        style={{width:30,height:30,borderRadius:'50%',padding:0,background:p.base,border:base===p.base?'3px solid #111':'1px solid #0005'}}/>)}
+    </div>
     <label>Couleur du bouton <input type="color" value={base} onChange={e=>{setBase(e.target.value);setPreview(null);}}/></label>
     <label>Liseré extérieur <input type="color" value={rim||'#000000'} onChange={e=>{setRim(e.target.value);setPreview(null);}}/>
       {rim&&<button type="button" className="style-reset" onClick={()=>{setRim('');setPreview(null);}}>Automatique</button>}</label>
@@ -52,7 +66,8 @@ export function GlossyPackMaker({onCreate,defaultLabel,initial}:{onCreate:(state
       {(['normal','hover','pressed'] as const).map(k=><div key={k} style={{textAlign:'center',fontSize:12}}><img src={preview[k]} alt={k} style={{width:64,height:64}}/><div>{k==='normal'?'Normal':k==='hover'?'Survol':'Pressé'}</div></div>)}
     </div>}
     {error&&<small style={{color:'#ffb4a8'}}>{error}</small>}
-    <button type="button" className="import" onClick={async()=>{const states=preview??await render();if(states)onCreate(states,label.trim()||defaultLabel,{base,rim:rim||undefined,gloss,shadow});}}>
+    <label className="toggle-row"><input type="checkbox" checked={applyBar} onChange={e=>setApplyBar(e.target.checked)}/> Utiliser aussi pour tous les boutons de la barre</label>
+    <button type="button" className="import" onClick={async()=>{const states=preview??await render();if(states)onCreate(states,label.trim()||defaultLabel,{base,rim:rim||undefined,gloss,shadow},applyBar);}}>
       ✦ Créer et utiliser ce pack glossy (Normal · Survol · Pressé)</button>
   </div>;
 }

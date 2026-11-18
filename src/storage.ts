@@ -503,7 +503,9 @@ export async function readPanorama(file:File):Promise<string> {
       // inutilement à leur poids d'origine dans les sauvegardes cloud.
       // Les petites images restent inchangées ; les grandes sont converties
       // en JPEG de qualité élevée, jusqu'à 8192 px, sans recadrage.
-      if (bitmap.width <= MAX_PANORAMA_WIDTH && file.size <= 8 * 1024 * 1024) return await readImage(file);
+      // Recompression : PNG (souvent très lourds) et fichiers de plus de 3 Mo passent en JPEG 0,86, sans perte visible.
+      const keepOriginal = bitmap.width <= MAX_PANORAMA_WIDTH && file.size <= 3 * 1024 * 1024 && file.type !== 'image/png';
+      if (keepOriginal) return await readImage(file);
       const ratio = Math.min(1, MAX_PANORAMA_WIDTH / bitmap.width);
       const canvas = document.createElement('canvas');
       canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
@@ -511,7 +513,7 @@ export async function readPanorama(file:File):Promise<string> {
       const ctx = canvas.getContext('2d');
       if (!ctx) return await readImage(file);
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.9);
+      return canvas.toDataURL('image/jpeg', 0.86);
     } finally { bitmap.close(); }
   } catch {
     return readImage(file);

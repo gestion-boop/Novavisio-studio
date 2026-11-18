@@ -5981,14 +5981,15 @@ function App(){
               setStatus('Pack « '+label+' » créé : Normal, Survol, Pressé. Il est appliqué au bouton Paramètres et disponible dans la bibliothèque. Sauvegarde avec la disquette.');
             }catch(e){setStatus('Impossible de créer le pack Paramètres : '+String(e));}
           }}>⚙ Créer et utiliser mon pack Paramètres doré 3D (Normal · Survol · Pressé)</button>
-          <GlossyPackMaker key={JSON.stringify(project.glossyStyle??null)} initial={project.glossyStyle} defaultLabel="Bouton glossy" onCreate={(g,label,style)=>{
+          <GlossyPackMaker key={JSON.stringify(project.glossyStyle??null)} initial={project.glossyStyle} defaultLabel="Bouton glossy" onCreate={(g,label,style,applyBar)=>{
             if(project.icons.length>147){setStatus('Bibliothèque pleine : supprime un ancien pack avant d’en ajouter un autre.');return;}
             const mk=(name:string,dataUrl:string)=>({id:uid(),name,dataUrl});
             const a=mk(label+' · Normal',g.normal),b=mk(label+' · Survol',g.hover),c=mk(label+' · Pressé',g.pressed);
             try{
               setProject(validateProject({...project,icons:[...project.icons,a,b,c],
-                settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id,glossyStyle:style}));
-              setStatus('Pack « '+label+' » créé : Normal, Survol, Pressé. Charte enregistrée dans le projet et dans les thèmes. Sauvegarde avec la disquette.');
+                settingsIconId:a.id,settingsHoverIconId:b.id,settingsPressedIconId:c.id,glossyStyle:style,
+                bottomBar:applyBar?project.bottomBar.map(item=>({...item,iconId:a.id,hoverIconId:b.id,pressedIconId:c.id})):project.bottomBar}));
+              setStatus('Pack « '+label+' » créé'+(applyBar?' et appliqué à toute la barre':'')+'. Charte enregistrée. Sauvegarde avec la disquette.');
             }catch(e){setStatus('Impossible de créer le pack : '+String(e));}
           }}/>
           {project.settingsIconId&&<div className="nv-settings-three-previews">
