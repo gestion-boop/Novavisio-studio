@@ -1,0 +1,147 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maison Kamci — Constructeur de maisons sur mesure à Narbonne</title>
+<meta name="description" content="Maison Kamci conçoit et construit des maisons et villas sur mesure en Occitanie, depuis 1974. 17 rue de Ratacas, Narbonne.">
+<style>
+:root{--bg:#15100c;--card:#211a14;--ink:#f6efe6;--muted:#bdb0a2;--or:#e18533;--or2:#f0a860;--line:#3a2d22}
+@media(prefers-color-scheme:light){.tag{color:#8a4a12!important}.kick,.eyebrow{color:#a95a14}:root{--bg:#fbf6ef;--card:#fff;--ink:#1e1712;--muted:#6b5d50;--line:#ecdcc8}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.55}
+.wrap{max-width:1040px;margin:0 auto;padding:16px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:6px 8px 14px;animation:fd .8s both}
+.brand{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink);font-weight:800;font-size:22px}
+.brand img{width:76px;height:76px;border-radius:50%;box-shadow:0 6px 20px rgba(225,133,51,.35)}
+.brand small{display:block;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--or2)}
+.cta{background:var(--or);color:#fff;text-decoration:none;font-weight:700;border-radius:14px;padding:11px 18px;font-size:14px;transition:transform .2s}.cta:hover{transform:translateY(-2px)}
+.hero{position:relative;overflow:hidden;border-radius:28px;color:#fff;padding:44px 36px 38px;background:#15100c;border-bottom:3px solid var(--or);isolation:isolate}
+.hero::before{content:"";position:absolute;inset:0;z-index:-2;background:url(img/hero.webp) center/cover;animation:kb 20s ease-in-out infinite alternate}
+.hero::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(100deg,rgba(21,16,12,.95) 35%,rgba(21,16,12,.6) 70%,rgba(60,35,15,.35))}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(1.1)}}
+.kick,.eyebrow{font-size:12px;letter-spacing:.14em;font-weight:700;text-transform:uppercase;display:flex;align-items:center;gap:10px;color:var(--or2)}
+.kick::before,.eyebrow::before{content:"";width:28px;height:2px;background:var(--or)}
+h1{font-size:clamp(30px,6vw,52px);line-height:1.08;margin:14px 0}h1 em{font-style:normal;color:var(--or)}
+.hero p{max-width:720px;color:#eadfd2}
+.pills{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.pills span{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:9px 14px;font-weight:600;font-size:14px}.pills span::before{content:"●";color:var(--or);margin-right:8px;font-size:11px}
+.hero .kick,.hero h1,.hero p,.hero .pills{animation:rise .9s both}.hero h1{animation-delay:.15s}.hero p{animation-delay:.3s}.hero .pills{animation-delay:.45s}
+section.s{padding:36px 8px 0}
+h2{font-size:clamp(22px,4vw,34px);margin:6px 0 4px;line-height:1.2}h2::after{content:"";display:block;width:70px;height:3px;margin-top:12px;border-radius:3px;background:linear-gradient(90deg,var(--or),transparent)}
+.lead{color:var(--muted);max-width:860px}
+.grid{display:grid;gap:16px;margin-top:20px}.g4{grid-template-columns:repeat(4,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;transition:transform .3s,box-shadow .3s}.card:hover{transform:translateY(-5px);box-shadow:0 16px 34px rgba(225,133,51,.18)}
+.card h3{margin:0 0 6px;font-size:17px}.card p{margin:0;color:var(--muted);font-size:15px}
+.num{font-size:clamp(30px,5vw,44px);font-weight:800;color:var(--or);line-height:1}.stat span{display:block;color:var(--muted);font-size:14px;margin-top:6px}
+.step{counter-increment:st;position:relative;padding-left:62px}.step::before{content:counter(st);position:absolute;left:18px;top:18px;width:30px;height:30px;border-radius:50%;background:var(--or);color:#fff;font-weight:800;display:grid;place-items:center}
+.steps{counter-reset:st}
+.model b{font-size:20px;color:var(--or2);letter-spacing:.04em}.model small{display:block;color:var(--muted);margin-top:4px}
+.tag{display:inline-block;background:rgba(225,133,51,.16);color:var(--or2);font-weight:700;font-size:12px;border-radius:10px;padding:4px 10px;margin:0 6px 6px 0}
+.row{padding:10px 0;border-bottom:1px solid var(--line)}.row:last-of-type{border:0}.row a{color:var(--ink)}
+.btns{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:14px;padding:13px 20px;font-weight:700;text-decoration:none;font-size:15px;border:1px solid var(--line);color:var(--ink);background:var(--card);transition:transform .25s,box-shadow .25s}.btn:hover{transform:translateY(-4px);box-shadow:0 14px 28px rgba(225,133,51,.3)}
+.b-or{background:var(--or);color:#fff;border-color:var(--or)}.btn svg{flex:none}
+.note{margin-top:16px;background:rgba(225,133,51,.12);border:1px solid rgba(225,133,51,.4);border-radius:16px;padding:14px 18px;font-size:15px}
+.social{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px}.social .btn{color:#fff;border-color:transparent}
+.social a[href*="instagram"]{background:linear-gradient(45deg,#feda75,#fa7e1e 25%,#d62976 50%,#962fbf 75%,#4f5bd5)}
+.social a[href*="facebook"]{background:#0866ff}.social a[href*="linkedin"]{background:#0a66c2}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:34px 8px 30px}
+@keyframes fd{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}@keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+.js .rv{opacity:0;transform:translateY(28px);transition:opacity .8s,transform .8s}.js .rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .rv{opacity:1;transform:none}}
+@media(max-width:860px){.g4,.g3{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.g4,.g3,.g2{grid-template-columns:1fr}.hero{padding:28px 20px}.brand{font-size:18px}.brand img{width:58px;height:58px}}
+</style></head><body><div class="wrap">
+<nav class="top"><a href="#" class="brand"><img src="img/logo.webp" alt="Maison Kamci" width="76" height="76"><span>Maison Kamci<small>Depuis 1974</small></span></a><a class="cta" href="#contact">Contact &amp; accès</a></nav>
+
+<header class="hero">
+  <div class="kick">Constructeur en Occitanie</div>
+  <h1>Des maisons et villas<br><em>sur mesure</em>, depuis 1974</h1>
+  <p>Maison KAMCI conçoit et construit des maisons d’exception et villas sur mesure en Occitanie. Un savoir-faire familial transmis depuis trois générations pour donner vie à la maison de vos rêves.</p>
+  <div class="pills"><span>Maison clé en main</span><span>Villa sur mesure</span><span>Architecte DPLG</span><span>RE 2020</span></div>
+</header>
+
+<section class="s rv"><div class="eyebrow">Notre héritage</div><h2>Un demi-siècle d’excellence dans la construction</h2>
+<div class="grid g4">
+ <div class="card stat"><div class="num">52</div><span>années d’expérience</span></div>
+ <div class="card stat"><div class="num">2 642</div><span>maisons construites</span></div>
+ <div class="card stat"><div class="num">60 km</div><span>autour de Narbonne</span></div>
+ <div class="card stat"><div class="num">210</div><span>partenaires</span></div>
+</div>
+<p class="lead" style="margin-top:18px">Tout a commencé en 1974 : on parlait surtout de travail bien fait, de parole donnée et de maisons construites pour durer. Chez Maison KAMCI, le savoir-faire se transmet de père en fils, depuis trois générations de bâtisseurs.</p></section>
+
+<section class="s rv"><div class="eyebrow">Notre savoir-faire</div><h2>Expérience, qualité, personnalisation</h2>
+<div class="grid g3">
+ <div class="card"><h3>Expérience</h3><p>Trois générations de bâtisseurs, de chantiers vécus au quotidien et de familles accompagnées.</p></div>
+ <div class="card"><h3>Qualité</h3><p>Fondations, matériaux, règles de l’art, suivi rigoureux du chantier : des maisons solides, durables et confortables, avec des partenaires et artisans locaux.</p></div>
+ <div class="card"><h3>Personnalisation</h3><p>Aucune maison ne ressemble à une autre : plans, volumes, matériaux, équipements et finitions sont choisis ensemble, avec transparence et pédagogie.</p></div>
+</div></section>
+
+<section class="s rv"><div class="eyebrow">Votre parcours</div><h2>Construction de maison individuelle clé en main</h2>
+<p class="lead">De la première rencontre à la remise des clés, nous vous accompagnons à chaque étape.</p>
+<div class="grid g2 steps">
+ <div class="card step"><h3>Découverte de votre projet</h3><p>Secteur de recherche, cadre de vie idéal, accompagnement dans le choix du terrain parmi un portefeuille de 2 500 terrains entre Perpignan et Montpellier.</p></div>
+ <div class="card step"><h3>Esquisse &amp; avant-projet définitif</h3><p>Avec notre architecte, vous élaborez un cahier des charges précis pour des plans adaptés à vos besoins, vos goûts et votre mode de vie.</p></div>
+ <div class="card step"><h3>Le contrat</h3><p>Financements et projets de vente sécurisés par des conditions suspensives ; prix fermes, définitifs et garantis sans actualisation pendant 24 mois.</p></div>
+ <div class="card step"><h3>Permis de construire</h3><p>Mise au point avec l’architecte et le conducteur de travaux, puis dépôt de la demande de permis.</p></div>
+ <div class="card step"><h3>Mise au point technique</h3><p>Sélection des matériaux et équipements, avec les showrooms mis à votre disposition.</p></div>
+ <div class="card step"><h3>Travaux &amp; construction</h3><p>Un conducteur de travaux dédié assure le suivi quotidien de votre chantier.</p></div>
+ <div class="card step"><h3>Conformité &amp; réception</h3><p>La remise des clés, l’aboutissement de votre projet.</p></div>
+</div></section>
+
+<section class="s rv"><div class="eyebrow">Pourquoi faire construire</div><h2>Sécurité, confort et investissement durable</h2>
+<div class="grid g4">
+ <div class="card"><h3>Fiable et durable</h3><p>Chaque projet débute par une étude géotechnique pour des fondations adaptées à votre terrain.</p></div>
+ <div class="card"><h3>Sur mesure</h3><p>Design, aménagement et confort optimisés selon vos goûts et votre mode de vie.</p></div>
+ <div class="card"><h3>Économies</h3><p>Normes RE 2020 : jusqu’à 1 500 € d’économies d’énergie par an, et exonération de taxe foncière pendant 2 ans (selon les communes).</p></div>
+ <div class="card"><h3>Garanties</h3><p>Décennale, parfait achèvement, dommages-ouvrage et SAV réactif (48 heures).</p></div>
+</div></section>
+
+<section class="s rv"><div class="eyebrow">La gamme Narbo Martius</div><h2>Nos modèles de maisons d’architectes et villas</h2>
+<p class="lead">Six modèles exclusifs, déjà réalisés et visitables. Normes RE 2020 et haute performance énergétique.</p>
+<div class="grid g3">
+ <div class="card model"><b>CASSIA</b><small>128 m² · 3 chambres · piscine</small><p>Séjour 53 m² · terrasse 13 m² · maison à étage</p></div>
+ <div class="card model"><b>RUBIA</b><small>121 m² · 3 chambres · piscine</small><p>Séjour 50 m² · terrasse 31 m² · maison contemporaine</p></div>
+ <div class="card model"><b>LUCIA</b><small>137 m² · 3 chambres · piscine</small><p>Séjour 60 m² · terrasse 32 m² · plain-pied contemporaine</p></div>
+ <div class="card model"><b>LUMA</b><small>122 m² · 3 chambres · piscine</small><p>Séjour 54 m² · terrasse 33 m² · plain-pied en U</p></div>
+ <div class="card model"><b>IMPERIA</b><small>141 m² · 4 chambres · piscine</small><p>Séjour 65 m² · terrasse 47 m² · maison moderne</p></div>
+ <div class="card model"><b>COMINA</b><small>187 m² · 4 chambres · piscine</small><p>Terrasse 53 m² · maison traditionnelle</p></div>
+</div></section>
+
+<section class="s rv"><div class="eyebrow">Bon à savoir</div><h2>Vos questions</h2>
+<div class="grid g2">
+ <div class="card"><h3>Quel budget ?</h3><p>Les projets démarrent à partir de 1 500 € / m² habitable. Le budget s’ajuste selon le terrain, l’étude de sol G2 et les prestations choisies. Cuisine et dressings sont en général hors budget.</p></div>
+ <div class="card"><h3>Quels délais ?</h3><p>En moyenne 8 à 12 mois de chantier, soit souvent 10 à 18 mois au total avec les études et autorisations.</p></div>
+ <div class="card"><h3>Faut-il déjà un terrain ?</h3><p>Non : l’étude peut démarrer sans terrain, et plus de 2 500 terrains sont proposés dans l’Aude, les Pyrénées-Orientales et l’Hérault.</p></div>
+ <div class="card"><h3>Villa sur mesure ?</h3><p>Oui, c’est la majorité des constructions, avec des architectes DPLG. Garage, annexes, clôtures et aménagements extérieurs sont possibles, ainsi qu’une réalisation par étapes.</p></div>
+</div></section>
+
+<section class="s rv"><div class="eyebrow">Zone d’intervention</div><h2>Où construisons-nous ?</h2>
+<p class="lead">Dans l’Aude, l’Hérault et les Pyrénées-Orientales — notamment :</p>
+<div style="margin-top:12px"><span class="tag">Narbonne</span><span class="tag">Gruissan</span><span class="tag">Leucate</span><span class="tag">Béziers</span><span class="tag">Perpignan</span><span class="tag">Carcassonne</span><span class="tag">Argelès-sur-Mer</span><span class="tag">Agde</span><span class="tag">Sète</span><span class="tag">Montpellier</span></div></section>
+
+<section class="s rv" id="contact"><div class="eyebrow">Venir &amp; contacter</div><h2>Informations pratiques</h2>
+<div class="grid g2">
+ <div class="card"><h3>Adresse &amp; horaires</h3>
+  <div class="row"><strong>Maison Kamci</strong><br><span style="color:var(--muted)">17 rue de Ratacas, Zone Industrielle Plaisance<br>11100 Narbonne</span></div>
+  <div class="row"><strong>Du lundi au vendredi</strong><br><span style="color:var(--muted)">9h00 – 12h00 &amp; 14h00 – 18h00</span></div></div>
+ <div class="card"><h3>Nous joindre</h3>
+  <div class="row"><strong>Téléphone :</strong> <a href="tel:+33468489865">04 68 48 98 65</a></div>
+  <div class="row"><strong>E-mail :</strong> <a href="mailto:contact@maisonkamci.com">contact@maisonkamci.com</a></div>
+  <div class="row"><strong>Site :</strong> <a href="https://maisonkamci.com/" target="_blank" rel="noopener">maisonkamci.com</a></div></div>
+</div>
+<div class="note">Réservez un échange avec un conseiller : <strong>demande de devis gratuit</strong> sur le site, ou appelez directement.</div>
+<div class="btns">
+ <a class="btn b-or" href="https://maisonkamci.com/demande-de-devis/" target="_blank" rel="noopener">Demander mon devis gratuit</a>
+ <a class="btn" href="tel:+33468489865">Appeler</a>
+ <a class="btn" href="mailto:contact@maisonkamci.com">Envoyer un e-mail</a>
+ <a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Maison+Kamci+17+rue+de+Ratacas+11100+Narbonne">Ouvrir l’itinéraire</a>
+ <a class="btn" href="https://maisonkamci.com/" target="_blank" rel="noopener">Site officiel</a>
+</div></section>
+
+<section class="s rv"><div class="eyebrow">Rester connecté</div><h2>Suivre Maison Kamci</h2><div class="social" id="social"></div></section>
+<footer>Maison Kamci · 17 rue de Ratacas, 11100 Narbonne · Informations issues du site officiel maisonkamci.com</footer>
+</div>
+<script>
+document.documentElement.classList.add("js");
+(function(){var els=document.querySelectorAll(".rv");if(!("IntersectionObserver" in window)){els.forEach(function(e){e.classList.add("in")});return;}
+ var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}})},{threshold:.1});els.forEach(function(e){io.observe(e)});})();
+var ICONS={instagram:'<svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077"/></svg>',facebook:'<svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg>',linkedin:'<svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>'};
+[['instagram','Instagram','https://www.instagram.com/maison.kamci'],['facebook','Facebook','https://www.facebook.com/people/Maison-KAMCI/100083200187535/'],['linkedin','LinkedIn','https://fr.linkedin.com/company/maison-kamci']].forEach(function(p){var a=document.createElement('a');a.className='btn';a.href=p[2];a.target='_blank';a.rel='noopener';a.innerHTML=ICONS[p[0]]+' '+p[1];document.getElementById('social').appendChild(a);});
+</script></body></html>
