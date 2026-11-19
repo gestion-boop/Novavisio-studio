@@ -1,7 +1,7 @@
 import {getFloorPlans,withFloorPlans,type StudioProject,type Scene,type BottomBarItem,type FloorPlan} from './storage';
 import type {CloudLink} from './cloud';
 
-export type StudioSpace={id:string;name:string;sceneIds:string[];coverDataUrl?:string};
+export type StudioSpace={id:string;name:string;sceneIds:string[];coverDataUrl?:string;showRoomName?:boolean;showRoomNameVr?:boolean};
 /** Plans visibles dans le contexte ouvert : les anciens plans non rattachés
  * restent dans le projet principal, sans se mélanger aux plans des espaces. */
 export function plansInSpace(project:StudioProject,space:StudioSpace|null):FloorPlan[]{

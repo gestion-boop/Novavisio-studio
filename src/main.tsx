@@ -37,6 +37,7 @@ import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
 import {GlossyPackMaker,BAR_CHOICES} from './GlossyPackMaker';
 import {VrMenuEditor} from './VrMenuEditor';
+import {SceneRoomNameOptions,SpaceRoomNameOptions} from './RoomNameOptions';
 import {glossyBarPacks,glyphPng} from './barGlossy';
 import {glossyIconStates} from './glossyIcon';
 import {autoIconZoom} from './iconFit';
@@ -4483,6 +4484,7 @@ function App(){
           <button type="button" className="nv-space-close" onClick={()=>setSpaceManagerOpen(false)} aria-label="Fermer"><XMark/></button>
         </div>
         <SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>
+        <SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/>
         <label className="nv-space-name-label">Nom de l’espace
           <input aria-label="Renommer cet espace" value={currentSpace.name}
             onChange={e=>renameSpace(currentSpace.id,e.target.value)} maxLength={100}/>
@@ -5186,6 +5188,7 @@ function App(){
                       onChange={e=>{const v=e.target.value,n=v===''?undefined:Number(v);if(n===undefined||(Number.isFinite(n)&&n>0&&n<=100000))patchScene(sc=>({...sc,surfaceM2:n}));}}/>
                   </label>
                   </div>
+                  <SceneRoomNameOptions scene={active} onChange={v=>patchScene(sc=>({...sc,...v}))}/>
                   <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
@@ -5362,7 +5365,7 @@ function App(){
       </main>
       <aside id="nv-panorama-inspector" className="right panel">
         <div className="nv-inspector-top">{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
-        {currentSpace&&<SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/>}
+        {currentSpace&&<><SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/><SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/></>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
         <div className="nv-gallery-heading">
@@ -5729,7 +5732,8 @@ function App(){
                       onChange={e=>{const v=e.target.value,n=v===''?undefined:Number(v);if(n===undefined||(Number.isFinite(n)&&n>0&&n<=100000))patchScene(sc=>({...sc,surfaceM2:n}));}}/>
                   </label>
               </div>
-              <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
+              <SceneRoomNameOptions scene={active} onChange={v=>patchScene(sc=>({...sc,...v}))}/>
+                  <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},

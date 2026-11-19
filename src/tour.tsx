@@ -1,5 +1,5 @@
 import {FloorPlanDialog} from './FloorPlan';
-import {getFloorPlans} from './storage';
+import {getFloorPlans,roomNameVisible} from './storage';
 import {EmbeddedPage} from './EmbeddedPage';
 import {informationFont} from './InformationEditor';
 import {projectForSpaceExport} from './spaces';
@@ -407,7 +407,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     setMobileExpanded(true);
   };
   return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
-    {!showIntro&&firstPanoramaReady&&<div className="nv-tour-room-heading" aria-label="Pièce actuellement visitée">
+    {!showIntro&&firstPanoramaReady&&roomNameVisible(project,current,'visit')&&<div className="nv-tour-room-heading" aria-label="Pièce actuellement visitée">
       <strong title={pick(current.name,current.nameTranslations,lang)}>{pick(current.name,current.nameTranslations,lang)}</strong>
       {current.surfaceM2!==undefined&&<span>{current.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})} m²</span>}
     </div>}

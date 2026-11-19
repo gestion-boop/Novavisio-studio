@@ -1,5 +1,5 @@
 import {CanvasTexture, Color, LinearFilter, DoubleSide, Group, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
-import {getFloorPlans,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
+import {getFloorPlans,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
 import {resolveLink} from './mediaLinks';
@@ -457,6 +457,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const renderRoomHeader=()=>{
     clearGroup(headerGroup);
     const room=sceneOf(currentId);
+    // Rectangle du nom de la pièce désactivé pour ce panorama ou ce dossier (réglage « casque »).
+    if(room&&!roomNameVisible(project(),room,'vr'))return;
     const name=room?pick(room.name,room.nameTranslations,vlang()):project().name;
     const area=room?.surfaceM2!==undefined?room.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})+' m²':'';
     const tex=canvasTexture(1400,180,ctx=>{

@@ -143,6 +143,10 @@ export type Scene = {
   id:string;name:string;
   /** Superficie réelle de la pièce en m² ; ne pas déduire d'une photographie. */
   surfaceM2?:number;
+  /** Rectangle avec le nom de la pièce, dans la visite immersive : true/false imposé pour ce panorama ; absent = réglage du dossier (espace), sinon affiché. */
+  showRoomName?:boolean;
+  /** Idem dans le casque (VR). */
+  showRoomNameVr?:boolean;
   sunFlare?:SunFlare;
   /** Nom du panorama dans les autres langues de la visite (le français reste dans « name »). */
   nameTranslations?:Partial<Record<'en'|'es'|'de'|'nl',string>>;
@@ -184,7 +188,7 @@ export function withFloorPlans<T extends StudioProject>(project:T,plans:FloorPla
 export type GlossyStyle = {base:string;rim?:string;gloss:number;shadow:number};
 /** Interface jaune du casque : actions de chaque colonne, dans l'ordre. `autoOpen` : s'ouvre dès l'entrée dans le casque. */
 export type VrMenuConfig = {left:string[];right:string[];autoOpen?:boolean};
-export type StudioProject = { version: 1; windowAnimation?: WindowAnimation; /** Hauteur du regard dans le casque, en mètres par rapport à la position par défaut (négatif = plus bas). */ vrEyeOffset?:number; /** Charte du bouton glossy (couleur, reflet, ombre), réutilisable via les thèmes. */ glossyStyle?:GlossyStyle; /** Boutons et actions de l'interface jaune du casque (défaut : interface actuelle). */ vrMenu?:VrMenuConfig; /** Réglage de soleil enregistré comme modèle pour les autres panoramas (cap, hauteur, intensité, longueur, orientation, rayons). */ sunFlareDefault?: SunFlare; /** Durée d'ouverture des fenêtres, en ms (200 à 2000, défaut 700). */ windowAnimationMs?: number; /** Autorise le mode immersif WebXR pour cette visite. Les anciens projets sans ce champ conservent la VR. */ vrEnabled?:boolean; floorPlan?:FloorPlan; floorPlans?:FloorPlan[]; comments?:ProjectComment[]; ignoredChecks?:string[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string}[] };
+export type StudioProject = { version: 1; windowAnimation?: WindowAnimation; /** Hauteur du regard dans le casque, en mètres par rapport à la position par défaut (négatif = plus bas). */ vrEyeOffset?:number; /** Charte du bouton glossy (couleur, reflet, ombre), réutilisable via les thèmes. */ glossyStyle?:GlossyStyle; /** Boutons et actions de l'interface jaune du casque (défaut : interface actuelle). */ vrMenu?:VrMenuConfig; /** Réglage de soleil enregistré comme modèle pour les autres panoramas (cap, hauteur, intensité, longueur, orientation, rayons). */ sunFlareDefault?: SunFlare; /** Durée d'ouverture des fenêtres, en ms (200 à 2000, défaut 700). */ windowAnimationMs?: number; /** Autorise le mode immersif WebXR pour cette visite. Les anciens projets sans ce champ conservent la VR. */ vrEnabled?:boolean; floorPlan?:FloorPlan; floorPlans?:FloorPlan[]; comments?:ProjectComment[]; ignoredChecks?:string[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string;/** Rectangle avec le nom des pièces de ce dossier dans la visite immersive : false = masqué (défaut : affiché). */showRoomName?:boolean;/** Idem dans le casque (VR). */showRoomNameVr?:boolean}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -389,6 +393,7 @@ export function validateProject(value:unknown):StudioProject {
     if (!scene || typeof scene.id !== 'string' || typeof scene.name !== 'string' || typeof scene.dataUrl !== 'string' || !/^data:image\/(jpeg|png|webp);base64,/.test(scene.dataUrl) || !Array.isArray(scene.hotspots)) throw new Error('Scène non valide');
     if (scene.hotspots.length > 1000) throw new Error('Trop de points dans cette scène');
     if(scene.surfaceM2!==undefined && (!Number.isFinite(scene.surfaceM2)||scene.surfaceM2<=0||scene.surfaceM2>100000))throw new Error('Superficie de la pièce invalide');
+    if((scene.showRoomName!==undefined && typeof scene.showRoomName!=='boolean')||(scene.showRoomNameVr!==undefined && typeof scene.showRoomNameVr!=='boolean'))throw new Error('Réglage du nom de la pièce invalide');
     if(scene.nightDataUrl!==undefined && (!/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(scene.nightDataUrl) || scene.nightDataUrl.length>85_000_000)) throw new Error('Panorama de nuit invalide');
     if(scene.nightSourceSceneId!==undefined && (typeof scene.nightSourceSceneId!=='string'||scene.nightSourceSceneId===scene.id||!p.scenes.some(other=>other.id===scene.nightSourceSceneId))) throw new Error('Panorama de nuit sélectionné introuvable');
     if(scene.musicTrackId!==undefined && (typeof scene.musicTrackId!=='string'||!ids.has(scene.musicTrackId)))
@@ -465,6 +470,7 @@ export function validateProject(value:unknown):StudioProject {
        typeof space.name!=='string'||!space.name.trim()||space.name.length>100||
        (space.coverDataUrl!==undefined&&(space.coverDataUrl.length>3_000_000||!isSafeFrameImage(space.coverDataUrl))) ||
        !Array.isArray(space.sceneIds)||space.sceneIds.length>p.scenes.length||
+       (space.showRoomName!==undefined&&typeof space.showRoomName!=='boolean')||(space.showRoomNameVr!==undefined&&typeof space.showRoomNameVr!=='boolean')||
        new Set(space.sceneIds).size!==space.sceneIds.length||
        space.sceneIds.some((id:unknown)=>typeof id!=='string'||!sceneIds.has(id as string)))
        throw new Error('Un espace contient des références de panoramas invalides');
@@ -623,4 +629,16 @@ export async function readProjectFile(file: File, onProgress?: (percent: number)
     return v;
   };
   return restore(root);
+}
+
+/**
+ * Faut-il afficher le rectangle avec le nom de la pièce ? Réglé séparément pour la visite immersive (`visit`) et le casque (`vr`).
+ * Priorité : réglage du panorama, puis celui de son dossier (premier espace qui le contient et qui a un réglage), sinon affiché.
+ */
+export function roomNameVisible(project:Pick<StudioProject,'spaces'>,scene:Pick<Scene,'id'|'showRoomName'|'showRoomNameVr'>,mode:'visit'|'vr'='visit'):boolean{
+  const own=mode==='vr'?scene.showRoomNameVr:scene.showRoomName;
+  if(own!==undefined)return own;
+  const space=(project.spaces??[]).find(sp=>(mode==='vr'?sp.showRoomNameVr:sp.showRoomName)!==undefined&&sp.sceneIds.includes(scene.id));
+  if(!space)return true;
+  return (mode==='vr'?space.showRoomNameVr:space.showRoomName)!==false;
 }
