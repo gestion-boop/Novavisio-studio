@@ -822,6 +822,9 @@ function App(){
   const [studioFallback,setStudioFallback]=useState(false);
   const [leftHidden,setLeftHidden]=useState(()=>readStudioLayout().leftHidden);
   const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
+  const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw'));return v>=24&&v<=78?v:40;}catch{return 40;}});
+  const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(78,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw',String(n));}catch{/* stockage indisponible */}};
+  const startInspectorResize=(e:{preventDefault:()=>void})=>{e.preventDefault();const move=(ev:PointerEvent)=>setInspectorWidth((1-ev.clientX/window.innerWidth)*100);const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);};
   const [sceneDensity,setSceneDensity]=useState<'compact'|'comfortable'>(()=>readStudioLayout().density);
   const [sceneSearch,setSceneSearch]=useState('');
   const [sceneFilter,setSceneFilter]=useState<SceneFilter>('all');
@@ -4665,7 +4668,7 @@ function App(){
         </div>
       </>}
     </div>}
-    <div className="workspace">
+    <div className="workspace" style={{"--nv-inspector-width":inspectorVw+"vw"} as CSSProperties}>
       {classicDestinationOpen&&!creationFullscreen&&!preview&&active&&(selected?.type==='navigation'||(autoNavigation&&autoPending))&&
         <section id="nv-classic-destination-picker" className="nv-classic-destination-overlay"
           aria-label="Choix visuel du panorama de destination">
@@ -5367,6 +5370,8 @@ function App(){
 
       </main>
       <aside id="nv-panorama-inspector" className="right panel">
+        <div className="nv-inspector-resize" onPointerDown={startInspectorResize} onDoubleClick={()=>setInspectorWidth(inspectorVw<55?62:40)} role="separator" aria-orientation="vertical" aria-label="Glisser pour élargir ou réduire la colonne (double-clic : agrandir / normal)" title="Glisser pour élargir · double-clic : agrandir / normal"><i/></div>
+        <div className="nv-inspector-sizes" role="group" aria-label="Largeur de la colonne">{([['Étroit',30],['Large',42],['Très large',56],['Maxi',72]] as const).map(([label,v])=><button key={v} type="button" className={Math.abs(inspectorVw-v)<4?"is-on":""} onClick={()=>setInspectorWidth(v)}>{label}</button>)}</div>
         <div className="nv-inspector-top">{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         {currentSpace&&<><SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/><SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/></>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}

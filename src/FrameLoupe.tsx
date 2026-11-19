@@ -76,7 +76,10 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   const [snapped,setSnapped]=useState(false);
   const [hoverKey,setHoverKey]=useState<FrameKey|null>(null);
   const frozen=useRef<{yaw:number;pitch:number}|null>(null);
-  const grad=useRef<Float32Array|null>(null);
+  const grad=useRef<{m:Float32Array;k:number}|null>(null);
+  const rootRef=useRef<HTMLDivElement>(null);
+  const [wide,setWide]=useState(false);
+  useEffect(()=>{const el=rootRef.current;if(!el||typeof ResizeObserver==='undefined')return;const ro=new ResizeObserver(([e])=>setWide(e.contentRect.width>=600));ro.observe(el);return ()=>ro.disconnect();},[]);
   const cornersRef=useRef(corners);cornersRef.current=corners;
 
   // Centre de la frame (moyenne) et champ de vision « cadre entier ».
@@ -103,7 +106,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   useEffect(()=>{
     const c=canvas.current;if(!c||!src)return;
     // Pendant un glissement de coin : moitié de définition (4× moins de calcul) pour ne pas figer l'application.
-    const sc=dragging?.5:1,cw=Math.round(W*sc),ch=Math.round(H*sc);
+    const sc=dragging?.6:1.6,cw=Math.round(W*sc),ch=Math.round(H*sc);
     c.width=cw;c.height=ch;
     const ctx=c.getContext('2d')!;const out=ctx.createImageData(cw,ch);const o=out.data;
     const {w,h,data}=src;const g=new Float32Array(cw*ch);
@@ -122,26 +125,26 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
     ctx.putImageData(out,0,0);
     // Gradient (Sobel simplifié) pour le magnétisme sur les bords : recalculé seulement au repos.
     if(dragging)return;
-    const mag=new Float32Array(cw*ch);
+    const mag=new Float32Array(cw*ch),kk=sc;
     for(let y=1;y<ch-1;y++)for(let x=1;x<cw-1;x++){
       const gx=g[y*cw+x+1]-g[y*cw+x-1]+0.5*(g[(y-1)*cw+x+1]-g[(y-1)*cw+x-1]+g[(y+1)*cw+x+1]-g[(y+1)*cw+x-1]);
       const gy=g[(y+1)*cw+x]-g[(y-1)*cw+x]+0.5*(g[(y+1)*cw+x-1]-g[(y-1)*cw+x-1]+g[(y+1)*cw+x+1]-g[(y-1)*cw+x+1]);
-      mag[y*cw+x]=Math.hypot(gx,gy);
+      mag[y*cw+x]=Math.hypot(gx,gy)*kk;
     }
-    grad.current=mag;
+    grad.current={m:mag,k:kk};
   },[src,b,dragging]);
 
   const setCorner=useCallback((key:FrameKey,px:number,py:number,useSnap:boolean)=>{
     let x=clamp(px,0,W),y=clamp(py,0,H);
-    const m=grad.current;
+    const gr=grad.current,m=gr?.m,k=gr?.k??1,gw=Math.round(W*k),gh=Math.round(H*k);
     let isSnapped=false;
     if(useSnap&&m){
       let best=0,bx=x,by=y;
       for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){
-        const xx=Math.round(x)+dx,yy=Math.round(y)+dy;
-        if(xx<1||yy<1||xx>=W-1||yy>=H-1)continue;
-        const score=m[yy*W+xx]-0.9*(dx*dx+dy*dy)/2;
-        if(score>best){best=score;bx=xx;by=yy;}
+        const xx=Math.round((x+dx)*k),yy=Math.round((y+dy)*k);
+        if(xx<1||yy<1||xx>=gw-1||yy>=gh-1)continue;
+        const score=m[yy*gw+xx]-0.9*(dx*dx+dy*dy)/2;
+        if(score>best){best=score;bx=x+dx;by=y+dy;}
       }
       // Seulement si un vrai bord est détecté : le calage reste léger, jamais brutal.
       if(best>38){x=x+(bx-x)*0.6;y=y+(by-y)*0.6;isSnapped=true;}
@@ -199,7 +202,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   if(failed)return <p className="nv-loupe-note">Impossible d’afficher la loupe pour ce panorama (image non lisible). Déplace les coins directement dans la vue 3D.</p>;
   const polygon=pts.every(Boolean)?pts.map(p=>p![0].toFixed(1)+','+p![1].toFixed(1)).join(' '):'';
   const activeColor=snapped?'#4bebde':'#ffe9b0';
-  return <div className="nv-loupe" onKeyDown={key}>
+  return <div className={"nv-loupe"+(wide?" is-wide":"")} ref={rootRef} onKeyDown={key}>
     <div className="nv-loupe-head"><strong>Zoom de précision</strong>
       <span className="nv-loupe-zoom" role="group" aria-label="Niveau de zoom">{ZOOMS.map(z=><button key={z} type="button" className={zoom===z?'is-on':''} onClick={()=>setZoom(z)} aria-pressed={zoom===z}>×{z}</button>)}</span>
     </div>
