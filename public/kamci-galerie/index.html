@@ -1,0 +1,87 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galerie des modèles — Maison Kamci</title>
+<meta name="description" content="Galerie photo des modèles de maisons et villas Maison Kamci : Cassia, Rubia, Lucia, Luma, Imperia, Comina.">
+<style>
+:root{--bg:#15100c;--card:#211a14;--ink:#f6efe6;--muted:#bdb0a2;--or:#e18533;--or2:#f0a860;--line:#3a2d22}
+@media(prefers-color-scheme:light){:root{--bg:#fbf6ef;--card:#fff;--ink:#1e1712;--muted:#6b5d50;--line:#ecdcc8}.eyebrow,.kick{color:#a95a14!important}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding:16px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:6px 8px 12px;animation:fd .8s both}
+.brand{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink);font-weight:800;font-size:22px}.brand img{width:68px;height:68px;border-radius:50%;box-shadow:0 6px 20px rgba(225,133,51,.35)}
+.brand small{display:block;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--or2)}
+.cta{background:var(--or);color:#fff;text-decoration:none;font-weight:700;border-radius:14px;padding:11px 18px;font-size:14px;transition:transform .2s}.cta:hover{transform:translateY(-2px)}
+.hero{padding:26px 8px 6px}.kick,.eyebrow{font-size:12px;letter-spacing:.14em;font-weight:700;text-transform:uppercase;display:flex;align-items:center;gap:10px;color:var(--or2)}.kick::before,.eyebrow::before{content:"";width:28px;height:2px;background:var(--or)}
+h1{font-size:clamp(30px,5.6vw,50px);line-height:1.08;margin:12px 0}h1 em{font-style:normal;color:var(--or)}
+.lead{color:var(--muted);max-width:760px}
+.tabs{position:sticky;top:0;z-index:20;display:flex;gap:8px;flex-wrap:wrap;padding:12px 8px;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);margin:0 -8px}
+.tabs a{text-decoration:none;color:var(--ink);font-weight:700;font-size:14px;padding:8px 16px;border-radius:99px;border:1px solid var(--line);background:var(--card);transition:all .2s}.tabs a:hover,.tabs a.on{background:var(--or);border-color:var(--or);color:#fff;transform:translateY(-2px)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:22px 0 6px}
+.mc{position:relative;display:block;overflow:hidden;border-radius:22px;aspect-ratio:4/3;text-decoration:none;color:#fff;border:1px solid var(--line)}
+.mc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .9s}.mc:hover img{transform:scale(1.08)}
+.mc::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(10,6,3,.88))}
+.mc div{position:absolute;left:18px;right:18px;bottom:14px;z-index:1}.mc b{font-size:22px;letter-spacing:.04em}.mc small{display:block;color:#e9d9c6}
+section.model{padding:46px 8px 0;scroll-margin-top:70px}
+h2{font-size:clamp(24px,4.4vw,38px);margin:6px 0 4px;line-height:1.15}h2::after{content:"";display:block;width:70px;height:3px;margin-top:12px;border-radius:3px;background:linear-gradient(90deg,var(--or),transparent)}
+h3.tag{margin:8px 0 6px;font-size:clamp(17px,2.6vw,22px);color:var(--or2);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}.chips span{background:rgba(225,133,51,.16);border:1px solid rgba(225,133,51,.35);border-radius:12px;padding:5px 12px;font-weight:700;font-size:13px}
+.gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:190px;gap:12px;margin-top:20px}
+.gal figure{margin:0;position:relative;overflow:hidden;border-radius:18px;cursor:zoom-in;background:#fff;border:1px solid var(--line)}
+.gal figure:first-child{grid-column:span 2;grid-row:span 2}
+.gal img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .8s}.gal figure:hover img{transform:scale(1.07)}
+.gal figure::after{content:"⤢";position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:50%;background:rgba(21,16,12,.65);color:#fff;display:grid;place-items:center;opacity:0;transition:opacity .25s}.gal figure:hover::after{opacity:1}
+.gal figure.plan img{object-fit:contain}
+.row{display:flex;flex-wrap:wrap;gap:12px;margin-top:18px}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:14px;padding:12px 20px;font-weight:700;text-decoration:none;font-size:15px;border:1px solid var(--line);color:var(--ink);background:var(--card);transition:transform .25s,box-shadow .25s}.btn:hover{transform:translateY(-4px);box-shadow:0 14px 28px rgba(225,133,51,.3)}.b-or{background:var(--or);color:#fff;border-color:var(--or)}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:46px 8px 34px}
+.lb{position:fixed;inset:0;z-index:100;background:rgba(8,5,3,.93);display:none;align-items:center;justify-content:center;touch-action:pan-y}.lb.open{display:flex;animation:fi .25s}
+.lb img{max-width:92vw;max-height:84vh;border-radius:12px;box-shadow:0 20px 70px rgba(0,0,0,.6);background:#fff}
+.lb button{position:absolute;border:0;border-radius:50%;width:48px;height:48px;background:rgba(255,255,255,.14);color:#fff;font-size:24px;cursor:pointer;transition:background .2s}.lb button:hover{background:var(--or)}
+.lb .x{top:16px;right:16px}.lb .p{left:14px;top:50%;transform:translateY(-50%)}.lb .n{right:14px;top:50%;transform:translateY(-50%)}
+.lb .c{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#eadfd2;font-size:14px}
+@keyframes fd{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}@keyframes fi{from{opacity:0}to{opacity:1}}
+.js .rv{opacity:0;transform:translateY(28px);transition:opacity .8s,transform .8s}.js .rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .rv{opacity:1;transform:none}}
+@media(max-width:900px){.cards{grid-template-columns:1fr 1fr}.gal{grid-template-columns:1fr 1fr;grid-auto-rows:160px}}
+@media(max-width:560px){.cards{grid-template-columns:1fr}.gal{grid-auto-rows:130px}.brand{font-size:18px}.brand img{width:54px;height:54px}}
+</style></head><body><div class="wrap">
+<nav class="top"><a href="#" class="brand"><img src="img/logo.webp" alt="Maison Kamci" width="68" height="68"><span>Maison Kamci<small>Galerie des modèles</small></span></a><a class="cta" href="https://maisonkamci.com/demande-de-devis/" target="_blank" rel="noopener">Devis gratuit</a></nav>
+<header class="hero"><div class="kick">La gamme Narbo Martius</div><h1>Nos modèles de <em>maisons d’architectes</em> et villas</h1>
+<p class="lead">Six modèles exclusifs conçus pour sublimer votre quotidien : plain-pied, étage, toiture-terrasse, piscine. Choisissez un modèle pour parcourir ses photos et ses plans 3D.</p></header>
+<div class="cards" id="cards"></div>
+<nav class="tabs" id="tabs" aria-label="Modèles"></nav>
+<div id="models"></div>
+<footer>Maison Kamci · 17 rue de Ratacas, 11100 Narbonne · 04 68 48 98 65 · Visuels issus du site officiel maisonkamci.com</footer>
+</div>
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Photo en grand"><button class="x" aria-label="Fermer">✕</button><button class="p" aria-label="Précédente">‹</button><img id="lbi" alt=""><button class="n" aria-label="Suivante">›</button><div class="c" id="lbc"></div></div>
+<script>
+document.documentElement.classList.add("js");
+var MODELS=[{"id": "cassia", "name": "Cassia", "m2": "128 m²", "ch": "3 chambres", "pool": "Piscine", "style": "Maison à étage", "tag": "La villa familiale spacieuse pour un art de vivre méditerranéen", "intro": "Cassia est notre villa signature de 128 m², conçue pour ceux qui exigent l'espace et le luxe. Pensée pour le soleil de l'Aude, elle est l'incarnation d'un art de vivre spacieux et ouvert sur l'extérieur.", "extra": "Séjour 53 m² · terrasse 13 m²", "n": 11}, {"id": "rubia", "name": "Rubia", "m2": "121 m²", "ch": "3 chambres", "pool": "Piscine", "style": "Contemporaine", "tag": "Élégante villa contemporaine avec toiture-terrasse", "intro": "Rubia est l'incarnation de l'élégance contemporaine adaptée à la lumière méditerranéenne. Cette magnifique villa de 121 m², avec sa toiture-terrasse design et ses lignes épurées, est l'invitation à un quotidien rythmé par la douceur du climat de l'Aude.", "extra": "Séjour 50 m² · terrasse 31 m²", "n": 10}, {"id": "lucia", "name": "Lucia", "m2": "137 m²", "ch": "3 chambres", "pool": "Piscine", "style": "Plain-pied en U", "tag": "Plain-pied en U avec piscine et cuisine d'été", "intro": "Lucia est l'harmonie parfaite entre élégance et vie extérieure. Ce modèle de plain-pied de 137 m² se distingue par son architecture en forme de U unique, qui enveloppe la piscine pour créer un véritable cocon de sérénité.", "extra": "Séjour 60 m² · terrasse 32 m²", "n": 9}, {"id": "luma", "name": "Luma", "m2": "122 m²", "ch": "3 chambres", "pool": "Piscine", "style": "Plain-pied contemporain", "tag": "Plain-pied ultra-lumineux avec toiture-terrasse design", "intro": "Luma est un véritable cocon de lumière et de modernité. Ce modèle de 122 m² est l'exemple parfait de la maison de plain-pied contemporaine, où l'intérieur et l'extérieur sont en parfaite harmonie.", "extra": "Séjour 54 m² · terrasse 33 m²", "n": 10}, {"id": "imperia", "name": "Imperia", "m2": "141 m²", "ch": "4 chambres", "pool": "Piscine", "style": "Maison d’architecte", "tag": "La maison d'architecte aux lignes cubiques, design et luxe contemporain", "intro": "Imperia est une véritable déclaration de style. Cette villa contemporaine de 141 m² incarne l'architecture d'exception avec ses lignes cubiques audacieuses et ses jeux de volumes élégants.", "extra": "Séjour 65 m² · terrasse 47 m²", "n": 13}, {"id": "comina", "name": "Comina", "m2": "187 m²", "ch": "4 chambres", "pool": "Piscine", "style": "Villa d’exception", "tag": "Villa contemporaine d’exception et grands espaces", "intro": "Comina incarne un art de vivre grandiose, où chaque détail est pensé pour le luxe, la lumière et le grand volume. Avec ses 187 m² habitables, cette villa contemporaine est la maison des rêves pour ceux qui veulent une architecture audacieuse et une luminosité sans limites.", "extra": "Terrasse 53 m²", "n": 12}];
+var pad=function(n){return (n<10?"0":"")+n};
+var PLANS={cassia:[2,3],rubia:[2,3],lucia:[2],luma:[2],imperia:[2,3],comina:[2,3]};
+var cards=document.getElementById("cards"),tabs=document.getElementById("tabs"),host=document.getElementById("models");
+MODELS.forEach(function(m){
+  cards.insertAdjacentHTML("beforeend",'<a class="mc rv" href="#'+m.id+'"><img loading="lazy" src="img/'+m.id+'/01.webp" alt="Modèle '+m.name+'"><div><b>'+m.name.toUpperCase()+'</b><small>'+m.m2+' · '+m.ch+' · '+m.style+'</small></div></a>');
+  tabs.insertAdjacentHTML("beforeend",'<a href="#'+m.id+'" data-id="'+m.id+'">'+m.name+'</a>');
+  var figs="";for(var i=1;i<=m.n;i++){var plan=(PLANS[m.id]||[]).indexOf(i)>-1;figs+='<figure class="'+(plan?'plan':'')+'" data-m="'+m.id+'" data-i="'+i+'"><img loading="lazy" src="img/'+m.id+'/'+pad(i)+'.webp" alt="Modèle '+m.name+(plan?' — plan 3D':' — photo '+i)+'"></figure>';}
+  host.insertAdjacentHTML("beforeend",'<section class="model rv" id="'+m.id+'"><div class="eyebrow">Notre modèle</div><h2>'+m.name+'</h2><h3 class="tag">'+m.tag+'</h3><p class="lead">'+m.intro+'</p>'+
+   '<div class="chips"><span>'+m.m2+'</span><span>'+m.ch+'</span><span>'+m.pool+'</span><span>'+m.style+'</span>'+(m.extra?'<span>'+m.extra+'</span>':'')+'</div>'+
+   '<div class="gal">'+figs+'</div><div class="row"><a class="btn b-or" target="_blank" rel="noopener" href="https://maisonkamci.com/demande-de-devis/">Demander un devis pour '+m.name+'</a><a class="btn" target="_blank" rel="noopener" href="https://maisonkamci.com/modele-de-maison-'+m.id+'/">Voir la fiche du modèle</a></div></section>');
+});
+/* apparition au défilement */
+(function(){var els=document.querySelectorAll(".rv");if(!("IntersectionObserver" in window)){els.forEach(function(e){e.classList.add("in")});return;}
+ var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}})},{threshold:.08});els.forEach(function(e){io.observe(e)});})();
+/* onglet actif */
+(function(){if(!("IntersectionObserver" in window))return;var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){tabs.querySelectorAll("a").forEach(function(a){a.classList.toggle("on",a.dataset.id===e.target.id)})}})},{rootMargin:"-30% 0px -60% 0px"});document.querySelectorAll("section.model").forEach(function(s){io.observe(s)});})();
+/* visionneuse */
+var lb=document.getElementById("lb"),lbi=document.getElementById("lbi"),lbc=document.getElementById("lbc"),cur={m:null,i:1};
+function show(){var m=MODELS.filter(function(x){return x.id===cur.m})[0];lbi.src="img/"+cur.m+"/"+pad(cur.i)+".webp";lbi.alt="Modèle "+m.name;lbc.textContent=m.name+" · "+cur.i+" / "+m.n;}
+function open(mid,i){cur={m:mid,i:i};show();lb.classList.add("open");document.body.style.overflow="hidden";}
+function close(){lb.classList.remove("open");document.body.style.overflow="";}
+function step(d){var m=MODELS.filter(function(x){return x.id===cur.m})[0];cur.i=((cur.i-1+d+m.n)%m.n)+1;show();}
+host.addEventListener("click",function(e){var f=e.target.closest("figure");if(f)open(f.dataset.m,Number(f.dataset.i));});
+lb.querySelector(".x").onclick=close;lb.querySelector(".p").onclick=function(){step(-1)};lb.querySelector(".n").onclick=function(){step(1)};
+lb.addEventListener("click",function(e){if(e.target===lb)close()});
+document.addEventListener("keydown",function(e){if(!lb.classList.contains("open"))return;if(e.key==="Escape")close();if(e.key==="ArrowLeft")step(-1);if(e.key==="ArrowRight")step(1);});
+var sx=null;lb.addEventListener("touchstart",function(e){sx=e.touches[0].clientX},{passive:true});lb.addEventListener("touchend",function(e){if(sx===null)return;var dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>50)step(dx<0?1:-1);sx=null},{passive:true});
+</script></body></html>
