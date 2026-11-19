@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {overlayClose} from './overlayClose';
 import {X} from 'lucide-react';
 import {renderViewThumb,type ViewSource} from './viewThumbs';
 import type {BottomBarItem,Scene,StudioProject} from './storage';
@@ -58,7 +59,7 @@ export function PanoramaGallery({title,entries,currentId,background,onPick,onClo
     document.addEventListener('keydown',onKey);
     return ()=>document.removeEventListener('keydown',onKey);
   },[onClose,look]);
-  return <div className="nv-gallery-overlay" onClick={onClose} role="presentation">
+  return <div className="nv-gallery-overlay" {...overlayClose(onClose)} role="presentation">
     <section className={'nv-gallery'+(background?' has-bg':'')} role="dialog" aria-label={title} onClick={e=>e.stopPropagation()}
       style={background?{backgroundImage:'linear-gradient(rgba(4,14,20,.58),rgba(4,14,20,.84)),url("'+background.replace(/"/g,'%22')+'")',backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
       <header><h2>{title}</h2><button type="button" className="nv-gallery-close" onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();onClose();}} aria-label="Fermer la galerie"><X size={20}/></button></header>

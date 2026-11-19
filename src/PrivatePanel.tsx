@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import {overlayClose} from './overlayClose';
 import {addMember,getWriteState,setWriteHolder,cloudConfigured,createCollaboratorAccount,listMembers,listCloudProjects,readLink,removeMember,saveToCloud,supabase,type Member} from './cloud';
 import type {SyncState} from './cloudSync';
 import {studioUrl} from './share';
@@ -154,7 +155,7 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
     finally{setBusy('');}
   }
 
-  return <div className="overlay" onClick={onClose}><div className="modal cloud-panel private-panel" onClick={e=>e.stopPropagation()}>
+  return <div className="overlay" {...overlayClose(onClose)}><div className="modal cloud-panel private-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}><XMark/></button>
     <h2>Lien privé{space?' · '+space.name:''}</h2>
     {space&&<p className="hint-inline"><b>Espace actuellement ouvert : {space.name}</b>. Tu peux choisir plusieurs espaces ci-dessous ; seuls ceux que tu coches seront transmis.</p>}

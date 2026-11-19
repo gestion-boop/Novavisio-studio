@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import {overlayClose} from './overlayClose';
 import {cloudConfigured,supabase,readLink,writeLink,type CloudLink} from './cloud';
 import {SHARE_DAYS,autoPublishOn,setAutoPublish,createShareLink,getPublication,listShares,publicationActive,publishPermanent,revokeShare,shareStatus,shareUrl,unpublish,wrapperHtml,type Publication,type ShareDays,type ShareRow} from './share';
 import type {StudioProject} from './storage';
@@ -93,7 +94,7 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
     void run('Désactivation…',async()=>{await revokeShare(row.id);onStatus('Lien désactivé');await refresh(link?.projectId);});
   };
 
-  return <div className="overlay" onClick={onClose}><div className="modal cloud-panel share-panel" onClick={e=>e.stopPropagation()}>
+  return <div className="overlay" {...overlayClose(onClose)}><div className="modal cloud-panel share-panel" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}><XMark/></button>
     <h2>Lien public · {space?space.name:'Projet complet'}</h2>
     {space?

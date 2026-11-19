@@ -1,4 +1,5 @@
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
+import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog} from './FloorPlan';
 import {MediaIconSelector} from './MediaIconSettings';
 import {BarSmartCard,barKind,recommendedType} from './BarSmartCard';
@@ -5334,7 +5335,7 @@ function App(){
               onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
           {(imageZoom?.imageDataUrl||imageZoom?.imageUrl) && <ZoomImage variant="studio" frameStyle={imageZoom.imageFrameStyle} src={(imageZoom.imageDataUrl||imageZoom.imageUrl)!} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
-          {frame && <div className="embed-overlay" onClick={()=>setFrame(null)} role="presentation">
+          {frame && <div className="embed-overlay" {...overlayClose(()=>setFrame(null))} role="presentation">
             <section className="embed-shell" aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
               <div className="embed-header">
                 <span className="embed-title">{frame.title}</span>
@@ -6316,7 +6317,7 @@ function App(){
         <button type="button" className="primary" onClick={()=>setSaveWarning(null)}>J’ai compris</button>
       </section>
     </div>}
-    {help&&<div className="overlay" onClick={()=>setHelp(false)}><div className="modal" onClick={e=>e.stopPropagation()}>
+    {help&&<div className="overlay" {...overlayClose(()=>setHelp(false))}><div className="modal" onClick={e=>e.stopPropagation()}>
       <button className="close" onClick={()=>setHelp(false)}><XMark/></button><h2>Guide NovaVisio Studio</h2>
       <p><b>1.</b> Importe des panoramas 360° au format équirectangulaire.</p>
       <p><b>2.</b> Choisis « Navigation » ou « Information », puis clique sur l’image pour placer le point.</p>

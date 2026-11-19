@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import {overlayClose} from './overlayClose';
 import {cloudConfigured,supabase,signOut,listCloudProjects,listOwnedProjectRecipients,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
@@ -84,7 +85,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
     onClose();
   });
 
-  return <div className="overlay nv-cloud-overlay" onClick={onClose}><div className="modal cloud-panel nv-cloud-compact" onClick={e=>e.stopPropagation()}>
+  return <div className="overlay nv-cloud-overlay" {...overlayClose(onClose)}><div className="modal cloud-panel nv-cloud-compact" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}><XMark/></button>
     <div className="nv-cloud-heading"><h2>Mes projets Cloud</h2><div className="nv-cloud-heading-actions">
       {onOpenClients&&<button type="button" className="quiet nv-cloud-clients-link" onClick={onOpenClients}>👥 Clients &amp; logos</button>}

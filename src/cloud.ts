@@ -481,6 +481,15 @@ export async function listCloudSpaces():Promise<CloudSpace[]>{
   }
   return (data??[]) as CloudSpace[];
 }
+/** Supprime définitivement une visite du Cloud (propriétaire uniquement). Nécessite la migration nvstudio_delete_project. */
+export async function deleteCloudProject(projectId:string){
+  const {error}=await supabase().rpc('nvstudio_delete_project',{p_project:projectId});
+  if(!error)return;
+  if(/not_owner/i.test(error.message))throw new Error('Seul le propriétaire de la visite peut la supprimer.');
+  if(/Could not find the function|schema cache|does not exist/i.test(error.message))
+    throw new Error('La suppression n’est pas encore activée sur votre Cloud : exécutez la migration 20261119140000_nvstudio_delete_project.sql dans le SQL Editor Supabase.');
+  throw new Error(error.message);
+}
 export async function removeMember(projectId:string,email:string){
   const {error}=await supabase().rpc('nvstudio_remove_member',{p_project:projectId,p_email:email});
   if(error)throw new Error(collabFriendly(error.message));

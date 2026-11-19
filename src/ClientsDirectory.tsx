@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
-import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Globe,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Users,X} from 'lucide-react';
-import {listCloudProjects,loadFromCloud,readCloudClientProfile,saveToCloud,type CloudProject} from './cloud';
+import {overlayClose} from './overlayClose';
+import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Globe,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Trash2,Users,X} from 'lucide-react';
+import {deleteCloudProject,listCloudProjects,loadFromCloud,readCloudClientProfile,saveToCloud,type CloudProject} from './cloud';
 import {mergeProfiles} from './aspirateMerge';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
 import {newProject,type BarStyle,type ClientProfile} from './storage';
@@ -50,6 +51,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  /** Nom du client en cours de complétion par l'aspirateur (vide = recherche d'un nouvel établissement). */
  const [completingName,setCompletingName]=useState('');
  const [updatingClient,setUpdatingClient]=useState(false);
+ const [deleteOpen,setDeleteOpen]=useState(false),[deleteWord,setDeleteWord]=useState(''),[deleting,setDeleting]=useState(false),[deleteError,setDeleteError]=useState('');
  const [detailLoading,setDetailLoading]=useState(false),[detailError,setDetailError]=useState('');
  const [detailRetry,setDetailRetry]=useState(0);
  useEffect(()=>{
@@ -193,8 +195,19 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    }catch(e){setSavedNotice('Mise à jour impossible : '+(e instanceof Error?e.message:String(e)));}
    finally{setUpdatingClient(false);}
  };
+ const ownedProjects=selected?.projects.filter(p=>!p.shared)||[];
+ const confirmDelete=async()=>{
+   if(!selected||deleting||deleteWord.trim().toLowerCase()!=='supprimer')return;
+   setDeleting(true);setDeleteError('');
+   try{
+     for(const pr of ownedProjects)await deleteCloudProject(pr.id);
+     setSavedNotice('✓ Client « '+selected.name+' » supprimé ('+ownedProjects.length+' fiche'+(ownedProjects.length>1?'s':'')+' Studio).');
+     setDeleteOpen(false);setDeleteWord('');setSelectedKey('');setCloudClient(null);setRefresh(v=>v+1);
+   }catch(e){setDeleteError(e instanceof Error?e.message:String(e));setRefresh(v=>v+1);}
+   finally{setDeleting(false);}
+ };
  const detailRow=(name:string,value:string|undefined,link?:string)=><InfoRow key={name} label={name} value={value} href={link}/>;
- return <div className="nv-directory-overlay" role="presentation" onClick={onClose}>
+ return <div className="nv-directory-overlay" role="presentation" {...overlayClose(onClose)}>
   <section className="nv-directory-shell" role="dialog" aria-modal="true" aria-label="Répertoire central Clients"
     onClick={e=>e.stopPropagation()}>
     <header className="nv-directory-head">
@@ -275,6 +288,17 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
               <button type="button" className="nv-directory-secondary-action nv-directory-complete" disabled={!!discovery.scraping||discovery.loading} onClick={completeSelected}
                 title="Lit le site Internet et NovaGen : photos, horaires, Facebook, Instagram, coordonnées">
                 {discovery.scraping?<LoaderCircle size={15}/>:<Globe size={15}/>} {discovery.scraping?'Aspiration en cours…':'Compléter avec Internet'}</button>
+              {ownedProjects.length>0&&<button type="button" className="nv-directory-secondary-action nv-directory-delete" onClick={()=>{setDeleteOpen(true);setDeleteWord('');setDeleteError('');}}>
+                <Trash2 size={15}/> Supprimer le client</button>}
+              {deleteOpen&&<div className="nv-directory-delete-box" role="alertdialog" aria-label="Confirmer la suppression">
+                <p><strong>Suppression définitive</strong> de « {selected.name} » : {ownedProjects.length} fiche{ownedProjects.length>1?'s':''} / visite{ownedProjects.length>1?'s':''} Studio, leurs versions, partages et notes. Irréversible.</p>
+                <label>Tapez <b>supprimer</b> pour confirmer
+                  <input value={deleteWord} onChange={e=>setDeleteWord(e.target.value)} autoComplete="off" autoFocus placeholder="supprimer"/></label>
+                {deleteError&&<p role="alert" className="nv-discovery-error">{deleteError}</p>}
+                <div><button type="button" onClick={()=>setDeleteOpen(false)} disabled={deleting}>Annuler</button>
+                  <button type="button" className="nv-directory-delete-go" disabled={deleting||deleteWord.trim().toLowerCase()!=='supprimer'} onClick={confirmDelete}>
+                    {deleting?'Suppression…':'Supprimer définitivement'}</button></div>
+              </div>}
               {discovery.error&&!discovery.candidate&&<p role="alert" className="nv-discovery-error">{discovery.error}</p>}
               <div className="nv-directory-tags">
                 {selected.records.length>0&&<i>NovaGen</i>}
