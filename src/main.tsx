@@ -36,6 +36,7 @@ import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
 import {GlossyPackMaker,BAR_CHOICES} from './GlossyPackMaker';
+import {VrMenuEditor} from './VrMenuEditor';
 import {glossyBarPacks,glyphPng} from './barGlossy';
 import {glossyIconStates} from './glossyIcon';
 import {autoIconZoom} from './iconFit';
@@ -895,6 +896,7 @@ function App(){
   const [ready,setReady]=useState(false);
   const [preparationOpen,setPreparationOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
+  const [vrMenuOpen,setVrMenuOpen]=useState(false);
   const [informationEdit,setInformationEdit]=useState<{sceneId:string;pointId:string}|null>(null);
   const [publishConfirm,setPublishConfirm]=useState(false);
   const [publishReport,setPublishReport]=useState<{ok:boolean;text:string}[]|null>(null);
@@ -1684,7 +1686,7 @@ function App(){
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','skins','intro','elements','medialib','music','client','notes','comments'];
+  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','skins','vrmenu','intro','elements','medialib','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
@@ -1703,6 +1705,8 @@ function App(){
       run:()=>toggleToolPanel('plan' as PanelTab)};
     // Même accès que « Skins » dans le menu principal : choix des thèmes glossy et des modèles.
     if(key==='skins')return {label:'Skins',icon:<Palette size={ic}/>,tone:'#2fbf8f',active:skinsOpen,run:()=>{leaveTools();setSkinsOpen(true);}};
+    // Interface jaune du casque : boutons et actions, enregistrés avec la visite.
+    if(key==='vrmenu')return {label:'Vue casque',icon:<Eye size={ic}/>,tone:'#e1a525',active:vrMenuOpen,run:()=>{leaveTools();setVrMenuOpen(true);}};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);
@@ -4222,6 +4226,7 @@ function App(){
             <button type="button" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);}} aria-label="Fermer le menu"><XMark/></button>
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setVrMenuOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Eye size={17}/> Vue casque</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setPreparationOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Sparkles size={17}/> Préparer le projet</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
             <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
@@ -6272,6 +6277,7 @@ function App(){
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
     {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}
+    {vrMenuOpen&&<VrMenuEditor project={project} setProject={setProject} onClose={()=>setVrMenuOpen(false)}/>}
     <input ref={placedMediaInput} hidden type="file" aria-label="Importer le média placé" onChange={e=>{
       const file=e.currentTarget.files?.[0],placement=pendingMediaPlacement.current;
       if(!file){e.currentTarget.dispatchEvent(new Event('cancel'));return;}

@@ -1,7 +1,7 @@
 import {CanvasTexture,LinearFilter,SRGBColorSpace} from 'three';
 
 /** Icônes vectorielles dédiées au casque : même tracé dans les trois états. */
-export type VrControlIcon='gallery'|'up'|'down'|'home'|'sound'|'mute'|'plan'|'help'|'exit';
+export type VrControlIcon='gallery'|'up'|'down'|'home'|'sound'|'mute'|'plan'|'help'|'exit'|'info'|'link'|'photos';
 export type VrControlState='normal'|'hover'|'pressed';
 
 const path=(ctx:CanvasRenderingContext2D,points:readonly [number,number][],closed=false)=>{
@@ -51,6 +51,23 @@ function drawIcon(c:CanvasRenderingContext2D,kind:VrControlIcon){
     case 'exit':
       path(c,[[-30,-30],[30,30]]);
       path(c,[[30,-30],[-30,30]]);
+      break;
+    case 'info':
+      c.beginPath();c.arc(0,0,39,0,Math.PI*2);c.stroke();
+      path(c,[[0,-4],[0,22]]);
+      c.beginPath();c.arc(0,-20,3.5,0,Math.PI*2);c.fill();
+      break;
+    case 'link':
+      // Flèche qui sort d'un cadre : ouvre un site.
+      path(c,[[-34,-6],[-34,32],[4,32]]);
+      path(c,[[-34,-6],[-8,-6]]);
+      path(c,[[8,-30],[36,-30],[36,-2]]);
+      path(c,[[36,-30],[-6,12]]);
+      break;
+    case 'photos':
+      c.strokeRect(-38,-24,62,46);
+      c.strokeRect(-24,-36,62,46);
+      c.beginPath();c.arc(14,-14,6,0,Math.PI*2);c.stroke();
       break;
   }
   c.restore();

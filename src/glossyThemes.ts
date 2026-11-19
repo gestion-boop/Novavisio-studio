@@ -1,9 +1,10 @@
-import type {BarStyle, StudioProject} from './storage';
+import type {BarStyle, StudioProject, VrMenuConfig} from './storage';
 import {validateProject} from './storage';
 import {glossyIconStates} from './glossyIcon';
 import {glyphPng} from './barGlossy';
 import {glyphs} from './glyphSet';
 import type {ComponentType} from 'react';
+import {DEFAULT_VR_MENU} from './vrMenu';
 
 /** 12 thèmes NovaStudio : couleurs de la barre et charte glossy (icônes générées à l'application). */
 export type GlossyTheme = {
@@ -11,6 +12,8 @@ export type GlossyTheme = {
   name: string;
   bar: Pick<BarStyle, 'background' | 'outline' | 'button' | 'buttonOutline' | 'icon'>;
   glossy: {base: string; rim: string; gloss: number; shadow: number};
+  /** Thème qui configure aussi le casque : autorise la VR et règle l'interface jaune. */
+  vr?: VrMenuConfig;
 };
 
 export const GLOSSY_THEMES: ReadonlyArray<GlossyTheme> = [
@@ -25,6 +28,8 @@ export const GLOSSY_THEMES: ReadonlyArray<GlossyTheme> = [
   {id: 'anthracite', name: 'Anthracite', bar: {background: '#1d2126', outline: '#718692', button: '#3d4248', buttonOutline: '#718692', icon: '#ffffff'}, glossy: {base: '#3d4248', rim: '#15181c', gloss: 0.6, shadow: 0.6}},
   {id: 'ocean-clair', name: 'Océan clair', bar: {background: '#e0eff3', outline: '#6591a5', button: '#176a91', buttonOutline: '#62a4bc', icon: '#ffffff'}, glossy: {base: '#176a91', rim: '#0d3f57', gloss: 0.7, shadow: 0.4}},
   {id: 'sable', name: 'Sable', bar: {background: '#f3e7d3', outline: '#c79c5a', button: '#e6c17c', buttonOutline: '#b8924a', icon: '#5a4630'}, glossy: {base: '#e6c17c', rim: '#b8924a', gloss: 0.8, shadow: 0.4}},
+  {id: 'immosphera', name: 'Immosphera', bar: {background: '#0f0f0f', outline: '#e2ad5c', button: '#171717', buttonOutline: '#e2ad5c', icon: '#f6c97f'}, glossy: {base: '#c99645', rim: '#6b4a1f', gloss: 0.8, shadow: 0.5},
+    vr: {...DEFAULT_VR_MENU, autoOpen: true}},
   {id: 'minuit-dore', name: 'Minuit doré', bar: {background: '#071a28', outline: '#e6c17c', button: '#0b1826', buttonOutline: '#e6c17c', icon: '#e6c17c'}, glossy: {base: '#153f59', rim: '#c79c5a', gloss: 0.7, shadow: 0.5}},
 ];
 
@@ -73,6 +78,7 @@ export async function applyGlossyTheme(project: StudioProject, theme: GlossyThem
     defaultVideoIcon: {...packs.get('video')!, iconSize: project.defaultVideoIcon?.iconSize ?? 40},
     barStyle: {...project.barStyle, ...theme.bar},
     glossyStyle: style,
+    ...(theme.vr ? {vrEnabled: true, vrMenu: theme.vr} : {}),
     icons: [...project.icons, ...icons],
     bottomBar,
     soundOnIconId: sound.soundOn.iconId, soundOnHoverIconId: sound.soundOn.hoverIconId, soundOnPressedIconId: sound.soundOn.pressedIconId,

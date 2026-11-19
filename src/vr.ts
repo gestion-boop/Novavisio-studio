@@ -7,6 +7,7 @@ import {frameWorldCorners} from './sphericalFrame';
 import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
+import {layoutColumns,vrMenuOf} from './vrMenu';
 import {setVrMusicPlaying} from './vrAudioBridge';
 
 /**
@@ -518,13 +519,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
     const plan=project().bottomBar.find(item=>item.type==='plan');
     const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
-    const left=-.936,right=.936;
-    button(left,.33,'gallery',()=>{void showGallery(gallery??galleryDefault);});
-    button(left,.12,'up',()=>{const target=scenes[Math.max(0,sceneIndex-1)];if(target)void goTo(target.id);});
-    addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,left,-.09);
-    button(left,-.29,'down',()=>{const target=scenes[Math.min(scenes.length-1,sceneIndex+1)];if(target)void goTo(target.id);});
-    button(left,-.49,'home',()=>{if(scenes[0])void goTo(scenes[0].id);});
-    button(right,.32,getPrefs().sound==='on'?'sound':'mute',()=>{
+    // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
+    const menu=vrMenuOf(project());
+    const grid=layoutColumns(menu.left,menu.right);
+    const iconOfItem=(item:BottomBarItem):VrControlIcon=>
+      item.type==='plan'?'plan':item.type==='photos'?'photos':item.type==='lien'?'link':item.type==='information'?'info':'gallery';
+    const toggleSound=()=>{
       // "undecided" est traité comme éteint : le premier clic démarre la musique.
       // play() doit être appelé dans cet événement XR avant toute opération await.
       const enable=getPrefs().sound!=='on';
@@ -537,13 +537,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         else if(status==='blocked'||status==='unavailable')setNotice('Lecture audio indisponible : vérifier le son du casque');
       });
       void buildBar();
-    });
-    // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
-    button(right,.07,'plan',()=>{void showFloorPlan(plan??planAction);});
-    button(right,-.18,'help',()=>showText('Navigation VR',
-      'Droite : laser et gâchette. Gauche : joystick et gâchette. A/B à droite ou X/Y à gauche : ouvrir/fermer le menu. Clic joystick : tout masquer.'));
+    };
     // La croix referme le menu VR, sans forcer la sortie du casque.
-    button(right,-.43,'exit',()=>{
+    const closeMenu=()=>{
       referenceMode=false;
       remoteTarget=null;
       panelAnchor=null;
@@ -553,7 +549,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       clearGroup(vrShellGroup);
       barGroup.visible=false;
       vrShellGroup.visible=false;
-    });
+    };
+    const actionOf=(id:string):{icon:VrControlIcon;run:()=>void}|null=>{
+      switch(id){
+        case 'gallery':return {icon:'gallery',run:()=>{void showGallery(gallery??galleryDefault);}};
+        case 'up':return {icon:'up',run:()=>{const target=scenes[Math.max(0,sceneIndex-1)];if(target)void goTo(target.id);}};
+        case 'down':return {icon:'down',run:()=>{const target=scenes[Math.min(scenes.length-1,sceneIndex+1)];if(target)void goTo(target.id);}};
+        case 'home':return {icon:'home',run:()=>{if(scenes[0])void goTo(scenes[0].id);}};
+        case 'sound':return {icon:getPrefs().sound==='on'?'sound':'mute',run:toggleSound};
+        // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
+        case 'plan':return {icon:'plan',run:()=>{void showFloorPlan(plan??planAction);}};
+        case 'help':return {icon:'help',run:()=>showText('Navigation VR',
+          'Droite : laser et gâchette. Gauche : joystick et gâchette. A/B à droite ou X/Y à gauche : ouvrir/fermer le menu. Clic joystick : tout masquer.')};
+        case 'exit':return {icon:'exit',run:closeMenu};
+      }
+      if(id.startsWith('bar:')){
+        const item=project().bottomBar.find(b=>b.id===id.slice(4));
+        if(item)return {icon:iconOfItem(item),run:()=>onBarItem(item)};
+      }
+      return null;
+    };
+    for(const slot of [...grid.left,...grid.right]){
+      if(slot.id==='counter'){addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,slot.x,slot.y);continue;}
+      const action=actionOf(slot.id);
+      if(action)button(slot.x,slot.y,action.icon,action.run);
+    }
     // Premier affichage : une seule pose pour le bloc complet.
     if(!panelAnchor){
       placeInFront(vrInterfaceGroup,VR_UI_DIST,.12);
@@ -981,20 +1001,24 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const tex2=makeVrControlTexture(icon,'normal');
       addButton(panelGroup,.124,.124,tex2,x,y,onSelect,9);
     };
-    const left=-(videoW/2+.22),right=videoW/2+.22;
-    sideButton(left,.33,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
-    sideButton(left,.12,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
-    addPlane(panelGroup,.15,.09,canvasTexture(280,180,ctx=>{
+    // Mêmes colonnes que l'interface jaune : mêmes marges au cadre du panneau, lignes alignées.
+    const planFirst=getFloorPlans(project())[0];
+    const planItem=planFirst?{id:'vr-menu-plan',title:planFirst.name||'Plans',type:'plan'} as BottomBarItem:null;
+    const cols=layoutColumns(['gallery','up','counter','down','home'],planItem?['plan']:[],{w:W,h:H});
+    const counterTex=canvasTexture(280,180,ctx=>{
       roundRect(ctx,8,8,264,164,36);ctx.fillStyle='#25262a';ctx.fill();
       ctx.strokeStyle='#d6a13d';ctx.lineWidth=7;ctx.stroke();
       ctx.fillStyle='#ffffff';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText((idx+1)+' / '+scenesNow.length,140,90);
-    }),8,left,-.09);
-    sideButton(left,-.29,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
-    sideButton(left,-.49,'home',()=>{if(scenesNow[0])void goTo(scenesNow[0].id);});
-    const planFirst=getFloorPlans(project())[0];
-    const planItem=planFirst?{id:'vr-menu-plan',title:planFirst.name||'Plans',type:'plan'} as BottomBarItem:null;
-    if(planItem)sideButton(right,.33,'plan',()=>{void showFloorPlan(planItem);});
+    });
+    for(const slot of [...cols.left,...cols.right]){
+      if(slot.id==='counter'){addPlane(panelGroup,.15,.09,counterTex,8,slot.x,slot.y);continue;}
+      if(slot.id==='gallery')sideButton(slot.x,slot.y,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
+      if(slot.id==='up')sideButton(slot.x,slot.y,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
+      if(slot.id==='down')sideButton(slot.x,slot.y,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
+      if(slot.id==='home')sideButton(slot.x,slot.y,'home',()=>{if(scenesNow[0])void goTo(scenesNow[0].id);});
+      if(slot.id==='plan'&&planItem)sideButton(slot.x,slot.y,'plan',()=>{void showFloorPlan(planItem);});
+    }
     placePanel(PANEL_DIST,0);
     void el.play().catch(()=>setNotice(tt('videoPlayHint')));
   };
@@ -1453,5 +1477,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   fade=1;fadeTarget=1;
   renderRoomHeader();
   await buildBar();
+  // Option « s'ouvre dès l'entrée dans le casque » (onglet Vue casque de l'éditeur) : même ouverture que A/B, une seule fois.
+  if(!ended&&vrMenuOf(project()).autoOpen){
+    referenceMode=true;remoteTarget=null;panelAnchor=null;
+    updateVrPalette();closePanels();uiHidden=false;
+    await buildBar();
+    const sceneList=project().scenes.filter(sc=>!sc.excluded);
+    const galleryItem=project().bottomBar.find(b=>b.type==='gallery');
+    void showGallery(galleryItem??({id:'vr-ab-gallery',title:'Panoramas',type:'gallery',gallery:sceneList.map(sc=>({sceneId:sc.id,label:sc.name}))} as BottomBarItem));
+  }
   return ()=>{if(!ended)void session.end();};
 }
