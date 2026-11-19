@@ -4249,7 +4249,7 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
    préserver le travail en cours lors d'un repli. */
 @media(min-width:781px){
   .nv-studio-pro .workspace{
-    --nv-inspector-width:clamp(440px,29vw,560px);
+    --nv-inspector-width:clamp(480px,34vw,700px);
     position:relative;
     display:grid;
     grid-template-columns:minmax(0,1fr)!important;
@@ -4288,7 +4288,7 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
   .nv-studio-pro .workspace>.editor{min-width:0}
 }
 @media(min-width:781px) and (max-width:1250px){
-  .nv-studio-pro .workspace{--nv-inspector-width:clamp(360px,34vw,430px)}
+  .nv-studio-pro .workspace{--nv-inspector-width:clamp(400px,38vw,500px)}
 }
 @media(prefers-reduced-motion:reduce){
   .nv-studio-pro .workspace,
