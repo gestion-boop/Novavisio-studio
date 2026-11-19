@@ -5539,6 +5539,7 @@ function App(){
                 <label>Titre / Libellé
                   <input value={selected.title} placeholder="Nom du point..." onChange={e=>patchPoint({title:e.target.value})}/>
                   <label>Animation à l’ouverture<select value={selected.openAnimation??''} onChange={e=>patchPoint({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+                  <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=selected.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
                 </label>
               </div>
 
@@ -5591,6 +5592,9 @@ function App(){
                   <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''} onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
                 </label>
                 {selected.videoUrl && !isSafeMediaUrl(selected.videoUrl)&&<small className="warning-inline">Adresse HTTPS invalide.</small>}
+                {(selected.type==='video'||selected.videoDataUrl||selected.videoUrl)&&<label className="nv-volume-field">Volume du son : <b>{selected.videoVolume??100} %</b>
+                  <input type="range" min={0} max={100} step={5} value={selected.videoVolume??100} onChange={e=>patchPoint({videoVolume:Number(e.target.value)})}/>
+                  <small className="hint-inline">{isPopupMedia(selected)?'Appliqué à la vidéo quand le visiteur ouvre la fenêtre (0 % = sans son).':'En incrustation dans le panorama, la vidéo démarre sans son (blocage des navigateurs) : le volume s’applique à l’ouverture en fenêtre.'}</small></label>}
                 {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
                 {!isPopupMedia(selected)&&<>
                 <div className="section-title">ADAPTER L'ÉCRAN À LA PERSPECTIVE</div>
@@ -5813,6 +5817,7 @@ function App(){
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
             <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label><TranslationInputs label="Libellé traduit" values={selectedBar.titleTranslations} onChange={t=>patchBar({titleTranslations:t})}/><button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester cet effet</button><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+                  <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
             {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
             <div className="section-title">ACTION DU BOUTON</div>
             <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">

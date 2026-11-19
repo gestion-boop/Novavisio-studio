@@ -29,7 +29,7 @@ export type Hotspot = {
   imageDataUrl?:string;
   imageBounce?:boolean;
   imageFrameStyle?:ImageFrameStyle;
-  videoDataUrl?:string;videoUrl?:string;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
+  videoDataUrl?:string;videoUrl?:string;/** Volume de la vidéo en pourcentage (0 à 100, défaut 100). */videoVolume?:number;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
   /** Son de la télé prioritaire : la musique de fond s'efface (fondu) pendant la vidéo agrandie, puis revient. Actif par défaut. */
   videoMasterSound?:boolean;
   /** Auréole discrète autour d'un cadre cliquable (Aperçu et visite). Actif par défaut. */
@@ -437,6 +437,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.imageFrameStyle !== undefined && !IMAGE_FRAME_STYLES.includes(h.imageFrameStyle)) ||
         (h.videoDataUrl !== undefined && (h.videoDataUrl.length > Math.ceil(VIDEO_MAX_BYTES/3)*4+64 || !isSafeVideoData(h.videoDataUrl))) ||
         (h.videoUrl !== undefined && h.videoUrl !== '' && !isSafeMediaUrl(h.videoUrl)) ||
+        (h.videoVolume !== undefined && (typeof h.videoVolume !== 'number' || !Number.isFinite(h.videoVolume) || h.videoVolume < 0 || h.videoVolume > 100)) ||
         (h.videoAutoplay !== undefined && typeof h.videoAutoplay !== 'boolean') ||
         (h.videoLoop !== undefined && typeof h.videoLoop !== 'boolean') ||
         (h.videoOpenFullscreen !== undefined && typeof h.videoOpenFullscreen !== 'boolean') ||

@@ -140,10 +140,12 @@ export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=
     const el=ref.current;
     if(!el)return;
     let live=true;
-    el.muted=getPrefs().sound==='off';
+    const vol=Math.max(0,Math.min(100,hotspot.videoVolume??100));
+    el.volume=vol/100;
+    el.muted=getPrefs().sound==='off'||vol===0;
     el.play().then(()=>{if(live)setBlocked(false);}).catch(()=>{if(live)setBlocked(true);});
     return ()=>{live=false;el.pause();};
-  },[url]);
+  },[url,hotspot.videoVolume]);
   if(!url&&!embed)return null;
   return <div ref={z.overlay} className={'nv-video-overlay'+z.overlayClass} onClick={z.requestClose} role="presentation">
     <section ref={z.body} className={'nv-video-dialog'+z.bodyClass} onClick={e=>e.stopPropagation()} aria-label={'Vidéo : '+hotspot.title}>
@@ -152,7 +154,7 @@ export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=
         :<video ref={ref} src={url} controls playsInline loop={hotspot.videoLoop!==false} preload="metadata"/>}
       {blocked&&<button type="button" className="nv-video-start" onClick={()=>{
         const el=ref.current;if(!el)return;
-        el.muted=false;
+        el.muted=(hotspot.videoVolume??100)===0;
         el.play().then(()=>setBlocked(false)).catch(()=>setBlocked(true));
       }}><Play size={20}/> Lancer la vidéo avec le son</button>}
       <div className="nv-video-caption">{hotspot.title}</div>

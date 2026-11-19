@@ -6059,3 +6059,6 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-loupe.is-wide>.nv-loupe-stage{grid-column:1;grid-row:2/8}
 .nv-loupe.is-wide>:not(.nv-loupe-head):not(.nv-loupe-stage){grid-column:2}
 @media(max-width:780px){.nv-inspector-resize,.nv-inspector-sizes{display:none}}
+.nv-test-anim{margin:6px 0 10px;width:100%;font:700 13px system-ui;cursor:pointer;border:1px solid #4aa9c0;border-radius:10px;background:#12485a;color:#e9fbff;padding:9px 12px}
+.nv-test-anim:hover{background:#1a6279}
+.nv-volume-field{display:grid;gap:4px;margin:8px 0}.nv-volume-field input{width:100%}
