@@ -4,3 +4,7 @@ dist/
 .env.local
 .DS_Store
 *.log
+
+# Liste des liens de visite à surveiller (liens d'accès, ne pas versionner)
+scripts/*liens*.json
+scripts/.links*.json
