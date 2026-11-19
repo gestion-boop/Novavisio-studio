@@ -28,7 +28,7 @@ export function studioUrl():string{
 
 const friendly=(message:string)=>
   /nvstudio_publish|nvstudio_unpublish|nvstudio_publications/i.test(message)?'La publication permanente n’est pas encore installée : exécute le fichier SQL « 20261110040000_nvstudio_publication » dans Supabase.':
-  /not_owner/.test(message)?'Seul le propriétaire de la visite peut publier.':
+  /not_owner/.test(message)?'Seuls le propriétaire et le titulaire de la main peuvent publier. Demande la main au propriétaire depuis le bouton « La main ».':
   /not_authenticated/.test(message)?'Connecte-toi d’abord.':
   /unknown_revision/.test(message)?'Cette révision n’existe pas dans le cloud.':
   /invalid_duration/.test(message)?'Durée non autorisée (3, 5, 7 ou 10 jours).':
