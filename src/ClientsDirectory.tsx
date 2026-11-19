@@ -117,7 +117,8 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    }catch(e){setSavedNotice('Enregistrement impossible : '+(e instanceof Error?e.message:String(e)));return false;}
    finally{setSavingClient(false);}
  };
- const selected=groups.find(g=>g.key===selectedKey)||visible[0]||groups[0];
+ const searching=!!search.trim();
+ const selected=visible.find(g=>g.key===selectedKey)||visible[0]||(searching?undefined:groups.find(g=>g.key===selectedKey)||groups[0]);
  const selectedRecord=selected?.records.find(r=>r.id===recordId)||selected?.records[0];
  const selectedCloudProject=selected?.projects.find(p=>norm(p.name)===norm(selected.name))||selected?.projects[0];
  const selectedCloudId=selectedCloudProject?.id;
@@ -285,9 +286,9 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
             <div><small className="nv-directory-eyebrow">FICHE ÉTABLISSEMENT</small>
               <h3>{selected.name}</h3>
               <p>{selected.city||'Client à compléter'}</p>
-              <button type="button" className="nv-directory-secondary-action nv-directory-complete" disabled={!!discovery.scraping||discovery.loading} onClick={completeSelected}
+              <button type="button" className="nv-directory-secondary-action nv-directory-complete" disabled={!!discovery.scraping||discovery.loading} data-busy={completingName===selected.name?'1':undefined} onClick={completeSelected}
                 title="Lit le site Internet et NovaGen : photos, horaires, Facebook, Instagram, coordonnées">
-                {discovery.scraping?<LoaderCircle size={15}/>:<Globe size={15}/>} {discovery.scraping?'Aspiration en cours…':'Compléter avec Internet'}</button>
+                {discovery.scraping&&completingName===selected.name?<LoaderCircle size={15}/>:<Globe size={15}/>} {discovery.scraping&&completingName===selected.name?'Aspiration en cours…':'Compléter avec Internet'}</button>
               {ownedProjects.length>0&&<button type="button" className="nv-directory-secondary-action nv-directory-delete" onClick={()=>{setDeleteOpen(true);setDeleteWord('');setDeleteError('');}}>
                 <Trash2 size={15}/> Supprimer le client</button>}
               {deleteOpen&&<div className="nv-directory-delete-box" role="alertdialog" aria-label="Confirmer la suppression">
@@ -395,7 +396,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
             </button>
             <small>Les données de l'établissement sont copiées dans la fiche du projet ; ses photos et son logo restent dans NovaGen.</small>
           </div>}
-        </div>:<div className="nv-directory-empty"><Building2 size={30}/> Aucun client disponible.</div>}
+        </div>:<div className="nv-directory-empty"><Building2 size={30}/> {searching?'Aucune fiche ne correspond à « '+search.trim()+' ». Utilisez « Chercher » à gauche pour le trouver sur le web.':'Aucun client disponible.'}</div>}
       </main>
     </div>
     {(errorStudio||errorNovaGen)&&<div className="nv-directory-status">
