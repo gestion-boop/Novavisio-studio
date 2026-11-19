@@ -2709,7 +2709,7 @@ function App(){
     setStatus((target.type==='image'?'Point photo':'Point vidéo')+' créé sans média : choisis-le avec « '+(target.type==='image'?'Choisir une photo déjà utilisée':'Choisir une vidéo déjà utilisée')+' », ou règle son icône et sa taille.');
   }
   function mediaPickerEl(){
-    return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onImport={importFromPicker} onClose={closeMediaPicker} banner={issueFocus?<IssueBanner focus={issueFocus}/>:undefined}/>:null;
+    return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onDeleteLibrary={id=>setProject(p=>({...p,mediaLibrary:(p.mediaLibrary??[]).filter(m=>m.id!==id)}))} onImport={importFromPicker} onClose={closeMediaPicker} banner={issueFocus?<IssueBanner focus={issueFocus}/>:undefined}/>:null;
   }
   function stopAutoNavigation(){
     setAutoPending(null);setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);
