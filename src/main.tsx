@@ -1684,7 +1684,7 @@ function App(){
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','intro','elements','medialib','music','client','notes','comments'];
+  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','skins','intro','elements','medialib','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
@@ -1701,6 +1701,8 @@ function App(){
       run:()=>{leaveTools();setSpacesDrawerOpen(open=>!open);}};
     if(key==='plan')return {label:'Plan',icon:<MapIcon size={ic}/>,tone:'#20b2aa',active:!rightHidden&&panel==='plan',badge:plansInSpace(project,(project.spaces??[]).find(sp=>sp.id===activeSpaceId)??null).length||undefined,
       run:()=>toggleToolPanel('plan' as PanelTab)};
+    // Même accès que « Skins » dans le menu principal : choix des thèmes glossy et des modèles.
+    if(key==='skins')return {label:'Skins',icon:<Palette size={ic}/>,tone:'#2fbf8f',active:skinsOpen,run:()=>{leaveTools();setSkinsOpen(true);}};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
     if(key==='comments')return {label:'Commentaires',icon:<MessageSquarePlus size={ic}/>,tone:'#ff9f43',active:false,badge:(project.comments??[]).filter(c=>!c.done).length||undefined,run:()=>{leaveTools();setRightHidden(true);setCommentsOpen(true);}};
     const option=toolOptions.find(item=>item.key===key);

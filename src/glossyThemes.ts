@@ -29,11 +29,13 @@ export const GLOSSY_THEMES: ReadonlyArray<GlossyTheme> = [
 ];
 
 /** Pictogrammes de la barre (par clé) et boutons globaux (son, paramètres). */
-const GLOBAL_KEYS = ['soundOn', 'soundOff', 'settings'] as const;
+const GLOBAL_KEYS = ['soundOn', 'soundOff', 'settings', 'video', 'plan'] as const;
 const LABELS: Record<string, string> = {
   utensils: 'Restaurant', images: 'Images', grid: 'Espaces', phone: 'Appeler', info: 'Information',
-  soundOn: 'Son activé', soundOff: 'Son coupé', settings: 'Paramètres',
+  soundOn: 'Son activé', soundOff: 'Son coupé', settings: 'Paramètres', video: 'Vidéo', plan: 'Plan',
 };
+/** Clé du pictogramme d'un bouton de la barre : un bouton de type « plan » prend le pictogramme du plan. */
+const keyOfItem = (item: {type: string; builtinIcon?: string}): string | undefined => (item.type === 'plan' ? 'plan' : item.builtinIcon);
 const MAX_ICONS = 147;
 
 /**
@@ -41,8 +43,8 @@ const MAX_ICONS = 147;
  * plus le son et les paramètres. Les icônes sont en WebP 512 px pour rester légères.
  */
 export async function applyGlossyTheme(project: StudioProject, theme: GlossyTheme): Promise<StudioProject> {
-  const barKeys = [...new Set(project.bottomBar.map((item) => item.builtinIcon).filter((k): k is string => !!k && k in glyphs))];
-  const keys = [...barKeys, ...GLOBAL_KEYS];
+  const barKeys = [...new Set(project.bottomBar.map(keyOfItem).filter((k): k is string => !!k && k in glyphs))];
+  const keys = [...new Set([...barKeys, ...GLOBAL_KEYS])];
   if (project.icons.length + keys.length * 3 > MAX_ICONS) {
     throw Error('Bibliothèque pleine : supprime des anciens packs avant d’appliquer un thème.');
   }
@@ -60,12 +62,15 @@ export async function applyGlossyTheme(project: StudioProject, theme: GlossyThem
     packs.set(key, {iconId: a.id, hoverIconId: b.id, pressedIconId: c.id});
   }
   const bottomBar = project.bottomBar.map((item) => {
-    const pack = item.builtinIcon ? packs.get(item.builtinIcon) : undefined;
+    const key = keyOfItem(item);
+    const pack = key ? packs.get(key) : undefined;
     return pack ? {...item, ...pack} : item;
   });
   const sound = {soundOn: packs.get('soundOn')!, soundOff: packs.get('soundOff')!, settings: packs.get('settings')!};
   return validateProject({
     ...project,
+    // Les nouvelles vidéos utilisent le bouton vidéo glossy par défaut.
+    defaultVideoIcon: {...packs.get('video')!, iconSize: project.defaultVideoIcon?.iconSize ?? 40},
     barStyle: {...project.barStyle, ...theme.bar},
     glossyStyle: style,
     icons: [...project.icons, ...icons],
