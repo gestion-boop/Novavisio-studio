@@ -15,6 +15,10 @@ export type GlossyOptions = {
   shadow?: number;
   /** Pictogramme facultatif, en data URL (PNG ou WebP). */
   glyph?: string;
+  /** Côté de l'image en pixels (défaut 1024). Le dessin reste le même, mis à l'échelle. */
+  size?: number;
+  /** Format de sortie : PNG (défaut) ou WebP, plus léger. */
+  format?: 'png' | 'webp';
 };
 export type GlossyStates = { normal: string; hover: string; pressed: string };
 
@@ -39,11 +43,13 @@ function tones(base: number[]) {
   };
 }
 
-function drawState(state: 'normal' | 'hover' | 'pressed', o: Required<Pick<GlossyOptions, 'gloss' | 'shadow'>> & { base: number[]; rim: number[] }, glyph: HTMLImageElement | null): string {
+function drawState(state: 'normal' | 'hover' | 'pressed', o: Required<Pick<GlossyOptions, 'gloss' | 'shadow'>> & { base: number[]; rim: number[] }, glyph: HTMLImageElement | null, size: number, mime: string): string {
   const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = SIZE;
+  canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw Error('Canvas indisponible : impossible de créer le pack.');
+  // Le dessin est fait sur une base de 1024 px, puis mis à l'échelle.
+  ctx.setTransform(size / SIZE, 0, 0, size / SIZE, 0, 0);
   ctx.translate(SIZE / 2, SIZE / 2);
   const hover = state === 'hover', pressed = state === 'pressed';
   const t = tones(o.base);
@@ -109,7 +115,7 @@ function drawState(state: 'normal' | 'hover' | 'pressed', o: Required<Pick<Gloss
   ctx.beginPath(); ctx.arc(0, 0, 402, 0, Math.PI * 2);
   ctx.strokeStyle = rgbToCss(hover ? mix(o.rim, [255, 255, 255], 0.3) : o.rim);
   ctx.lineWidth = 8; ctx.stroke();
-  return canvas.toDataURL('image/png');
+  return canvas.toDataURL(mime, 0.92);
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -132,9 +138,11 @@ export async function glossyIconStates(options: GlossyOptions): Promise<GlossySt
     gloss: Math.max(0, Math.min(1, options.gloss ?? 0.7)),
     shadow: Math.max(0, Math.min(1, options.shadow ?? 0.5)),
   };
+  const size = Math.max(128, Math.min(1024, Math.round(options.size ?? SIZE)));
+  const mime = options.format === 'webp' ? 'image/webp' : 'image/png';
   return {
-    normal: drawState('normal', o, glyph),
-    hover: drawState('hover', o, glyph),
-    pressed: drawState('pressed', o, glyph),
+    normal: drawState('normal', o, glyph, size, mime),
+    hover: drawState('hover', o, glyph, size, mime),
+    pressed: drawState('pressed', o, glyph, size, mime),
   };
 }

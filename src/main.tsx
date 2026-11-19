@@ -61,8 +61,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Utensils,Images,LayoutGrid,Phone,Info,Home,CalendarDays,MapPin,Globe,ArrowRight,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
-import {Video,Rotate3d,Volume2,VolumeX} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -110,7 +109,7 @@ const barColorFields:Array<{key:'background'|'outline'|'button'|'buttonOutline'|
   {key:'buttonOutline',label:'Contour des boutons'},
   {key:'icon',label:'Couleur des pictogrammes'}
 ];
-const glyphs = {home:Home,info:Info,calendar:CalendarDays,map:MapPin,phone:Phone,web:Globe,arrow:ArrowRight,menu:Menu,star:Star,utensils:Utensils,images:Images,grid:LayoutGrid,camera:Camera,video:Video,plan:MapIcon,panorama:Rotate3d,soundOn:Volume2,soundOff:VolumeX,settings:SettingsIcon};
+import {glyphs} from './glyphSet';
 /** Motifs de la visite (flèche, photo, vidéo…) : une icône glossy chacun, avec son pictogramme. */
 const VISIT_MOTIFS:ReadonlyArray<{key:keyof typeof glyphs;label:string}>=[
   {key:'arrow',label:'Flèche'},{key:'camera',label:'Photo'},{key:'video',label:'Vidéo'},{key:'map',label:'Localisation'},

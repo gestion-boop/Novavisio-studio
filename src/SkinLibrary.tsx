@@ -4,6 +4,7 @@ import {applySkin,captureSkin,exportSkin,listSkins,validateSkin,type Skin} from 
 import {cloudListSkins,cloudSaveSkin,cloudDeleteSkin,cloudSetDefaultSkin,type CloudSkin} from './cloudSkins';
 import {PreparationDialog} from './PreparationControls';
 import {SkinCreator} from './SkinCreator';
+import {GlossyThemeChoices} from './GlossyThemeChoices';
 
 type Props={project:StudioProject;setProject:Dispatch<SetStateAction<StudioProject>>;onApplied?:()=>void};
 export function SkinChoices({project,setProject,onApplied}:Props){
@@ -15,6 +16,7 @@ export function SkinChoices({project,setProject,onApplied}:Props){
   async function run(action:()=>Promise<void>,success:string){setBusy(true);setMessage('');try{await action();await refresh();setMessage(success);}catch(error){setMessage(error instanceof Error?error.message:'Action impossible');}finally{setBusy(false);}}
   const current=()=>captureSkin(project,name);
   return <div className="nv-skin-library">
+    <GlossyThemeChoices project={project} setProject={setProject}/>
     <p className="nv-setup-note">Un modèle (skin) conserve ta charte, la barre, tous les packs de trois icônes et le choix VR. Les photos, vidéos, panoramas, coordonnées, liens et textes du client précédent ne sont jamais copiés. Un modèle peut être appliqué automatiquement aux nouvelles visites.</p>
     <button type="button" className="nv-skin-new" onClick={()=>setCreating(true)}>＋ Création de skin</button>
     {creating&&<SkinCreator project={project} onClose={()=>setCreating(false)} onSave={async skin=>{await cloudSaveSkin(skin);await refresh();setMessage('Skin « '+skin.name+' » créé : tu peux le choisir à la création de n’importe quel projet.');}}/>}
