@@ -29,6 +29,8 @@ import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
 import './windowAnim.css';
+import {initWindowAnimOrigin} from './windowAnimOrigin';
+initWindowAnimOrigin();
 import {attachSunFlare} from './sunFlare';
 import './media.css';
 

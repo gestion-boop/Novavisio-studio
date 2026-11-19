@@ -11,4 +11,15 @@
 @keyframes nv-win-slide{from{opacity:0;translate:0 70px}to{opacity:1;translate:0 0}}
 @keyframes nv-win-zoom{from{opacity:0;scale:.82}to{opacity:1;scale:1}}
 @keyframes nv-win-drop{from{opacity:0;translate:0 -80px}to{opacity:1;translate:0 0}}
+/* Effets de mouvement : --nv-ox / --nv-oy = position du dernier clic par rapport au centre de l'écran (posée par windowAnimOrigin.ts). */
+:root[data-window-anim="fly"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-fly calc(var(--nv-win-dur,700ms)*1.1) cubic-bezier(.16,.9,.25,1) both}
+:root[data-window-anim="swing-left"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-swing-l calc(var(--nv-win-dur,700ms)*1.15) cubic-bezier(.18,.9,.25,1.08) both}
+:root[data-window-anim="swing-right"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-swing-r calc(var(--nv-win-dur,700ms)*1.15) cubic-bezier(.18,.9,.25,1.08) both}
+:root[data-window-anim="rise"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-rise var(--nv-win-dur,700ms) cubic-bezier(.2,.85,.2,1) both}
+:root[data-window-anim="soft"] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal){animation:nv-win-soft calc(var(--nv-win-dur,700ms)*1.1) ease-out both}
+@keyframes nv-win-fly{0%{opacity:0;scale:.04;translate:var(--nv-ox,0px) var(--nv-oy,0px)}18%{opacity:1}100%{opacity:1;scale:1;translate:0 0}}
+@keyframes nv-win-swing-l{0%{opacity:0;scale:.5;translate:-16vw 4vh;rotate:-8deg}55%{opacity:1}100%{opacity:1;scale:1;translate:0 0;rotate:0deg}}
+@keyframes nv-win-swing-r{0%{opacity:0;scale:.5;translate:16vw 4vh;rotate:8deg}55%{opacity:1}100%{opacity:1;scale:1;translate:0 0;rotate:0deg}}
+@keyframes nv-win-rise{from{opacity:0;translate:0 55vh;scale:.94}to{opacity:1;translate:0 0;scale:1}}
+@keyframes nv-win-soft{from{opacity:0;scale:1.05;filter:blur(14px)}to{opacity:1;scale:1;filter:blur(0)}}
 @media (prefers-reduced-motion:reduce){:root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal),:root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal)>*{animation:none!important}}

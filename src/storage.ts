@@ -109,6 +109,11 @@ export const WINDOW_ANIMATIONS = [
   {id:'slide',label:'Glissement depuis le bas'},
   {id:'zoom',label:'Zoom (grossit depuis le centre)'},
   {id:'drop',label:'Chute depuis le haut, avec rebond'},
+  {id:'fly',label:'Envol : part de l’endroit cliqué, petit, et grossit en se déplaçant'},
+  {id:'swing-left',label:'Zoom depuis le fond avec un virage vers la gauche'},
+  {id:'swing-right',label:'Zoom depuis le fond avec un virage vers la droite'},
+  {id:'rise',label:'Montée depuis le bas de l’écran'},
+  {id:'soft',label:'Fondu doux (flou vers net)'},
 ] as const;
 export type WindowAnimation = typeof WINDOW_ANIMATIONS[number]['id'];
 /** One lock for the bar: its height always follows the biggest button (button + 16 px of air). */
