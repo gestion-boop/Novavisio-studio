@@ -89,7 +89,9 @@ export type ZoomOrigin={x:number;y:number};
  * jusqu'au plein écran avec un fondu, et refait le trajet inverse à la fermeture.
  * Désactivée si `enabled` est faux (option « fondu » du cadre décochée).
  */
-export function useZoomTransition(origin:ZoomOrigin|null|undefined,enabled:boolean,onClose:()=>void){
+/** `animation` : effet choisi par l'auteur (réglage général ou du point). « fade » / absent = zoom depuis l'icône (historique). */
+export function useZoomTransition(origin:ZoomOrigin|null|undefined,enabled:boolean,onClose:()=>void,animation?:string){
+  const custom=!!animation&&animation!=='fade';
   const overlay=useRef<HTMLDivElement>(null);
   const body=useRef<HTMLElement>(null);
   const [closing,setClosing]=useState(false);
@@ -112,13 +114,14 @@ export function useZoomTransition(origin:ZoomOrigin|null|undefined,enabled:boole
   };
   return {overlay,body:body as RefObject<never>,requestClose,
     overlayClass:enabled?(closing?' nv-backdrop-out':' nv-backdrop-in'):'',
-    bodyClass:enabled?(closing?' nv-zoom-out':' nv-zoom-in'):''};
+    bodyClass:enabled?(closing?' nv-zoom-out':(custom?'':' nv-zoom-in')):'',
+    anim:custom?animation:undefined};
 }
 
-export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',onClose}:{frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}){
-  const z=useZoomTransition(origin,animate,onClose);
+export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',animation,onClose}:{animation?:string;frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}){
+  const z=useZoomTransition(origin,animate,onClose,animation);
   // La croix est collée au coin supérieur droit de l'image (et suit son animation), pas au coin de l'écran.
-  const wrap=(close:ReactNode)=><div ref={z.body as never} className={('nv-zoom-wrap'+z.bodyClass).trim()} onClick={e=>e.stopPropagation()}>
+  const wrap=(close:ReactNode)=><div ref={z.body as never} data-win-anim={z.anim} className={('nv-zoom-wrap'+z.bodyClass).trim()} onClick={e=>e.stopPropagation()}>
     <img className={('nv-photo-frame nv-photo-frame-'+frameStyle).trim()} src={src} alt={alt}/>
     {close}
   </div>;
@@ -130,9 +133,9 @@ export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',onCl
   </div>;
 }
 
-export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=>void;origin?:ZoomOrigin|null}) {
+export function VideoPopup({hotspot,onClose,origin,animation}:{animation?:string;hotspot:Hotspot;onClose:()=>void;origin?:ZoomOrigin|null}) {
   const ref=useRef<HTMLVideoElement>(null);
-  const z=useZoomTransition(origin,hotspot.fadeOnClick!==false,onClose);
+  const z=useZoomTransition(origin,hotspot.fadeOnClick!==false,onClose,animation);
   const [blocked,setBlocked]=useState(false);
   const url=hotspot.videoDataUrl||hotspot.videoUrl;
   const embed=!url?hotspot.videoEmbed:undefined;
@@ -148,7 +151,7 @@ export function VideoPopup({hotspot,onClose,origin}:{hotspot:Hotspot;onClose:()=
   },[url,hotspot.videoVolume]);
   if(!url&&!embed)return null;
   return <div ref={z.overlay} className={'nv-video-overlay'+z.overlayClass} onClick={z.requestClose} role="presentation">
-    <section ref={z.body} className={'nv-video-dialog'+z.bodyClass} onClick={e=>e.stopPropagation()} aria-label={'Vidéo : '+hotspot.title}>
+    <section ref={z.body} data-win-anim={z.anim} className={'nv-video-dialog'+z.bodyClass} onClick={e=>e.stopPropagation()} aria-label={'Vidéo : '+hotspot.title}>
       <button type="button" onClick={z.requestClose} className="nv-video-close" aria-label="Fermer la vidéo"><X size={24}/></button>
       {embed?<><iframe className="nv-video-embed" src={embed} title={hotspot.title} allow="autoplay; fullscreen; encrypted-media" allowFullScreen referrerPolicy="no-referrer"/><a className="nv-video-open" href={embed} target="_blank" rel="noopener noreferrer">Ouvrir dans un nouvel onglet</a></>
         :<video ref={ref} src={url} controls playsInline loop={hotspot.videoLoop!==false} preload="metadata"/>}

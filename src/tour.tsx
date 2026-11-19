@@ -461,7 +461,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       </div>}
     </div>}
     <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)} showToggle={false}/>
-    {video&&<VideoPopup hotspot={video} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
+    {video&&<VideoPopup hotspot={video} animation={video.openAnimation??project.windowAnimation} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" {...overlayClose(()=>setModal(null))}>
       <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label={ui('close',lang)} onClick={()=>setModal(null)}><X/></button></header>
@@ -482,7 +482,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
         entries={galleryEntries(item,project.scenes,project.spaces).map(e=>{const sc=project.scenes.find(x=>x.id===e.sceneId);return {sceneId:e.sceneId,spaceId:e.spaceId,label:sc&&sc.name===e.label?pick(sc.name,sc.nameTranslations,lang):e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)};})}
         onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
-    {(photo?.imageDataUrl||photo?.imageUrl)&&<ZoomImage variant="tour" frameStyle={photo.imageFrameStyle} src={(photo.imageDataUrl||photo.imageUrl)!} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
+    {(photo?.imageDataUrl||photo?.imageUrl)&&<ZoomImage variant="tour" animation={photo.openAnimation??project.windowAnimation} frameStyle={photo.imageFrameStyle} src={(photo.imageDataUrl||photo.imageUrl)!} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
     {!showIntro&&!firstPanoramaReady&&<div className="nv-tour-startup-mask" role="status" aria-live="polite">
       <div className="nv-tour-startup-spinner" aria-hidden="true"/>
       <span>Préparation de votre visite immersive…</span>
