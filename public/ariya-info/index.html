@@ -174,7 +174,7 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:34px 8px 30px
 <section class="s" id="social-section" hidden>
   <div class="eyebrow">Rester connecté</div>
   <h2>Suivre Ariya Bien-Être &amp; Tradition</h2>
-  <div class="yt card rv" id="yt" hidden><img src="img/logo.webp" alt="" width="84" height="84"><div><h3>La chaîne YouTube d’Ariya</h3><p>Retrouvez l’univers de la gérante de l’institut, son approche du bien-être et des contenus autour du massage thaïlandais et de la relaxation.</p></div><a class="btn b-red" id="ytb" target="_blank" rel="noopener">Voir la chaîne YouTube</a></div>
+  <div class="yt card rv" id="yt" hidden><img src="img/gerante.webp" alt="La gérante d’Ariya" width="84" height="84"><div><h3>La chaîne YouTube d’Ariya</h3><p>Retrouvez l’univers de la gérante de l’institut, son approche du bien-être et des contenus autour du massage thaïlandais et de la relaxation.</p></div><a class="btn b-red" id="ytb" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4" fill="#fff"/><path d="M10 9l5 3-5 3z" fill="#ec3323"/></svg>Voir la chaîne YouTube</a></div>
   <div class="social" id="social"></div>
 </section>
 
@@ -186,14 +186,14 @@ document.documentElement.classList.add("js");
  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}})},{threshold:.12});
  els.forEach(function(e,i){io.observe(e)});})();
 // Liens à renseigner : un bouton n'apparaît que si son lien est rempli.
-var LINKS={planity:"",instagram:"",facebook:"",youtube:"",site:""};
+var LINKS={planity:"",instagram:"",facebook:"",youtube:"https://www.youtube.com/@ariyasunth6162",site:""};
 (function(){
   var box=document.getElementById('actions');
   if(LINKS.planity){var a=document.createElement('a');a.className='btn b-gold';a.href=LINKS.planity;a.target='_blank';a.rel='noopener';a.textContent='Réserver sur Planity';box.insertBefore(a,box.firstChild);}
   if(LINKS.site){var s=document.createElement('a');s.className='btn b-gold';s.href=LINKS.site;s.target='_blank';s.rel='noopener';s.textContent='Site officiel';box.appendChild(s);}
   var soc=document.getElementById('social'),n=0;
   [['instagram','Instagram'],['facebook','Facebook'],['youtube','YouTube'],['site','Site officiel']].forEach(function(p){
-    if(!LINKS[p[0]])return;var a=document.createElement('a');a.className='btn';a.href=LINKS[p[0]];a.target='_blank';a.rel='noopener';a.textContent=p[1];soc.appendChild(a);n++;});
+    if(!LINKS[p[0]])return;var a=document.createElement('a');a.className='btn';a.href=LINKS[p[0]];a.target='_blank';a.rel='noopener';a.innerHTML=(p[0]==='youtube'?'<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4" fill="#fff"/><path d="M10 9l5 3-5 3z" fill="#ec3323"/></svg> ':'')+p[1];soc.appendChild(a);n++;});
   if(LINKS.youtube){var y=document.getElementById('yt');y.hidden=false;document.getElementById('ytb').href=LINKS.youtube;}
   if(n||LINKS.youtube)document.getElementById('social-section').hidden=false;
 })();
