@@ -137,7 +137,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
     let isSnapped=false;
     if(useSnap&&m){
       let best=0,bx=x,by=y;
-      for(let dy=-7;dy<=7;dy++)for(let dx=-7;dy<=7;dx++){
+      for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){
         const xx=Math.round(x)+dx,yy=Math.round(y)+dy;
         if(xx<1||yy<1||xx>=W-1||yy>=H-1)continue;
         const score=m[yy*W+xx]-0.9*(dx*dx+dy*dy)/2;
