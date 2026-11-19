@@ -37,6 +37,7 @@ import {ContinuousMusic} from './continuousMusic';
 import {attachSphereLayer} from './sphereLayer';
 import {settingsGlyphs} from './settingsGlyph';
 import {GlossyPackMaker,BAR_CHOICES} from './GlossyPackMaker';
+import {harmonizeWithBar} from './glossyThemes';
 import {VrMenuEditor} from './VrMenuEditor';
 import {SceneRoomNameOptions,SpaceRoomNameOptions} from './RoomNameOptions';
 import {glossyBarPacks,glyphPng} from './barGlossy';
@@ -6019,6 +6020,16 @@ function App(){
               setStatus('Pack « '+label+' » créé : Normal, Survol, Pressé. Il est appliqué au bouton Paramètres et disponible dans la bibliothèque. Sauvegarde avec la disquette.');
             }catch(e){setStatus('Impossible de créer le pack Paramètres : '+String(e));}
           }}>⚙ Créer et utiliser mon pack Paramètres doré 3D (Normal · Survol · Pressé)</button>
+          <button type="button" className="nv-harmonize" onClick={()=>{
+            void (async()=>{
+              try{
+                setStatus('Harmonisation des boutons en cours…');
+                const next=await harmonizeWithBar(project);
+                setProject(next);
+                setStatus('Tous les boutons (barre, son, paramètres, flèche, photo, vidéo, plan) ont maintenant la couleur de la barre. Sauvegarde avec la disquette.');
+              }catch(e){setStatus('Impossible d’harmoniser les boutons : '+(e instanceof Error?e.message:String(e)));}
+            })();
+          }}>🎨 Mettre tous les boutons à la couleur de la barre</button>
           <GlossyPackMaker key={JSON.stringify(project.glossyStyle??null)} initial={project.glossyStyle} defaultLabel="Bouton glossy"
             onAddToBar={(keys,style)=>{
               void (async()=>{

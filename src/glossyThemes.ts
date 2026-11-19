@@ -47,9 +47,9 @@ const MAX_ICONS = 147;
  * Applique un thème : couleurs de la barre, charte glossy, et un pack glossy (normal, survol, pressé) par bouton,
  * plus le son et les paramètres. Les icônes sont en WebP 512 px pour rester légères.
  */
-export async function applyGlossyTheme(project: StudioProject, theme: GlossyTheme): Promise<StudioProject> {
+export async function applyGlossyTheme(project: StudioProject, theme: GlossyTheme, options: {defaults?: boolean} = {}): Promise<StudioProject> {
   const barKeys = [...new Set(project.bottomBar.map(keyOfItem).filter((k): k is string => !!k && k in glyphs))];
-  const keys = [...new Set([...barKeys, ...GLOBAL_KEYS])];
+  const keys = [...new Set([...barKeys, ...GLOBAL_KEYS, ...(options.defaults ? ['arrow', 'camera'] : [])])];
   if (project.icons.length + keys.length * 3 > MAX_ICONS) {
     throw Error('Bibliothèque pleine : supprime des anciens packs avant d’appliquer un thème.');
   }
@@ -76,6 +76,10 @@ export async function applyGlossyTheme(project: StudioProject, theme: GlossyThem
     ...project,
     // Les nouvelles vidéos utilisent le bouton vidéo glossy par défaut.
     defaultVideoIcon: {...packs.get('video')!, iconSize: project.defaultVideoIcon?.iconSize ?? 40},
+    ...(options.defaults ? {
+      defaultNavigationIcon: {...packs.get('arrow')!, iconSize: project.defaultNavigationIcon?.iconSize ?? 40},
+      defaultPhotoIcon: {...packs.get('camera')!, iconSize: project.defaultPhotoIcon?.iconSize ?? 40},
+    } : {}),
     barStyle: {...project.barStyle, ...theme.bar},
     glossyStyle: style,
     ...(theme.vr ? {vrEnabled: true, vrMenu: theme.vr} : {}),
@@ -85,4 +89,25 @@ export async function applyGlossyTheme(project: StudioProject, theme: GlossyThem
     soundOffIconId: sound.soundOff.iconId, soundOffHoverIconId: sound.soundOff.hoverIconId, soundOffPressedIconId: sound.soundOff.pressedIconId,
     settingsIconId: sound.settings.iconId, settingsHoverIconId: sound.settings.hoverIconId, settingsPressedIconId: sound.settings.pressedIconId,
   });
+}
+
+const mixHex = (hex: string, to: string, k: number): string => {
+  const p = (h: string) => { const m = /^#?([0-9a-f]{6})$/i.exec(h.trim()); const n = parseInt(m ? m[1] : '808080', 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const a = p(hex), b = p(to);
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * k).toString(16).padStart(2, '0')).join('');
+};
+
+/**
+ * « Même couleur que la barre » : refait TOUS les boutons (barre, son, paramètres, flèche, photo, vidéo, plan) avec la couleur
+ * des boutons de la barre, pour qu'aucun ne détonne. Reprend le reflet et l'ombre de la charte glossy si elle existe.
+ */
+export async function harmonizeWithBar(project: StudioProject): Promise<StudioProject> {
+  const bar = project.barStyle;
+  const base = /^#[0-9a-f]{6}$/i.test(bar.button) ? bar.button : '#c79c5a';
+  const theme: GlossyTheme = {
+    id: 'harmonise', name: 'Couleur de la barre',
+    bar: {background: bar.background, outline: bar.outline, button: bar.button, buttonOutline: bar.buttonOutline, icon: bar.icon},
+    glossy: {base, rim: mixHex(/^#[0-9a-f]{6}$/i.test(bar.buttonOutline) ? bar.buttonOutline : base, '#000000', 0.45), gloss: project.glossyStyle?.gloss ?? 0.8, shadow: project.glossyStyle?.shadow ?? 0.5},
+  };
+  return applyGlossyTheme(project, theme, {defaults: true});
 }

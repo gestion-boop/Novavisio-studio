@@ -6062,3 +6062,5 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-test-anim{margin:6px 0 10px;width:100%;font:700 13px system-ui;cursor:pointer;border:1px solid #4aa9c0;border-radius:10px;background:#12485a;color:#e9fbff;padding:9px 12px}
 .nv-test-anim:hover{background:#1a6279}
 .nv-volume-field{display:grid;gap:4px;margin:8px 0}.nv-volume-field input{width:100%}
+.nv-harmonize{width:100%;margin:8px 0;font:700 13px system-ui;cursor:pointer;border:1px solid #c79c5a;border-radius:10px;background:linear-gradient(145deg,#6b4a1f,#3a2812);color:#ffe9b8;padding:10px 12px}
+.nv-harmonize:hover{filter:brightness(1.15)}
