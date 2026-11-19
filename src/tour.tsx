@@ -1,6 +1,6 @@
 import {FloorPlanDialog} from './FloorPlan';
 import {overlayClose} from './overlayClose';
-import {getFloorPlans,roomNameVisible} from './storage';
+import {getFloorPlans,refusesEmbedding,roomNameVisible} from './storage';
 import {EmbeddedPage} from './EmbeddedPage';
 import {informationFont} from './InformationEditor';
 import {projectForSpaceExport} from './spaces';
@@ -351,7 +351,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const openLink=(title:string,url:string,mode?:'embed'|'tab')=>{
     const checked=checkedLink(url);
     if(!checked)return;
-    if(mode==='tab'&&/^https?:/.test(checked)){window.open(checked,'_blank','noopener,noreferrer');return;}
+    if((mode==='tab'||refusesEmbedding(checked))&&/^https?:/.test(checked)){window.open(checked,'_blank','noopener,noreferrer');return;}
     if(/^https?:\/\//.test(checked)){
       const parsed=new URL(checked);
       if(parsed.hostname.endsWith('.vercel.app')){parsed.searchParams.set('langs',activeLanguages.join(','));parsed.searchParams.set('lang',lang);}

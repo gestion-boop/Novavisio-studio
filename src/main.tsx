@@ -90,7 +90,7 @@ import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,
 import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {getFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
+import {refusesEmbedding,getFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,type FrameSphericalCorners,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
@@ -2564,7 +2564,7 @@ function App(){
     const link=safeLink(raw);
     if (!link) {setStatus('Lien invalide : utilise https://, tel: ou mailto:');return;}
     setInfo(null);
-    if(mode==='tab'){launchLink(link);return;}
+    if(mode==='tab'||refusesEmbedding(link)){launchLink(link);return;}
     if (/^https?:\/\//i.test(link)){
       let url=link;
       // Les pages Figurotta prennent en charge ?langs=fr,es,de,en,nl.
@@ -5882,6 +5882,9 @@ function App(){
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
             :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}{selectedBar.type==='photos'&&<small className="hint-inline">Si tu mets un lien ici (par exemple la galerie en ligne …/kamci-galerie/#imperia), ce bouton l’ouvre dans la visite à la place de la galerie de photos.</small>}</label>}
+            {(selectedBar.type==='lien'||selectedBar.type==='information'||selectedBar.type==='photos')&&!!selectedBar.url&&<label>Ouverture du lien
+              <select value={selectedBar.linkMode??'embed'} onChange={e=>patchBar({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite (fenêtre intégrée)</option><option value="tab">Dans un nouvel onglet</option></select>
+              {refusesEmbedding(selectedBar.url)&&<small className="hint-inline">Instagram, Facebook, LinkedIn… refusent d’être affichés dans une fenêtre intégrée : ce lien s’ouvre automatiquement dans un nouvel onglet.</small>}</label>}
             <InspectorSection title="Icônes : normal, survol, clic">
             {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size}))}
             {libraryPackPicker(selectedBar.iconId,patch=>patchBar(patch))}

@@ -648,3 +648,8 @@ export function roomNameVisible(project:Pick<StudioProject,'spaces'>,scene:Pick<
   if(!space)return true;
   return (mode==='vr'?space.showRoomNameVr:space.showRoomName)!==false;
 }
+
+/** Sites qui interdisent d'être affichés dans une page intégrée (iframe) : leurs liens s'ouvrent toujours dans un nouvel onglet. */
+export const refusesEmbedding = (url: string): boolean => {
+  try { return /(^|\.)(instagram|facebook|fb|linkedin|x|twitter|tiktok|pinterest)\.com$/i.test(new URL(url).hostname); } catch { return false; }
+};
