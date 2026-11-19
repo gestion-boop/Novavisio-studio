@@ -69,6 +69,16 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:34px 8px 30px
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .rv{opacity:1;transform:none}}
 @media(max-width:860px){.gallery{grid-template-columns:1fr 1fr}.gallery figure:first-child{grid-row:span 1}.gallery figure:nth-child(4){grid-column:span 1}}
 @media(max-width:560px){.gallery{grid-template-columns:1fr;grid-auto-rows:220px}.brand{font-size:18px}.brand img{width:56px;height:56px}.hero::after{background:linear-gradient(180deg,rgba(29,26,22,.9),rgba(29,26,22,.75))}}
+
+.welcome{display:flex;gap:20px;align-items:flex-start}.ico.big{width:64px;height:64px;border-radius:20px;flex:none;margin:6px 0 0}
+.cells{gap:0;background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden}.cells .card{border:0;border-right:1px solid var(--line);border-radius:0;box-shadow:none;background:transparent}.cells .card:last-child{border-right:0}
+.cells .card:hover{transform:none;background:rgba(212,169,55,.08)}
+.mini{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(145deg,#e0b54a,#b88a2e);vertical-align:middle;margin-right:6px}.mini svg{width:18px;height:18px}
+.yt{display:flex;gap:20px;align-items:center;margin-top:20px}.yt img{border-radius:50%;border:3px solid var(--gold);flex:none}.yt h3{font-size:20px}.yt .btn{margin-left:auto;white-space:nowrap}
+.topbar-gold{color:var(--gold)}
+.ico svg{width:24px;height:24px}
+@media(max-width:860px){.cells{grid-template-columns:1fr 1fr}.cells .card{border-bottom:1px solid var(--line)}}
+@media(max-width:560px){.cells{grid-template-columns:1fr}.cells .card{border-right:0}.welcome{flex-direction:column;gap:6px}.yt{flex-direction:column;align-items:flex-start}.yt .btn{margin:0}}
 </style></head><body><div class="wrap">
 <nav class="top"><a href="#" class="brand"><img src="img/logo.webp" alt="Ariya — Bien-être et tradition" width="72" height="72"><span>Ariya <small>Thaï Massage</small></span></a><a class="cta" href="#reserver">Contact &amp; accès</a></nav>
 
@@ -81,10 +91,10 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:34px 8px 30px
 </header>
 
 <section class="s rv">
-  <div class="eyebrow">Bienvenue chez Ariya</div>
-  <h2>Un salon dédié au lâcher-prise, inspiré de la tradition thaïlandaise</h2>
+  <div class="welcome"><div class="ico big"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-6 1-9z" fill="#fff"/></svg></div><div><div class="eyebrow">Bienvenue chez Ariya</div>
+  <h2>Un salon dédié au lâcher-prise, inspiré de la tradition thaïlandaise</h2></div></div>
   <p class="lead">Chez <strong>Ariya Bien-Être &amp; Tradition</strong>, chaque soin est pensé comme une pause hors du rythme quotidien. Les massages proposés associent gestes enveloppants, travail ciblé et atmosphère apaisante pour accompagner la détente du corps et de l’esprit. Que vous recherchiez un moment relaxant, un soin plus profond ou une découverte de la réflexologie thaï, l’institut vous accueille dans un cadre propice au calme.</p>
-  <div class="grid g4">
+  <div class="grid g4 cells">
     <div class="card rv"><h3>Ambiance douce</h3><p>Une atmosphère calme, chaleureuse et propice à la relaxation.</p></div>
     <div class="card rv"><h3>Massages thaïlandais</h3><p>Des soins inspirés de pratiques traditionnelles de bien-être.</p></div>
     <div class="card rv"><h3>Prestations solo ou duo</h3><p>Des massages à vivre seul ou à partager selon les soins disponibles.</p></div>
@@ -96,12 +106,12 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:34px 8px 30px
   <div class="eyebrow">Choisir son soin</div>
   <h2>Des prestations pour relâcher les tensions et retrouver l’équilibre</h2>
   <div class="grid g3">
-    <div class="card svc rv"><div class="ico">♥</div><h3>Massage relaxant anti-stress</h3><p>Un soin enveloppant, idéal pour apaiser le mental, relâcher les tensions et retrouver une sensation de calme.</p></div>
-    <div class="card svc rv"><div class="ico">💧</div><h3>Massage aux huiles Aroma</h3><p>Une expérience sensorielle aux huiles, avec des gestes fluides ou plus profonds selon le soin choisi.</p></div>
-    <div class="card svc rv"><div class="ico">✿</div><h3>Réflexologie plantaire thaï</h3><p>Un soin ciblé sur les pieds, parfait pour stimuler la détente et retrouver une sensation de légèreté.</p></div>
-    <div class="card svc rv"><div class="ico">☺☺</div><h3>Massage duo</h3><p>Une parenthèse bien-être à partager à deux, selon les soins et créneaux disponibles à la réservation.</p></div>
-    <div class="card svc rv"><div class="ico">✋</div><h3>Massage 4 mains</h3><p>Un soin immersif et enveloppant pour une relaxation plus intense, réalisé avec une coordination fluide des gestes.</p></div>
-    <div class="card svc rv"><div class="ico">★</div><h3>Carte cadeau</h3><p>Une belle idée pour offrir un moment de détente à l’institut, à acheter directement sur place.</p></div>
+    <div class="card svc rv"><div class="ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21l8.8-8.3a5 5 0 0 0 0-7.1z" fill="#fff"/></svg></div><h3>Massage relaxant anti-stress</h3><p>Un soin enveloppant, idéal pour apaiser le mental, relâcher les tensions et retrouver une sensation de calme.</p></div>
+    <div class="card svc rv"><div class="ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" fill="#fff"/></svg></div><h3>Massage aux huiles Aroma</h3><p>Une expérience sensorielle aux huiles, avec des gestes fluides ou plus profonds selon le soin choisi.</p></div>
+    <div class="card svc rv"><div class="ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="#fff"/><circle cx="16" cy="8" r="3" fill="#fff"/><circle cx="8" cy="16" r="3" fill="#fff"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg></div><h3>Réflexologie plantaire thaï</h3><p>Un soin ciblé sur les pieds, parfait pour stimuler la détente et retrouver une sensation de légèreté.</p></div>
+    <div class="card svc rv"><div class="ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="#fff"/><circle cx="16" cy="8" r="3" fill="#fff"/><path d="M3 20c0-3 2.5-5 5-5s5 2 5 5M11 20c0-3 2.5-5 5-5s5 2 5 5"/></svg></div><h3>Massage duo</h3><p>Une parenthèse bien-être à partager à deux, selon les soins et créneaux disponibles à la réservation.</p></div>
+    <div class="card svc rv"><div class="ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V5a1.5 1.5 0 0 1 3 0v5m0-1V4a1.5 1.5 0 0 1 3 0v6m0-3a1.5 1.5 0 0 1 3 0v6c0 4-2.5 7-6 7-3 0-5-2-6-5l-1.5-3a1.5 1.5 0 0 1 2.5-1.5L8 13"/></svg></div><h3>Massage 4 mains</h3><p>Un soin immersif et enveloppant pour une relaxation plus intense, réalisé avec une coordination fluide des gestes.</p></div>
+    <div class="card svc rv"><div class="ico"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" fill="#fff"/></svg></div><h3>Carte cadeau</h3><p>Une belle idée pour offrir un moment de détente à l’institut, à acheter directement sur place.</p></div>
   </div>
   <p class="lead" style="margin-top:16px">Consultez aussi la page des <a href="https://tarif-ariya-crm-novasphere.vercel.app/" style="color:var(--gold2);font-weight:700">tarifs</a>.</p>
 </section>
@@ -146,24 +156,25 @@ footer{text-align:center;color:var(--muted);font-size:13px;padding:34px 8px 30px
   <div class="eyebrow">Venir &amp; contacter</div>
   <h2>Informations pratiques</h2>
   <div class="grid g2">
-    <div class="card rv"><h3>📍 Adresse &amp; accès</h3>
+    <div class="card rv"><h3><span class="mini"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z" fill="#fff"/></svg></span> Adresse &amp; accès</h3>
       <div class="row"><strong>Ariya Bien-Être &amp; Tradition</strong><br><span style="color:var(--muted)">37 boulevard du Dr Ferroul<br>11100 Narbonne</span></div>
       <p style="margin-top:10px">Institut de massage thaïlandais situé à Narbonne, facilement accessible pour une pause bien-être en centre-ville.</p></div>
-    <div class="card rv"><h3>📞 Nous joindre</h3>
+    <div class="card rv"><h3><span class="mini"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" fill="#fff"/></svg></span> Nous joindre</h3>
       <div class="row"><strong>Téléphone :</strong> <a href="tel:+33650478566">06 50 47 85 66</a></div>
       <div class="row"><strong>E-mail :</strong> <a href="mailto:thaimassagenarbonne@gmail.com">thaimassagenarbonne@gmail.com</a></div>
       <p style="margin-top:10px">Pour un soin précis, pensez à consulter les disponibilités directement sur Planity.</p></div>
   </div>
   <div class="btns" id="actions">
-    <a class="btn b-dark" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Ariya+Bien-%C3%8Atre+%26+Tradition+37+boulevard+du+Dr+Ferroul+11100+Narbonne">📍 Ouvrir l’itinéraire</a>
-    <a class="btn b-light" href="tel:+33650478566">📞 Appeler le salon</a>
-    <a class="btn b-light" href="mailto:thaimassagenarbonne@gmail.com">✉ Envoyer un e-mail</a>
+    <a class="btn b-dark" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Ariya+Bien-%C3%8Atre+%26+Tradition+37+boulevard+du+Dr+Ferroul+11100+Narbonne">Ouvrir l’itinéraire</a>
+    <a class="btn b-light" href="tel:+33650478566">Appeler le salon</a>
+    <a class="btn b-light" href="mailto:thaimassagenarbonne@gmail.com">Envoyer un e-mail</a>
   </div>
 </section>
 
 <section class="s" id="social-section" hidden>
   <div class="eyebrow">Rester connecté</div>
   <h2>Suivre Ariya Bien-Être &amp; Tradition</h2>
+  <div class="yt card rv" id="yt" hidden><img src="img/logo.webp" alt="" width="84" height="84"><div><h3>La chaîne YouTube d’Ariya</h3><p>Retrouvez l’univers de la gérante de l’institut, son approche du bien-être et des contenus autour du massage thaïlandais et de la relaxation.</p></div><a class="btn b-red" id="ytb" target="_blank" rel="noopener">Voir la chaîne YouTube</a></div>
   <div class="social" id="social"></div>
 </section>
 
@@ -178,11 +189,12 @@ document.documentElement.classList.add("js");
 var LINKS={planity:"",instagram:"",facebook:"",youtube:"",site:""};
 (function(){
   var box=document.getElementById('actions');
-  if(LINKS.planity){var a=document.createElement('a');a.className='btn b-gold';a.href=LINKS.planity;a.target='_blank';a.rel='noopener';a.textContent='📅 Réserver sur Planity';box.insertBefore(a,box.firstChild);}
-  if(LINKS.site){var s=document.createElement('a');s.className='btn b-gold';s.href=LINKS.site;s.target='_blank';s.rel='noopener';s.textContent='🌐 Site officiel';box.appendChild(s);}
+  if(LINKS.planity){var a=document.createElement('a');a.className='btn b-gold';a.href=LINKS.planity;a.target='_blank';a.rel='noopener';a.textContent='Réserver sur Planity';box.insertBefore(a,box.firstChild);}
+  if(LINKS.site){var s=document.createElement('a');s.className='btn b-gold';s.href=LINKS.site;s.target='_blank';s.rel='noopener';s.textContent='Site officiel';box.appendChild(s);}
   var soc=document.getElementById('social'),n=0;
   [['instagram','Instagram'],['facebook','Facebook'],['youtube','YouTube'],['site','Site officiel']].forEach(function(p){
     if(!LINKS[p[0]])return;var a=document.createElement('a');a.className='btn';a.href=LINKS[p[0]];a.target='_blank';a.rel='noopener';a.textContent=p[1];soc.appendChild(a);n++;});
-  if(n)document.getElementById('social-section').hidden=false;
+  if(LINKS.youtube){var y=document.getElementById('yt');y.hidden=false;document.getElementById('ytb').href=LINKS.youtube;}
+  if(n||LINKS.youtube)document.getElementById('social-section').hidden=false;
 })();
 </script></body></html>
