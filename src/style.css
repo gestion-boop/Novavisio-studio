@@ -4093,7 +4093,15 @@ background:rgba(10,34,45,.96);color:#e8ffff;box-shadow:0 16px 44px #0008;backdro
 .nv-cloud-compact .cloud-list li{flex-wrap:wrap;align-items:center;background:#102b3b}
 .nv-cloud-compact .cloud-list li>span{min-width:180px;flex:1}
 .nv-cloud-compact .cloud-list li>.nv-cloud-history{flex-basis:100%;max-height:200px;overflow-y:auto}
-@media(max-width:600px){.cloud-panel.nv-cloud-compact{padding:15px;max-height:92dvh}.nv-cloud-compact .nv-cloud-scroll{max-height:55dvh}}
+/* Le panneau Cloud passe au-dessus de l'entête de l'éditeur (sinon son titre est caché sous la barre du haut). */
+.nv-cloud-overlay{z-index:300}
+/* Téléphone : un seul défilement pour tout le panneau (titre, compte, boutons, liste), au lieu d'une petite liste interne. */
+@media(max-width:600px){
+  .nv-cloud-overlay{padding:8px;align-items:flex-start}
+  .cloud-panel.nv-cloud-compact{padding:15px;max-height:calc(100dvh - 16px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .nv-cloud-compact .nv-cloud-scroll{max-height:none;min-height:0;overflow:visible;flex:0 0 auto;padding-right:0}
+  .nv-cloud-compact .nv-cloud-heading{position:sticky;top:-15px;z-index:2;background:#122535;margin:-15px -15px 0;padding:15px 38px 10px 15px}
+}
 
 /* Bandeau de pose : position basse sans masquer le centre du panorama. */
 .nv-studio-pro .view-area .mode-active-pill{
