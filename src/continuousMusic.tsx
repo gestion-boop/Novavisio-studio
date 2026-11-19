@@ -32,7 +32,7 @@ export function ContinuousMusic({project,scene,paused=false,showToggle=true}:{pr
   const track=project.audioTracks?.find(t=>t.id===scene?.musicTrackId);
   const source=track?(track.dataUrl||track.url||''):
     (scene?.audioEnabled===false?'':(scene?.audioDataUrl||scene?.audioUrl||''));
-  const volume=Math.max(0,Math.min(100,track?.volume??scene?.audioVolume??65))/100;
+  const volume=Math.max(0,Math.min(100,track?.volume??scene?.audioVolume??50))/100;
   const loop=track?.loop??scene?.audioLoop!==false;
 
   const volRef=useRef(volume);volRef.current=volume;

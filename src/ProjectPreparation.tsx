@@ -36,7 +36,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
       if((project.audioTracks?.length??0)>=60)throw Error('La bibliothèque contient déjà 60 pistes.');
       const dataUrl=await readImage(file);if(!isSafeAudioData(dataUrl))throw Error('Format audio incompatible.');
       const id=crypto.randomUUID();
-      setProject(p=>({...p,audioTracks:[...(p.audioTracks??[]),{id,name:file.name.slice(0,120),dataUrl,volume:65,loop:true}],defaultMusicTrackId:id}));
+      setProject(p=>({...p,audioTracks:[...(p.audioTracks??[]),{id,name:file.name.slice(0,120),dataUrl,volume:50,loop:true}],defaultMusicTrackId:id}));
       setMessage('Musique importée. Elle sera utilisée pour les nouveaux panoramas.');
     }catch(e){setMessage(e instanceof Error?e.message:String(e));}finally{setBusy(false);}
   }

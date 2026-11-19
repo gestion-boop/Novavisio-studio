@@ -61,7 +61,7 @@ export function SceneAudio({scene,paused=false}:{scene:Scene;paused?:boolean}) {
   useEffect(()=>{
     const el=audio.current;
     if(!el||!src||scene.audioEnabled===false)return;
-    el.volume=(scene.audioVolume??65)/100;
+    el.volume=(scene.audioVolume??50)/100;
     el.muted=muted;
     if(paused){el.pause();return;}
     let disposed=false;

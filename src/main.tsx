@@ -2614,7 +2614,7 @@ function App(){
       if(!isSafeAudioData(data))throw Error('Fichier audio incompatible');
       const id=uid(),name=file.name.replace(/\\.[^.]+$/,'').slice(0,120);
       setProject(p=>({...p,
-        audioTracks:[...(p.audioTracks??[]),{id,name,dataUrl:data,volume:65,loop:true}],
+        audioTracks:[...(p.audioTracks??[]),{id,name,dataUrl:data,volume:50,loop:true}],
         scenes:p.scenes.map(sc=>sc.id===activeId?{...sc,musicTrackId:id}:sc)
       }));
       setPanel('music');
