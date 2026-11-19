@@ -1,6 +1,8 @@
 import {useEffect,useRef,useState} from 'react';
 import {ExternalLink,FileJson,Link2,PlusCircle,Search,RefreshCw,Sparkles,Check,Image as ImageIcon} from 'lucide-react';
-import {emptyClientProfile,type ClientProfile} from './storage';
+import {emptyClientProfile,type ClientProfile,type MediaLinkItem} from './storage';
+import {askAspirate,importPhotosAsMedia} from './aspirate';
+import {mergeScrapes,applyScrapeToProfile,describeScrape} from './aspirateMerge';
 import {cloudConfigured,supabase} from './cloud';
 import {NovaGenVideos} from './NovaGenVideos';
 import type {ImportedClientVideo} from './novagenVideos';
@@ -26,7 +28,7 @@ export type ScrapeResult={
   fiche:{
     nom:string;type:string;adresse:string;ville:string;tel:string;email:string;
     site:string;facebook:string;instagram:string;booking:string;description:string;
-    horaires:string[];services:string[]
+    horaires:string[];services:string[];autres?:Record<string,string>
   };
   photos:string[];logos:string[];notes:string[]
 };
@@ -65,8 +67,31 @@ export async function askNovaGen<T>(payload:Record<string,unknown>,signal?:Abort
   return parsed as T;
 }
 
-export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo,compact=false}:{
+/**
+ * Aspirateur complet d'un établissement : NovaGen et le site Internet sont lus en même temps ;
+ * si seul NovaGen connaît le site, il est lu ensuite. Les deux résultats sont fusionnés (voir aspirateMerge).
+ * Une source en échec n'empêche pas l'autre : l'échec est signalé dans `log`.
+ */
+export async function aspirateEstablishment(input:Record<string,unknown>&{site:string}):Promise<{merged:ScrapeResult|null;log:string[]}>{
+  const why=(e:unknown)=>e instanceof Error?e.message:String(e);
+  const novagenRequest=askNovaGen<ScrapeResult>({mode:'search',...input}).then(r=>(r.fiche&&(r.fiche.nom||r.fiche.site))?r:null);
+  const siteRequest=input.site?askAspirate(input.site):Promise.resolve(null);
+  const [ng,st]=await Promise.allSettled([novagenRequest,siteRequest]);
+  const log:string[]=[];
+  const novagen=ng.status==='fulfilled'?ng.value:null;
+  let site:ScrapeResult|null=st.status==='fulfilled'?st.value:null;
+  if(ng.status==='rejected')log.push('NovaGen : '+why(ng.reason));
+  if(st.status==='rejected')log.push('Site Internet : '+why(st.reason));
+  if(!site&&!input.site&&novagen?.fiche.site){
+    try{site=await askAspirate(novagen.fiche.site);}catch(e){log.push('Site Internet : '+why(e));}
+  }
+  return {merged:mergeScrapes(site,novagen),log};
+}
+
+export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo,compact=false,onImportPhotos,libraryNames=[],libraryRoom=300}:{
   value:ClientProfile|undefined;
+  /** Reçoit les photos téléchargées pour les ranger dans la bibliothèque Photos & Vidéos de la visite. */
+  onImportPhotos?:(items:MediaLinkItem[])=>void;libraryNames?:string[];libraryRoom?:number;
   onChange:(p:ClientProfile)=>void;
   onAddLink:(link:ClientLink)=>void;
   compact?:boolean;
@@ -85,6 +110,8 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
   const [webLoading,setWebLoading]=useState(false);
   const [candidate,setCandidate]=useState<ScrapeResult|null>(null);
   const [replaceExisting,setReplaceExisting]=useState(false);
+  const [importing,setImporting]=useState('');
+  const [siteLog,setSiteLog]=useState<string[]>([]);
   const requestId=useRef(0);
   const patch=(field:Field,v:string)=>{onChange({...p,[field]:v.slice(0,4000)});setNotice('');};
 
@@ -125,39 +152,42 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
     setSuggestions([]);setCandidate(null);setScraping(true);setError('');setNotice('');
     if(target){setChosen(target);setQuery(target.nom);setCity(target.ville||city);}
     try{
-      const result=await askNovaGen<ScrapeResult>({
-        mode:'search',nom:target?.nom||name,ville:target?.ville||city||(sameClient?p.city:''),
+      const {merged,log}=await aspirateEstablishment({
+        nom:target?.nom||name,ville:target?.ville||city||(sameClient?p.city:''),
         type:target?.type||(sameClient?p.category:''),adresse:target?.adresse||(sameClient?p.address:''),
         tel:target?.tel||(sameClient?p.phone:''),site:website,
         facebook:target?.facebook||(sameClient?p.facebook:''),
         instagram:target?.instagram||(sameClient?p.instagram:'')
       });
-      if(!result.fiche||(!result.fiche.nom&&!result.fiche.site))
-        throw Error('Aucune fiche exploitable renvoyée par NovaGen.');
-      setCandidate(result);
-      setNotice('Informations récupérées. Vérifie le résultat puis valide son intégration.');
+      if(!merged)throw Error(log[0]??'Aucune fiche exploitable renvoyée par NovaGen ni par le site.');
+      setSiteLog(log);
+      setCandidate(merged);
+      setNotice('Aspiration terminée : '+describeScrape(merged).join(' · ')+'. Vérifie le résultat puis valide son intégration.');
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setScraping(false);}
   };
   const applyCandidate=()=>{
     if(!candidate)return;
-    const f=candidate.fiche;
-    const next:ClientProfile={...p};
-    const fieldsFromNovaGen:Partial<Record<Field,string>>={
-      name:f.nom,category:f.type,address:f.adresse,city:f.ville,phone:f.tel,
-      email:f.email,website:f.site,facebook:f.facebook,instagram:f.instagram,
-      bookingUrl:f.booking,description:f.description,
-      openingHours:(f.horaires||[]).filter(Boolean).join(' · '),
-      services:(f.services||[]).filter(Boolean).join(', ')
-    };
-    for(const [key,value] of Object.entries(fieldsFromNovaGen) as [Field,string][]){
-      if(value&&(replaceExisting||!next[key]))Object.assign(next,{[key]:value.slice(0,4000)});
-    }
-    if(candidate.logos.length&&(replaceExisting||!next.logoUrl))next.logoUrl=candidate.logos[0];
-    if(candidate.photos.length&&(replaceExisting||!next.photoUrls?.length))next.photoUrls=candidate.photos.slice(0,24);
-    if(candidate.notes.length)next.sourceNotes=candidate.notes.slice(0,12);
-    onChange(next);setCandidate(null);
-    setNotice('Fiche NovaGen intégrée au projet. Clique sur la disquette pour enregistrer.');
+    // Par défaut, seuls les champs vides sont remplis : ce que vous avez saisi n'est jamais écrasé.
+    const {profile,filled}=applyScrapeToProfile(p,candidate,replaceExisting);
+    onChange(profile);setCandidate(null);
+    setNotice(filled.length?'Fiche mise à jour : '+filled.join(', ')+'. Clique sur la disquette pour enregistrer.':'Rien de nouveau : tous les champs étaient déjà remplis.');
+  };
+  /** Télécharge les photos repérées dans la bibliothèque Photos & Vidéos de la visite (réduites à 2000 px). */
+  const importPhotos=async()=>{
+    if(!onImportPhotos||!p.photoUrls?.length)return;
+    setError('');setImporting('Téléchargement des photos… 0 / '+p.photoUrls.length);
+    try{
+      const result=await importPhotosAsMedia(p.photoUrls,{existingNames:libraryNames,room:libraryRoom,
+        onProgress:(done,total)=>setImporting('Téléchargement des photos… '+done+' / '+total)});
+      if(result.items.length)onImportPhotos(result.items);
+      const parts=[result.items.length+' photo'+(result.items.length>1?'s':'')+' ajoutée'+(result.items.length>1?'s':'')+' à la bibliothèque Photos & Vidéos'];
+      if(result.skipped)parts.push(result.skipped+' déjà présente'+(result.skipped>1?'s':'')+' ou ignorée'+(result.skipped>1?'s':''));
+      if(result.tooSmall)parts.push(result.tooSmall+' trop petite'+(result.tooSmall>1?'s':'')+' (icônes)');
+      if(result.failed)parts.push(result.failed+' inaccessible'+(result.failed>1?'s':''));
+      setNotice(parts.join(' · ')+'. Clique sur la disquette pour enregistrer.');
+    }catch(e){setError(e instanceof Error?e.message:String(e));}
+    finally{setImporting('');}
   };
 
   const importNovaGen=async(file?:File)=>{
@@ -257,6 +287,7 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
     </section>
     {error&&<p role="alert" className="nv-client-error">{error}</p>}
     {notice&&<p className="nv-client-ok">{notice}</p>}
+    {siteLog.length>0&&<ul className="nv-client-sitelog">{siteLog.map((l,i)=><li key={i}><small>{l}</small></li>)}</ul>}
     <div className="nv-client-fields">
       {fields.map(f=><label key={f.key} className={['description','services','openingHours'].includes(f.key)?'nv-client-wide':''}>
         <span>{f.label}</span>
@@ -266,9 +297,15 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
       </label>)}
     </div>
     {!!p.photoUrls?.length&&<div className="nv-client-saved-photos">
-      <strong>Photos repérées par NovaGen ({p.photoUrls.length})</strong>
+      <strong>Photos repérées sur le site et par NovaGen ({p.photoUrls.length})</strong>
       <div>{p.photoUrls.slice(0,12).map((url,i)=><img src={url} alt={'Photo repérée '+(i+1)} key={url+i} loading="lazy"/>)}</div>
-      <small>Références externes uniquement, pas encore importées dans le stockage média NovaStudio.</small>
+      {onImportPhotos?<>
+        <button type="button" className="nv-client-import" disabled={!!importing} onClick={()=>void importPhotos()}>
+          <ImageIcon size={15}/> Télécharger ces {p.photoUrls.length} photos dans la visite
+        </button>
+        {importing&&<small role="status">{importing}</small>}
+        <small>Les photos sont copiées dans la bibliothèque Photos &amp; Vidéos (réduites à 2000 px) : elles ne dépendent plus du site d’origine.</small>
+      </>:<small>Références externes uniquement, pas encore importées dans le stockage média NovaStudio.</small>}
     </div>}
     <div className="nv-client-reuse">
       <strong><Link2 size={15}/> Réutiliser dans la visite</strong>

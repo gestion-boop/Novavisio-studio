@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {Globe,FilePlus2,Save,LoaderCircle,RefreshCw,Search,X} from 'lucide-react';
-import {askNovaGen,type ScrapeResult,type Suggestion,type SuggestResult} from './ClientPanel';
+import {askNovaGen,aspirateEstablishment,type ScrapeResult,type Suggestion,type SuggestResult} from './ClientPanel';
 import type {BarStyle,ClientProfile} from './storage';
 import {proposalsFromImages,PRESET_PROPOSALS,type SkinProposal} from './skinPalette';
 import {ClientMediaEditor,type Palette} from './ClientMediaEditor';
@@ -46,18 +46,25 @@ export function useWebDiscovery(query:string,autoSearch:boolean){
   const open=async(place:Suggestion)=>{
     setScraping(place.nom||place.adresse);setError('');setCandidate(null);
     try{
-      const result=await askNovaGen<ScrapeResult>({
-        mode:'search',nom:place.nom,ville:place.ville,type:place.type,adresse:place.adresse,
+      // Aspirateur complet : NovaGen + site Internet de l'établissement (photos, horaires, Facebook, Instagram…).
+      const {merged,log}=await aspirateEstablishment({
+        nom:place.nom,ville:place.ville,type:place.type,adresse:place.adresse,
         tel:place.tel,site:place.site,facebook:place.facebook,instagram:place.instagram
       });
-      if(!result.fiche||(!result.fiche.nom&&!result.fiche.site))throw Error('Aucune fiche exploitable pour cet établissement.');
+      if(!merged)throw Error(log[0]||'Aucune fiche exploitable pour cet établissement.');
+      const result=merged;
       setCandidate(result);
       setProposals([]);setProposalError('');
       void proposalsFromImages([...result.logos,...result.photos.slice(0,2)]).then(setProposals).catch(e=>{setProposals(PRESET_PROPOSALS);setProposalError((e instanceof Error?e.message:String(e))+' Voici des palettes standard à la place.');});
     }catch(e){setError(e instanceof Error?e.message:String(e));}
     finally{setScraping('');}
   };
-  return {suggestions,loading,error,searched,candidate,scraping,proposals,proposalError,run,open,close:()=>setCandidate(null),query:q};
+  /** Complète un client déjà connu : lance l'aspiration à partir de son nom, sa ville et son site. */
+  const complete=(profile:ClientProfile)=>open({
+    nom:profile.name,adresse:profile.address,ville:profile.city,type:profile.category,site:profile.website,
+    tel:profile.phone,facebook:profile.facebook,instagram:profile.instagram
+  });
+  return {suggestions,loading,error,searched,candidate,scraping,proposals,proposalError,run,open,complete,close:()=>setCandidate(null),query:q};
 }
 
 export function profileFromScrape(r:ScrapeResult,photos?:string[]):ClientProfile{
@@ -91,13 +98,15 @@ export function DiscoveryList({d}:{d:Discovery}){
   </div>;
 }
 
+/** Mode « compléter une fiche existante » : un bouton met à jour CETTE fiche (champs vides seulement), sans créer de doublon. */
+export type Completing={name:string;busy:boolean;onApply:(profile:ClientProfile)=>void};
 export type DiscoveryActions={
   onSave:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
   onSaveClient:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
   saving:boolean;notice:string;
   onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;
 };
-export function DiscoveryDetail({d,onSave,onSaveClient,saving,notice,onCreateVisit,onClose}:{d:Discovery;onClose:()=>void}&DiscoveryActions){
+export function DiscoveryDetail({d,onSave,onSaveClient,saving,notice,onCreateVisit,onClose,completing}:{d:Discovery;onClose:()=>void;completing?:Completing}&DiscoveryActions){
   const r=d.candidate;
   const [draft,setDraft]=useState<ClientProfile|null>(null);
   const [style,setStyle]=useState<Palette|undefined>(undefined);
@@ -130,7 +139,9 @@ export function DiscoveryDetail({d,onSave,onSaveClient,saving,notice,onCreateVis
       {r.notes.length>0&&<details className="nv-directory-muted"><summary>{r.notes.length} information(s) à vérifier</summary>{r.notes.map((n,i)=><p key={i}>{n}</p>)}</details>}
     </div>
     <div className="nv-directory-bottom-actions nv-discovery-actions-row">
-      <button type="button" className="nv-directory-associate" disabled={saving} onClick={()=>onSaveClient(profile(),style)}><Save size={16}/> {saving?'Enregistrement…':'Enregistrer'}</button>
+      {completing&&<button type="button" className="nv-directory-associate is-create" disabled={completing.busy} onClick={()=>completing.onApply(profile())}>
+        <Save size={16}/> {completing.busy?'Mise à jour…':'Mettre à jour la fiche de « '+completing.name+' »'}</button>}
+      {!completing&&<button type="button" className="nv-directory-associate" disabled={saving} onClick={()=>onSaveClient(profile(),style)}><Save size={16}/> {saving?'Enregistrement…':'Enregistrer'}</button>}
       <button type="button" className="nv-directory-associate is-create" onClick={()=>onCreateVisit(profile(),style)}><FilePlus2 size={16}/> Créer une visite virtuelle</button>
       <button type="button" className="nv-directory-secondary-action" onClick={()=>onSave(profile(),style)}>Ajouter à la visite en cours</button>
       {notice&&<p role="status" className="nv-discovery-notice">{notice}</p>}

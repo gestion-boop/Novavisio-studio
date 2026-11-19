@@ -18,9 +18,10 @@ export const privateIp=(ip)=>{
   const p=ip.split('.').map(Number);
   return p[0]===10||p[0]===127||p[0]===0||(p[0]===169&&p[1]===254)||(p[0]===172&&p[1]>=16&&p[1]<=31)||(p[0]===192&&p[1]===168)||(p[0]===100&&p[1]>=64&&p[1]<=127)||p[0]>=224;
 };
-export async function assertPublic(raw){
+export async function assertPublic(raw,{allowHttp=false}={}){
   const u=new URL(raw);
-  if(u.protocol!=='https:'||u.username||u.password||(u.port&&u.port!=='443'))throw new Error('Adresse refusée');
+  const okScheme=u.protocol==='https:'?(!u.port||u.port==='443'):(allowHttp&&u.protocol==='http:'&&(!u.port||u.port==='80'));
+  if(!okScheme||u.username||u.password)throw new Error('Adresse refusée');
   const host=u.hostname.toLowerCase().replace(/\.$/,'');
   if(!host.includes('.')||host==='localhost'||host.endsWith('.local')||host.endsWith('.internal')||net.isIP(host))throw new Error('Adresse refusée');
   const addresses=await lookup(host,{all:true});
@@ -28,10 +29,10 @@ export async function assertPublic(raw){
   return u;
 }
 /** GET suivant au plus 3 redirections, chacune revérifiée. */
-export async function safeFetch(url,{accept,timeout=12000}={}){
+export async function safeFetch(url,{accept,timeout=12000,allowHttp=false}={}){
   let current=url,response;
   for(let hop=0;hop<4;hop++){
-    const target=await assertPublic(current);
+    const target=await assertPublic(current,{allowHttp});
     response=await fetch(target.href,{redirect:'manual',headers:{accept:accept||'*/*','user-agent':'NovaStudio/1.0 (aperçu de lien)'},signal:AbortSignal.timeout(timeout)});
     if(response.status>=300&&response.status<400&&response.headers.get('location')){current=new URL(response.headers.get('location'),target).href;continue;}
     return {response,finalUrl:target.href};

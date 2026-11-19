@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
-import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Users,X} from 'lucide-react';
-import {listCloudProjects,readCloudClientProfile,saveToCloud,type CloudProject} from './cloud';
+import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Globe,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Users,X} from 'lucide-react';
+import {listCloudProjects,loadFromCloud,readCloudClientProfile,saveToCloud,type CloudProject} from './cloud';
+import {mergeProfiles} from './aspirateMerge';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
 import {newProject,type BarStyle,type ClientProfile} from './storage';
 import {NovaGenVideos} from './NovaGenVideos';
@@ -46,6 +47,9 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  const [truncated,setTruncated]=useState(false);
  const [refresh,setRefresh]=useState(0);
  const [savingClient,setSavingClient]=useState(false),[savedNotice,setSavedNotice]=useState('');
+ /** Nom du client en cours de complétion par l'aspirateur (vide = recherche d'un nouvel établissement). */
+ const [completingName,setCompletingName]=useState('');
+ const [updatingClient,setUpdatingClient]=useState(false);
  const [detailLoading,setDetailLoading]=useState(false),[detailError,setDetailError]=useState('');
  const [detailRetry,setDetailRetry]=useState(0);
  useEffect(()=>{
@@ -88,6 +92,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  },[studio,remote,currentProjectName,currentProfile]);
  const visible=groups.filter(g=>norm([g.name,g.city,g.records.map(r=>r.profile.address+' '+r.profile.city).join(' ')].join(' ')).includes(norm(search)));
  const discovery=useWebDiscovery(search,visible.length===0&&!manualOpen);
+ useEffect(()=>{if(!discovery.candidate&&!discovery.scraping)setCompletingName('');},[discovery.candidate,discovery.scraping]);
  useEffect(()=>setSavedNotice(''),[discovery.candidate]);
  const saveClient=async(profile:ClientProfile,style?:Partial<BarStyle>)=>{
    if(studio.some(p=>norm(p.clientName||p.name)===norm(profile.name))&&!window.confirm('Le client « '+profile.name+' » existe déjà dans votre Cloud. Créer une nouvelle fiche quand même ?'))return false;
@@ -163,6 +168,31 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
       !window.confirm('Tu es dans le projet « '+currentProjectName+' ». Associer les coordonnées de « '+src.name+' » à ce projet ?'))return;
    onAssociate(target);setSelectedKey(key);onClose();
  };
+ /** Lance l'aspirateur (site Internet + NovaGen) pour le client sélectionné : nom, ville et site déjà saisis. */
+ const completeSelected=()=>{
+   if(!selected)return;
+   setCompletingName(selected.name);setSavedNotice('');
+   void discovery.complete({...profile,name:profile.name||selected.name,city:profile.city||selected.city});
+ };
+ /** Met à jour la fiche EXISTANTE (même projet Cloud) : champs vides remplis, rien d'écrasé, aucun doublon. */
+ const updateExisting=async(incoming:ClientProfile)=>{
+   if(!selected)return;
+   if(!selectedCloudProject){
+     setSavedNotice('Cette fiche vient de NovaGen (lecture seule). Utilisez « Ajouter à la visite en cours » ou « Créer une visite virtuelle ».');return;
+   }
+   if(!window.confirm('Compléter la fiche « '+selected.name+' » avec ces informations ? Seuls les champs vides seront remplis : rien de ce qui est déjà saisi n’est écrasé.'))return;
+   setUpdatingClient(true);setSavedNotice('');
+   try{
+     const {project,link}=await loadFromCloud(selectedCloudProject.id,()=>{});
+     if(project.scenes.length)throw Error('Cette fiche appartient à une visite qui contient des panoramas : ouvrez cette visite, puis utilisez Clients › « Aspirer les informations » dans le panneau de la visite.');
+     const {profile:merged,filled}=mergeProfiles(project.clientProfile??cloudClient?.profile??{...blankProfile,name:selected.name},incoming);
+     if(!filled.length){setSavedNotice('Rien à ajouter : la fiche contenait déjà toutes ces informations.');return;}
+     await saveToCloud({...project,clientProfile:merged},link,()=>{});
+     setSavedNotice('✓ Fiche « '+selected.name+' » complétée : '+filled.join(', ')+'.');
+     setCloudClient(null);setRefresh(v=>v+1);discovery.close();
+   }catch(e){setSavedNotice('Mise à jour impossible : '+(e instanceof Error?e.message:String(e)));}
+   finally{setUpdatingClient(false);}
+ };
  const detailRow=(name:string,value:string|undefined,link?:string)=><InfoRow key={name} label={name} value={value} href={link}/>;
  return <div className="nv-directory-overlay" role="presentation" onClick={onClose}>
   <section className="nv-directory-shell" role="dialog" aria-modal="true" aria-label="Répertoire central Clients"
@@ -226,6 +256,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
           onCreateVisit={(profile,propertyName)=>{onCreateVisit(profile,undefined,propertyName);onClose();}}
           onCancel={()=>{setManualOpen(false);setSavedNotice('');}}
         />:discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close} onSaveClient={(p,st)=>void saveClient(p,st)} saving={savingClient} notice={savedNotice}
+          completing={completingName?{name:completingName,busy:updatingClient,onApply:p=>void updateExisting(p)}:undefined}
           onSave={(profile,style)=>{
             if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
             if(norm(currentProjectName)!==norm(profile.name)&&!window.confirm('Tu es dans le projet « '+currentProjectName+' ». Enregistrer les informations de « '+profile.name+' » dans ce projet ?'))return;
@@ -241,6 +272,10 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
             <div><small className="nv-directory-eyebrow">FICHE ÉTABLISSEMENT</small>
               <h3>{selected.name}</h3>
               <p>{selected.city||'Client à compléter'}</p>
+              <button type="button" className="nv-directory-secondary-action nv-directory-complete" disabled={!!discovery.scraping||discovery.loading} onClick={completeSelected}
+                title="Lit le site Internet et NovaGen : photos, horaires, Facebook, Instagram, coordonnées">
+                {discovery.scraping?<LoaderCircle size={15}/>:<Globe size={15}/>} {discovery.scraping?'Aspiration en cours…':'Compléter avec Internet'}</button>
+              {discovery.error&&!discovery.candidate&&<p role="alert" className="nv-discovery-error">{discovery.error}</p>}
               <div className="nv-directory-tags">
                 {selected.records.length>0&&<i>NovaGen</i>}
                 {!!selectedRecord?.videoCount&&<i>{selectedRecord.videoCount} vidéo{selectedRecord.videoCount>1?'s':''}</i>}

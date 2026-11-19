@@ -4192,7 +4192,9 @@ function App(){
   }
   const clientView=<ClientPanel value={project.clientProfile}
     onChange={clientProfile=>setProject(p=>({...p,clientProfile}))}
-    onAddLink={addClientLink} canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}/>;
+    onAddLink={addClientLink} canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
+    onImportPhotos={items=>setProject(p=>({...p,mediaLibrary:[...items,...(p.mediaLibrary??[])].slice(0,300)}))}
+    libraryNames={(project.mediaLibrary??[]).map(item=>item.name)} libraryRoom={Math.max(0,300-(project.mediaLibrary??[]).length)}/>;
   return <div ref={studioRef} className={
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
