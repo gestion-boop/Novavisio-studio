@@ -6051,7 +6051,7 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-inspector-resize{position:absolute;left:-7px;top:0;bottom:0;width:14px;cursor:col-resize;z-index:30;display:grid;place-items:center;touch-action:none}
 .nv-inspector-resize i{width:4px;height:56px;border-radius:4px;background:#5fbad1;opacity:.55;transition:opacity .15s,height .15s}
 .nv-inspector-resize:hover i{opacity:1;height:96px}
-.nv-inspector-sizes{display:flex;gap:4px;padding:6px 10px 0;flex-wrap:wrap}
+.nv-inspector-sizes{display:flex;gap:4px;padding:6px 10px 20px;flex-wrap:wrap;position:relative;z-index:1;flex:none}
 .nv-inspector-sizes button{font:700 11px system-ui;cursor:pointer;border:1px solid #35606f;border-radius:8px;background:#102b37;color:#bfe0e8;padding:4px 9px}
 .nv-inspector-sizes button.is-on{background:#1f8aa8;border-color:#7ad6ee;color:#fff}
 .nv-loupe.is-wide{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(210px,1fr);column-gap:14px;align-items:start}
