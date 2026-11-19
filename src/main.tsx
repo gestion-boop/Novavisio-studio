@@ -3256,7 +3256,8 @@ function App(){
     document.documentElement.dataset.windowAnim=item.openAnimation??project.windowAnimation??'fade';
     if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryOpen(item.id);return;}
-    if(item.type==='photos'){setPhotoGalleryId(item.id);return;}
+    if(item.type==='photos'&&!(item.url&&safeLink(item.url))){setPhotoGalleryId(item.id);return;}
+    if(item.type==='photos'){openLinkInTour(item.title,item.url,item.linkMode);return;}
     if(item.type==='navigation'){
       const dest=item.target && visibleIds.has(item.target)?item.target:visibleScenes[0]?.id;
       if(dest)selectScene(dest);
@@ -5860,7 +5861,7 @@ function App(){
             : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
               <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
               <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
-            :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
+            :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}{selectedBar.type==='photos'&&<small className="hint-inline">Si tu mets un lien ici (par exemple la galerie en ligne …/kamci-galerie/#imperia), ce bouton l’ouvre dans la visite à la place de la galerie de photos.</small>}</label>}
             <InspectorSection title="Icônes : normal, survol, clic">
             {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size}))}
             {libraryPackPicker(selectedBar.iconId,patch=>patchBar(patch))}

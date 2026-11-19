@@ -366,7 +366,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     openWith(item.openAnimation);
     if(item.type==='plan'){setFloorPlanOpen(true);return;}
     if(item.type==='gallery'){setGalleryId(item.id);return;}
-    if(item.type==='photos'){setPhotosId(item.id);return;}
+    if(item.type==='photos'&&!(item.url&&checkedLink(item.url))){setPhotosId(item.id);return;}
     if(item.type==='navigation'){
       move(item.target||project.scenes[0].id);
     }else if(item.url && checkedLink(item.url)){
