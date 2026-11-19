@@ -825,6 +825,8 @@ function App(){
   const [studioFallback,setStudioFallback]=useState(false);
   const [leftHidden,setLeftHidden]=useState(()=>readStudioLayout().leftHidden);
   const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
+  const [autoReturn,setAutoReturnState]=useState(()=>{try{return window.localStorage.getItem('nvstudio-auto-return')!=='0';}catch{return true;}});
+  const setAutoReturn=(v:boolean)=>{setAutoReturnState(v);try{window.localStorage.setItem('nvstudio-auto-return',v?'1':'0');}catch{/* stockage indisponible */}};
   const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw'));return v>=24&&v<=78?v:40;}catch{return 40;}});
   const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(78,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw',String(n));}catch{/* stockage indisponible */}};
   const startInspectorResize=(e:{preventDefault:()=>void})=>{e.preventDefault();const move=(ev:PointerEvent)=>setInspectorWidth((1-ev.clientX/window.innerWidth)*100);const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);};
@@ -2802,12 +2804,28 @@ function App(){
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
     };
-    setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id!==source.id?sc:{
+    // Retour automatique B → A : la flèche est derrière nous à l'arrivée (cap + 180°) et, en revenant, on regarde à
+    // l'opposé de l'aller (cap de départ + 180°). Seulement pour une NOUVELLE flèche, sans retour déjà présent, hors parcours Auto
+    // (qui pose son retour lui-même, avec validation).
+    const twoPi=2*Math.PI;
+    const norm=(v:number)=>((v%twoPi)+twoPi)%twoPi;
+    const makeReturn=autoReturn&&!draft.existingPointId&&!autoNavigation&&!destination.hotspots.some(h=>h.type==='navigation'&&h.target===source.id);
+    const backPoint:Hotspot|null=makeReturn?{
+      id:uid(),type:'navigation',title:'Retour vers '+source.name,text:'',target:source.id,
+      yaw:norm(arrival.yaw+Math.PI),pitch:-0.12,
+      arrivalYaw:norm(draft.sourceYaw+Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(source),arrivalZoomModel:'wide',arrivalCustom:true,
+      ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
+    }:null;
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>{
+      if(backPoint&&sc.id===destination.id)return {...sc,hotspots:[...sc.hotspots,backPoint]};
+      if(sc.id!==source.id)return sc;
+      return {
       ...sc,hotspots:draft.existingPointId?
         sc.hotspots.map(h=>h.id===draft.existingPointId?{
           ...h,target:destination.id,arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,
           arrivalZoom:arrival.zoom,arrivalZoomModel:'wide' as const,arrivalCustom:draftOverride?.arrivalCustom??true
         }:h):[...sc.hotspots,point]
+      };
     })}));
     // Arriver automatiquement au panorama de destination avec l'orientation choisie.
     nextArrivalRef.current={sceneId:destination.id,yaw:arrival.yaw,pitch:arrival.pitch,zoom:arrival.zoom};
@@ -2818,7 +2836,7 @@ function App(){
     setNavigationPickerOpen(false);setClassicDestinationOpen(false);
     setFullscreenGalleryOpen(false);setFullscreenCommandDrawerOpen(false);
     setGalleryPreviewSceneId(null);setGalleryPreviewPinned(false);
-    setStatus('Flèche '+(draft.existingPointId?'mise à jour':'créée')+' vers '+destination.name+(autoNavigation?' · Auto : place la flèche suivante.':' · Enregistre avec la disquette.'));
+    setStatus('Flèche '+(draft.existingPointId?'mise à jour':'créée')+' vers '+destination.name+(backPoint?' · retour créé (vue à 180°)':'')+(autoNavigation?' · Auto : place la flèche suivante.':' · Enregistre avec la disquette.'));
   }
   // ── Parcours guidé ──────────────────────────────────────────────────────────
   // Aller : la flèche part vers le panorama SUIVANT dans l'ordre, on y arrive en regardant dans le même sens (on avance).
@@ -3794,6 +3812,7 @@ function App(){
     return <div className="nv-quick-create">
       <div className="section-title"><span>CRÉATION RAPIDE</span></div>
       <small className="nv-arrival-caption">Choisis une tuile, puis clique dans le panorama : le point se pose et ses réglages s’ouvrent ici.</small>
+      <label className="toggle-row nv-auto-return"><input type="checkbox" checked={autoReturn} onChange={e=>setAutoReturn(e.target.checked)}/> ↩ Créer aussi la flèche retour (arrivée à 180°, à l’opposé de l’aller)</label>
       <div className="nv-hub-tiles nv-quick-tiles">
         {items.map(t=><button type="button" key={t.key} className={'nv-app-tile nv-hub-tile'+(t.on?' is-active':'')} aria-pressed={t.on} style={{'--tile-tone':t.tone} as CSSProperties} onClick={t.run}>
           <span className="nv-app-tile-icon">{t.icon}</span><span className="nv-app-tile-label">{t.label}</span><small className="nv-hub-hint">{t.hint}</small>
@@ -3929,6 +3948,7 @@ function App(){
       id:newId,type:'navigation',title:'Retour vers '+originName,text:'',target:originId,
       yaw:(((h.arrivalYaw??destination.arrivalYaw??0)+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI),
       pitch:-0.12,
+      arrivalYaw:(((h.yaw)+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(active),arrivalZoomModel:'wide',arrivalCustom:true,
       ...(h.iconId?{iconId:h.iconId}:{}),
       ...(h.hoverIconId?{hoverIconId:h.hoverIconId}:{}),
       ...(h.pressedIconId?{pressedIconId:h.pressedIconId}:{}),

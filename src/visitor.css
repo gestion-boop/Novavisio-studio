@@ -198,3 +198,6 @@ html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
   .nv-tour-room-heading strong{font-size:12px}
   .nv-tour-room-heading span{font-size:11px;padding-left:8px}
 }
+
+/* Pages intégrées (galerie en ligne, menu…) : fenêtre beaucoup plus grande */
+.tour-dialog:has(.nv-embedded-page){width:min(98vw,1680px);height:min(97dvh,1100px)}
