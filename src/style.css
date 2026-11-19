@@ -6064,3 +6064,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-volume-field{display:grid;gap:4px;margin:8px 0}.nv-volume-field input{width:100%}
 .nv-harmonize{width:100%;margin:8px 0;font:700 13px system-ui;cursor:pointer;border:1px solid #c79c5a;border-radius:10px;background:linear-gradient(145deg,#6b4a1f,#3a2812);color:#ffe9b8;padding:10px 12px}
 .nv-harmonize:hover{filter:brightness(1.15)}
+
+/* Création rapide : tuiles carrées, l'outil actif est surligné */
+.nv-quick-create{margin:0 0 14px;padding:0 0 12px;border-bottom:1px solid #2c4a57}
+.nv-quick-tiles{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}
+.nv-quick-tiles .nv-hub-tile{aspect-ratio:1/1;min-height:0}
+.nv-quick-tiles .nv-hub-tile.is-active{border-color:#7ad6ee;box-shadow:0 0 0 3px rgba(122,214,238,.28);background:linear-gradient(160deg,#1c5367,#133746)}
+
+/* Mode Auto : le « + » reste exactement au centre de la cible, quel que soit l'état (survol, focus, clic) */
+.nv-auto-crosshair-place,.nv-auto-crosshair-place:hover,.nv-auto-crosshair-place:focus,.nv-auto-crosshair-place:focus-visible{position:absolute!important;left:50%!important;top:50%!important;margin:0!important;transform:translate(-50%,-50%)!important;transition:none!important}
+.nv-auto-crosshair-place:active{transform:translate(-50%,-50%) scale(.92)!important}

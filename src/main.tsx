@@ -65,7 +65,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,ArrowRight,Zap} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -3776,6 +3776,30 @@ function App(){
     return <button type="button" className="nv-apply-all" onClick={applyIconToAll} title="Remplace l'icône de tous les points du même type de la visite">
       ⟳ Remplacer {TYPE_LABELS[selected.type]??'tous les points du même type'} par cette icône <b>({n})</b></button>;
   }
+  /** Création rapide : tout ce qui se pose dans le 360° (et la barre) en tuiles, au même endroit, dans l'ordre d'usage. */
+  function quickCreateTiles(){
+    if(!active||preview)return null;
+    const pick=(tool:'navigation'|'information'|'lien'|'image'|'video')=>{if(autoNavigation)stopAutoNavigation();setMode(current=>current===tool?null:tool);};
+    const items:{key:string;label:string;hint:string;icon:ReactNode;tone:string;on:boolean;run:()=>void}[]=[
+      {key:'bar',label:'Barre',hint:'Boutons du bas',icon:<PanelBottom size={26}/>,tone:'#c79c5a',on:panel==='bar',run:()=>{if(autoNavigation)stopAutoNavigation();setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);}},
+      {key:'information',label:'Information',hint:'Cliquer dans le 360°',icon:<Info size={26}/>,tone:'#3fa7e0',on:mode==='information',run:()=>pick('information')},
+      {key:'navigation',label:'Flèche',hint:'Vers un panorama',icon:<ArrowRight size={26}/>,tone:'#2fbf8f',on:mode==='navigation'&&!autoNavigation,run:()=>pick('navigation')},
+      {key:'auto',label:'Auto',hint:autoNavigation?'Terminer':'Flèches en série',icon:<Zap size={26}/>,tone:'#e0645c',on:autoNavigation,run:toggleAutoNavigation},
+      {key:'icons',label:'Icônes',hint:'Ma bibliothèque',icon:<Smile size={26}/>,tone:'#a77bff',on:panel==='icons',run:()=>{if(autoNavigation)stopAutoNavigation();setPanel('icons');setMode(null);setSelectedId('');setRightHidden(false);}},
+      {key:'lien',label:'Lien web',hint:'Site, réservation…',icon:<Link2 size={26}/>,tone:'#ff8a3d',on:mode==='lien',run:()=>pick('lien')},
+      {key:'image',label:'Photo',hint:'Image dans le 360°',icon:<Camera size={26}/>,tone:'#ff6fa8',on:mode==='image',run:()=>pick('image')},
+      {key:'video',label:'Vidéo',hint:'Écran ou popup',icon:<Play size={26}/>,tone:'#f2c230',on:mode==='video',run:()=>pick('video')},
+    ];
+    return <div className="nv-quick-create">
+      <div className="section-title"><span>CRÉATION RAPIDE</span></div>
+      <small className="nv-arrival-caption">Choisis une tuile, puis clique dans le panorama : le point se pose et ses réglages s’ouvrent ici.</small>
+      <div className="nv-hub-tiles nv-quick-tiles">
+        {items.map(t=><button type="button" key={t.key} className={'nv-app-tile nv-hub-tile'+(t.on?' is-active':'')} aria-pressed={t.on} style={{'--tile-tone':t.tone} as CSSProperties} onClick={t.run}>
+          <span className="nv-app-tile-icon">{t.icon}</span><span className="nv-app-tile-label">{t.label}</span><small className="nv-hub-hint">{t.hint}</small>
+        </button>)}
+      </div>
+    </div>;
+  }
   /** Vue d'arrivée : de simples tuiles-icônes, un toucher = l'action (plus de paragraphes ni de longs boutons). */
   function arrivalTiles(){
     if(!active)return null;
@@ -4785,7 +4809,7 @@ function App(){
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
               <span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/>
               {autoNavigation&&guide?.phase!=='back'&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
-                <button type="button" className="nv-auto-crosshair-place" aria-label="Placer la flèche sur la cible au centre"
+                <button type="button" className="nv-auto-crosshair-place nv-no-fx" aria-label="Placer la flèche sur la cible au centre"
                   title="Placer la flèche ici"
                   onPointerDown={e=>e.stopPropagation()}
                   onClick={e=>{
@@ -5732,10 +5756,10 @@ function App(){
             /* ============================================================== */
             <div className="scene-overview">
               <SectionHub id="scene" open={hubOpen.scene??null} onOpenChange={k=>setHubOpen(h=>({...h,scene:k}))}
-                intro={currentSpace?<div className="nv-action-rectangles" style={{display:'flex',flexDirection:'column',gap:8}}>
+                intro={<>{quickCreateTiles()}{currentSpace?<div className="nv-action-rectangles" style={{display:'flex',flexDirection:'column',gap:8}}>
                   <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}>⬆ Importer plusieurs panoramas 360° (40 Mo chacun)</button>
                   <button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button>
-                </div>:null}
+                </div>:null}</>}
                 sections={[
                   {key:'name',title:'Nom du panorama',hint:active.name,icon:<Pencil size={26}/>,tone:'#4f7cff',content:<>
               <div className="nv-name-row"><label className="nv-name-main">Nom de la scène
