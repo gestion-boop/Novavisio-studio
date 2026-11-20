@@ -513,7 +513,8 @@ export function validateProject(value:unknown):StudioProject {
  * Panoramas larger than 8192 px wide exceed the texture budget of many GPUs/phones and make
  * rotation stutter. Larger images are downscaled once at import; smaller files are kept untouched.
  */
-export const MAX_PANORAMA_WIDTH = 8192;
+// 6144 px suffisent pour un écran 4K et économisent ~45 % de mémoire graphique par panorama (8192 px : 134 Mo décodés, 6144 px : 75 Mo).
+export const MAX_PANORAMA_WIDTH = 6144;
 export async function readPanorama(file:File):Promise<string> {
   try {
     const bitmap = await createImageBitmap(file);
