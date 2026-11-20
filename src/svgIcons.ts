@@ -29,7 +29,9 @@ export const SVG_ICON_PRESETS=[
   {id:'link',name:'Site internet',paths:'<path d="M10 14a5 5 0 0 0 7.2 0l2-2a5 5 0 0 0-7.2-7.2l-2 2M14 10a5 5 0 0 0-7.2 0l-2 2a5 5 0 0 0 7.2 7.2l2-2"/>'},
   {id:'wheelchair',name:'Accessibilité',paths:'<circle cx="10" cy="4.5" r="1.6"/><path d="M10 8v6h5l3 5m-4-10h-4m1 5a7 7 0 1 1-7-4"/>'},
   {id:'music',name:'Musique',paths:'<path d="M10 18V5l10-2v13M10 8l10-2"/><ellipse cx="7.3" cy="18.2" rx="2.7" ry="1.8"/><ellipse cx="17.3" cy="16.2" rx="2.7" ry="1.8"/>'},
-  {id:'home',name:'Accueil',paths:'<path d="m3 10 9-7 9 7v11h-7v-7h-4v7H3Z"/>'}
+  {id:'home',name:'Accueil',paths:'<path d="m3 10 9-7 9 7v11h-7v-7h-4v7H3Z"/>'},
+  {id:'sound-on',name:'Son activé',paths:'<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>'},
+  {id:'sound-off',name:'Son coupé',paths:'<path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6m0-6 6 6"/>'}
 ] as const;
 
 const hex=(value:string,fallback:string)=>/^#[0-9a-f]{6}$/i.test(value)?value:fallback;

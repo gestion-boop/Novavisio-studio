@@ -86,7 +86,7 @@ import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plug
 import {syncMarkers,resetMarkers} from './markerSync';
 import {attachSunFlare} from './sunFlare';
 import {startPosterBounce} from './posterBounce';
-import {SVG_ICON_PRESETS,svgIconPreview,svgIconMarkup,pngFromSvg,recolorIconPng,paletteFromLogo,type SvgIconDesign} from './svgIcons';
+import {pngFromSvg} from './svgIcons';
 import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
@@ -900,14 +900,6 @@ function App(){
   },[]);
   /** Remplace tout le projet (ouverture, nouveau projet…) : l'historique repart de zéro. */
   const resetProject=useCallback((p:StudioProject)=>{histRef.current={past:[],future:[],last:0,ops:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
-  const [svgWorkshopOpen,setSvgWorkshopOpen]=useState(true);
-  const [svgPreset,setSvgPreset]=useState<string>('info');
-  const [svgDesign,setSvgDesign]=useState<SvgIconDesign>({
-    primary:'#146d84',secondary:'#ffffff',accent:'#58dfd0',gradient:true,shape:'circle'
-  });
-  const [svgExistingIcon,setSvgExistingIcon]=useState('');
-  const [svgGenerating,setSvgGenerating]=useState(false);
-  const svgLogoInput=useRef<HTMLInputElement>(null);
   const [ready,setReady]=useState(false);
   const [preparationOpen,setPreparationOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
@@ -3295,177 +3287,21 @@ function App(){
     }
     else if(item.url)openLinkInTour(item.title,item.url,item.linkMode);
   }
-  // Atelier SVG intégré : modèles vectoriels de confiance, convertis en PNG à
-  // l'enregistrement pour rester compatibles avec les projets Cloud existants.
-  async function addGeneratedSvgIcon(){
-    if(svgGenerating)return;
-    if(project.icons.length>=150){setStatus('Bibliothèque pleine (150 icônes maximum). Masque ou retire les icônes inutiles.');return;}
-    setSvgGenerating(true);
+  // Crée les 6 icônes Son (activé / coupé × normal, survol, clic) aux couleurs de la barre et les ajoute à « Mes icônes ».
+  async function addSoundIcons(){
     try{
-      const dataUrl=await pngFromSvg(svgPreset,svgDesign);
-      if(!isSafeIconDataUrl(dataUrl))throw Error('PNG non valide');
-      const chosen=SVG_ICON_PRESETS.find(p=>p.id===svgPreset);
-      const icon:CustomIcon={id:uid(),name:'SVG · '+(chosen?.name??'Icône')+(svgDesign.gradient?' · dégradé':''),dataUrl};
-      setProject(p=>({...p,icons:[...p.icons,icon].slice(0,150)}));
-      setStatus('Icône SVG personnalisée ajoutée à la bibliothèque. Elle est prête à être utilisée dans la visite.');
-    }catch{setStatus('Création de l’icône impossible dans ce navigateur');}
-    finally{setSvgGenerating(false);}
+      const bs=project.barStyle;
+      const base={primary:bs?.button||'#146d84',secondary:bs?.icon||'#ffffff',accent:bs?.buttonOutline||'#58dfd0',gradient:true,shape:'circle' as const};
+      const states=[{k:'Normal',d:base},{k:'Survol',d:{...base,primary:'#b98558',accent:'#e0b07a',secondary:'#ffffff'}},{k:'Clic',d:{...base,primary:'#4a2c15',accent:'#8d5f36',secondary:'#ffffff'}}];
+      const made:{on:CustomIcon[];off:CustomIcon[]}={on:[],off:[]};
+      for(const kind of ['on','off'] as const)for(const st of states)
+        made[kind].push({id:uid(),name:(kind==='on'?'Son activé · ':'Son coupé · ')+st.k,dataUrl:await pngFromSvg(kind==='on'?'sound-on':'sound-off',st.d)});
+      setProject(p=>({...p,icons:[...p.icons,...made.on,...made.off].slice(0,150),
+        soundOnIconId:made.on[0].id,soundOnHoverIconId:made.on[1].id,soundOnPressedIconId:made.on[2].id,
+        soundOffIconId:made.off[0].id,soundOffHoverIconId:made.off[1].id,soundOffPressedIconId:made.off[2].id}));
+      setStatus('Icônes Son ajoutées à « Mes icônes » et appliquées (activé et coupé, avec survol et clic). Enregistre avec la disquette.');
+    }catch{setStatus('Impossible de créer les icônes Son');}
   }
-  // Trois PNG independants : normal, survol et pressé, exploitables dans les champs existants.
-  async function addIconStates(){
-    if(svgGenerating)return;
-    if(project.icons.length>147){setStatus('Il faut trois emplacements libres dans la bibliothèque.');return;}
-    setSvgGenerating(true);
-    try{
-      const brighten=(color:string,scale:number)=>{
-        const channels=[1,3,5].map(i=>parseInt(color.slice(i,i+2),16));
-        return '#'+channels.map(n=>Math.round(scale>0?n+(255-n)*scale:n*(1+scale)).toString(16).padStart(2,'0')).join('');
-      };
-      const variants=[
-        {label:'Normal',design:svgDesign},
-        {label:'Survol',design:{...svgDesign,primary:brighten(svgDesign.primary,.22),accent:brighten(svgDesign.accent,.16)}},
-        {label:'Pressé',design:{...svgDesign,primary:brighten(svgDesign.primary,-.18),accent:brighten(svgDesign.accent,-.24)}}
-      ];
-      const data=await Promise.all(variants.map(v=>pngFromSvg(svgPreset,v.design)));
-      if(data.some(item=>!isSafeIconDataUrl(item)))throw Error('Icônes invalides');
-      const name=SVG_ICON_PRESETS.find(p=>p.id===svgPreset)?.name??'Icône';
-      const icons:CustomIcon[]=data.map((dataUrl,i)=>({id:uid(),name:name+' · '+variants[i].label,dataUrl}));
-      setProject(p=>({
-        ...p,icons:[...p.icons,...icons],
-        scenes:p.scenes.map(scene=>scene.id===activeId?{...scene,hotspots:scene.hotspots.map(h=>h.id===selectedId?
-          {...h,iconId:icons[0].id,hoverIconId:icons[1].id,pressedIconId:icons[2].id}:h)}:scene),
-        bottomBar:p.bottomBar.map(item=>item.id===selectedBarId?
-          {...item,iconId:icons[0].id,hoverIconId:icons[1].id,pressedIconId:icons[2].id}:item)
-      }));
-      setSvgExistingIcon(icons[0].id);
-      setStatus('Les états Normal, Survol et Pressé sont créés'+(selectedId||selectedBarId?' et attribués au bouton sélectionné.':'.')+' Enregistre avec la disquette.');
-    }catch{setStatus('Impossible de créer les trois états.');}
-    finally{setSvgGenerating(false);}
-  }
-  function applyLogoPalette(colors:{primary:string;accent:string}){
-    setSvgDesign(d=>({...d,...colors,secondary:'#ffffff'}));
-    // Associe la charte à la barre sans modifier les images originales.
-    changeBarStyle({button:colors.primary,buttonOutline:colors.accent,outline:colors.accent,icon:'#ffffff'});
-  }
-  async function recolorExistingSvgIcon(replaceEverywhere=false){
-    const icon=project.icons.find(item=>item.id===svgExistingIcon);
-    if(!icon){setStatus('Choisis une icône dans la bibliothèque.');return;}
-    if(!replaceEverywhere&&project.icons.length>=150){setStatus('Bibliothèque pleine (150 icônes).');return;}
-    if(replaceEverywhere&&!window.confirm('Remplacer les couleurs de cette icône partout dans la visite ? Les utilisations de cette icône seront modifiées.'))return;
-    setSvgGenerating(true);
-    try{
-      const dataUrl=await recolorIconPng(icon.dataUrl,svgDesign);
-      if(!isSafeIconDataUrl(dataUrl))throw Error('PNG non valide');
-      if(replaceEverywhere){
-        setProject(p=>({...p,icons:p.icons.map(existing=>existing.id===icon.id?{...existing,dataUrl}:existing)}));
-      }else{
-        const variant:CustomIcon={id:uid(),name:(icon.name+' · couleur').slice(0,150),dataUrl};
-        setProject(p=>({...p,icons:[...p.icons,variant].slice(0,150)}));
-        setSvgExistingIcon(variant.id);
-      }
-      setStatus(replaceEverywhere?'Couleurs mises à jour partout · Enregistre avec la disquette.':'Variante recolorée créée sans modifier l’original.');
-    }catch{setStatus('Impossible de recolorer cette icône.');}
-    finally{setSvgGenerating(false);}
-  }
-  function downloadSvgSource(){
-    const name=SVG_ICON_PRESETS.find(p=>p.id===svgPreset)?.name??'NovaVisio';
-    const svg=svgIconMarkup(svgPreset,svgDesign);
-    const href=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
-    const element=document.createElement('a');
-    element.href=href;element.download='novavisio-'+svgPreset+'.svg';
-    document.body.appendChild(element);element.click();element.remove();
-    window.setTimeout(()=>URL.revokeObjectURL(href),1000);
-    setStatus('Fichier SVG vectoriel téléchargé : '+name);
-  }
-  async function applyColorsFromClientLogo(){
-    const logo=project.clientProfile?.logoUrl?.trim();
-    if(!logo){svgLogoInput.current?.click();return;}
-    setSvgGenerating(true);
-    try{
-      const colors=await paletteFromLogo(logo);
-      applyLogoPalette(colors);
-      setStatus('Couleurs détectées dans le logo associé au client.');
-    }catch{
-      setStatus('Logo distant inaccessible : utilise « Choisir un fichier logo » pour appliquer ses couleurs.');
-    }finally{setSvgGenerating(false);}
-  }
-  async function applyColorsFromLogoFile(file?:File){
-    if(!file)return;
-    if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>5_000_000){
-      setStatus('Logo : PNG, JPG ou WebP, 5 Mo maximum.');return;
-    }
-    setSvgGenerating(true);
-    try{
-      const colors=await paletteFromLogo(await readImage(file));
-      applyLogoPalette(colors);
-      setStatus('Palette extraite du logo : tu peux maintenant générer tes icônes ou ajuster le dégradé.');
-    }catch{setStatus('Impossible d’extraire les couleurs du logo. Essaie un PNG ou JPG.');}
-    finally{setSvgGenerating(false);}
-  }
-  function svgIconWorkshop(){
-    const preset=SVG_ICON_PRESETS.find(p=>p.id===svgPreset);
-    return <div className="nv-svg-workshop">
-      <button type="button" className="nv-svg-workshop-toggle" aria-expanded={svgWorkshopOpen}
-        onClick={()=>setSvgWorkshopOpen(open=>!open)}>
-        <span>✦ Banque SVG · Couleurs personnalisées</span><ChevronDown size={16} className={svgWorkshopOpen?'is-open':''}/>
-      </button>
-      {svgWorkshopOpen&&<div className="nv-svg-workshop-inner">
-        <p className="nv-svg-intro">Crée des pictogrammes pour Informations, Navigation, Horaires, Services… Modifie leurs couleurs avant de les ajouter à la visite.</p>
-        <div className="nv-svg-presets" role="group" aria-label="Modèles SVG">
-          {SVG_ICON_PRESETS.map(icon=><button key={icon.id} type="button"
-            className={'nv-svg-preset'+(svgPreset===icon.id?' is-selected':'')}
-            aria-pressed={svgPreset===icon.id} title={icon.name}
-            onClick={()=>setSvgPreset(icon.id)}>
-            <img src={svgIconPreview(icon.id,svgDesign)} alt=""/>
-            <span>{icon.name}</span>
-          </button>)}
-        </div>
-        <div className="nv-svg-preview-panel">
-          <img src={svgIconPreview(svgPreset,svgDesign)} alt={'Aperçu SVG '+(preset?.name??'')} />
-          <div><strong>{preset?.name??'Informations'}</strong><small>Aperçu de l'icône en temps réel</small></div>
-        </div>
-        <div className="nv-svg-colors">
-          <label>Fond <input type="color" value={svgDesign.primary} onChange={e=>setSvgDesign(d=>({...d,primary:e.target.value}))}/></label>
-          <label>Symbole <input type="color" value={svgDesign.secondary} onChange={e=>setSvgDesign(d=>({...d,secondary:e.target.value}))}/></label>
-          <label>2ᵉ couleur <input type="color" value={svgDesign.accent} onChange={e=>setSvgDesign(d=>({...d,accent:e.target.value}))}/></label>
-        </div>
-        <div className="nv-svg-options">
-          <label><input type="checkbox" checked={svgDesign.gradient} onChange={e=>setSvgDesign(d=>({...d,gradient:e.target.checked}))}/> Dégradé</label>
-          <label>Forme
-            <select value={svgDesign.shape} onChange={e=>setSvgDesign(d=>({...d,shape:e.target.value as SvgIconDesign['shape']}))}>
-              <option value="circle">Ronde</option><option value="rounded">Carrée arrondie</option>
-            </select>
-          </label>
-        </div>
-        <div className="nv-svg-logo-actions">
-          <button type="button" disabled={svgGenerating} onClick={()=>void applyColorsFromClientLogo()}>🎨 Charte logo · Icônes et boutons</button>
-          <button type="button" disabled={svgGenerating} onClick={()=>svgLogoInput.current?.click()}>Choisir un fichier logo</button>
-        </div>
-        <div className="nv-svg-create-actions">
-          <button type="button" className="nv-svg-create" disabled={svgGenerating||project.icons.length>=150}
-            onClick={()=>void addGeneratedSvgIcon()}>＋ Ajouter à mes icônes</button>
-          <button type="button" className="nv-svg-create" disabled={svgGenerating||project.icons.length>147} onClick={()=>void addIconStates()}>＋ Créer Normal / Survol / Pressé</button>
-          <button type="button" onClick={downloadSvgSource}>↓ Télécharger SVG</button>
-        </div>
-        {project.icons.length>0&&<div className="nv-svg-recolor">
-          <strong>Recolorer une icône déjà importée</strong>
-          <select value={svgExistingIcon} onChange={e=>setSvgExistingIcon(e.target.value)}>
-            <option value="">Choisir une icône…</option>
-            {[...project.icons].sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})).map(icon=><option key={icon.id} value={icon.id}>{icon.name}</option>)}
-          </select>
-          <div className="nv-svg-create-actions">
-            <button type="button" disabled={!svgExistingIcon||svgGenerating||project.icons.length>=150}
-              onClick={()=>void recolorExistingSvgIcon(false)}>Créer une variante</button>
-            <button type="button" disabled={!svgExistingIcon||svgGenerating}
-              onClick={()=>void recolorExistingSvgIcon(true)}>Appliquer partout</button>
-          </div>
-          <small>« Variante » conserve l'original ; « Partout » modifie les utilisations de cette icône. Les icônes importées avec un fond opaque seront colorisées entièrement.</small>
-        </div>}
-        <small className="hint-inline">Les modèles sont des SVG vectoriels. Dans le projet, ils sont enregistrés en PNG haute définition pour conserver la compatibilité des exports et du Cloud.</small>
-      </div>}
-    </div>;
-  }
-
   async function addIconFiles(list:FileList|null){
     if(!list?.length)return;
     const incoming:CustomIcon[]=[];
@@ -6009,7 +5845,6 @@ function App(){
             </button>)}</div>
             {!active.hotspots.length&&<p className="hint">Pas encore d’élément dans cette scène.</p>}
           </>}
-          {svgIconWorkshop()}
           <div className="section-title">ICÔNES DISPONIBLES</div>
           <div className="elements-icon-grid">
             {project.icons.filter(icon=>!(project.hiddenAvailableIcons??[]).includes(icon.id)).map(icon=><div className="nv-element-icon-wrap" key={icon.id}><button type="button" draggable
@@ -6253,6 +6088,7 @@ function App(){
         {panel==='music' && <div className="properties">
           <InspectorSection title="Boutons son de la visite">
           <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
+          <button type="button" className="style-reset" onClick={()=>void addSoundIcons()}>＋ Ajouter les icônes Son à mes icônes (aux couleurs de la barre)</button>
           <div className="section-title">SON ACTIVÉ — 3 ICÔNES</div>
           <ExistingIconPackPicker project={project}
             value={{iconId:project.soundOnIconId,hoverIconId:project.soundOnHoverIconId,pressedIconId:project.soundOnPressedIconId}}
@@ -6364,10 +6200,6 @@ function App(){
             </details>
             <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
           </InspectorSection>
-          <details className="nv-icons-advanced">
-            <summary>Autres réglages : créateur d’icônes</summary>
-            {svgIconWorkshop()}
-          </details>
         </div>}
       </aside>
     </div>
@@ -6453,8 +6285,6 @@ function App(){
     <input ref={stateIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void importStateIcon(e.target.files?.[0])}/>
     <input ref={projectInput} hidden type="file" accept=".json,.nvstudio.json,application/json" onChange={e=>void openProject(e.target.files?.[0])}/>
     <input ref={iconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={e=>void addIconFiles(e.target.files)}/>
-    <input ref={svgLogoInput} hidden type="file" accept="image/png,image/jpeg,image/webp"
-      onChange={e=>{const file=e.target.files?.[0];void applyColorsFromLogoFile(file);e.target.value='';}}/>
     <input ref={replaceIconInput} hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={e=>void replaceIconEverywhere(e.target.files?.[0])}/>
     <input ref={videoInput} hidden type="file" accept="video/mp4,video/webm" onChange={e=>void addVideo(e.target.files?.[0])}/>
     <input ref={nightInput} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void importNightPanorama(e.target.files?.[0])}/>
