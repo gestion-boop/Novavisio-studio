@@ -6074,3 +6074,7 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 /* Mode Auto : le « + » reste exactement au centre de la cible, quel que soit l'état (survol, focus, clic) */
 .nv-auto-crosshair-place,.nv-auto-crosshair-place:hover,.nv-auto-crosshair-place:focus,.nv-auto-crosshair-place:focus-visible{position:absolute!important;left:50%!important;top:50%!important;margin:0!important;transform:translate(-50%,-50%)!important;transition:none!important}
 .nv-auto-crosshair-place:active{transform:translate(-50%,-50%) scale(.92)!important}
+.nv-close-colors{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.nv-close-colors>button:not(.quiet){width:34px;height:34px;border-radius:50%;border:2px solid #fff3;cursor:pointer}
+.nv-close-colors>button.is-on{border-color:#fff;box-shadow:0 0 0 3px #7ad6ee66}
+.nv-close-colors input[type=color]{width:38px;height:34px;padding:0;border:1px solid #fff3;border-radius:8px;background:none}

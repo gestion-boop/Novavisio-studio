@@ -33,3 +33,14 @@
 .nv-zoom-wrap[data-win-anim="rise"],.nv-video-dialog[data-win-anim="rise"]{animation:nv-win-rise var(--nv-win-dur,700ms) cubic-bezier(.2,.85,.2,1) both}
 .nv-zoom-wrap[data-win-anim="soft"],.nv-video-dialog[data-win-anim="soft"]{animation:nv-win-soft calc(var(--nv-win-dur,700ms)*1.1) ease-out both}
 @media (prefers-reduced-motion:reduce){:root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal),:root[data-window-anim] :is(.tour-dialog,.nv-photo-gallery,.nv-gallery,.nv-plan-dialog,.nv-zoom-wrap,.nv-video-dialog,.info-in-view .modal)>*,.nv-zoom-wrap[data-win-anim],.nv-video-dialog[data-win-anim]{animation:none!important}}
+
+/* Croix de fermeture : une seule couleur pour tout le projet (réglage « Couleur des croix »). Le survol éclaircit la même couleur. */
+:root[data-close-color]:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.tour-dialog header button,.info-in-view .modal>.close,.embed-shell .embed-actions button,.nv-photo-gallery .nv-gallery-close){
+  background:var(--nv-close-bg)!important;background-color:var(--nv-close-bg)!important;border-color:var(--nv-close-border)!important;color:var(--nv-close-ink)!important;
+  box-shadow:0 4px 14px rgba(0,0,0,.45);transition:background .18s ease,transform .18s ease,box-shadow .18s ease!important;filter:none!important}
+:root[data-close-color]:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.tour-dialog header button,.info-in-view .modal>.close,.embed-shell .embed-actions button):hover{
+  background:var(--nv-close-hover)!important;background-color:var(--nv-close-hover)!important;border-color:var(--nv-close-border)!important;transform:scale(1.08);box-shadow:0 6px 20px var(--nv-close-bg)}
+:root[data-close-color]:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.tour-dialog header button,.info-in-view .modal>.close,.embed-shell .embed-actions button):active{transform:scale(.95)}
+/* Sans couleur de croix choisie : le survol garde la couleur des boutons de la barre (au lieu du bleu NovaVisio global). */
+:root:not([data-close-color]):not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.tour-dialog header button,.info-in-view .modal>.close,.embed-shell .embed-actions button):not(.nv-custom-close *):hover{
+  background-color:var(--nv-button-bg,#4f202c)!important;border-color:var(--nv-button-outline,#d2b5af)!important;filter:brightness(1.22)}

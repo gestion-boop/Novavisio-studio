@@ -94,6 +94,7 @@ import {refusesEmbedding,getFloorPlans,loadProject,newProject,readImage,readPano
 import './style.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
+import {applyCloseColor} from './closeColor';
 initWindowAnimOrigin();
 import './media.css';
 import {XMark} from './XMark';
@@ -3259,6 +3260,7 @@ function App(){
   const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   const [windowDemo,setWindowDemo]=useState(false);
+  useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor);},[project.closeButtonColor,project.closeIconId]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
   useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -6039,6 +6041,16 @@ function App(){
                 {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
             </label>
+          </InspectorSection>
+          <InspectorSection title="Croix de fermeture (toutes les fenêtres)" initiallyOpen>
+            <p className="hint">Une seule couleur pour les croix des photos, vidéos, informations, galeries et pages intégrées de tout le projet. Au survol, la croix s’éclaircit.</p>
+            <div className="nv-close-colors">
+              {([['Jaune','#f5b324'],['Blanc','#ffffff'],['Orange','#e18533'],['Rouge','#d93b3b'],['Bleu','#2f9fd8'],['Noir','#1c1c1c']] as const).map(([name,c])=>
+                <button type="button" key={c} className={project.closeButtonColor?.toLowerCase()===c?'is-on':''} title={name} aria-label={'Croix '+name} style={{background:c}} onClick={()=>setProject(p=>({...p,closeButtonColor:c}))}/>)}
+              <input type="color" aria-label="Autre couleur" value={project.closeButtonColor??'#f5b324'} onChange={e=>setProject(p=>({...p,closeButtonColor:e.target.value}))}/>
+              <button type="button" className="quiet" disabled={!project.closeButtonColor} onClick={()=>setProject(p=>({...p,closeButtonColor:undefined}))}>Couleur de la barre</button>
+            </div>
+            {project.closeIconId&&<small className="hint-inline">Une icône de fermeture personnalisée est active : elle remplace cette couleur.</small>}
           </InspectorSection>
           <InspectorSection title="Visite immersive 360° et VR (facultatif)" initiallyOpen>
             <label>Hauteur du regard dans le casque : {Math.round((project.vrEyeOffset??0)*100)} cm<input type="range" min={-100} max={50} step={5} value={Math.round((project.vrEyeOffset??0)*100)} onChange={e=>setProject(p=>({...p,vrEyeOffset:Number(e.target.value)/100}))}/></label>
