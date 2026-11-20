@@ -1,3 +1,4 @@
+import './publicationState.css';
 import {confirmAsk} from './confirmDialog';
 import {useEffect,useState} from 'react';
 import {overlayClose} from './overlayClose';
@@ -5,6 +6,7 @@ import {cloudConfigured,supabase,signOut,listCloudProjects,listOwnedProjectRecip
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 import {XMark} from './XMark';
+import {checkMigrations,migrationSql,type MigrationItem} from './migrationCheck';
 
 type Props={
   project:StudioProject;
@@ -30,6 +32,8 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
   const [spaces,setSpaces]=useState<CloudSpace[]>([]);
   const [spaceMenu,setSpaceMenu]=useState<string|null>(null);
   const [toDelete,setToDelete]=useState<CloudProject|null>(null);
+  const [migrations,setMigrations]=useState<MigrationItem[]|null>(null);
+  const [copiedSql,setCopiedSql]=useState('');
   const [deleteWord,setDeleteWord]=useState('');
 
   async function refresh(){
@@ -87,6 +91,11 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
       await refresh();
     });
   };
+  const verifyInstall=()=>run('Vérification de l’installation Supabase…',async()=>{setMigrations(await checkMigrations());});
+  const copySql=async(file:string)=>{
+    try{await navigator.clipboard.writeText(await migrationSql(file));setCopiedSql(file);setTimeout(()=>setCopiedSql(''),2500);}
+    catch(e){setError('Copie impossible : '+(e instanceof Error?e.message:String(e)));}
+  };
   const showHistory=(item:CloudProject)=>run('Chargement des sauvegardes…',async()=>{
     if(historyFor===item.id){setHistoryFor(null);setRevisions([]);return;}
     setRevisions(await listCloudRevisions(item.id));setHistoryFor(item.id);
@@ -111,6 +120,16 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
     </>:!userEmail?<LoginBox intro="Connecte-toi pour sauvegarder tes visites dans Supabase, ou pour ouvrir une visite à laquelle on t’a invité."/>
     :<>
       <p className="nv-cloud-account">Connecté : <b>{userEmail}</b> · <button className="quiet" onClick={()=>void signOut()}>Se déconnecter</button></p>
+      <details className="nv-install-check" onToggle={e=>{if((e.currentTarget as HTMLDetailsElement).open&&!migrations)void verifyInstall();}}>
+        <summary>🛠 Installation Supabase{migrations?(migrations.some(m=>m.state==='missing')?' · ⚠ '+migrations.filter(m=>m.state==='missing').length+' à installer':' · ✓ complète'):''}</summary>
+        <p className="hint-inline">Vérifie que toutes les mises à jour de la base sont installées. Pour une mise à jour manquante : copie son SQL, ouvre l’éditeur SQL de ton projet Supabase, colle, puis exécute.</p>
+        <button type="button" className="quiet" disabled={!!busy} onClick={()=>void verifyInstall()}>↻ Revérifier</button>
+        {migrations&&<ul className="nv-install-list">{migrations.map(m=><li key={m.file} className={'is-'+m.state}>
+          <span className="nv-install-dot">{m.state==='ok'?'✓':m.state==='missing'?'⚠':'?'}</span>
+          <span><b>{m.title}</b><small>{m.state==='missing'?'À installer — '+m.why:m.state==='unknown'?'Vérification impossible : '+(m.detail??''):'Installée'}</small></span>
+          {m.state==='missing'&&<button type="button" className="quiet" onClick={()=>void copySql(m.file)}>{copiedSql===m.file?'Copié ✓':'Copier le SQL'}</button>}
+        </li>)}</ul>}
+      </details>
       {manualMode?
         <p className="hint-inline nv-cloud-hint">Ouvre une visite, travaille, puis sauvegarde avec la <b>disquette Enregistrer</b>.</p>:
         <label className="toggle-row cloud-auto"><input type="checkbox" checked={autoEnabled} onChange={e=>onAutoChange(e.target.checked)}/> <span><b>Sauvegarde instantanée dans Supabase</b><small>{autoLabel}</small></span></label>}
