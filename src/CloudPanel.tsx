@@ -1,6 +1,6 @@
 import {useEffect,useState} from 'react';
 import {overlayClose} from './overlayClose';
-import {cloudConfigured,supabase,signOut,listCloudProjects,listOwnedProjectRecipients,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
+import {cloudConfigured,supabase,signOut,listCloudProjects,listOwnedProjectRecipients,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,deleteCloudProject,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
 import {XMark} from './XMark';
@@ -28,6 +28,8 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
   const [link,setLink]=useState<CloudLink|null>(readLink());
   const [spaces,setSpaces]=useState<CloudSpace[]>([]);
   const [spaceMenu,setSpaceMenu]=useState<string|null>(null);
+  const [toDelete,setToDelete]=useState<CloudProject|null>(null);
+  const [deleteWord,setDeleteWord]=useState('');
 
   async function refresh(){
     try{
@@ -73,6 +75,17 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
     onClose();
   });
 
+  const confirmDelete=()=>{
+    const item=toDelete;
+    if(!item||deleteWord.trim().toLowerCase()!=='supprimer')return;
+    void run('Suppression de « '+item.name+' »…',async()=>{
+      await deleteCloudProject(item.id);
+      if(readLink()?.projectId===item.id){writeLink(null);setLink(null);}
+      setToDelete(null);setDeleteWord('');
+      onStatus('Visite « '+item.name+' » supprimée du cloud');
+      await refresh();
+    });
+  };
   const showHistory=(item:CloudProject)=>run('Chargement des sauvegardes…',async()=>{
     if(historyFor===item.id){setHistoryFor(null);setRevisions([]);return;}
     setRevisions(await listCloudRevisions(item.id));setHistoryFor(item.id);
@@ -117,6 +130,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
         <div className="nv-cloud-recovery-actions">
           <button className="quiet" disabled={!!busy||(!item.revision&&!item.autosave)} onClick={()=>void open(item)}>Ouvrir</button>
           {item.revision>0&&<button className="quiet" disabled={!!busy} onClick={()=>void showHistory(item)}>{historyFor===item.id?'Masquer':'Sauvegardes'}</button>}
+          {!item.shared&&<button type="button" className="quiet nv-cloud-delete" disabled={!!busy} title={'Supprimer « '+item.name+' » du cloud'} aria-label={'Supprimer '+item.name} onClick={()=>{setDeleteWord('');setToDelete(item);}}>✕</button>}
         </div>
         {spaces.filter(sp=>sp.project_id===item.id).length>0&&<div className="nv-cloud-spaces">
           {spaces.filter(sp=>sp.project_id===item.id).map(sp=>{
@@ -140,6 +154,19 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
         </div>}
       </li>)}</ul></div>
     </>}
+    {toDelete&&<div className="overlay nv-cloud-delete-overlay" onClick={e=>{e.stopPropagation();}}>
+      <section className="modal nv-cloud-delete-dialog" role="alertdialog" aria-modal="true" aria-label="Supprimer la visite" onClick={e=>e.stopPropagation()}>
+        <h2>Supprimer « {toDelete.name} » ?</h2>
+        <p>La visite et toutes ses sauvegardes seront <b>définitivement supprimées du cloud</b>. Cette action est irréversible.</p>
+        <label>Tape <b>supprimer</b> pour confirmer
+          <input value={deleteWord} onChange={e=>setDeleteWord(e.target.value)} autoComplete="off" autoFocus placeholder="supprimer"
+            onKeyDown={e=>{if(e.key==='Enter')confirmDelete();if(e.key==='Escape'){setToDelete(null);}}}/></label>
+        <div className="nv-banner-actions">
+          <button type="button" className="quiet" onClick={()=>{setToDelete(null);setDeleteWord('');}}>Annuler</button>
+          <button type="button" className="nv-cloud-delete-go" disabled={!!busy||deleteWord.trim().toLowerCase()!=='supprimer'} onClick={confirmDelete}>Supprimer définitivement</button>
+        </div>
+      </section>
+    </div>}
     {busy&&<p className="status-adding">{busy}</p>}
     {error&&<p className="warning">{error}</p>}
   </div></div>;
