@@ -23,7 +23,7 @@ const PLACEHOLDER:Record<MediaKind,string>={
 const isRef=(v?:string):v is string=>typeof v==='string'&&v.startsWith(MEDIA_PREFIX);
 
 function sceneRefs(scene:StudioProject['scenes'][number]):string[]{
-  const refs=[scene.dataUrl,scene.audioDataUrl,...scene.hotspots.flatMap(h=>[h.imageDataUrl,h.videoDataUrl])];
+  const refs=[scene.dataUrl,scene.nightDataUrl,scene.audioDataUrl,...scene.hotspots.flatMap(h=>[h.imageDataUrl,h.videoDataUrl])];
   return [...new Set(refs.filter(isRef))];
 }
 /** Hydratation progressive : le panorama est visible dès qu'il est chargé, sans attendre les médias secondaires. */
@@ -38,6 +38,8 @@ function hydrate(snapshot:StudioProject,loaded:Map<string,string>):StudioProject
   p.scenes.forEach(scene=>{
     // A 360° scene no longer waits for big framed images, videos or audio.
     scene.dataUrl=swap(scene.dataUrl)??'';
+    // Photo de nuit : sans ce téléchargement, le bouton Nuit affichait « The panorama cannot be loaded » (référence non résolue).
+    scene.nightDataUrl=swap(scene.nightDataUrl);
     scene.audioDataUrl=swap(scene.audioDataUrl);
     scene.hotspots.forEach(h=>{h.imageDataUrl=swap(h.imageDataUrl);h.videoDataUrl=swap(h.videoDataUrl);});
   });
