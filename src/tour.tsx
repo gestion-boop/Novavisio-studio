@@ -231,7 +231,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const prefs=useVisitorPrefs();
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [floorPlanOpen,setFloorPlanOpen]=useState(false);
-  const [modal,setModal]=useState<{title:string;url?:string;text?:string;fontFamily?:string}|null>(null);
+  const [modal,setModal]=useState<{title:string;url?:string;text?:string;fontFamily?:string;full?:boolean}|null>(null);
   const [photo,setPhoto]=useState<Hotspot|null>(null);
   const [zoomFrom,setZoomFrom]=useState<ZoomOrigin|null>(null);
   const [galleryId,setGalleryId]=useState<string|null>(null);
@@ -372,14 +372,14 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const move=(id:string,via?:Hotspot)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);
     setArrival(via&&via.arrivalCustom&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:panoramaArrivalZoom(via)}:null);
     setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
-  const openLink=(title:string,url:string,mode?:'embed'|'tab')=>{
+  const openLink=(title:string,url:string,mode?:'embed'|'tab',full?:boolean)=>{
     const checked=checkedLink(url);
     if(!checked)return;
     if((mode==='tab'||refusesEmbedding(checked))&&/^https?:/.test(checked)){window.open(checked,'_blank','noopener,noreferrer');return;}
     if(/^https?:\/\//.test(checked)){
       const parsed=new URL(checked);
       if(parsed.hostname.endsWith('.vercel.app')){parsed.searchParams.set('langs',activeLanguages.join(','));parsed.searchParams.set('lang',lang);}
-      setModal({title,url:parsed.toString()});
+      setModal({title,url:parsed.toString(),...(full?{full:true}:{})});
     }
     else window.location.href=checked;
   };
@@ -394,9 +394,9 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     if(item.type==='navigation'){
       move(item.target||project.scenes[0].id);
     }else if(item.url && checkedLink(item.url)){
-      openLink(item.title,item.url,item.linkMode);
+      openLink(item.title,item.url,item.linkMode,item.type==='information');
     }else if(item.type==='information'){
-      setModal({title:pick(item.title,item.titleTranslations,lang),text:lang==='fr'?item.text:(item.translations?.[lang]||item.text),fontFamily:item.fontFamily});
+      setModal({title:pick(item.title,item.titleTranslations,lang),text:lang==='fr'?item.text:(item.translations?.[lang]||item.text),fontFamily:item.fontFamily,full:true});
     }
   };
   const enterVr=async()=>{
@@ -487,7 +487,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     <ContinuousMusic project={project} scene={(vrSceneId&&project.scenes.find(x=>x.id===vrSceneId))||current} paused={showIntro||!firstPanoramaReady||(!!video&&video.videoMasterSound!==false)} showToggle={false}/>
     {video&&<VideoPopup hotspot={video} animation={video.openAnimation??project.windowAnimation} origin={zoomFrom} onClose={()=>setVideo(null)}/>}
     {modal&&<div className="tour-overlay" {...overlayClose(()=>setModal(null))}>
-      <section className="tour-dialog" onClick={e=>e.stopPropagation()} aria-label={modal.title}>
+      <section className={'tour-dialog'+(modal.full?' is-full':'')} onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label={ui('close',lang)} onClick={()=>setModal(null)}><X/></button></header>
         {modal.url?<EmbeddedPage url={modal.url} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||ui('noInfo',lang)}</p>}
 

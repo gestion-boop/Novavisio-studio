@@ -6111,3 +6111,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 /* Le « Retour » de la colonne de droite est déjà en haut à gauche : pas de second bouton dans les rubriques */
 .right.panel .nv-hub-detail-head .nv-hub-back{display:none}
 .right.panel .nv-hub-detail-head{padding-left:2px}
+
+/* Bouton « Informations » de la barre du bas : affichage en plein écran, croix en haut à droite */
+.embed-overlay:has(.embed-shell.is-full){padding:0}
+.embed-shell.is-full{width:100%;height:100%;max-width:none;max-height:none;border-radius:0;border:0}
+.info-in-view.is-full{padding:0}
+.info-in-view.is-full .modal{width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0;overflow:auto}

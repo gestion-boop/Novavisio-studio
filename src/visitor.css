@@ -201,3 +201,7 @@ html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
 
 /* Pages intégrées (galerie en ligne, menu…) : fenêtre beaucoup plus grande */
 .tour-dialog:has(.nv-embedded-page){width:min(98vw,1680px);height:min(97dvh,1100px)}
+
+/* Bouton « Informations » de la barre du bas : plein écran, croix en haut à droite */
+.tour-overlay:has(.tour-dialog.is-full){padding:0}
+.tour-dialog.is-full,.tour-dialog.is-full:has(.nv-embedded-page){width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0;border:0}

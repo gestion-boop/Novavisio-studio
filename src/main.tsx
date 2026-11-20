@@ -102,7 +102,7 @@ import {XMark} from './XMark';
 
 type EditMode = Hotspot['type'] | null;
 type PanelTab = 'tool' | 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
-type EmbedFrame = { title:string; url:string };
+type EmbedFrame = { title:string; url:string; full?:boolean };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
   return {...project,scenes:project.scenes.map(s=>({...s,hotspots:s.hotspots.map(h=>
@@ -2568,7 +2568,7 @@ function App(){
   function changeBarStyle(update:Partial<BarStyle>) {
     setProject(p=>({...p,barStyle:{...p.barStyle,...update}}));
   }
-  function openLinkInTour(title:string,raw:string,mode?:'embed'|'tab') {
+  function openLinkInTour(title:string,raw:string,mode?:'embed'|'tab',full?:boolean) {
     const link=safeLink(raw);
     if (!link) {setStatus('Lien invalide : utilise https://, tel: ou mailto:');return;}
     setInfo(null);
@@ -2587,7 +2587,7 @@ function App(){
           url=parsed.toString();
         }
       }catch{/* Conserver le lien original si l'URL ne peut pas être analysée. */}
-      setFrame({title,url});
+      setFrame({title,url,...(full?{full:true}:{})});
     }else launchLink(link);
   }
   async function exportTour(){
@@ -3290,7 +3290,7 @@ function App(){
       const dest=item.target && visibleIds.has(item.target)?item.target:visibleScenes[0]?.id;
       if(dest)selectScene(dest);
     }else if(item.type==='information') {
-      if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url,item.linkMode);
+      if (item.url && safeLink(item.url)) openLinkInTour(item.title,item.url,item.linkMode,true);
       else {setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo({id:item.id,type:'information',title:item.title,titleTranslations:item.titleTranslations,text:item.text,translations:item.translations,target:'',yaw:0,pitch:0});}
     }
     else if(item.url)openLinkInTour(item.title,item.url,item.linkMode);
@@ -5422,7 +5422,7 @@ function App(){
           })()}
           {(imageZoom?.imageDataUrl||imageZoom?.imageUrl) && <ZoomImage variant="studio" animation={imageZoom.openAnimation??project.windowAnimation} frameStyle={imageZoom.imageFrameStyle} src={(imageZoom.imageDataUrl||imageZoom.imageUrl)!} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" {...overlayClose(()=>setFrame(null))} role="presentation">
-            <section className="embed-shell" aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
+            <section className={'embed-shell'+(frame.full?' is-full':'')} aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
               <div className="embed-header">
                 <span className="embed-title">{frame.title}</span>
                 <div className="embed-actions">
@@ -5433,7 +5433,7 @@ function App(){
             </section>
           </div>}
           {windowDemo && <div className="overlay info-in-view" onClick={()=>setWindowDemo(false)}><div className="modal" onClick={e=>e.stopPropagation()}><h2>Test de l’animation</h2><p>Cette fenêtre s’ouvre avec le style et la durée choisis.</p><button className="primary" onClick={()=>setWindowDemo(false)}>Fermer</button></div></div>}
-          {info && <div className="overlay info-in-view" onClick={()=>setInfo(null)}>
+          {info && <div className={'overlay info-in-view'+(project.bottomBar.some(b=>b.id===info.id)?' is-full':'')} onClick={()=>setInfo(null)}>
             <div className="modal" onClick={event=>event.stopPropagation()}>
               <button className="close" onClick={()=>setInfo(null)} aria-label={ui('close',infoLanguage)}><XMark/></button>
               <h2>{pick(info.title,info.titleTranslations,infoLanguage)}</h2>
