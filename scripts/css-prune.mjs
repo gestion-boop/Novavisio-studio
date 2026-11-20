@@ -14,6 +14,7 @@ const WRITE=process.argv.includes('--write');
 const FIXTURES={
   gallery:{
     match:/nv-gallery/,
+    own:/^(nv-gallery[\w-]*|is-current|has-bg|nv-x)$/,
     variants:(()=>{
       const card=(i,cur)=>`<div class="nv-gallery-cell"><button type="button" class="nv-gallery-card${cur?' is-current':''}"><span class="nv-gallery-thumb"><span class="nv-gallery-ph"></span></span><strong>Panorama ${i}</strong></button><button type="button" class="nv-gallery-360">360°</button></div>`;
       const head=`<header><h2>Espaces</h2><button type="button" class="nv-gallery-close" aria-label="Fermer"><svg width="20" height="20"><path d="M3 3l14 14M17 3L3 17" stroke="currentColor"/></svg></button></header>`;
@@ -35,6 +36,7 @@ const fx=FIXTURES[comp];
 if(!fx){console.error('composant inconnu');process.exit(1);}
 const PROPS=['position','top','left','right','bottom','z-index','display','flex','flex-direction','flex-wrap','gap','grid-template-columns','align-items','justify-content','align-content','padding','margin','width','height','min-width','max-width','max-height','overflow','aspect-ratio','background-color','background-image','background-size','background-position','border-top-width','border-top-color','border-top-style','border-radius','box-shadow','color','font-size','font-weight','line-height','text-align','letter-spacing','text-shadow','transform','translate','scale','filter','opacity','backdrop-filter','cursor','visibility','pointer-events','white-space','text-overflow','-webkit-line-clamp','animation-name'];
 
+const OBSERVED=new Set([...PROPS,'background','border','border-color','border-width','border-style','border-top']);
 // ordre de chargement approximatif de l'éditeur puis de la visite
 const all=readdirSync(SRC).filter(f=>f.endsWith('.css'));
 const editorOrder=['workflow.css','creation.css','preparation.css','style.css','windowAnim.css','media.css'];
@@ -48,7 +50,13 @@ const candidates=[]; // {file,node}
 for(const f of files)roots[f].walkRules(r=>{
   if(r.parent?.type==='atrule'&&/keyframes/.test(r.parent.name))return;
   const sels=r.selectors||[];
-  if(sels.length&&sels.every(s=>fx.match.test(s)))candidates.push({file:f,rule:r});
+  if(!sels.length||!sels.every(s=>fx.match.test(s)))return;
+  // Jamais de règle partagée avec d'autres composants (listes :is(), classes d'autres composants).
+  const ownOnly=s=>!/:is\(|:where\(/.test(s)&&[...s.matchAll(/\.([\w-]+)/g)].every(m=>fx.own.test(m[1]));
+  if(!sels.every(ownOnly))return;
+  // Jamais de règle conditionnée par une préférence que la maquette ne simule pas (mouvement réduit, impression, survol…).
+  for(let a=r.parent;a&&a.type==='atrule';a=a.parent)if(/prefers-|print|hover|pointer|supports/.test(a.params||''))return;
+  candidates.push({file:f,rule:r});
 });
 const cssOf=ctx=>contexts[ctx].map(f=>roots[f].toString()).join('\n');
 
@@ -119,12 +127,15 @@ for(const c of candidates){
   if(!c.rule.parent)continue;
   for(const d of [...c.rule.nodes].reverse()){
     if(d.type!=='decl')continue;
+    // Seules les propriétés réellement mesurées peuvent être jugées inutiles (jamais transition, animation, will-change…).
+    if(!OBSERVED.has(d.prop))continue;
     const clone=d.clone(),idx=c.rule.index(d);
     d.remove();
     if(await snapshot()===baseline){removedDecls++;console.log('  − déclaration inutile',c.file,c.rule.selector.slice(0,45),'→',d.prop);}
     else restore(c.rule,idx,clone);
   }
 }
+for(const f of files)roots[f].walk(n=>{if((n.type==='rule'||n.type==='atrule')&&n.nodes&&n.nodes.length===0&&!(n.type==='atrule'&&/^(font-face|keyframes)$/.test(n.name)))n.remove();});
 console.log(`\nRèglesinutiles retirées : ${removedRules} · déclarations inutiles retirées : ${removedDecls}`);
 const final=await snapshot();
 console.log('contrôle final :',final===baseline?'IDENTIQUE à la référence':'DIFFÉRENT (ne pas écrire)');
