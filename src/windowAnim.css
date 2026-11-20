@@ -98,3 +98,13 @@
 .embed-shell:not(#nv-x) .embed-actions button,.tour-dialog:not(#nv-x) header>button{
   position:absolute;left:50%;top:50%;translate:-50% -50%}
 .embed-shell:not(#nv-x) .embed-title,.tour-dialog:not(#nv-x) h2{max-width:calc(50% - 40px)}
+
+/* Page intégrée (« Ouvrir un lien ») : plus de bandeau ni de titre, la page occupe tout le panneau ; seule la croix reste, en haut au centre. */
+.tour-dialog:not(#nv-x):has(iframe),.embed-shell:not(#nv-x){position:relative}
+.tour-dialog:not(#nv-x):has(iframe)>header,.embed-shell:not(#nv-x)>.embed-header{
+  position:absolute!important;top:0;left:0;right:0;height:0!important;min-height:0!important;padding:0!important;
+  background:transparent!important;border:0!important;overflow:visible;z-index:6;pointer-events:none}
+.tour-dialog:not(#nv-x):has(iframe)>header h2,.embed-shell:not(#nv-x) .embed-title,.embed-shell:not(#nv-x) .embed-actions a{display:none!important}
+.tour-dialog:not(#nv-x):has(iframe)>header>button,.embed-shell:not(#nv-x) .embed-actions button{
+  top:12px!important;translate:-50% 0!important;pointer-events:auto;box-shadow:0 4px 14px #0008}
+.embed-shell:not(#nv-x) .embed-actions{position:static}
