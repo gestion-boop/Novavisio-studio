@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useRef,useState} from 'react';
 import {ExternalLink,Trash2,Copy} from 'lucide-react';
 import {uid,readImage,VIDEO_MAX_BYTES,type Hotspot,type MediaLinkItem} from './storage';
@@ -107,7 +108,7 @@ export function MediaLibraryPanel({items,onChange,selected,onApply}:{
             {canApply&&<button type="button" className="is-primary" onClick={()=>onApply(item)} title="Utiliser dans le point sélectionné">Utiliser</button>}
             {item.provider!=='local'&&<><a href={item.url} target="_blank" rel="noopener noreferrer" aria-label="Ouvrir le lien" title="Ouvrir le lien"><ExternalLink size={15}/></a>
             <button type="button" aria-label="Copier le lien" title="Copier le lien" onClick={()=>void navigator.clipboard?.writeText(item.url)}><Copy size={15}/></button></>}
-            <button type="button" aria-label="Retirer de la bibliothèque" title="Retirer de la bibliothèque" onClick={()=>{if(window.confirm('Retirer « '+item.name+' » de la bibliothèque ? Les points qui l’utilisent déjà ne changent pas.'))onChange(items.filter(i=>i.id!==item.id));}}><Trash2 size={15}/></button>
+            <button type="button" aria-label="Retirer de la bibliothèque" title="Retirer de la bibliothèque" onClick={async ()=>{if(await confirmAsk('Retirer « '+item.name+' » de la bibliothèque ? Les points qui l’utilisent déjà ne changent pas.'))onChange(items.filter(i=>i.id!==item.id));}}><Trash2 size={15}/></button>
           </div>
         </li>;})}
     </ul>

@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useCallback,useEffect,useState} from 'react';
 import {Lock,Users,Trash2,X} from 'lucide-react';
 import {cloudConfigured,readLink,supabase} from './cloud';
@@ -124,7 +125,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud,onOpenPanorama}:{pro
     if(err)setError('Changement impossible : '+err.message);else await refresh();
   }
   async function remove(note:Note){
-    if(!mode||!window.confirm('Supprimer cette note ?'))return;
+    if(!mode||!await confirmAsk('Supprimer cette note ?'))return;
     if(mode.kind==='local'){const next=localRead(mode.key).filter(n=>n.id!==note.id);localWrite(mode.key,next);setNotes(next);return;}
     const {error:err}=await supabase().from('nvstudio_notes').delete().eq('id',note.id);
     if(err)setError('Suppression impossible : '+err.message);else await refresh();

@@ -6143,3 +6143,18 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-export-choice{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #3f7f8c;border-radius:12px;cursor:pointer;background:#0f2a35}
 .nv-export-choice.is-on{border-color:#ffd166;box-shadow:0 0 0 2px #ffd16655}
 .nv-export-choice span{display:grid;gap:2px}.nv-export-choice small{opacity:.75}
+
+/* Confirmation unifiée (remplace window.confirm) */
+.nv-confirm-overlay{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;padding:18px;background:rgba(4,12,18,.62);backdrop-filter:blur(6px)}
+.nv-confirm-dialog{width:min(480px,100%);padding:22px 24px;border-radius:18px;border:1px solid #3f7f8c;background:#10303a;color:#e7fff9;box-shadow:0 24px 80px #000b;font:14px/1.55 system-ui,sans-serif;animation:nvConfirmIn .18s ease-out both}
+.nv-confirm-dialog h2{margin:0 0 8px;font-size:18px}
+.nv-confirm-dialog p{margin:0 0 18px;white-space:pre-line}
+.nv-confirm-dialog.is-danger{border-color:#c25b52}
+.nv-confirm-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.nv-confirm-actions button:not(#nv-x){padding:10px 18px;border-radius:12px;font-weight:700;cursor:pointer;border:1px solid #3f7f8c!important;background:transparent!important;background-image:none!important;color:#e7fff9!important;box-shadow:none}
+.nv-confirm-actions .nv-confirm-ok:not(#nv-x){background:#1d6f78!important;border-color:#7fd8cf!important}
+.nv-confirm-dialog.is-danger .nv-confirm-ok:not(#nv-x){background:#b3261e!important;border-color:#ff9b93!important}
+.nv-confirm-actions button:not(#nv-x):hover{filter:brightness(1.15)}
+.nv-confirm-actions button:not(#nv-x):active{transform:none!important;scale:.97}
+@keyframes nvConfirmIn{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
+@media(prefers-reduced-motion:reduce){.nv-confirm-dialog{animation:none}}

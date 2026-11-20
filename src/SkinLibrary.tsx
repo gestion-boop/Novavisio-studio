@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useEffect,useState,type Dispatch,type SetStateAction} from 'react';
 import type {StudioProject} from './storage';
 import {applySkin,captureSkin,exportSkin,listSkins,validateSkin,type Skin} from './skins';
@@ -36,8 +37,8 @@ export function SkinChoices({project,setProject,onApplied}:Props){
       onSetDefault={()=>{const id=selectedDefault===skin.id?null:skin.id;void run(()=>cloudSetDefaultSkin(id),id?'Modèle « '+skin.name+' » défini par défaut dans Supabase.':'Modèle par défaut désactivé dans Supabase.');}}
       onApply={()=>{try{setProject(applySkin(project,skin));setMessage('Skin « '+skin.name+' » appliqué.');onApplied?.();}catch(error){setMessage(String(error));}}}
       onRename={name=>void run(()=>cloudSaveSkin({...skin,name,updatedAt:new Date().toISOString()}),'Modèle renommé dans Supabase.')}
-      onUpdate={()=>{if(window.confirm('Remplacer l’apparence du modèle « '+skin.name+' » par celle du projet actuel ?'))void run(()=>cloudSaveSkin(captureSkin(project,skin.name,skin.id)),'Modèle mis à jour dans Supabase.');}}
-      onDelete={()=>{if(window.confirm('Supprimer le modèle « '+skin.name+' » du Cloud ?'))void run(()=>cloudDeleteSkin(skin.id),'Modèle supprimé du Cloud.');}}/>)}</div>
+      onUpdate={async ()=>{if(await confirmAsk('Remplacer l’apparence du modèle « '+skin.name+' » par celle du projet actuel ?'))void run(()=>cloudSaveSkin(captureSkin(project,skin.name,skin.id)),'Modèle mis à jour dans Supabase.');}}
+      onDelete={async ()=>{if(await confirmAsk('Supprimer le modèle « '+skin.name+' » du Cloud ?'))void run(()=>cloudDeleteSkin(skin.id),'Modèle supprimé du Cloud.');}}/>)}</div>
   </div>;
 }
 function SkinCard({skin,busy,isDefault,onSetDefault,onApply,onRename,onUpdate,onDelete}:{skin:Skin;busy:boolean;isDefault:boolean;onSetDefault:()=>void;onApply:()=>void;onRename:(name:string)=>void;onUpdate:()=>void;onDelete:()=>void}){

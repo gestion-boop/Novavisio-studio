@@ -1,3 +1,4 @@
+import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog} from './FloorPlan';
@@ -977,13 +978,13 @@ function App(){
     if(!activeId)return;
     try{const cam=cameraRef.current;if(cam.sceneId!==activeId)return;localStorage.setItem('nvstudio-resume',JSON.stringify({projectName:projectRef.current.name,sceneId:activeId,spaceId:activeSpaceId,yaw:cam.yaw,pitch:cam.pitch,zoom:cam.zoom,at:Date.now()}));}catch{/* stockage indisponible */}
   }
-  function reloadToLatestVersion(){
+  async function reloadToLatestVersion(){
     if(savingManually||savingRef.current){
       setStatus('Sauvegarde en cours : actualise NovaStudio une fois terminée.');
       return;
     }
     if(ready&&projectRef.current!==savedRef.current){
-      const proceed=window.confirm(
+      const proceed=await confirmAsk(
         'Des modifications du projet ne sont pas enregistrées. Enregistre avec la disquette avant de mettre à jour. Actualiser quand même et perdre ces modifications ?'
       );
       if(!proceed)return;
@@ -2672,8 +2673,8 @@ function App(){
       (sc.musicTrackId===trackId?{...sc,musicTrackId:undefined}:sc))}));
     setStatus(checked?'Musique appliquée à tous les panoramas · Enregistre avec la disquette.':'Musique retirée de tous les panoramas.');
   }
-  function removeTrack(trackId:string){
-    if(!window.confirm('Supprimer cette musique et ses affectations aux panoramas ?'))return;
+  async function removeTrack(trackId:string){
+    if(!await confirmAsk('Supprimer cette musique et ses affectations aux panoramas ?'))return;
     setProject(p=>({...p,
       audioTracks:p.audioTracks.filter(track=>track.id!==trackId),
       defaultMusicTrackId:p.defaultMusicTrackId===trackId?undefined:p.defaultMusicTrackId,
@@ -3390,10 +3391,10 @@ function App(){
   }
   // Supprimer les trois états en une seule mise à jour : aucun état intermédiaire
   // ne doit laisser de référence vers une icône supprimée dans le projet.
-  function deleteIcons(ids:string[],confirmed=false){
+  async function deleteIcons(ids:string[],confirmed=false){
     const removed=new Set(ids);
     if(!removed.size)return;
-    if(!confirmed&&!window.confirm('Supprimer ces icônes et les retirer des boutons et points qui les utilisent ?'))return;
+    if(!confirmed&&!await confirmAsk('Supprimer ces icônes et les retirer des boutons et points qui les utilisent ?'))return;
     const keep=(id?:string)=>id&&!removed.has(id)?id:undefined;
     setProject(p=>({
       ...p,
@@ -3671,11 +3672,11 @@ function App(){
     return <label className="nv-size-control">Taille de l’icône : <b>{current} px</b>
       <input type="range" min="16" max="80" step="2" value={current} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/></label>;
   }
-  function applyIconToAll(){
+  async function applyIconToAll(){
     if(!selected)return;
     const type=selected.type,{iconId,hoverIconId,pressedIconId}=selected,iconSize=selected.iconSize;
     const n=project.scenes.reduce((sum,sc)=>sum+sc.hotspots.filter(h=>h.type===type).length,0);
-    if(!window.confirm('Appliquer cette icône (et sa taille) à '+(TYPE_LABELS[type]??'tous les points du même type')+' de la visite ? '+n+' point'+(n>1?'s':'')+' '+(n>1?'seront':'sera')+' modifié'+(n>1?'s':'')+'. Tu peux annuler avec Ctrl+Z.'))return;
+    if(!await confirmAsk('Appliquer cette icône (et sa taille) à '+(TYPE_LABELS[type]??'tous les points du même type')+' de la visite ? '+n+' point'+(n>1?'s':'')+' '+(n>1?'seront':'sera')+' modifié'+(n>1?'s':'')+'. Tu peux annuler avec Ctrl+Z.'))return;
     setProject(p=>{
       const def=iconId?{iconId,hoverIconId,pressedIconId,iconSize:iconSize??28}:undefined;
       return {...p,
@@ -4016,12 +4017,12 @@ function App(){
     }
   }
   /** Supprime un panorama du projet (avec nettoyage des espaces, de la galerie, des flèches qui y menaient). Annulable avec Ctrl+Z. */
-  function deleteScene(id:string){
+  async function deleteScene(id:string){
     const sc=project.scenes.find(x=>x.id===id);
     if(!sc)return;
     if(project.scenes.length<=1){setStatus('Impossible de supprimer le seul panorama du projet.');return;}
     const incoming=project.scenes.reduce((n,x)=>n+x.hotspots.filter(h=>h.type==='navigation'&&h.target===id).length,0);
-    if(!window.confirm('Supprimer « '+sc.name+' » du projet ?\n'+(incoming?incoming+' flèche'+(incoming>1?'s qui y mènent seront':' qui y mène sera')+' à reconfigurer.\n':'')+'Tu pourras annuler avec le bouton Annuler (Ctrl+Z).'))return;
+    if(!await confirmAsk('Supprimer « '+sc.name+' » du projet ?\n'+(incoming?incoming+' flèche'+(incoming>1?'s qui y mènent seront':' qui y mène sera')+' à reconfigurer.\n':'')+'Tu pourras annuler avec le bouton Annuler (Ctrl+Z).'))return;
     const remaining=project.scenes.filter(x=>x.id!==id);
     setProject(p=>({...p,
       floorPlan:p.floorPlan?{...p.floorPlan,points:p.floorPlan.points.filter(point=>point.sceneId!==id)}:undefined,
@@ -4111,7 +4112,7 @@ function App(){
       setStatus('Lecture du fichier… 0 %');
       const raw=await readProjectFile(file,pct=>setStatus('Lecture du fichier… '+pct+' %'));
       const imported=ensureFrameReferences(validateProject(raw),viewAreaRef.current?.clientHeight||550);
-      if(!window.confirm('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
+      if(!await confirmAsk('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
       setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(startSceneId(imported.scenes));setSelectedId('');setMode(null);setPreview(false);
       cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
       setStatus('Projet importé');setPreparationOpen(false);
@@ -4125,15 +4126,15 @@ function App(){
     const link=document.createElement('a');link.href=url;link.download='projet-enregistre-brut.json';
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
   }
-  function startEmptyOverUnreadable(){
-    if(!window.confirm('Repartir d’un projet vide REMPLACE définitivement le projet enregistré dans ce navigateur. As-tu téléchargé les données brutes ?'))return;
+  async function startEmptyOverUnreadable(){
+    if(!await confirmAsk('Repartir d’un projet vide REMPLACE définitivement le projet enregistré dans ce navigateur. As-tu téléchargé les données brutes ?'))return;
     baseRef.current=(rawStoredRef.current as {updatedAt?:string}|null)?.updatedAt??null;
     const fresh=newProject();
     setProject(fresh);setActiveId('');setSelectedId('');setLock(null);setPreparationOpen(true);
     void persist(fresh,true);
   }
   async function startFresh(){
-    if(project.scenes.length && !window.confirm('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
+    if(project.scenes.length && !await confirmAsk('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
     // Toujours charger le modèle Supabase AVANT de quitter la visite active.
     // En cas d'échec réseau, conserver l'ancien projet pour éviter toute perte.
     let fresh:StudioProject,hasModel:boolean;
@@ -4617,7 +4618,7 @@ function App(){
         <div className="nv-banner-actions">
           <button className="primary" onClick={()=>void reloadFromStore()}>Recharger la version enregistrée</button>
           <button className="quiet" onClick={download}>Télécharger ma version d’abord</button>
-          <button className="quiet" onClick={()=>{if(window.confirm('Garder CETTE fenêtre remplace la version enregistrée par les autres fenêtres. Continuer ?'))void persist(project,true);}}>Garder cette fenêtre (remplace l’autre)</button>
+          <button className="quiet" onClick={async ()=>{if(await confirmAsk('Garder CETTE fenêtre remplace la version enregistrée par les autres fenêtres. Continuer ?'))void persist(project,true);}}>Garder cette fenêtre (remplace l’autre)</button>
         </div>
       </>}
       {lock.kind==='unreadable'&&<>
@@ -5068,8 +5069,8 @@ function App(){
                       <input type="range" min="16" max="80" value={selected.iconSize??28}
                         onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
                     </label>
-                    <button type="button" className="nv-quick-delete" onClick={()=>{
-                      if(!window.confirm('Supprimer ce point ?'))return;
+                    <button type="button" className="nv-quick-delete" onClick={async ()=>{
+                      if(!await confirmAsk('Supprimer ce point ?'))return;
                       patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));
                       setSelectedId('');
                     }}><Trash2 size={14}/> Supprimer ce point</button>
@@ -5793,7 +5794,7 @@ function App(){
             <span>{item.title}</span><small>{item.type==='plan'?'Plan':item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
           </button></div></div>)}</div>
           <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
-          <button className="preset-button" onClick={()=>{if(window.confirm('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
+          <button className="preset-button" onClick={async ()=>{if(await confirmAsk('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
           {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
@@ -6211,7 +6212,7 @@ function App(){
             <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
             onCreateSet={createLibraryIconSet}
-            onDeleteSet={(ids,name)=>{if(!window.confirm('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
+            onDeleteSet={async (ids,name)=>{if(!await confirmAsk('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
             applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
             onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
               const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
@@ -6264,8 +6265,8 @@ function App(){
         setPanel('client');pendingClientSaveRef.current=true;
         setStatus('Client « '+clientProfile.name+' » enregistré dans la visite…');
       }}
-      onCreateVisit={(clientProfile,style,visitName)=>{
-        if((project.scenes.length||projectRef.current!==savedRef.current)&&!window.confirm('Créer une nouvelle visite pour « '+clientProfile.name+' » ? Pense à enregistrer ou exporter le projet actuel avant.'))return;
+      onCreateVisit={async (clientProfile,style,visitName)=>{
+        if((project.scenes.length||projectRef.current!==savedRef.current)&&!await confirmAsk('Créer une nouvelle visite pour « '+clientProfile.name+' » ? Pense à enregistrer ou exporter le projet actuel avant.'))return;
         // Le skin préféré de ce client est appliqué avant d'ouvrir la nouvelle
         // visite ; si le Cloud ne l'a plus, aucune visite vide ne remplace
         // silencieusement le projet actuel.
@@ -6379,4 +6380,4 @@ function App(){
   </div>;
 }
 installErrorLog();
-createRoot(document.getElementById('root')!).render(<ErrorBoundary label="éditeur"><App/></ErrorBoundary>);
+createRoot(document.getElementById('root')!).render(<ErrorBoundary label="éditeur"><App/><ConfirmHost/></ErrorBoundary>);

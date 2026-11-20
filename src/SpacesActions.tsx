@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useEffect,useState} from 'react';
 import {Download,Share2,X} from 'lucide-react';
 import {addMember,saveToCloud,cloudConfigured,listCloudProjects,openCloudProject,saveWorking,readLink,type CloudProject} from './cloud';
@@ -73,11 +74,11 @@ export function SpacesActions({mode,project,spaces,onClose,onStatus,onMoved}:{
       await saveWorking(merged.project,opened.link,setBusy);
       setDone(spaces.length+' espace'+(spaces.length>1?'s':'')+' ajouté'+(spaces.length>1?'s':'')+' au projet « '+target.name+' » ('+merged.scenes+' panorama'+(merged.scenes>1?'s':'')+' copié'+(merged.scenes>1?'s':'')+'). Ouvre ce projet pour les retrouver.');
       onStatus('Espaces envoyés dans « '+target.name+' » : '+names);
-      if(move&&window.confirm('Retirer ces '+spaces.length+' espace(s) de ce projet ? Les panoramas restent dans le projet complet.'))onMoved(spaces.map(space=>space.id));
+      if(move&&await confirmAsk('Retirer ces '+spaces.length+' espace(s) de ce projet ? Les panoramas restent dans le projet complet.'))onMoved(spaces.map(space=>space.id));
     }catch(e){setError((e instanceof Error?e.message:String(e))+' — rien n’a été retiré de ce projet.');}
     finally{setBusy('');}
   }
-  function transfer(){
+  async function transfer(){
     setError('');
     try{
       const pack=exportSpacesProject(project,spaces);
@@ -87,7 +88,7 @@ export function SpacesActions({mode,project,spaces,onClose,onStatus,onMoved}:{
       const a=document.createElement('a');a.href=url;
       a.download=(names.replace(/[^a-zA-Z0-9-]+/g,'_').slice(0,60)||'espaces')+'.nvspaces.json';
       document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
-      if(move&&window.confirm('Retirer ces '+spaces.length+' espace(s) de ce projet ? Les panoramas restent dans le projet complet.'))onMoved(spaces.map(space=>space.id));
+      if(move&&await confirmAsk('Retirer ces '+spaces.length+' espace(s) de ce projet ? Les panoramas restent dans le projet complet.'))onMoved(spaces.map(space=>space.id));
       setDone('Fichier téléchargé. Ouvre l’autre projet, puis clique sur « Importer des espaces » dans la barre des espaces.');
       onStatus('Fichier d’espaces téléchargé : '+names);
     }catch(e){setError(e instanceof Error?e.message:String(e));}
