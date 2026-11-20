@@ -13,8 +13,8 @@ body{font-family:Montserrat,system-ui,-apple-system,"Segoe UI",sans-serif;color:
 .fallback{position:absolute;inset:0;display:grid;place-items:center}.fallback img{width:46%;border-radius:50%;box-shadow:0 20px 60px rgba(0,0,0,.45)}
 .pill{position:absolute;z-index:2;display:inline-flex;align-items:center;gap:10px;border-radius:99px;padding:10px 18px;font-weight:700;font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#fff;background:rgba(40,32,22,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22)}
 .pill i{width:12px;height:12px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(212,169,55,.3)}
-.p1{left:24px;top:24px;animation:fd .9s .3s both}.p2{left:24px;bottom:150px;background:rgba(255,255,255,.14);animation:fd .9s .6s both}
-.cap{position:absolute;z-index:2;left:24px;right:24px;bottom:28px;color:#fff;font-weight:800;font-size:clamp(22px,3vw,34px);line-height:1.15;text-shadow:0 3px 18px rgba(0,0,0,.5);animation:rise .9s .7s both}
+.p1{left:24px;top:24px;animation:fd .9s .3s both}.capbox{position:absolute;z-index:2;left:24px;right:24px;bottom:28px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}.capbox .pill{position:static;background:rgba(255,255,255,.16);animation:fd .9s .6s both}
+.cap{color:#fff;font-weight:800;font-size:clamp(22px,3vw,34px);line-height:1.15;text-shadow:0 3px 18px rgba(0,0,0,.5);animation:rise .9s .7s both}
 .txt{padding:clamp(24px,4vw,52px)}
 .kick{display:flex;align-items:center;gap:12px;color:var(--gold2);font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;animation:rise .8s .2s both}.kick::before{content:"";width:34px;height:2px;background:var(--gold2)}
 h1{font-size:clamp(26px,3.6vw,44px);line-height:1.12;margin:12px 0 0;font-weight:800;animation:rise .8s .3s both}
@@ -37,8 +37,7 @@ h1::after{content:"";display:block;width:84px;height:4px;border-radius:4px;margi
   <div class="fallback"><img src="img/logo.webp" alt="Ariya — Bien-être et tradition"></div>
   <img class="bg" src="img/esprit.webp" alt="Un instant de recueillement chez Ariya" onerror="this.remove()">
   <span class="pill p1"><i></i>Philosophie &amp; bien-être</span>
-  <span class="pill p2">L’univers Ariya</span>
-  <div class="cap">Un lieu pensé pour le calme, l’équilibre et le lâcher-prise</div>
+  <div class="capbox"><span class="pill p2">L’univers Ariya</span><div class="cap">Un lieu pensé pour le calme, l’équilibre et le lâcher-prise</div></div>
  </section>
  <section class="txt">
   <div class="kick">L’esprit Ariya</div>
