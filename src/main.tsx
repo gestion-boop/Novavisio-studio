@@ -1450,7 +1450,13 @@ function App(){
   const projectIssues=useMemo(()=>allProjectIssues.filter(issue=>!ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
   const hiddenIssues=useMemo(()=>allProjectIssues.filter(issue=>ignoredIds.has(issue.id)),[allProjectIssues,ignoredIds]);
   // Ne pas masquer les vrais blocages dans la confirmation de publication.
-  const publishIssues=allProjectIssues;
+  // Publication d'un espace : on ne contrôle que les panoramas de CET espace (les défauts des autres espaces ne concernent pas ce lien).
+  const publishIssues=useMemo(()=>{
+    const space=(project.spaces??[]).find(sp=>sp.id===activeSpaceId);
+    if(!space)return allProjectIssues;
+    const inSpace=new Set(space.sceneIds);
+    return allProjectIssues.filter(issue=>!issue.sceneId||inSpace.has(issue.sceneId));
+  },[allProjectIssues,project.spaces,activeSpaceId]);
   function ignoreCheck(id:string){
     setProject(p=>({...p,ignoredChecks:[...new Set([...(p.ignoredChecks??[]),id])].slice(-500)}));
     setIssueFocus(null);setGuided(null);
