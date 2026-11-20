@@ -103,6 +103,9 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
       // Conserve la texture de nuit même si sa source est dans un autre espace.
       nightDataUrl:scene.nightDataUrl??project.scenes.find(other=>other.id===scene.nightSourceSceneId)?.dataUrl,
       nightSourceSceneId:undefined,
+      // Le réglage « nom de la pièce » de l'espace est reporté sur ses panoramas : la visite publiée n'a plus la liste des espaces.
+      showRoomName:scene.showRoomName??space.showRoomName,
+      showRoomNameVr:scene.showRoomNameVr??space.showRoomNameVr,
       hotspots:scene.hotspots.filter(h=>h.type!=='navigation'||!h.target||ids.has(h.target))
     })),
     bottomBar:project.bottomBar.map(trimBar),
