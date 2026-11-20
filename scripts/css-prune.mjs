@@ -61,6 +61,8 @@ for(const f of files)roots[f].walkRules(r=>{
 const cssOf=ctx=>contexts[ctx].map(f=>roots[f].toString()).join('\n');
 
 let browser,pages={};
+// Le survol / l'appui ne sont appliqués qu'au rendu suivant : on attend deux images avant de mesurer.
+const frames=p=>p.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
 async function snapshot(){
   const out={};
   for(const ctx of Object.keys(contexts)){
@@ -76,13 +78,13 @@ async function snapshot(){
         for(const h of fx.hovers){
           const el=p.locator(h).first();
           if(!(await el.count()))continue;
-          await el.hover({force:true,timeout:1500}).catch(()=>{});
+          await el.hover({force:true,timeout:1500}).catch(()=>{});await frames(p);
           out[[key,vname,'survol',h].join('|')]=await p.evaluate(([s,props])=>{const e=document.querySelector(s);const cs=getComputedStyle(e);const o={};props.forEach(k=>{o[k]=cs.getPropertyValue(k)});return o;},[h,PROPS]);
         }
         for(const h of fx.presses){
           const el=p.locator(h).first();
           if(!(await el.count()))continue;
-          await el.hover({force:true,timeout:1500}).catch(()=>{});await p.mouse.down();
+          await el.hover({force:true,timeout:1500}).catch(()=>{});await p.mouse.down();await frames(p);
           out[[key,vname,'appui',h].join('|')]=await p.evaluate(([s,props])=>{const e=document.querySelector(s);const cs=getComputedStyle(e);const o={};props.forEach(k=>{o[k]=cs.getPropertyValue(k)});return o;},[h,PROPS]);
           await p.mouse.up();
         }
