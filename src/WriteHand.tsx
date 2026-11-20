@@ -91,7 +91,7 @@ export function WriteHand({onStatus}:{onStatus:(m:string)=>void}){
       </button>
       {open&&<div className="nv-hand-pop" role="dialog" aria-label="Qui a la main pour enregistrer ?">
         <div className="nv-hand-head"><b>Qui enregistre ?</b><button type="button" className="quiet" onClick={()=>setOpen(false)} aria-label="Fermer"><XMark/></button></div>
-        <p>Compte connecté : <strong>{state.myEmail}</strong>. Main actuelle : <strong>{holder??state.ownerEmail}</strong>. {state.canWrite?'Vous pouvez sauvegarder.':'Vous ne pouvez pas sauvegarder tant que la main ne vous a pas été transmise.'}</p>
+        <p>Compte connecté : <strong>{state.myEmail}</strong> — votre rôle : <strong>{state.isOwner?'Propriétaire':admin?'Administrateur':'Collaborateur'}</strong>. Main actuelle : <strong>{holder??state.ownerEmail}</strong>. {state.canWrite?'Vous pouvez sauvegarder.':'Vous ne pouvez pas sauvegarder tant que la main ne vous a pas été transmise.'}</p>
       {admin&&<p>Choisis ci-dessous la personne autorisée à enregistrer dans le Cloud.</p>}
         <div className="nv-hand-choices" role="radiogroup" aria-label="Qui enregistre">
           {people.map(p=>{
