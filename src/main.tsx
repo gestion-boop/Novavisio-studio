@@ -5100,7 +5100,7 @@ function App(){
                   </div>
                   {selectedBar&&<div className="nv-quick-fields">
                     <label>Libellé
-                      <input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/>
+                      <input value={selectedBar.title} onChange={e=>patchBar(selectedBar.type==='gallery'&&selectedBar.galleryTitle?{title:e.target.value,galleryTitle:undefined}:{title:e.target.value})}/>
                     </label>
                     {selectedBar.type==='navigation'&&<label>Panorama de destination
                       <select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}>
@@ -5796,7 +5796,7 @@ function App(){
           {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
             <hr/>
             <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
-            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar({title:e.target.value})}/></label><button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester cet effet</button><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar(selectedBar.type==='gallery'&&selectedBar.galleryTitle?{title:e.target.value,galleryTitle:undefined}:{title:e.target.value})}/></label><button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester cet effet</button><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
                   <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
             {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
             <div className="section-title">ACTION DU BOUTON</div>
