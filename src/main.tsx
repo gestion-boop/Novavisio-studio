@@ -1236,6 +1236,8 @@ function App(){
     return ()=>{window.clearTimeout(t);window.removeEventListener('resize',fit);};
   },[toolsMenuOpen]);
   const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
+  const [panelBack,setPanelBack]=useState<{panel:PanelTab;hub:Record<string,string|null>;barId:string;pointId:string}|null>(null);
+  const prevPanelRef=useRef<PanelTab>('points');
   // Sélection multiple d'espaces : partager avec des membres, envoyer vers un autre projet
   const [spaceSelectMode,setSpaceSelectMode]=useState(false);
   const [spaceSelection,setSpaceSelection]=useState<Set<string>>(new Set());
@@ -3797,6 +3799,56 @@ function App(){
     return <button type="button" className="nv-apply-all" onClick={applyIconToAll} title="Remplace l'icône de tous les points du même type de la visite">
       ⟳ Remplacer {TYPE_LABELS[selected.type]??'tous les points du même type'} par cette icône <b>({n})</b></button>;
   }
+  // « Retour » en haut à gauche de la colonne de droite : on revient toujours à l'écran précédent quand il existe.
+  const CHILD_PANELS:PanelTab[]=['icons','plan','music','medialib'];
+  useEffect(()=>{
+    const prev=prevPanelRef.current;
+    if(prev!==panel){
+      if(CHILD_PANELS.includes(panel)&&!CHILD_PANELS.includes(prev))setPanelBack({panel:prev,hub:hubOpen,barId:selectedBarId,pointId:selectedId});
+      else if(!CHILD_PANELS.includes(panel))setPanelBack(null);
+      prevPanelRef.current=panel;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[panel]);
+  function inspectorBack():(()=>void)|null{
+    if(CHILD_PANELS.includes(panel)){
+      const b=panelBack;
+      return ()=>{setPanelBack(null);setLibraryFor(null);if(b){setPanel(b.panel);setHubOpen(b.hub);setSelectedBarId(b.barId);setSelectedId(b.pointId);}else setPanel('points');};
+    }
+    if(panel==='bar'){
+      if(selectedBarId)return ()=>setSelectedBarId('');
+      if(hubOpen.bar)return ()=>setHubOpen(h=>({...h,bar:null}));
+    }
+    if(panel==='points'){
+      if(selected)return ()=>setSelectedId('');
+      if(hubOpen.scene)return ()=>setHubOpen(h=>({...h,scene:null}));
+    }
+    return null;
+  }
+  /** Couleur des croix de fermeture : couleurs de la barre, sélecteur libre, pipette. Choisir une couleur remplace une icône de croix personnalisée. */
+  function setCloseColor(color?:string){
+    setProject(p=>({...p,closeButtonColor:color,...(color?{closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined}:{})}));
+  }
+  function closeColorControls(){
+    const eyedropper=typeof window!=='undefined'&&'EyeDropper' in window;
+    const barColor=/^#[0-9a-f]{6}$/i.test(project.barStyle.button)?project.barStyle.button:undefined;
+    return <div className="nv-close-config">
+      <p className="hint">Une seule couleur pour les croix des photos, vidéos, informations, galeries et pages intégrées de tout le projet. Au survol, la croix s’éclaircit.</p>
+      <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={()=>{setCloseColor(barColor);setStatus('Croix de fermeture : couleur des boutons de la barre appliquée. Enregistre avec la disquette.');}}>
+        <i style={{background:barColor??'#888'}}/> Appliquer les couleurs de la barre du bas</button>
+      <div className="nv-close-colors">
+        {([['Jaune','#f5b324'],['Blanc','#ffffff'],['Orange','#e18533'],['Rouge','#d93b3b'],['Bleu','#2f9fd8'],['Noir','#1c1c1c']] as const).map(([name,c])=>
+          <button type="button" key={c} className={project.closeButtonColor?.toLowerCase()===c?'is-on':''} title={name} aria-label={'Croix '+name} style={{background:c}} onClick={()=>setCloseColor(c)}/>)}
+        <input type="color" aria-label="Choisir une couleur" title="Choisir une couleur" value={project.closeButtonColor??barColor??'#f5b324'} onChange={e=>setCloseColor(e.target.value)}/>
+        {eyedropper&&<button type="button" className="nv-close-pipette" title="Pipette : prendre une couleur n’importe où à l’écran" onClick={()=>{
+          const Dropper=(window as unknown as {EyeDropper:new()=>{open:()=>Promise<{sRGBHex:string}>}}).EyeDropper;
+          void new Dropper().open().then(r=>setCloseColor(r.sRGBHex)).catch(()=>{/* annulé */});
+        }}>💧 Pipette</button>}
+        <button type="button" className="quiet" disabled={!project.closeButtonColor} onClick={()=>setCloseColor(undefined)}>Retirer la couleur</button>
+      </div>
+      {project.closeIconId&&<small className="hint-inline">Une icône de croix personnalisée (pack) est active : elle remplace la couleur. Choisir une couleur ci-dessus la désactive.</small>}
+    </div>;
+  }
   /** Création rapide : tout ce qui se pose dans le 360° (et la barre) en tuiles, au même endroit, dans l'ordre d'usage. */
   function quickCreateTiles(){
     if(!active||preview)return null;
@@ -5422,7 +5474,7 @@ function App(){
       <aside id="nv-panorama-inspector" className="right panel">
         <div className="nv-inspector-resize" onPointerDown={startInspectorResize} onDoubleClick={()=>setInspectorWidth(inspectorVw<55?62:40)} role="separator" aria-orientation="vertical" aria-label="Glisser pour élargir ou réduire la colonne (double-clic : agrandir / normal)" title="Glisser pour élargir · double-clic : agrandir / normal"><i/></div>
         <div className="nv-inspector-sizes" role="group" aria-label="Largeur de la colonne">{([['Étroit',30],['Large',42],['Très large',56],['Maxi',72]] as const).map(([label,v])=><button key={v} type="button" className={Math.abs(inspectorVw-v)<4?"is-on":""} onClick={()=>setInspectorWidth(v)}>{label}</button>)}</div>
-        <div className="nv-inspector-top">{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
+        <div className="nv-inspector-top">{(()=>{const back=inspectorBack();return back?<button type="button" className="nv-inspector-back" onClick={back} aria-label="Retour à l’écran précédent" title="Retour"><ChevronLeft size={20}/><span>Retour</span></button>:null;})()}{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         {currentSpace&&<><SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/><SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/></>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
@@ -6043,14 +6095,7 @@ function App(){
             </label>
           </InspectorSection>
           <InspectorSection title="Croix de fermeture (toutes les fenêtres)" initiallyOpen>
-            <p className="hint">Une seule couleur pour les croix des photos, vidéos, informations, galeries et pages intégrées de tout le projet. Au survol, la croix s’éclaircit.</p>
-            <div className="nv-close-colors">
-              {([['Jaune','#f5b324'],['Blanc','#ffffff'],['Orange','#e18533'],['Rouge','#d93b3b'],['Bleu','#2f9fd8'],['Noir','#1c1c1c']] as const).map(([name,c])=>
-                <button type="button" key={c} className={project.closeButtonColor?.toLowerCase()===c?'is-on':''} title={name} aria-label={'Croix '+name} style={{background:c}} onClick={()=>setProject(p=>({...p,closeButtonColor:c}))}/>)}
-              <input type="color" aria-label="Autre couleur" value={project.closeButtonColor??'#f5b324'} onChange={e=>setProject(p=>({...p,closeButtonColor:e.target.value}))}/>
-              <button type="button" className="quiet" disabled={!project.closeButtonColor} onClick={()=>setProject(p=>({...p,closeButtonColor:undefined}))}>Couleur de la barre</button>
-            </div>
-            {project.closeIconId&&<small className="hint-inline">Une icône de fermeture personnalisée est active : elle remplace cette couleur.</small>}
+            {closeColorControls()}
           </InspectorSection>
           <InspectorSection title="Visite immersive 360° et VR (facultatif)" initiallyOpen>
             <label>Hauteur du regard dans le casque : {Math.round((project.vrEyeOffset??0)*100)} cm<input type="range" min={-100} max={50} step={5} value={Math.round((project.vrEyeOffset??0)*100)} onChange={e=>setProject(p=>({...p,vrEyeOffset:Number(e.target.value)/100}))}/></label>
@@ -6251,6 +6296,7 @@ function App(){
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
         {panel==='icons' && <div className="properties nv-icons-panel">
+          {libraryFor?.startsWith('global-close')&&<div className="nv-close-config-box"><div className="section-title"><span>COULEUR DE LA CROIX</span></div>{closeColorControls()}</div>}
           <details className="nv-icons-library" open>
             <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}

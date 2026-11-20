@@ -6078,3 +6078,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-close-colors>button:not(.quiet){width:34px;height:34px;border-radius:50%;border:2px solid #fff3;cursor:pointer}
 .nv-close-colors>button.is-on{border-color:#fff;box-shadow:0 0 0 3px #7ad6ee66}
 .nv-close-colors input[type=color]{width:38px;height:34px;padding:0;border:1px solid #fff3;border-radius:8px;background:none}
+
+/* Colonne de droite : « Retour » à gauche, croix de fermeture à droite */
+.nv-studio-pro.nv-sheet-open .right.panel .nv-inspector-top,.nv-studio-pro .right.panel .nv-inspector-top{justify-content:space-between;align-items:center;gap:10px}
+.nv-studio-pro .right.panel .nv-inspector-top .nv-inspector-back{width:auto;min-width:0;height:42px;padding:0 16px 0 10px;display:inline-flex;align-items:center;gap:4px;font:700 14px system-ui;margin-right:auto}
+.nv-inspector-top .nv-panorama-settings-title{margin-right:auto}
+.nv-close-config{display:grid;gap:8px}
+.nv-close-config-box{margin:0 0 14px;padding:12px;border:1px solid #365b69;border-radius:12px;background:#0b1c25}
+.nv-close-barcolors{display:flex;align-items:center;gap:10px;font:700 13px system-ui;cursor:pointer;border:1px solid #4aa9c0;border-radius:10px;background:#12485a;color:#e9fbff;padding:9px 12px;text-align:left}
+.nv-close-barcolors:disabled{opacity:.45;cursor:default}.nv-close-barcolors i{width:20px;height:20px;border-radius:50%;border:2px solid #fff6;flex:none}
+.nv-close-pipette{font:700 13px system-ui;cursor:pointer;border:1px solid #4aa9c0;border-radius:10px;background:#12485a;color:#e9fbff;padding:7px 12px}
