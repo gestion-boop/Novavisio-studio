@@ -1,0 +1,6 @@
+/* Lien permanent : état de publication (ce qui est montré, quelle version, à jour ou non) */
+.nv-pub-state{display:grid;gap:6px;margin:10px 0;padding:10px 12px;border:1px solid #3f7f8c;border-radius:12px;background:#0f2a35}
+.nv-pub-state>div{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.nv-pub-state>div span{opacity:.75}
+.nv-pub-state>div b{text-align:right}
+.nv-pub-state p{margin:4px 0 0}

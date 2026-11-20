@@ -1,3 +1,4 @@
+import './publicationState.css';
 import {confirmAsk} from './confirmDialog';
 import {useEffect,useState} from 'react';
 import {overlayClose} from './overlayClose';
@@ -111,6 +112,14 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
         {publicationActive(pub)&&pub?<>
           <input readOnly value={shareUrl(pub.token)} onFocus={e=>e.currentTarget.select()}/>
           <small className="hint-inline">Publiée le <b>{fmt(pub.published_at)}</b>. <b>Chaque enregistrement met à jour ce lien automatiquement</b> (tu peux le désactiver ci-dessous).</small>
+          <div className="nv-pub-state" role="status">
+            <div><span>Ce lien affiche</span><b>{space?'l’espace « '+space.name+' »':'le projet complet'}</b></div>
+            <div><span>Version publiée</span><b>révision {pub.published_revision} · {fmt(pub.published_at)}</b></div>
+            {link&&<div><span>Dernier enregistrement Cloud</span><b>révision {link.revision}</b></div>}
+            {link&&link.revision>pub.published_revision
+              ?<p className="warning-inline">Des enregistrements plus récents ne sont <b>pas encore publiés</b> : les visiteurs voient encore la révision {pub.published_revision}. Clique sur « Mettre à jour maintenant ».</p>
+              :link&&<p className="hint-inline">✓ La visite en ligne est à jour avec le dernier enregistrement Cloud de cet appareil.</p>}
+          </div>
           <label className="toggle-row"><input type="checkbox" defaultChecked={autoPublishOn()} onChange={e=>setAutoPublish(e.target.checked)}/> Mettre à jour ce lien à chaque enregistrement</label>
           <div className="cloud-actions">
             <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void publish()}>Mettre à jour maintenant</button>
