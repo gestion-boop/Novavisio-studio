@@ -1,4 +1,5 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
 import type {PointerEvent as RPointerEvent,KeyboardEvent as RKeyboardEvent} from 'react';
 import type {Hotspot,FrameSphericalCorners} from './storage';
 import {FRAME_KEYS,frameWorldCorners,type FrameKey} from './sphericalFrame';
@@ -79,7 +80,9 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   const grad=useRef<{m:Float32Array;k:number}|null>(null);
   const rootRef=useRef<HTMLDivElement>(null);
   const [wide,setWide]=useState(false);
-  useEffect(()=>{const el=rootRef.current;if(!el||typeof ResizeObserver==='undefined')return;const ro=new ResizeObserver(([e])=>setWide(e.contentRect.width>=600));ro.observe(el);return ()=>ro.disconnect();},[]);
+  const [full,setFull]=useState(false);
+  useEffect(()=>{if(!full)return;const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();setFull(false);}};window.addEventListener('keydown',onKey,true);const prev=document.body.style.overflow;document.body.style.overflow='hidden';return ()=>{window.removeEventListener('keydown',onKey,true);document.body.style.overflow=prev;};},[full]);
+  useEffect(()=>{const el=rootRef.current;if(!el||typeof ResizeObserver==='undefined')return;const ro=new ResizeObserver(([e])=>setWide(e.contentRect.width>=600));ro.observe(el);return ()=>ro.disconnect();},[full]);
   const cornersRef=useRef(corners);cornersRef.current=corners;
 
   // Centre de la frame (moyenne) et champ de vision « cadre entier ».
@@ -106,7 +109,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   useEffect(()=>{
     const c=canvas.current;if(!c||!src)return;
     // Pendant un glissement de coin : moitié de définition (4× moins de calcul) pour ne pas figer l'application.
-    const sc=dragging?.6:1.6,cw=Math.round(W*sc),ch=Math.round(H*sc);
+    const sc=dragging?(full?.9:.6):(full?3:1.6),cw=Math.round(W*sc),ch=Math.round(H*sc);
     c.width=cw;c.height=ch;
     const ctx=c.getContext('2d')!;const out=ctx.createImageData(cw,ch);const o=out.data;
     const {w,h,data}=src;const g=new Float32Array(cw*ch);
@@ -132,7 +135,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
       mag[y*cw+x]=Math.hypot(gx,gy)*kk;
     }
     grad.current={m:mag,k:kk};
-  },[src,b,dragging]);
+  },[src,b,dragging,full]);
 
   const setCorner=useCallback((key:FrameKey,px:number,py:number,useSnap:boolean)=>{
     let x=clamp(px,0,W),y=clamp(py,0,H);
@@ -202,8 +205,9 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   if(failed)return <p className="nv-loupe-note">Impossible d’afficher la loupe pour ce panorama (image non lisible). Déplace les coins directement dans la vue 3D.</p>;
   const polygon=pts.every(Boolean)?pts.map(p=>p![0].toFixed(1)+','+p![1].toFixed(1)).join(' '):'';
   const activeColor=snapped?'#4bebde':'#ffe9b0';
-  return <div className={"nv-loupe"+(wide?" is-wide":"")} ref={rootRef} onKeyDown={key}>
+  const body=<div className={"nv-loupe"+(wide?" is-wide":"")+(full?" is-full":"")} ref={rootRef} onKeyDown={key}>
     <div className="nv-loupe-head"><strong>Zoom de précision</strong>
+      <button type="button" className="nv-loupe-full" onClick={()=>setFull(f=>!f)} title={full?'Réduire (Échap)':'Plein écran pour plus de précision'}>{full?'✕ Réduire':'⛶ Plein écran'}</button>
       <span className="nv-loupe-zoom" role="group" aria-label="Niveau de zoom">{ZOOMS.map(z=><button key={z} type="button" className={zoom===z?'is-on':''} onClick={()=>setZoom(z)} aria-pressed={zoom===z}>×{z}</button>)}</span>
     </div>
     <div className="nv-loupe-stage" style={{aspectRatio:W+'/'+H}}>
@@ -242,4 +246,5 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
     </div>:<button type="button" className="nv-loupe-start" onClick={startGuided}>Ajuster coin par coin</button>}
     <small className="nv-loupe-note">Clique dans la loupe pour poser le coin actif, ou glisse-le. Flèches du clavier = micro-réglage (Maj = ×5).</small>
   </div>;
+  return full?createPortal(body,document.body):body;
 }

@@ -65,7 +65,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -95,6 +95,7 @@ import './style.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
 import {applyCloseColor} from './closeColor';
+import {getTransitionMs,setTransitionMs,warmPanoramas} from './transitionPrefs';
 initWindowAnimOrigin();
 import './media.css';
 import {XMark} from './XMark';
@@ -354,8 +355,11 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     veil.setAttribute('aria-hidden','true');
     Object.assign(veil.style,{
       position:'absolute',inset:'0',zIndex:'18',pointerEvents:'none',
-      background:'#071925',opacity:'0',transition:'opacity 100ms ease-in-out'
+      background:'#071925',opacity:'0',transition:'opacity '+Math.max(1,Math.round(getTransitionMs()/2))+'ms ease-in-out'
     });
+    const half=Math.round(getTransitionMs()/2);
+    // Précharge les panoramas atteignables depuis celui-ci (adresses réseau uniquement).
+    warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?actions.current.sphereImage(h.target):undefined));
     if(host){
       if(getComputedStyle(host).position==='static')host.style.position='relative';
       host.appendChild(veil);
@@ -367,7 +371,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
       }
       veil.style.opacity='0';
-      timer=setTimeout(finish,110);
+      timer=setTimeout(finish,half+10);
     };
     const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
     const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
@@ -390,9 +394,9 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
         syncMarkers(viewer,markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
         // Deuxième moitié : photo et cadre sont déjà ensemble sur le nouveau panorama.
         veil.style.opacity='0';
-        timer=setTimeout(finish,110);
+        timer=setTimeout(finish,half+10);
       }).catch(()=>{if(!disposed)restore();});
-    },105);
+    },half+5);
     return ()=>{disposed=true;if(timer!==undefined)clearTimeout(timer);veil.remove();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
@@ -828,8 +832,8 @@ function App(){
   const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
   const [autoReturn,setAutoReturnState]=useState(()=>{try{return window.localStorage.getItem('nvstudio-auto-return')!=='0';}catch{return true;}});
   const setAutoReturn=(v:boolean)=>{setAutoReturnState(v);try{window.localStorage.setItem('nvstudio-auto-return',v?'1':'0');}catch{/* stockage indisponible */}};
-  const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw'));return v>=24&&v<=78?v:40;}catch{return 40;}});
-  const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(78,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw',String(n));}catch{/* stockage indisponible */}};
+  const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw'));return v>=24&&v<=98?v:40;}catch{return 40;}});
+  const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(98,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw',String(n));}catch{/* stockage indisponible */}};
   const startInspectorResize=(e:{preventDefault:()=>void})=>{e.preventDefault();const move=(ev:PointerEvent)=>setInspectorWidth((1-ev.clientX/window.innerWidth)*100);const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);};
   const [sceneDensity,setSceneDensity]=useState<'compact'|'comfortable'>(()=>readStudioLayout().density);
   const [sceneSearch,setSceneSearch]=useState('');
@@ -3264,6 +3268,7 @@ function App(){
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   const [windowDemo,setWindowDemo]=useState(false);
   useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor);},[project.closeButtonColor,project.closeIconId]);
+  useEffect(()=>{setTransitionMs(project.transitionMs);},[project.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
   useEffect(()=>{if(info)setInfoLanguage(effectiveLang(visitorPrefs,activeLanguages));},[info?.id,visitorPrefs.lang]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -5453,7 +5458,7 @@ function App(){
       </main>
       <aside id="nv-panorama-inspector" className="right panel">
         <div className="nv-inspector-resize" onPointerDown={startInspectorResize} onDoubleClick={()=>setInspectorWidth(inspectorVw<55?62:40)} role="separator" aria-orientation="vertical" aria-label="Glisser pour élargir ou réduire la colonne (double-clic : agrandir / normal)" title="Glisser pour élargir · double-clic : agrandir / normal"><i/></div>
-        <div className="nv-inspector-sizes" role="group" aria-label="Largeur de la colonne">{([['Étroit',30],['Large',42],['Très large',56],['Maxi',72]] as const).map(([label,v])=><button key={v} type="button" className={Math.abs(inspectorVw-v)<4?"is-on":""} onClick={()=>setInspectorWidth(v)}>{label}</button>)}</div>
+        <div className="nv-inspector-sizes" role="group" aria-label="Largeur de la colonne">{([['Étroit',30],['Large',42],['Très large',56],['Maxi',72],['Plein écran',98]] as const).map(([label,v])=><button key={v} type="button" className={Math.abs(inspectorVw-v)<4?"is-on":""} onClick={()=>setInspectorWidth(v)}>{label}</button>)}</div>
         <div className="nv-inspector-top">{(()=>{const back=inspectorBack();return back?<button type="button" className="nv-inspector-back" onClick={back} aria-label="Retour à l’écran précédent" title="Retour"><ChevronLeft size={20}/><span>Retour</span></button>:null;})()}{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         {currentSpace&&<><SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/><SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/></>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
@@ -5863,6 +5868,17 @@ function App(){
 
 
                   </>},
+                  {key:'transitions',title:'Transitions',hint:(project.transitionMs??200)===0?'Instantané':'Fondu '+(project.transitionMs??200)+' ms',icon:<Timer size={26}/>,tone:'#5fc9b4',content:<>
+              <div className="section-title">FONDU ENTRE DEUX PANORAMAS</div>
+              <p className="hint">Durée du fondu quand on passe d’un panorama à l’autre, pour toute la visite (éditeur et visite publiée). Plus c’est court, plus le passage est rapide. Les panoramas voisins sont aussi préchargés quand ils sont en ligne.</p>
+              <label>Durée : <b>{(project.transitionMs??200)===0?'instantané':(project.transitionMs??200)+' ms'}</b>
+                <input type="range" min={0} max={1500} step={50} value={project.transitionMs??200} onChange={e=>setProject(p=>({...p,transitionMs:Number(e.target.value)}))}/></label>
+              <div className="nv-close-colors">
+                {([['Instantané',0],['Rapide',150],['Normal',300],['Doux',600],['Lent',1000]] as const).map(([name,v])=>
+                  <button type="button" key={v} className={'nv-trans-preset'+((project.transitionMs??200)===v?' is-on':'')} onClick={()=>setProject(p=>({...p,transitionMs:v}))}>{name}</button>)}
+              </div>
+              <button type="button" className="nv-test-anim" onClick={()=>{const list=visibleScenes;const i=list.findIndex(sc=>sc.id===active.id);const next=list[(i+1)%Math.max(1,list.length)];if(next&&next.id!==active.id)selectScene(next.id);}}>▶ Tester : passer au panorama suivant</button>
+            </>},
                   {key:'music',title:'Musique',hint:active.musicTrackId?(project.audioTracks??[]).find(t=>t.id===active.musicTrackId)?.name:'Aucune',icon:<Music size={26}/>,tone:'#ff6fa8',content:<>
               <div className="section-title">MUSIQUE DE CE PANORAMA</div>
               <label>Musique active

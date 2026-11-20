@@ -31,6 +31,7 @@ import './visitor.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
 import {applyCloseColor} from './closeColor';
+import {getTransitionMs,setTransitionMs,warmPanoramas} from './transitionPrefs';
 initWindowAnimOrigin();
 import {attachSunFlare} from './sunFlare';
 import './media.css';
@@ -166,11 +167,13 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
     const markersNow=()=>visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]);
-    const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),600);};
+    const T=getTransitionMs();
+    warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?handlers.current.sphereImage(h.target):undefined));
+    const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),T);};
     instance.addEventListener('panorama-loaded',onLoaded);
     const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
     void instance.setPanorama(nextTexture,{
-      showLoader:false,transition:{effect:'fade',rotation:false,speed:600},
+      showLoader:false,transition:{effect:'fade',rotation:false,speed:T},
       // La flèche utilisée a sa propre vue d'arrivée ; sinon, celle par défaut du panorama.
       position:{yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0},
       zoom:arrivalFor?.zoom??panoramaArrivalZoom(next)
@@ -337,6 +340,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   } as CSSProperties;
   // Animation d'ouverture des fenêtres : posée sur <html> pour toutes les fenêtres (info, photo, vidéo, galeries, plan).
   useEffect(()=>{applyCloseColor(project?.closeIconId?undefined:project?.closeButtonColor);},[project?.closeButtonColor,project?.closeIconId]);
+  useEffect(()=>{setTransitionMs(project?.transitionMs);},[project?.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project?.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project?.windowAnimationMs??700)+'ms');},[project?.windowAnimation,project?.windowAnimationMs]);
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const activeLanguages=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);

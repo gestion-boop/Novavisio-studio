@@ -6097,3 +6097,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-tool-panel{display:grid;gap:10px}
 .nv-tool-action{font:700 13px system-ui;cursor:pointer;border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;padding:10px 12px;text-align:left}
 .nv-tool-list{display:grid;gap:6px}.nv-tool-list button{display:flex;justify-content:space-between;align-items:center;font:600 14px system-ui;cursor:pointer;border:1px solid #2c4a57;border-radius:10px;background:#12303d;color:#e6f6f8;padding:10px 12px}.nv-tool-list small{color:#8fb3be}
+.nv-trans-preset{font:700 12px system-ui;cursor:pointer;border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;padding:7px 12px}
+.nv-trans-preset.is-on{background:#1f8aa8;border-color:#7ad6ee;color:#fff}
+
+/* Loupe de précision en plein écran réel (portée sur <body>) */
+.nv-loupe-full{margin-left:auto}
+.nv-loupe.is-full{position:fixed;inset:0;z-index:5000;margin:0;padding:18px 22px;border:0;border-radius:0;background:#0b1c25;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:20px;align-content:start}
+.nv-loupe.is-full>.nv-loupe-head{grid-column:1/-1;font-size:16px}
+.nv-loupe.is-full>.nv-loupe-stage{grid-column:1;grid-row:2/9;justify-self:center;align-self:start;width:auto;height:calc(100vh - 100px);max-width:100%}
+.nv-loupe.is-full>:not(.nv-loupe-head):not(.nv-loupe-stage){grid-column:2}
+@media(max-width:900px){.nv-loupe.is-full{grid-template-columns:1fr}.nv-loupe.is-full>.nv-loupe-stage{height:auto;width:100%;grid-row:auto}.nv-loupe.is-full>:not(.nv-loupe-head):not(.nv-loupe-stage){grid-column:1}}
