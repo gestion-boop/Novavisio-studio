@@ -832,8 +832,8 @@ function App(){
   const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
   const [autoReturn,setAutoReturnState]=useState(()=>{try{return window.localStorage.getItem('nvstudio-auto-return')!=='0';}catch{return true;}});
   const setAutoReturn=(v:boolean)=>{setAutoReturnState(v);try{window.localStorage.setItem('nvstudio-auto-return',v?'1':'0');}catch{/* stockage indisponible */}};
-  const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw'));return v>=24&&v<=98?v:40;}catch{return 40;}});
-  const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(98,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw',String(n));}catch{/* stockage indisponible */}};
+  const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw2'));return v>=24&&v<=98?v:54;}catch{return 54;}});
+  const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(98,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw2',String(n));}catch{/* stockage indisponible */}};
   const startInspectorResize=(e:{preventDefault:()=>void})=>{e.preventDefault();const move=(ev:PointerEvent)=>setInspectorWidth((1-ev.clientX/window.innerWidth)*100);const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);};
   const [sceneDensity,setSceneDensity]=useState<'compact'|'comfortable'>(()=>readStudioLayout().density);
   const [sceneSearch,setSceneSearch]=useState('');
@@ -5295,7 +5295,7 @@ function App(){
 
       </main>
       <aside id="nv-panorama-inspector" className="right panel">
-        <div className="nv-inspector-resize" onPointerDown={startInspectorResize} onDoubleClick={()=>setInspectorWidth(inspectorVw<55?62:40)} role="separator" aria-orientation="vertical" aria-label="Glisser pour élargir ou réduire la colonne (double-clic : agrandir / normal)" title="Glisser pour élargir · double-clic : agrandir / normal"><i/></div>
+        <div className="nv-inspector-resize" onPointerDown={startInspectorResize} onDoubleClick={()=>setInspectorWidth(inspectorVw<58?66:40)} role="separator" aria-orientation="vertical" aria-label="Glisser pour élargir ou réduire la colonne (double-clic : agrandir / normal)" title="Glisser pour élargir · double-clic : agrandir / normal"><i/></div>
         <div className="nv-inspector-top">{(()=>{const back=inspectorBack();return back?<button type="button" className="nv-inspector-back" onClick={back} aria-label="Retour à l’écran précédent" title="Retour"><ChevronLeft size={20}/><span>Retour</span></button>:null;})()}{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         {currentSpace&&<><SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/><SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/></>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
