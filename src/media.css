@@ -172,12 +172,6 @@
 
 
 
-/* Barre Jour/Nuit commune au Studio, aux visites classiques et aux exports HTML. */
-.nv-daynight-switch{position:absolute;top:15px;right:74px;z-index:44;display:flex;gap:5px;padding:5px;background:rgba(9,27,39,.88);border:1px solid var(--nv-button-outline,#467b83);border-radius:999px;box-shadow:0 5px 20px #0006;backdrop-filter:blur(8px)}
-.nv-daynight-switch button{display:flex;align-items:center;gap:5px;padding:8px 11px;min-height:36px;white-space:nowrap;background:transparent;color:#c5dee5;border:1px solid transparent;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}
-.nv-daynight-switch button.is-active{background:var(--nv-button-bg,#175d62);border-color:var(--nv-button-outline,#4bd5c6);color:var(--nv-icon-color,#fff)}
-.nv-daynight-switch button:hover{filter:brightness(1.16)}
-@media(max-width:620px){.nv-daynight-switch{top:12px;right:67px}.nv-daynight-switch button{padding:7px 8px}.nv-daynight-switch button span{display:none}}
 
 
 /* Le PNG choisi prend réellement la place du bouton natif (pas de fond rouge résiduel). */
@@ -213,54 +207,8 @@
 .nv-custom-close .nv-gallery-close:active{background-image:var(--nv-close-icon-pressed-image,var(--nv-close-icon-hover-image,var(--nv-close-icon-image)))!important;}
 
 
-/* Commandes Jour/Nuit centrées dans la vue, indépendamment des barres d'outils. */
-.nv-daynight-switch{
-  left:50%!important;
-  right:auto!important;
-  top:16px!important;
-  transform:translateX(-50%);
-  z-index:65;
-}
-@media(max-width:620px){
-  .nv-daynight-switch{top:12px!important}
-  .nv-daynight-switch button span{display:inline}
-}
 
 
-/* Jour/Nuit premium : mêmes matières et contour que la barre de navigation. */
-.nv-daynight-switch {
-  background:linear-gradient(165deg,color-mix(in srgb,var(--nv-bar-bg,#c2c5c6) 90%,white),var(--nv-bar-bg,#c2c5c6))!important;
-  border:var(--nv-bar-border-width,2px) solid var(--nv-bar-outline,#987974)!important;
-  border-radius:999px!important;
-  padding:5px!important;
-  gap:4px!important;
-  box-shadow:inset 0 2px 3px #fff8,inset 0 -2px 4px #52596933,0 7px 24px #0005!important;
-}
-.nv-daynight-switch button {
-  border-radius:999px!important;
-  border:1px solid transparent!important;
-  padding:8px 13px!important;
-  transition:background .22s ease,box-shadow .22s ease,filter .18s ease;
-  font-weight:700;
-}
-.nv-daynight-switch button:first-child,
-.nv-daynight-switch button:first-child.is-active {
-  background:#f2f0eb!important;
-  color:#51565b!important;
-}
-.nv-daynight-switch button:last-child,
-.nv-daynight-switch button:last-child.is-active {
-  background:#879fb8!important;
-  color:#1a3549!important;
-}
-.nv-daynight-switch button:not(.is-active){filter:saturate(.65) opacity(.64)}
-.nv-daynight-switch button.is-active{
-  border:1px solid color-mix(in srgb,var(--nv-bar-outline,#987974) 65%,white)!important;
-  box-shadow:inset 0 1px 2px #fff8,0 2px 5px #0002!important;
-  filter:none;
-}
-.nv-daynight-switch button:hover{filter:brightness(1.04)!important}
-@media(max-width:620px){.nv-daynight-switch button{padding:7px 9px!important}}
 /* Horodatage d'une build : discret, n'intercepte aucun clic sur le panorama. */
 .nv-build-stamp {
   position:absolute;right:12px;bottom:10px;z-index:46;
@@ -316,13 +264,17 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 }
 
 
-/* Commutateur Jour/Nuit bleu, avec sélection tactile réellement enfoncée. */
+/* Commutateur Jour/Nuit (définition UNIQUE) : bleu, centré en haut de la vue, bouton actif enfoncé. */
 .nv-daynight-switch {
+  position:absolute;left:50%!important;right:auto!important;top:16px!important;transform:translateX(-50%);z-index:65;
+  display:flex;gap:4px!important;padding:5px!important;border-radius:999px!important;backdrop-filter:blur(8px);
   background:linear-gradient(160deg,#eff7ff,#b8d0f0)!important;
   border:2px solid #86a9d7!important;
   box-shadow:inset 0 2px 3px #fff, inset 0 -2px 5px #638cba55,0 7px 22px #132b4766!important;
 }
 .nv-daynight-switch button {
+  display:flex;align-items:center;gap:5px;white-space:nowrap;min-height:36px;font-size:12px;font-weight:700;cursor:pointer;
+  padding:8px 13px!important;border-radius:999px!important;
   min-width:92px;
   justify-content:center;
   color:#516e93!important;
@@ -355,7 +307,7 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 }
 .nv-night-color-picker{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;font-size:12px;color:#d0e8f3}
 .nv-night-color-picker input{width:48px;height:32px;cursor:pointer;border:1px solid #638aa6;border-radius:8px;background:#18394e;padding:2px}
-@media(max-width:620px){.nv-daynight-switch button{min-width:0}}
+@media(max-width:620px){.nv-daynight-switch{top:12px!important}.nv-daynight-switch button{min-width:0;padding:7px 9px!important}}
 .nv-embedded-page{display:flex;flex-direction:column;flex:1;min-height:0;width:100%;height:100%}.nv-embedded-page iframe{flex:1;min-height:120px;width:100%;border:0}.nv-embedded-fallback{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;background:#fff1d7;color:#4c341c;font:12px Arial;flex:none}.nv-embedded-fallback a{color:#663700;font-weight:700;text-decoration:underline}.nv-return-project{position:absolute;top:18px;left:18px;z-index:50;padding:10px 14px;background:#173c48;color:white;border:1px solid #84c9ca;border-radius:8px;cursor:pointer}
 .nv-media-popup-custom{display:block;width:100%;height:100%;background:transparent}.nv-media-popup-custom .nv-icon-states{width:100%;height:100%}
 
