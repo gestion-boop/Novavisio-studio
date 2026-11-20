@@ -118,10 +118,10 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
         <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void send(true)}>Envoyer comme nouvelle visite</button>
         {link&&<button className="quiet" disabled={!!busy||!project.scenes.length} onClick={()=>void send(false)}>Nouvelle révision (visite liée, rév. {link.revision})</button>}
       </div>
-      <div className="nv-cloud-list-header"><h3>Visites dans le cloud ({items.length})</h3><small>Partages reçus en premier · puis tes projets par date</small></div>
+      <div className="nv-cloud-list-header"><h3>Visites dans le cloud ({items.length})</h3><small>Du plus récent au plus ancien (dernière modification en haut)</small></div>
       {items.some(item=>item.shared)&&<p className="hint-inline"><b>👥 Projets partagés avec moi ({items.filter(item=>item.shared).length})</b> — ouvre directement l'une des visites ci-dessous.</p>}
       {!items.length&&<p className="hint-inline">Aucune visite cloud pour l’instant.</p>}
-      <div className="nv-cloud-scroll" role="region" aria-label="Liste défilante des sauvegardes Cloud" tabIndex={0}><ul className="cloud-list">{[...items].sort((a,b)=>Number(b.shared)-Number(a.shared)).map(item=><li key={item.id}>
+      <div className="nv-cloud-scroll" role="region" aria-label="Liste défilante des sauvegardes Cloud" tabIndex={0}><ul className="cloud-list">{[...items].sort((a,b)=>(Date.parse(b.updated_at)||0)-(Date.parse(a.updated_at)||0)||a.name.localeCompare(b.name,'fr')).map(item=><li key={item.id}>
         <span><b>{item.name}{item.shared&&<em className="shared-tag"> · Partagé avec moi</em>}</b>
           {!item.shared&&(recipients[item.id]?.length??0)>0&&
             <small className="shared-tag" title={recipients[item.id].join(' · ')}>👥 Partagé avec {recipients[item.id].map(email=>email.split('@')[0]).join(', ')}</small>}
