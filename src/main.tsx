@@ -198,6 +198,7 @@ function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:s
 }
 function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false,night=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
+  if(night&&preview)return all; // aperçu en mode nuit : panorama seul, sans bouton
   for(const h of (preview?visibleVideoFrames(scene.hotspots):scene.hotspots).filter(point=>!night||point.type!=='navigation')){
     all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation));
     if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
@@ -253,6 +254,7 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
   const currentTextureRef=useRef(scene.dataUrl);
+  const dayViewRef=useRef<{yaw:number;pitch:number;zoom:number}|null>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null);
   const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
   const actions = useRef({sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
@@ -412,7 +414,13 @@ function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nig
     const texture=night&&nightTexture?nightTexture:scene.dataUrl;
     if(currentTextureRef.current===texture)return;
     let disposed=false;
-    const position=viewer.getPosition(),zoom=viewer.getZoomLevel();
+    const here=viewer.getPosition(),hereZoom=viewer.getZoomLevel();
+    const goingNight=!!(night&&nightTexture);
+    let position=here,zoom=hereZoom;
+    if(goingNight){
+      dayViewRef.current={yaw:here.yaw,pitch:here.pitch,zoom:hereZoom};
+      if(scene.nightYaw!==undefined&&scene.nightPitch!==undefined){position={yaw:scene.nightYaw,pitch:scene.nightPitch};if(scene.nightZoom!==undefined)zoom=scene.nightZoom;}
+    }else if(dayViewRef.current){position={yaw:dayViewRef.current.yaw,pitch:dayViewRef.current.pitch};zoom=dayViewRef.current.zoom;dayViewRef.current=null;}
     void viewer.setPanorama(texture,{
       showLoader:false,transition:{effect:'fade',rotation:false,speed:750},position,zoom
     }).then(success=>{if(success&&!disposed)currentTextureRef.current=texture;})
@@ -3023,6 +3031,16 @@ function App(){
         <span>Vue Nuit : {source.name}</span>
       </div>}
       {configured&&<>
+        <div className="nv-night-view">
+          <button type="button" className="style-reset" onClick={()=>{
+            const cam=cameraRef.current;
+            if(cam.sceneId!==scene.id){setStatus('Ouvre ce panorama et oriente la vue, puis enregistre-la.');return;}
+            setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,nightYaw:cam.yaw,nightPitch:cam.pitch,nightZoom:cam.zoom}:sc)}));
+            setStatus('Vue enregistrée : la nuit s’ouvrira sur cette orientation.');
+          }}>📍 Enregistrer la vue actuelle pour la nuit</button>
+          {scene.nightYaw!==undefined&&<button type="button" className="style-reset" onClick={()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,nightYaw:undefined,nightPitch:undefined,nightZoom:undefined}:sc)}))}>Effacer la vue nuit</button>}
+          <small className="hint-inline">En mode Nuit, le panorama s’affiche seul, sans bouton ni point : seul le choix Jour / Nuit reste.</small>
+        </div>
         <label className="nv-night-color-picker">Couleur du bouton Nuit
           <input type="color" aria-label="Couleur du bouton Nuit" value={project.barStyle.dayNightColor??'#2f72b4'} onChange={e=>changeBarStyle({dayNightColor:e.target.value})}/>
         </label>

@@ -155,7 +155,7 @@ export type Scene = {
   sunFlare?:SunFlare;
   /** Nom du panorama dans les autres langues de la visite (le français reste dans « name »). */
   nameTranslations?:Partial<Record<'en'|'es'|'de'|'nl',string>>;
-  dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;hotspots:Hotspot[];
+  dataUrl:string;nightDataUrl?:string;nightSourceSceneId?:string;/** Vue enregistrée pour le mode nuit (le panorama de nuit s'ouvre dessus). */nightYaw?:number;nightPitch?:number;nightZoom?:number;hotspots:Hotspot[];
   arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
   audioDataUrl?:string;audioUrl?:string;audioEnabled?:boolean;audioLoop?:boolean;audioVolume?:number;
   musicTrackId?:string;
