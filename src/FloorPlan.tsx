@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
 import {Map,Maximize2,X,Eye} from 'lucide-react';
@@ -199,8 +200,8 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
     const next=[...plans];[next[index],next[destination]]=[next[destination],next[index]];
     onChange(next);choose(destination);
   };
-  const removePlan=()=>{
-    if(!plan||!window.confirm('Supprimer « '+plan.name+' » et ses repères ? Les panoramas restent intacts.'))return;
+  const removePlan=async ()=>{
+    if(!plan||!await confirmAsk('Supprimer « '+plan.name+' » et ses repères ? Les panoramas restent intacts.'))return;
     onChange(plans.filter((_,i)=>i!==index));
     choose(Math.max(0,index-1));
   };
@@ -265,7 +266,7 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
         event.target.value='';
         if(!files.length||importing.current)return;
         const mode=importMode.current;
-        if(mode==='replace'&&plan?.points.length&&!window.confirm('Remplacer l’image de ce plan ? Les repères de ce plan seront retirés.'))return;
+        if(mode==='replace'&&plan?.points.length&&!await confirmAsk('Remplacer l’image de ce plan ? Les repères de ce plan seront retirés.'))return;
         importing.current=true;setBusy(true);setError('');
         try{
           const imported:FloorPlan[]=[];

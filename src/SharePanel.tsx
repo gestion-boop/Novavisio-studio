@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useEffect,useState} from 'react';
 import {overlayClose} from './overlayClose';
 import {cloudConfigured,supabase,readLink,writeLink,type CloudLink} from './cloud';
@@ -78,8 +79,8 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
     onStatus('Visite publiée : l’adresse permanente est à jour');
     await refresh(res.link.projectId);
   });
-  const stopPublication=()=>{
-    if(!link||!window.confirm('Arrêter la publication ? L’adresse permanente cessera de fonctionner (rien n’est supprimé : tu pourras republier).'))return;
+  const stopPublication=async ()=>{
+    if(!link||!await confirmAsk('Arrêter la publication ? L’adresse permanente cessera de fonctionner (rien n’est supprimé : tu pourras republier).'))return;
     void run('Arrêt…',async()=>{await unpublish(link.projectId);onStatus('Publication arrêtée');await refresh(link.projectId);});
   };
   const downloadWrapper=()=>{
@@ -89,8 +90,8 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
     const a=document.createElement('a');a.href=url;a.download='index.html';
     document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
   };
-  const revoke=(row:ShareRow)=>{
-    if(!window.confirm('Désactiver ce lien tout de suite ? Les personnes qui l’ont reçu n’auront plus accès à la visite.'))return;
+  const revoke=async (row:ShareRow)=>{
+    if(!await confirmAsk('Désactiver ce lien tout de suite ? Les personnes qui l’ont reçu n’auront plus accès à la visite.'))return;
     void run('Désactivation…',async()=>{await revokeShare(row.id);onStatus('Lien désactivé');await refresh(link?.projectId);});
   };
 

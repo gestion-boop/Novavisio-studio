@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useEffect,useState} from 'react';
 import {overlayClose} from './overlayClose';
 import {cloudConfigured,supabase,signOut,listCloudProjects,listOwnedProjectRecipients,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,deleteCloudProject,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
@@ -67,7 +68,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
     await refresh();
   });
   const open=(item:CloudProject,spaceId?:string,intent?:'share'|'export')=>run('Ouverture…',async()=>{
-    if(hasUnsavedChanges&&!window.confirm('Des modifications du projet actuel ne sont pas encore enregistrées. Ouvrir « '+item.name+' » sans sauvegarder ces modifications ?\n\nClique sur Annuler pour utiliser la disquette avant de changer de projet.'))return;
+    if(hasUnsavedChanges&&!await confirmAsk('Des modifications du projet actuel ne sont pas encore enregistrées. Ouvrir « '+item.name+' » sans sauvegarder ces modifications ?\n\nClique sur Annuler pour utiliser la disquette avant de changer de projet.'))return;
     const loaded=await openCloudProject(item.id,setBusy);
     writeLink(loaded.link);setLink(loaded.link);
     onOpen(loaded.project,loaded.link,spaceId,intent);
@@ -91,7 +92,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
     setRevisions(await listCloudRevisions(item.id));setHistoryFor(item.id);
   });
   const openRevision=(item:CloudProject,revision:number)=>run('Récupération de la sauvegarde…',async()=>{
-    if(hasUnsavedChanges&&!window.confirm('Les modifications non enregistrées du projet affiché seront perdues. Ouvrir la révision '+revision+' de « '+item.name+' » ?'))return;
+    if(hasUnsavedChanges&&!await confirmAsk('Les modifications non enregistrées du projet affiché seront perdues. Ouvrir la révision '+revision+' de « '+item.name+' » ?'))return;
     const loaded=await openCloudRevision(item.id,revision,setBusy);
     writeLink(loaded.link);setLink(loaded.link);
     onOpen(loaded.project,loaded.link);

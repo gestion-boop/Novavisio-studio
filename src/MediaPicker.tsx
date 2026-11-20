@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useEffect,useMemo,useState,type ReactNode} from 'react';
 import {Image as ImageIcon,Upload,Video,X,Trash2} from 'lucide-react';
 import {forgetMedia,listMedia,mediaKey,type MediaItem,type MediaKind} from './mediaLibrary';
@@ -55,9 +56,9 @@ export function MediaPicker({kind,project,version,onPick,onImport,onClose,onDele
             <strong>{item.name}</strong><small>{item.origin==='bibliotheque'?'Bibliothèque de la visite':item.origin==='projet'?'Dans ce projet':'En mémoire (autres visites)'}</small>
           </button>
           {item.libId&&onDeleteLibrary&&<button type="button" className="nv-media-tile-del" aria-label={'Supprimer '+item.name+' de la bibliothèque'} title="Supprimer de la bibliothèque de cette visite"
-            onClick={()=>{if(window.confirm('Supprimer « '+item.name+' » de la bibliothèque de cette visite ? (Les cadres qui l’utilisent déjà la gardent.)')){onDeleteLibrary(item.libId!);setRemoved(s=>new Set(s).add(item.key));}}}><Trash2 size={15}/></button>}
+            onClick={async ()=>{if(await confirmAsk('Supprimer « '+item.name+' » de la bibliothèque de cette visite ? (Les cadres qui l’utilisent déjà la gardent.)')){onDeleteLibrary(item.libId!);setRemoved(s=>new Set(s).add(item.key));}}}><Trash2 size={15}/></button>}
           {item.id&&<button type="button" className="nv-media-tile-del" aria-label={'Retirer '+item.name+' de la mémoire'} title="Retirer de la mémoire du logiciel"
-            onClick={()=>{if(window.confirm('Retirer « '+item.name+' » de la mémoire du logiciel ? (Les cadres qui l’utilisent la gardent.)')){void forgetMedia(item.id!).then(()=>setRemoved(s=>new Set(s).add(item.key)));}}}><Trash2 size={14}/></button>}
+            onClick={async ()=>{if(await confirmAsk('Retirer « '+item.name+' » de la mémoire du logiciel ? (Les cadres qui l’utilisent la gardent.)')){void forgetMedia(item.id!).then(()=>setRemoved(s=>new Set(s).add(item.key)));}}}><Trash2 size={14}/></button>}
         </div>)}
       </div>
     </section>

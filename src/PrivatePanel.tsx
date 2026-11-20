@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useEffect,useState} from 'react';
 import {overlayClose} from './overlayClose';
 import {addMember,getWriteState,setWriteHolder,cloudConfigured,createCollaboratorAccount,listMembers,listCloudProjects,readLink,removeMember,saveToCloud,supabase,type Member} from './cloud';
@@ -148,7 +149,7 @@ export function PrivatePanel({project,space,onClose,onStatus,onShared,syncNow,sy
     finally{setBusy('');}
   }
   async function revoke(m:Member){
-    if(!projectId||!window.confirm('Retirer l’accès de '+m.email+' ? Elle ne pourra plus ouvrir ni modifier cette visite (son compte n’est pas supprimé).'))return;
+    if(!projectId||!await confirmAsk('Retirer l’accès de '+m.email+' ? Elle ne pourra plus ouvrir ni modifier cette visite (son compte n’est pas supprimé).'))return;
     setBusy('Retrait de l’accès…');setError('');
     try{await removeMember(projectId,m.email);onStatus('Accès retiré pour '+m.email);await refresh(projectId);}
     catch(e){setError(e instanceof Error?e.message:String(e));}

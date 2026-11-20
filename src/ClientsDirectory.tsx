@@ -1,3 +1,4 @@
+import {confirmAsk} from './confirmDialog';
 import {useEffect,useMemo,useState} from 'react';
 import {overlayClose} from './overlayClose';
 import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Globe,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Trash2,Users,X} from 'lucide-react';
@@ -97,7 +98,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  useEffect(()=>{if(!discovery.candidate&&!discovery.scraping)setCompletingName('');},[discovery.candidate,discovery.scraping]);
  useEffect(()=>setSavedNotice(''),[discovery.candidate]);
  const saveClient=async(profile:ClientProfile,style?:Partial<BarStyle>)=>{
-   if(studio.some(p=>norm(p.clientName||p.name)===norm(profile.name))&&!window.confirm('Le client « '+profile.name+' » existe déjà dans votre Cloud. Créer une nouvelle fiche quand même ?'))return false;
+   if(studio.some(p=>norm(p.clientName||p.name)===norm(profile.name))&&!await confirmAsk('Le client « '+profile.name+' » existe déjà dans votre Cloud. Créer une nouvelle fiche quand même ?'))return false;
    setSavingClient(true);setSavedNotice('');
    try{
      // La fiche client conserve son skin : il servira aussi pour les biens futurs.
@@ -154,7 +155,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
     .finally(()=>{if(!controller.signal.aborted)setDetailLoading(false);});
   return ()=>controller.abort();
  },[selectedRecord?.id,selectedRecord?.summaryOnly,detailRetry]);
- const pair=(key:string)=>{
+ const pair=async (key:string)=>{
    if(!selectedRecord||selectedRecord.summaryOnly||selectedRecord.unavailable)return;
    const src=selectedRecord.profile;
    const target:ClientProfile={
@@ -166,9 +167,9 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
      services:src.services||'',sourceNotes:selectedRecord.notes
    };
    if(currentProfile?.name&&norm(currentProfile.name)!==norm(src.name)&&
-     !window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+src.name+' » ?'))return;
+     !await confirmAsk('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+src.name+' » ?'))return;
    if(norm(currentProjectName)!==norm(src.name)&&
-      !window.confirm('Tu es dans le projet « '+currentProjectName+' ». Associer les coordonnées de « '+src.name+' » à ce projet ?'))return;
+      !await confirmAsk('Tu es dans le projet « '+currentProjectName+' ». Associer les coordonnées de « '+src.name+' » à ce projet ?'))return;
    onAssociate(target);setSelectedKey(key);onClose();
  };
  /** Lance l'aspirateur (site Internet + NovaGen) pour le client sélectionné : nom, ville et site déjà saisis. */
@@ -183,7 +184,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
    if(!selectedCloudProject){
      setSavedNotice('Cette fiche vient de NovaGen (lecture seule). Utilisez « Ajouter à la visite en cours » ou « Créer une visite virtuelle ».');return;
    }
-   if(!window.confirm('Compléter la fiche « '+selected.name+' » avec ces informations ? Seuls les champs vides seront remplis : rien de ce qui est déjà saisi n’est écrasé.'))return;
+   if(!await confirmAsk('Compléter la fiche « '+selected.name+' » avec ces informations ? Seuls les champs vides seront remplis : rien de ce qui est déjà saisi n’est écrasé.'))return;
    setUpdatingClient(true);setSavedNotice('');
    try{
      const {project,link}=await loadFromCloud(selectedCloudProject.id,()=>{});
@@ -271,9 +272,9 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
           onCancel={()=>{setManualOpen(false);setSavedNotice('');}}
         />:discovery.candidate?<DiscoveryDetail d={discovery} onClose={discovery.close} onSaveClient={(p,st)=>void saveClient(p,st)} saving={savingClient} notice={savedNotice}
           completing={completingName?{name:completingName,busy:updatingClient,onApply:p=>void updateExisting(p)}:undefined}
-          onSave={(profile,style)=>{
-            if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!window.confirm('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
-            if(norm(currentProjectName)!==norm(profile.name)&&!window.confirm('Tu es dans le projet « '+currentProjectName+' ». Enregistrer les informations de « '+profile.name+' » dans ce projet ?'))return;
+          onSave={async (profile,style)=>{
+            if(currentProfile?.name&&norm(currentProfile.name)!==norm(profile.name)&&!await confirmAsk('La visite est actuellement associée à « '+currentProfile.name+' ». Associer plutôt « '+profile.name+' » ?'))return;
+            if(norm(currentProjectName)!==norm(profile.name)&&!await confirmAsk('Tu es dans le projet « '+currentProjectName+' ». Enregistrer les informations de « '+profile.name+' » dans ce projet ?'))return;
             onSaveDiscovered(profile,style);onClose();
           }}
           onCreateVisit={(profile,style)=>{onCreateVisit(profile,style);onClose();}}
@@ -382,9 +383,9 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
             {selectedRecord&&!selectedRecord.unavailable&&!selectedRecord.summaryOnly&&<NovaGenVideos key={selectedRecord.id} clientId={selectedRecord.id} canPlace={canPlaceVideo} onPlace={onPlaceVideo}/>}
           </div>
           {!selectedRecord&&!!selectedCloudProfile&&!selected.current&&<div className="nv-directory-bottom-actions">
-            <button type="button" className="nv-directory-associate" disabled={associated} onClick={()=>{
+            <button type="button" className="nv-directory-associate" disabled={associated} onClick={async ()=>{
               if(currentProfile?.name&&norm(currentProfile.name)!==norm(selectedCloudProfile.name)&&
-                !window.confirm('Remplacer le client de la visite actuelle par « '+selectedCloudProfile.name+' » ?'))return;
+                !await confirmAsk('Remplacer le client de la visite actuelle par « '+selectedCloudProfile.name+' » ?'))return;
               onAssociate(selectedCloudProfile);onClose();
             }}>
               <Check size={16}/> {associated?'Déjà associé':'Associer ce client à la visite en cours'}
