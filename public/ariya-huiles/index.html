@@ -6,15 +6,13 @@
 :root{--gold:#d4a937;--gold2:#b88a2e;--ink:#17130d;--muted:#6a6358;--cream:#fffaf0}
 *{box-sizing:border-box}html,body{margin:0}
 body{font-family:Montserrat,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:radial-gradient(circle at 80% 0%,#fff3d2 0,transparent 45%),linear-gradient(180deg,#fffdf8,#fff7e6);min-height:100vh;display:grid;place-items:center;padding:clamp(10px,3vw,36px)}
-.card{width:min(1180px,100%);display:grid;grid-template-columns:minmax(300px,.95fr) 1.25fr;border-radius:32px;overflow:hidden;background:linear-gradient(135deg,#fffdf7,#fff4dc);box-shadow:0 30px 80px rgba(150,105,20,.22),0 0 0 1px rgba(212,169,55,.35);animation:pop .8s cubic-bezier(.2,.8,.2,1) both}
-.photo{position:relative;min-height:560px;background:linear-gradient(160deg,#6a4a1a,#2b1d08);overflow:hidden}
-.photo>img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 60%;opacity:0;animation:slide 14s ease-in-out infinite,kb 22s ease-in-out infinite alternate}.photo>img.bg.two{animation-delay:7s,0s;object-position:center 40%}
-@keyframes slide{0%,4%{opacity:0}12%,46%{opacity:1}54%,100%{opacity:0}}
-.photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,12,2,.25) 0%,transparent 30%,transparent 55%,rgba(20,12,2,.82) 100%)}
-.fallback{position:absolute;inset:0;display:grid;place-items:center}.fallback img{width:46%;border-radius:50%;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.card{width:min(1180px,100%);display:grid;grid-template-columns:minmax(260px,.62fr) 1.5fr;border-radius:32px;overflow:hidden;background:linear-gradient(135deg,#fffdf7,#fff4dc);box-shadow:0 30px 80px rgba(150,105,20,.22),0 0 0 1px rgba(212,169,55,.35);animation:pop .8s cubic-bezier(.2,.8,.2,1) both}
+.photo{position:relative;align-self:start;margin:clamp(24px,4vw,52px) 0 0 clamp(16px,2.5vw,32px);aspect-ratio:4/5;max-height:430px;justify-self:center;width:100%;max-width:340px;border-radius:22px;overflow:hidden;background:#2b1d08;display:grid;grid-template-rows:1fr 1fr;gap:4px;box-shadow:0 14px 34px rgba(120,80,10,.28),0 0 0 1px rgba(212,169,55,.45)}
+.photo>img.bg{width:100%;height:100%;min-height:0;object-fit:cover;display:block;transition:transform .6s}.photo>img.bg:hover{transform:scale(1.06)}.photo>img.bg.one{object-position:center 55%}.photo>img.bg.two{object-position:center 40%}
+.photo::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(20,12,2,.28) 0%,transparent 28%)}
 .pill{position:absolute;z-index:2;display:inline-flex;align-items:center;gap:10px;border-radius:99px;padding:10px 18px;font-weight:700;font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#fff;background:rgba(40,32,22,.55);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.22)}
 .pill i{width:12px;height:12px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 4px rgba(212,169,55,.3)}
-.p1{left:24px;top:24px;animation:fd .9s .3s both}.capbox{position:absolute;z-index:2;left:24px;right:24px;bottom:28px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}.capbox .pill{position:static;background:rgba(255,255,255,.16);animation:fd .9s .6s both}
+.p1{left:12px;top:12px;font-size:11px;padding:7px 12px;animation:fd .9s .3s both}.capbox{position:absolute;z-index:2;left:24px;right:24px;bottom:28px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}.capbox .pill{position:static;background:rgba(255,255,255,.16);animation:fd .9s .6s both}
 .cap{color:#fff;font-weight:800;font-size:clamp(22px,3vw,34px);line-height:1.15;text-shadow:0 3px 18px rgba(0,0,0,.5);animation:rise .9s .7s both}
 .txt{padding:clamp(24px,4vw,52px)}
 .kick{display:flex;align-items:center;gap:12px;color:var(--gold2);font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;animation:rise .8s .2s both}.kick::before{content:"";width:34px;height:2px;background:var(--gold2)}
@@ -32,15 +30,13 @@ h1::after{content:"";display:block;width:84px;height:4px;border-radius:4px;margi
 .btns{display:flex;flex-wrap:wrap;gap:14px;margin-top:26px}.btns .cta{margin-top:0}.cta.dark{background:linear-gradient(135deg,#2a2a2a,#111);box-shadow:0 14px 30px rgba(0,0,0,.35)}.cta.dark:hover{box-shadow:0 20px 40px rgba(0,0,0,.5)}
 @keyframes pop{from{opacity:0;transform:scale(.97) translateY(16px)}to{opacity:1;transform:none}}@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}@keyframes fd{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}@keyframes kb{from{transform:scale(1)}to{transform:scale(1.1)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
-@media(max-width:860px){.card{grid-template-columns:1fr}.photo{min-height:420px}.cells{grid-template-columns:1fr}.cells div{border-right:0;border-bottom:1px solid rgba(212,169,55,.28)}.cells div:last-child{border:0}}
+@media(max-width:860px){.card{grid-template-columns:1fr}.photo{max-height:none;max-width:none;aspect-ratio:auto;height:340px;margin:16px 16px 0;grid-template-rows:none;grid-template-columns:1fr 1fr}.cells{grid-template-columns:1fr}.cells div{border-right:0;border-bottom:1px solid rgba(212,169,55,.28)}.cells div:last-child{border:0}}
 </style></head><body>
 <main class="card">
  <section class="photo" aria-label="Huiles et aromas">
-  <div class="fallback"><img src="img/logo.webp" alt="Ariya — Bien-être et tradition"></div>
-  <img class="bg" src="img/flacons.webp" alt="Flacons d’huiles aromatiques et outils de massage en bois" onerror="this.remove()">
+  <img class="bg one" src="img/flacons.webp" alt="Flacons d’huiles aromatiques et outils de massage en bois" onerror="this.remove()">
   <img class="bg two" src="img/massage.webp" alt="Massage aux pochons chauds" onerror="this.remove()">
   <span class="pill p1"><i></i>Huiles &amp; aromas</span>
-  <div class="capbox"><span class="pill p2">Rituel sensoriel</span><div class="cap">Des huiles aromatiques pour une expérience douce, chaude et enveloppante</div></div>
  </section>
  <section class="txt">
   <div class="kick">L’expérience du soin</div>
