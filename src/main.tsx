@@ -2406,12 +2406,15 @@ function App(){
         const errors:string[]=[];
         const report:{ok:boolean;text:string}[]=[];
         const master=readLink();
-        const targets=[
+        const allTargets=[
           {name:'Projet complet',space:null as StudioSpace|null,link:master},
           ...(snapshot.spaces??[]).map(space=>({
             name:space.name,space,link:readSpaceCloudLink(space.id,'public')
           }))
         ];
+        // « Publier » avec un espace sélectionné : on ne publie QUE cet espace (pas le projet complet ni les autres espaces).
+        const selectedSpace=publishing?(snapshot.spaces??[]).find(sp=>sp.id===activeSpaceId):undefined;
+        const targets=selectedSpace?allTargets.filter(t=>t.space?.id===selectedSpace.id):allTargets;
         for(const target of targets){
           if(!target.link&&target.space){
             if(publishing)report.push({ok:false,text:'Espace « '+target.name+' » : ignoré, aucun lien public enregistré sur cet appareil (publie-le une fois depuis « Lien public » avec cet espace ouvert).'});
