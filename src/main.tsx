@@ -2380,7 +2380,7 @@ function App(){
     const snapshot=projectRef.current;
     setSavingManually(true);
     try{
-      if(cloud.signedIn){
+      if(cloud.signedIn||await cloud.ensureSignedIn()){
         const link=readLink();
         if(link){
           const hand=await getWriteState(link.projectId);
