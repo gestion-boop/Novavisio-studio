@@ -832,6 +832,7 @@ function App(){
   const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
   const [autoReturn,setAutoReturnState]=useState(()=>{try{return window.localStorage.getItem('nvstudio-auto-return')!=='0';}catch{return true;}});
   const setAutoReturn=(v:boolean)=>{setAutoReturnState(v);try{window.localStorage.setItem('nvstudio-auto-return',v?'1':'0');}catch{/* stockage indisponible */}};
+  const [pendingSpaceIntent,setPendingSpaceIntent]=useState<{spaceId:string;intent:'share'|'export'}|null>(null);
   const [pickedSceneId,setPickedSceneId]=useState<string|null>(null);
   const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw2'));return v>=24&&v<=98?v:54;}catch{return 54;}});
   const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(98,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw2',String(n));}catch{/* stockage indisponible */}};
@@ -2593,6 +2594,12 @@ function App(){
     }catch(err){setStatus('Échec de l’export : '+(err instanceof Error?err.message:String(err)));}
     finally{setExporting(false);}
   }
+  // Depuis « Mes projets Cloud » : après l'ouverture d'un espace, lance tout de suite son lien public ou son export.
+  useEffect(()=>{
+    if(!pendingSpaceIntent||activeSpaceId!==pendingSpaceIntent.spaceId||!currentSpace)return;
+    const {intent}=pendingSpaceIntent;setPendingSpaceIntent(null);
+    if(intent==='share')setShareOpen(true);else void exportTour();
+  });
   async function addVideo(file?:File,placement?:{sceneId:string;hotspotId:string}){
     const sceneId=placement?.sceneId??activeId,hotspotId=placement?.hotspotId??selectedId;
     if(!file||!sceneId||!hotspotId)return;
@@ -6299,7 +6306,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string)=>{const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
     {saveWarning&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSaveWarning(null);}}>
       <section className="modal" role="alertdialog" aria-modal="true" aria-label="Sauvegarde impossible" onClick={e=>e.stopPropagation()}>
         <h2>⚠ Sauvegarde impossible</h2>

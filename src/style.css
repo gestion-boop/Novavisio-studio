@@ -6121,3 +6121,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 /* Panorama sélectionné dans la liste : bien visible (contour doré + pastille) */
 .scene.is-picked:not(#nv-x){border-color:#ffd166!important;border-width:2px;background:linear-gradient(160deg,#4a3a14,#1f3a4a)!important;box-shadow:0 0 0 2px #ffd16699,0 0 22px #ffd16666!important;position:relative}
 .scene.is-picked:not(#nv-x)::after{content:"Sélectionné";position:absolute;left:50%;translate:-50% 0;top:8px;z-index:3;padding:2px 9px;border-radius:99px;background:#ffd166;color:#2a1c00;font-size:11px;font-weight:800;letter-spacing:.03em;pointer-events:none}
+
+/* Mes projets Cloud : menu d'actions d'un espace */
+.nv-cloud-space-chip{display:inline-flex;flex-direction:column;align-items:flex-start;gap:6px}
+.nv-cloud-space-menu{display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid #3f7f8c;border-radius:12px;background:#0f2a35}
+.nv-cloud-space-menu button{text-align:left;white-space:nowrap}
+.nv-cloud-space-chip>button.is-picked:not(#nv-x){border-color:#ffd166!important}
