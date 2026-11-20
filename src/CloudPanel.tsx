@@ -10,7 +10,7 @@ type Props={
   onClose:()=>void;
   onOpenClients?:()=>void;
   hasUnsavedChanges:boolean;
-  onOpen:(project:StudioProject,link:CloudLink,spaceId?:string)=>void;
+  onOpen:(project:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>void;
   onStatus:(message:string)=>void;
   autoEnabled:boolean;
   onAutoChange:(on:boolean)=>void;
@@ -27,6 +27,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
   const [revisions,setRevisions]=useState<CloudRevision[]>([]);
   const [link,setLink]=useState<CloudLink|null>(readLink());
   const [spaces,setSpaces]=useState<CloudSpace[]>([]);
+  const [spaceMenu,setSpaceMenu]=useState<string|null>(null);
 
   async function refresh(){
     try{
@@ -63,11 +64,11 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
     onStatus('Visite enregistrée dans le cloud (révision '+next.revision+')');
     await refresh();
   });
-  const open=(item:CloudProject,spaceId?:string)=>run('Ouverture…',async()=>{
+  const open=(item:CloudProject,spaceId?:string,intent?:'share'|'export')=>run('Ouverture…',async()=>{
     if(hasUnsavedChanges&&!window.confirm('Des modifications du projet actuel ne sont pas encore enregistrées. Ouvrir « '+item.name+' » sans sauvegarder ces modifications ?\n\nClique sur Annuler pour utiliser la disquette avant de changer de projet.'))return;
     const loaded=await openCloudProject(item.id,setBusy);
     writeLink(loaded.link);setLink(loaded.link);
-    onOpen(loaded.project,loaded.link,spaceId);
+    onOpen(loaded.project,loaded.link,spaceId,intent);
     onStatus('Visite cloud ouverte (révision '+loaded.link.revision+')');
     onClose();
   });
@@ -118,9 +119,18 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
           {item.revision>0&&<button className="quiet" disabled={!!busy} onClick={()=>void showHistory(item)}>{historyFor===item.id?'Masquer':'Sauvegardes'}</button>}
         </div>
         {spaces.filter(sp=>sp.project_id===item.id).length>0&&<div className="nv-cloud-spaces">
-          {spaces.filter(sp=>sp.project_id===item.id).map(sp=><button type="button" key={sp.space_id} className="quiet" disabled={!!busy} onClick={()=>void open(item,sp.space_id)}>
-            ▦ {sp.name} <small>({sp.panorama_count} panoramas)</small>
-          </button>)}
+          {spaces.filter(sp=>sp.project_id===item.id).map(sp=>{
+            const key=item.id+':'+sp.space_id,isOpen=spaceMenu===key;
+            return <span key={sp.space_id} className="nv-cloud-space-chip">
+              <button type="button" className={'quiet'+(isOpen?' is-picked':'')} disabled={!!busy} aria-expanded={isOpen} onClick={()=>setSpaceMenu(isOpen?null:key)}>
+                ▦ {sp.name} <small>({sp.panorama_count} panoramas)</small>
+              </button>
+              {isOpen&&<span className="nv-cloud-space-menu" role="menu">
+                <button type="button" role="menuitem" disabled={!!busy} onClick={()=>void open(item,sp.space_id)}>Ouvrir cet espace</button>
+                <button type="button" role="menuitem" disabled={!!busy} onClick={()=>void open(item,sp.space_id,'share')} title="Publie un lien public qui contient uniquement cet espace : les flèches vers les autres espaces sont retirées">🔗 Lien public de cet espace</button>
+                <button type="button" role="menuitem" disabled={!!busy} onClick={()=>void open(item,sp.space_id,'export')} title="Télécharge le dossier (ZIP) de cet espace seul : les flèches vers les autres espaces sont retirées">📦 Exporter le dossier de cet espace</button>
+              </span>}
+            </span>;})}
         </div>}
         {historyFor===item.id&&<div className="nv-cloud-history">
           {revisions.map(rev=><button type="button" key={rev.revision} disabled={!!busy} onClick={()=>void openRevision(item,rev.revision)}>
