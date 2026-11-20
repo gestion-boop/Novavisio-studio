@@ -205,3 +205,9 @@ html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
 /* Bouton « Informations » de la barre du bas : plein écran, croix en haut à droite */
 .tour-overlay:has(.tour-dialog.is-full){padding:0}
 .tour-dialog.is-full,.tour-dialog.is-full:has(.nv-embedded-page){width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0;border:0}
+
+/* Jour / Nuit : quand le bandeau avec le nom de la pièce est affiché (même zone, en haut au centre), le commutateur passe dessous. */
+.tour-app:has(.nv-tour-room-heading) .nv-daynight-switch{top:68px!important}
+@media(max-width:700px){
+  .tour-app:has(.nv-tour-room-heading) .nv-daynight-switch{top:60px!important}
+}
