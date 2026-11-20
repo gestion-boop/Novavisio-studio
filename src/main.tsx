@@ -6090,6 +6090,12 @@ function App(){
               </select>
             </label>
           </InspectorSection>
+          <InspectorSection title="Rectangle avec le nom des pièces (en haut)" initiallyOpen>
+            <p className="hint">Le petit cadre qui affiche le nom du panorama en haut de la visite. Ces deux cases le masquent partout, quel que soit le réglage des dossiers ou des panoramas.</p>
+            <label className="toggle-row"><input type="checkbox" checked={!!project.hideRoomNames} onChange={e=>setProject(p=>({...p,hideRoomNames:e.target.checked||undefined}))}/> Masquer dans la visite immersive</label>
+            <label className="toggle-row"><input type="checkbox" checked={!!project.hideRoomNamesVr} onChange={e=>setProject(p=>({...p,hideRoomNamesVr:e.target.checked||undefined}))}/> Masquer dans le casque (VR)</label>
+            <small className="hint-inline">Pour garder le cadre seulement sur certains panoramas : décochez ici, puis réglez chaque dossier ou chaque panorama (tuile « Nom du panorama »).</small>
+          </InspectorSection>
           <InspectorSection title="Croix de fermeture (toutes les fenêtres)" initiallyOpen>
             {closeColorControls()}
           </InspectorSection>
