@@ -6127,3 +6127,12 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-cloud-space-menu{display:flex;flex-direction:column;gap:4px;padding:6px;border:1px solid #3f7f8c;border-radius:12px;background:#0f2a35}
 .nv-cloud-space-menu button{text-align:left;white-space:nowrap}
 .nv-cloud-space-chip>button.is-picked:not(#nv-x){border-color:#ffd166!important}
+
+/* Mes projets Cloud : suppression d'une visite */
+.nv-cloud-delete:not(#nv-x){color:#ff8a8a;border-color:#7a3a3a!important;min-width:34px}
+.nv-cloud-delete:not(#nv-x):hover{background-color:#7a2323!important;background-image:none!important;color:#fff!important;border-color:#ff8a8a!important}
+.nv-cloud-delete-overlay{z-index:200}
+.nv-cloud-delete-dialog label{display:grid;gap:6px;margin:12px 0}
+.nv-cloud-delete-go:not(#nv-x){background-color:#b3261e!important;background-image:none!important;border-color:#ff8a8a!important;color:#fff}
+.nv-cloud-delete-go:not(#nv-x):disabled{opacity:.4;cursor:not-allowed}
+.nv-cloud-delete-go:not(#nv-x):not(:disabled):hover{background-color:#d6342b!important}
