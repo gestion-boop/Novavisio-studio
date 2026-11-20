@@ -51,7 +51,11 @@ export function stripExcluded(project:StudioProject):StudioProject{
   return {...project,
     floorPlan:project.floorPlan?{...project.floorPlan,points:project.floorPlan.points.filter(point=>!out.has(point.sceneId))}:undefined,
     floorPlans:project.floorPlans?.map(plan=>({...plan,points:plan.points.filter(point=>!out.has(point.sceneId))})),
-    scenes:project.scenes.filter(sc=>!out.has(sc.id)).map(sc=>({...sc,hotspots:sc.hotspots.filter(h=>!(h.type==='navigation'&&h.target&&out.has(h.target)))})),
+    // Le panorama de nuit d'une scène peut être une autre scène décochée : on copie sa photo avant de la retirer, sinon le mode nuit disparaît.
+    scenes:project.scenes.filter(sc=>!out.has(sc.id)).map(sc=>{
+      const night=!sc.nightDataUrl&&sc.nightSourceSceneId&&out.has(sc.nightSourceSceneId)?project.scenes.find(o=>o.id===sc.nightSourceSceneId)?.dataUrl:undefined;
+      return night?{...sc,nightDataUrl:night,nightSourceSceneId:undefined}:sc;
+    }).map(sc=>({...sc,hotspots:sc.hotspots.filter(h=>!(h.type==='navigation'&&h.target&&out.has(h.target)))})),
     bottomBar:project.bottomBar.map(item=>({...item,
       ...(item.gallery?{gallery:item.gallery.filter(g=>!out.has(g.sceneId))}:{}),
       target:item.target&&out.has(item.target)?'':item.target})),
