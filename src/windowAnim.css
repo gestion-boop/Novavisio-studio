@@ -76,5 +76,5 @@
   border-color:color-mix(in srgb,var(--nv-bar-outline,#4bebde) 55%,transparent);
   box-shadow:0 30px 90px #000b,0 0 0 1px #ffffff12 inset,0 0 60px color-mix(in srgb,var(--nv-bar-outline,#4bebde) 16%,transparent)}
 .nv-gallery:not(#nv-x) h2{letter-spacing:.04em}
-.nv-gallery-card:not(#nv-x){background:color-mix(in srgb,#fff 7%,transparent);border-color:color-mix(in srgb,var(--nv-bar-outline,#4bebde) 32%,transparent);backdrop-filter:blur(6px)}
-.nv-gallery-card:not(#nv-x):hover,.nv-gallery-card.is-current:not(#nv-x){background:color-mix(in srgb,#fff 12%,transparent)}
+.nv-gallery-card:not(#nv-x){background:linear-gradient(160deg,#8a5a34,#6e4526);border-color:#c8935e88;color:#fff4e6;backdrop-filter:none}
+.nv-gallery-card:not(#nv-x):hover,.nv-gallery-card.is-current:not(#nv-x){background:linear-gradient(160deg,#4a2c15,#34200f);border-color:#e0b07a;box-shadow:0 10px 24px #0009}
