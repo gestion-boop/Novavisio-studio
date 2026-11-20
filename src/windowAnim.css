@@ -60,3 +60,21 @@
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button.is-on,.nv-vs-row button:hover,.nv-vs-fullscreen:hover,.nv-open-floor-plan:hover){
   background:var(--nv-button-bg,#1f8aa8)!important;background-color:var(--nv-button-bg,#1f8aa8)!important;border-color:var(--nv-button-outline,#7ad6ee)!important;color:var(--nv-icon-color,#fff)}
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button,.nv-vs-fullscreen):hover{transform:translateY(-2px)}
+
+/* Fenêtre « Espaces » / galeries : fond plus soigné, aux couleurs du projet */
+.nv-gallery-overlay:not(#nv-x){
+  background:
+    radial-gradient(ellipse 60% 55% at 15% 10%,color-mix(in srgb,var(--nv-button-bg,#2fb7a6) 38%,transparent),transparent 70%),
+    radial-gradient(ellipse 55% 50% at 88% 92%,color-mix(in srgb,var(--nv-bar-outline,#d9a63b) 30%,transparent),transparent 70%),
+    rgba(4,14,22,.52);
+  backdrop-filter:blur(14px) saturate(1.25);-webkit-backdrop-filter:blur(14px) saturate(1.25)}
+.nv-gallery:not(#nv-x){
+  background:
+    radial-gradient(ellipse 80% 45% at 50% -8%,color-mix(in srgb,var(--nv-bar-outline,#4bebde) 26%,transparent),transparent 70%),
+    radial-gradient(circle at 12% 100%,color-mix(in srgb,var(--nv-button-bg,#2fb7a6) 20%,transparent),transparent 55%),
+    linear-gradient(165deg,color-mix(in srgb,var(--nv-bar-bg,#10303a) 78%,#1b5a66),color-mix(in srgb,var(--nv-bar-bg,#0a1c26) 92%,#000));
+  border-color:color-mix(in srgb,var(--nv-bar-outline,#4bebde) 55%,transparent);
+  box-shadow:0 30px 90px #000b,0 0 0 1px #ffffff12 inset,0 0 60px color-mix(in srgb,var(--nv-bar-outline,#4bebde) 16%,transparent)}
+.nv-gallery:not(#nv-x) h2{letter-spacing:.04em}
+.nv-gallery-card:not(#nv-x){background:color-mix(in srgb,#fff 7%,transparent);border-color:color-mix(in srgb,var(--nv-bar-outline,#4bebde) 32%,transparent);backdrop-filter:blur(6px)}
+.nv-gallery-card:not(#nv-x):hover,.nv-gallery-card.is-current:not(#nv-x){background:color-mix(in srgb,#fff 12%,transparent)}
