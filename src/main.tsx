@@ -1112,6 +1112,15 @@ function App(){
     if(mode!=='video'||preview||clientVideoPlacement?.sceneId!==activeId)setClientVideoPlacement(null);
   },[mode,preview,activeId,clientVideoPlacement?.sceneId]);
   const [status,setStatus]=useState('Initialisation…');
+  // Notification visible : chaque message d'état s'affiche quelques secondes (les messages importants gardent leur bandeau).
+  const [toast,setToast]=useState<{text:string;error:boolean}|null>(null);
+  useEffect(()=>{
+    if(!status||status==='Initialisation…'||status==='Prêt')return;
+    if(/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status))return; // déjà affiché par le bandeau persistant
+    setToast({text:status,error:/^(Impossible|Erreur|Échec|Cloud déconnecté|Format|Fichier|Panorama nuit :)/.test(status)});
+    const t=window.setTimeout(()=>setToast(null),status.length>90?7000:4200);
+    return ()=>window.clearTimeout(t);
+  },[status]);
   const [help,setHelp]=useState(false);
   const [info,setInfo]=useState<Hotspot|null>(null);
   const [frame,setFrame]=useState<EmbedFrame|null>(null);
@@ -6301,6 +6310,7 @@ function App(){
       }}
     />}
     <footer className="nv-app-footer"><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas{project.scenes.some(sc=>sc.excluded)?' ('+project.scenes.filter(sc=>sc.excluded).length+' décoché'+(project.scenes.filter(sc=>sc.excluded).length>1?'s':'')+')':''} · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>
+    {toast&&<div className={'nv-toast'+(toast.error?' is-error':'')} role="status" aria-live="polite"><span>{toast.text}</span><button type="button" aria-label="Fermer la notification" onClick={()=>setToast(null)}><XMark/></button></div>}
     {/^(Enregistré dans le Cloud|Échec|Sauvegardé|Publication|Cloud déconnecté)/.test(status)&&<div className="nv-workflow-status" role="status"><span>{status}</span><button type="button" aria-label="Masquer le message" onClick={()=>setStatus('Prêt')}><XMark/></button></div>}
     {informationEdit&&(()=>{const point=project.scenes.find(scene=>scene.id===informationEdit.sceneId)?.hotspots.find(h=>h.id===informationEdit.pointId);return point?<InformationEditor point={point} onClose={()=>setInformationEdit(null)} onSave={patch=>setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===informationEdit.sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===informationEdit.pointId?{...h,...patch}:h)}:scene)}))}/>:null;})()}
     {publishReport&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Résultat de la publication" className="nv-publish-warning">

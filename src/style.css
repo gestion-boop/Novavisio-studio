@@ -2804,11 +2804,6 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .nv-daynight-preview{display:flex;gap:8px;margin:12px 0}
 .nv-daynight-preview button{flex:1;padding:9px 7px;border:1px solid #345d66;border-radius:9px;background:#152e3a;color:#c7e3e5;font-weight:700}
 .nv-daynight-preview button.is-active{border-color:#3de1cf;background:#1e5e61;color:#fff}
-.nv-daynight-switch{position:absolute;top:15px;right:74px;z-index:44;display:flex;gap:5px;padding:5px;background:rgba(9,27,39,.88);border:1px solid var(--nv-button-outline,#467b83);border-radius:999px;box-shadow:0 5px 20px #0006;backdrop-filter:blur(8px)}
-.nv-daynight-switch button{display:flex;align-items:center;gap:5px;padding:8px 11px;min-height:36px;white-space:nowrap;background:transparent;color:#c5dee5;border:1px solid transparent;border-radius:999px;font-size:12px;font-weight:700}
-.nv-daynight-switch button.is-active{background:var(--nv-button-bg,#175d62);border-color:var(--nv-button-outline,#4bd5c6);color:var(--nv-icon-color,#fff)}
-.nv-daynight-switch button:hover{filter:brightness(1.16)}
-@media(max-width:620px){.nv-daynight-switch{top:12px;right:67px}.nv-daynight-switch button{padding:7px 8px}.nv-daynight-switch button span{display:none}}
 
 /* Réglage global de la croix : explicite et accessible sans parcourir tous les PNG. */
 .nv-close-current{display:flex;align-items:center;gap:12px;padding:13px;margin:12px 0;border:1px solid #38877e;border-radius:12px;background:#173843}
@@ -6158,3 +6153,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-confirm-actions button:not(#nv-x):active{transform:none!important;scale:.97}
 @keyframes nvConfirmIn{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
 @media(prefers-reduced-motion:reduce){.nv-confirm-dialog{animation:none}}
+
+/* Notification visible (messages d'état) */
+.nv-toast{position:fixed;left:50%;top:74px;translate:-50% 0;z-index:260;display:flex;align-items:center;gap:12px;max-width:min(640px,92vw);padding:12px 14px 12px 18px;border:1px solid #6eb2ac;border-radius:14px;background:#153842;color:#e3fff6;font:600 13px/1.45 system-ui,sans-serif;box-shadow:0 14px 40px #000a;animation:nvToastIn .22s ease-out both}
+.nv-toast.is-error{border-color:#ff9b93;background:#4a1d1b;color:#ffe3e0}
+.nv-toast span{min-width:0;overflow-wrap:anywhere}
+.nv-toast button:not(#nv-x){flex:none;display:grid;place-items:center;width:28px;height:28px;padding:0;border-radius:8px;border:1px solid #ffffff40!important;background:transparent!important;background-image:none!important;color:inherit!important;box-shadow:none;cursor:pointer}
+.nv-toast button:not(#nv-x):hover{background:#ffffff22!important}
+.nv-toast button svg{width:14px;height:14px}
+@keyframes nvToastIn{from{opacity:0;translate:-50% 8px}to{opacity:1;translate:-50% 0}}
+@media(prefers-reduced-motion:reduce){.nv-toast{animation:none}}
