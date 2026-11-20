@@ -342,6 +342,24 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   useEffect(()=>{applyCloseColor(project?.closeIconId?undefined:project?.closeButtonColor);},[project?.closeButtonColor,project?.closeIconId]);
   useEffect(()=>{setTransitionMs(project?.transitionMs);},[project?.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project?.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project?.windowAnimationMs??700)+'ms');},[project?.windowAnimation,project?.windowAnimationMs]);
+  // Fluidité : on précharge en tâche de fond les panoramas atteignables depuis celui-ci (flèches, boutons de la barre, précédent / suivant).
+  const warmCurrentId=(project?.scenes?.find(sc=>sc.id===sceneId)??project?.scenes?.[0])?.id;
+  useEffect(()=>{
+    const scenes=project?.scenes;
+    if(!Array.isArray(scenes)||!warmCurrentId)return;
+    const cur=scenes.find(sc=>sc.id===warmCurrentId);
+    if(!cur)return;
+    const ids=new Set<string>();
+    cur.hotspots?.forEach(h=>{if(h.type==='navigation'&&h.target)ids.add(h.target);});
+    project?.bottomBar?.forEach(b=>{if(b.type==='navigation'&&b.target)ids.add(b.target);});
+    const index=scenes.findIndex(sc=>sc.id===cur.id);
+    [scenes[index-1],scenes[index+1]].forEach(sc=>{if(sc)ids.add(sc.id);});
+    ids.delete(cur.id);
+    const urls=[...ids].map(id=>scenes.find(sc=>sc.id===id)?.dataUrl);
+    const t=window.setTimeout(()=>warmPanoramas(urls),400);
+    return ()=>window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[warmCurrentId]);
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
   const activeLanguages=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
   const lang=effectiveLang(prefs,activeLanguages);
