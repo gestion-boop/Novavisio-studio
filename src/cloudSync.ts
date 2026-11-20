@@ -56,13 +56,50 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   const runRef=useRef<(snapshot?:StudioProject)=>Promise<void>>(async()=>{});
   const startedRef=useRef(false);
 
+  const enabledRef=useRef(enabled);enabledRef.current=enabled;
+  const activeRef=useRef(active);activeRef.current=active;
+  const signedInRef=useRef(false);signedInRef.current=signedIn;
+  /** Vérifie réellement la session Supabase (jamais seulement l'état affiché) : lecture, puis renouvellement si besoin. */
+  const ensureSignedIn=useCallback(async():Promise<boolean>=>{
+    if(!cloudConfigured)return false;
+    try{
+      const db=supabase();
+      let session=(await db.auth.getSession()).data.session;
+      if(!session)session=(await db.auth.refreshSession()).data.session;
+      if(session){
+        setSignedIn(true);
+        // L'écriture suit immédiatement : on ne peut pas attendre le prochain rendu pour autoriser l'envoi.
+        canRunRef.current=cloudConfigured&&(manualOnly||enabledRef.current)&&activeRef.current;
+        return true;
+      }
+    }catch{/* réseau coupé : la session sera revérifiée plus tard */}
+    return false;
+  },[manualOnly]);
   useEffect(()=>{
     if(!cloudConfigured)return;
     const db=supabase();
     void db.auth.getSession().then(({data})=>setSignedIn(!!data.session));
-    const {data:sub}=db.auth.onAuthStateChange((_e,session)=>setSignedIn(!!session));
-    return ()=>sub.subscription.unsubscribe();
-  },[]);
+    // Une session « absente » signalée par un événement n'est crue qu'après vérification : un renouvellement de jeton raté
+    // (plusieurs onglets, mémoire saturée, réseau) ne doit pas afficher « Non connecté » alors que la personne est connectée.
+    let timer:number|undefined;
+    const {data:sub}=db.auth.onAuthStateChange((_e,session)=>{
+      window.clearTimeout(timer);
+      if(session){setSignedIn(true);return;}
+      timer=window.setTimeout(()=>{void ensureSignedIn().then(ok=>{if(!ok)setSignedIn(false);});},1200);
+    });
+    // Reprise automatique : au retour sur l'onglet, quand le réseau revient, et toutes les 30 s tant qu'on est affiché « déconnecté ».
+    const recheck=()=>{if(!signedInRef.current)void ensureSignedIn();};
+    const onVisible=()=>{if(document.visibilityState==='visible')recheck();};
+    document.addEventListener('visibilitychange',onVisible);
+    window.addEventListener('online',recheck);
+    window.addEventListener('focus',recheck);
+    const poll=window.setInterval(recheck,30_000);
+    return ()=>{
+      window.clearTimeout(timer);window.clearInterval(poll);
+      document.removeEventListener('visibilitychange',onVisible);window.removeEventListener('online',recheck);window.removeEventListener('focus',recheck);
+      sub.subscription.unsubscribe();
+    };
+  },[ensureSignedIn]);
 
   const canRun=cloudConfigured&&signedIn&&(manualOnly||enabled)&&active;
   canRunRef.current=canRun;
@@ -237,5 +274,5 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     return projectRef.current===syncedRef.current&&!!readLink();
   },[manualOnly]);
 
-  return {state,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,syncNow,getLastError:()=>lastErrorRef.current};
+  return {state,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,ensureSignedIn,syncNow,getLastError:()=>lastErrorRef.current};
 }
