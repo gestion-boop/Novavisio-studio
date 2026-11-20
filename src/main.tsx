@@ -6321,7 +6321,11 @@ function App(){
           </div>;
         })()}
         {panel==='icons' && <div className="properties nv-icons-panel">
-          {libraryFor?.startsWith('global-close')&&<div className="nv-close-config-box"><div className="section-title"><span>COULEUR DE LA CROIX</span></div>{closeColorControls()}</div>}
+          <div className="nv-close-config-box">
+            <div className="section-title"><span>COULEUR DE LA CROIX DE FERMETURE</span></div>
+            <p className="hint">Harmonise les croix de fermeture avec la charte graphique de cette visite.</p>
+            {closeColorControls()}
+          </div>
           <details className="nv-icons-library" open>
             <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
