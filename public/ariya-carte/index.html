@@ -34,7 +34,8 @@ h1::after{content:"";display:block;width:84px;height:4px;border-radius:4px;margi
 .soin:hover{transform:translateY(-6px);box-shadow:0 22px 44px rgba(190,140,30,.22)}.soin.wide{grid-column:1/-1}
 .sh{display:flex;gap:16px;align-items:flex-start}.ico{flex:none;width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(145deg,#e0b54a,#b88a2e);box-shadow:0 8px 18px rgba(184,138,46,.4);animation:glow 3.6s ease-in-out infinite}
 .soin h3{margin:0;font-size:22px;line-height:1.2}.chip{display:inline-block;margin-top:8px;background:#f9ecc9;color:#9a6612;font-weight:700;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;border-radius:99px;padding:6px 14px}
-.soin p{margin:16px 0 0;color:var(--muted);font-size:15.5px;line-height:1.7}.soin .cta{margin-top:18px;padding:13px 22px;font-size:15px;border-radius:14px}
+.soin{display:flex;flex-direction:column}.sh{align-items:center;min-height:128px}.soin.wide .sh{min-height:0}.soin p{flex:1}.soin .cta{margin-top:auto;align-self:flex-start}
+.soin p{margin:16px 0 18px;color:var(--muted);font-size:15.5px;line-height:1.7}.soin .cta{padding:13px 22px;font-size:15px;border-radius:14px}
 @keyframes glow{50%{box-shadow:0 8px 26px rgba(224,181,74,.8)}}
 .soin:nth-child(2){animation-delay:.1s}.soin:nth-child(3){animation-delay:.2s}.soin:nth-child(4){animation-delay:.3s}.soin:nth-child(5){animation-delay:.4s}
 .btns{display:flex;flex-wrap:wrap;gap:14px;margin-top:26px}.btns .cta{margin-top:0}.cta.dark{background:linear-gradient(135deg,#2a2a2a,#111);box-shadow:0 14px 30px rgba(0,0,0,.35)}.cta.dark:hover{box-shadow:0 20px 40px rgba(0,0,0,.5)}
