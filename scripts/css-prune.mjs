@@ -113,6 +113,7 @@ browser=await chromium.launch();
 const baseline=await snapshot();
 const again=await snapshot();
 if(again!==baseline){const a=JSON.parse(baseline),b=JSON.parse(again);for(const k of Object.keys(a)){if(JSON.stringify(a[k])!==JSON.stringify(b[k])){console.log('INSTABLE :',k);const x=a[k],y=b[k];if(Array.isArray(x)){x.forEach((o,i)=>{if(JSON.stringify(o)!==JSON.stringify(y[i]))console.log('   sonde',fx.probes[i],Object.keys(o||{}).filter(p=>o[p]!==y[i]?.[p]).map(p=>p+':'+o[p]+'→'+y[i][p]).join(' | ').slice(0,200))})}else console.log('  ',Object.keys(x).filter(p=>x[p]!==y[p]).map(p=>p+':'+x[p]+'→'+y[p]).join(' | ').slice(0,200));break;}}console.log('La mesure n\'est pas stable : arrêt.');process.exit(2);}
+if(process.argv.includes('--debug')){const o=JSON.parse(baseline);for(const k of Object.keys(o).filter(k=>/editor1440\|few\|(repos|survol|appui)/.test(k))){const v=o[k];console.log(k,Array.isArray(v)?'(sondes)':v['background-color']+' | '+v['color']);}await browser.close();process.exit(0);}
 console.log(`composant ${comp} : ${candidates.length} règles candidates, référence mesurée (${baseline.length} octets).`);
 let removedRules=0,removedDecls=0;
 const restore=(parent,index,node)=>{if(index>=parent.nodes.length)parent.append(node);else parent.insertBefore(parent.nodes[index],node);return node;};
