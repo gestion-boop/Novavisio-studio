@@ -832,6 +832,7 @@ function App(){
   const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
   const [autoReturn,setAutoReturnState]=useState(()=>{try{return window.localStorage.getItem('nvstudio-auto-return')!=='0';}catch{return true;}});
   const setAutoReturn=(v:boolean)=>{setAutoReturnState(v);try{window.localStorage.setItem('nvstudio-auto-return',v?'1':'0');}catch{/* stockage indisponible */}};
+  const [pickedSceneId,setPickedSceneId]=useState<string|null>(null);
   const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw2'));return v>=24&&v<=98?v:54;}catch{return 54;}});
   const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(98,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw2',String(n));}catch{/* stockage indisponible */}};
   const startInspectorResize=(e:{preventDefault:()=>void})=>{e.preventDefault();const move=(ev:PointerEvent)=>setInspectorWidth((1-ev.clientX/window.innerWidth)*100);const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);};
@@ -5358,13 +5359,14 @@ function App(){
           onMouseEnter={()=>{if(autoNavigation)hoverSidePreview(s.id);}} onMouseLeave={leaveSidePreview}
            onPointerDown={e=>{if(sceneSortEnabled)startSceneDrag(e,i);}}
           onClickCapture={e=>{if(suppressClick.current){e.preventDefault();e.stopPropagation();}}}>
-          <button className={'scene '+(s.id===activeId?'active':'')} title={(preview?'Ouvrir ':'Prévisualiser et renommer ')+s.name}
+          <button className={'scene '+(s.id===activeId?'active':'')+(s.id===pickedSceneId||s.id===panoModalId?' is-picked':'')} title={(preview?'Ouvrir ':'Prévisualiser et renommer ')+s.name}
             onKeyDown={e=>{
               if(!sceneSortEnabled||!e.altKey||(e.key!=='ArrowUp'&&e.key!=='ArrowDown'&&e.key!=='ArrowLeft'&&e.key!=='ArrowRight'))return;
               e.preventDefault();
               moveScene(s.id,(e.key==='ArrowUp'||e.key==='ArrowLeft')?i-1:i+2);
             }}
             onClick={()=>{
+              setPickedSceneId(s.id);
               // Hors mode Auto : un clic ouvre une fenêtre pour tourner dans le panorama à 360° avant de décider (ouvrir ou supprimer).
               if(!preview){setPanoModalId(s.id);return;}
               selectScene(s.id);
