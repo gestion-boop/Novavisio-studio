@@ -14,8 +14,9 @@ const current = out('git rev-parse --abbrev-ref HEAD');
 if (current !== BRANCH) fail(`Tu dois être sur la branche ${BRANCH} (actuelle : ${current}).`);
 if (out('git status --porcelain')) fail('Des modifications non commitées existent. Commite-les avant de livrer.');
 
-console.log('1/5 Vérification TypeScript…');
+console.log('1/5 Vérification TypeScript et tests…');
 run('npx tsc --noEmit');
+run('npm test');
 console.log('2/5 Build…');
 run('npm run build');
 

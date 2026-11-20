@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
+import {ErrorBoundary,installErrorLog} from './ErrorBoundary';
 import {Tour} from './tour';
 import {BUCKET,MEDIA_PREFIX,cloudConfigured,mediaSlots,supabase,type MediaKind} from './cloud';
 import {validateProject,type StudioProject} from './storage';
@@ -182,4 +183,5 @@ function Share(){
   if(phase.kind==='error')return <Message title="Visite indisponible" text={phase.message+'. Réessaie dans un instant.'}/>;
   return <Tour project={project??undefined} onNeedScene={id=>{void ensureScene(id);}}/>;
 }
-createRoot(document.getElementById('share-root')!).render(<Share/>);
+installErrorLog();
+createRoot(document.getElementById('share-root')!).render(<ErrorBoundary label="visite publique"><Share/></ErrorBoundary>);
