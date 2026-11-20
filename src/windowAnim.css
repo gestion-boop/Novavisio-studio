@@ -80,3 +80,21 @@
 .nv-gallery-card:not(#nv-x):hover{background-image:none!important;background-color:#b98558!important;border-color:#8d5f36!important;color:#fff;box-shadow:0 10px 24px #0007;translate:0 -3px}
 .nv-gallery-card:not(#nv-x):active{background-image:none!important;background-color:#4a2c15!important;border-color:#2e1a0b!important;color:#fff;transform:none!important;translate:0 0;scale:.97;box-shadow:inset 0 3px 10px #0008!important}
 .nv-gallery-card.is-current:not(#nv-x):not(:hover):not(:active){box-shadow:0 0 0 2px var(--nv-close-border,#8a6418)}
+
+/* Croix de tous les panneaux ouverts depuis la barre du bas : en haut, au centre */
+.nv-gallery:not(#nv-x) .nv-gallery-close,
+.nv-zoom-wrap:not(#nv-x)>.lightbox-close,.nv-zoom-wrap:not(#nv-x)>.tour-close-image,
+.nv-video-dialog:not(#nv-x) .nv-video-close,
+.nv-photo-gallery:not(#nv-x) .nv-pg-close,
+.info-in-view:not(#nv-x) .modal>.close{
+  position:absolute!important;left:50%!important;right:auto!important;bottom:auto!important;translate:-50% 0}
+.nv-gallery:not(#nv-x) .nv-gallery-close{top:0!important}
+.nv-gallery:not(#nv-x) header{padding-top:46px}
+.nv-zoom-wrap:not(#nv-x)>.lightbox-close,.nv-zoom-wrap:not(#nv-x)>.tour-close-image{top:-20px!important}
+.nv-video-dialog:not(#nv-x) .nv-video-close,.nv-photo-gallery:not(#nv-x) .nv-pg-close,.info-in-view:not(#nv-x) .modal>.close{top:12px!important}
+.info-in-view:not(#nv-x) .modal{position:relative}
+/* en-têtes (page intégrée, fenêtre d'information) : croix au milieu de l'en-tête */
+.embed-header:not(#nv-x),.tour-dialog:not(#nv-x) header{position:relative}
+.embed-shell:not(#nv-x) .embed-actions button,.tour-dialog:not(#nv-x) header>button{
+  position:absolute;left:50%;top:50%;translate:-50% -50%}
+.embed-shell:not(#nv-x) .embed-title,.tour-dialog:not(#nv-x) h2{max-width:calc(50% - 40px)}
