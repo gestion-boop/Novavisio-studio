@@ -99,8 +99,11 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
   const viewer=useRef<Viewer|null>(null);
   const loadedScene=useRef<string|null>(null);
   const currentTexture=useRef(scene.dataUrl);
-  const handlers=useRef({sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady});
-  handlers.current={sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady};
+  const handlers=useRef({sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady,night,nightTexture});
+  handlers.current={sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady,night,nightTexture};
+  // Mode nuit : le panorama est montré seul, en lecture, sans aucun bouton ni point.
+  const nightOnly=()=>!!(handlers.current.night&&handlers.current.nightTexture);
+  const dayView=useRef<{yaw:number;pitch:number;zoom:number}|null>(null);
   useEffect(()=>{
     if(!container.current)return;
     const instance=new Viewer({
@@ -136,7 +139,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      syncMarkers(instance,visibleVideoFrames(current.scene.hotspots).flatMap(h=>[
+      syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(current.scene.hotspots).flatMap(h=>[
         publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
@@ -166,7 +169,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]);
+    const markersNow=()=>nightOnly()?[]:visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const T=getTransitionMs();
     warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?handlers.current.sphereImage(h.target):undefined));
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),T);};
@@ -193,7 +196,14 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     const texture=night&&nightTexture?nightTexture:scene.dataUrl;
     if(currentTexture.current===texture)return;
     let disposed=false;
-    const position=instance.getPosition(),zoom=instance.getZoomLevel();
+    const here=instance.getPosition(),hereZoom=instance.getZoomLevel();
+    const goingNight=!!(night&&nightTexture);
+    // Vue enregistrée pour la nuit (si elle existe) ; au retour du jour, on retrouve la vue qu'on avait avant.
+    let position=here,zoom=hereZoom;
+    if(goingNight){
+      dayView.current={yaw:here.yaw,pitch:here.pitch,zoom:hereZoom};
+      if(scene.nightYaw!==undefined&&scene.nightPitch!==undefined){position={yaw:scene.nightYaw,pitch:scene.nightPitch};if(scene.nightZoom!==undefined)zoom=scene.nightZoom;}
+    }else if(dayView.current){position={yaw:dayView.current.yaw,pitch:dayView.current.pitch};zoom=dayView.current.zoom;dayView.current=null;}
     void instance.setPanorama(texture,{showLoader:false,transition:{effect:'fade',rotation:false,speed:750},position,zoom})
       .then(success=>{if(success&&!disposed)currentTexture.current=texture;})
       .catch(()=>{/* Conserve la version précédente si la photo de nuit ne charge pas. */});
@@ -203,9 +213,9 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     const instance=viewer.current;
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
-    syncMarkers(instance,visibleVideoFrames(scene.hotspots).flatMap(h=>[
+    syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(scene.hotspots).flatMap(h=>[
       publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
-  },[scene.id,scene.hotspots,icons,lang]);
+  },[scene.id,scene.hotspots,icons,lang,night,nightTexture]);
   return <div className="tour-panorama" ref={container}/>;
 }
 /**
@@ -461,7 +471,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     </div>}
 
     {vrError&&<div className="tour-vr-error" role="alert" onClick={()=>setVrError('')}>{vrError}</div>}
-    {project.bottomBar?.length>0&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
+    {project.bottomBar?.length>0&&!nightActive&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
         const icon=project.icons?.find(i=>i.id===item.iconId);
         return <button type="button" style={{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={pick(item.title,item.titleTranslations,lang)} title={pick(item.title,item.titleTranslations,lang)}>
