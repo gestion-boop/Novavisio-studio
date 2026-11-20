@@ -65,7 +65,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,ArrowRight,Zap} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -100,7 +100,7 @@ import './media.css';
 import {XMark} from './XMark';
 
 type EditMode = Hotspot['type'] | null;
-type PanelTab = 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
+type PanelTab = 'tool' | 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
 type EmbedFrame = { title:string; url:string };
 function ensureFrameReferences(project:StudioProject,height:number):StudioProject {
   const baseline=Math.max(100,Math.min(3000,height||550));
@@ -1238,6 +1238,7 @@ function App(){
   const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
   const [panelBack,setPanelBack]=useState<{panel:PanelTab;hub:Record<string,string|null>;barId:string;pointId:string}|null>(null);
   const prevPanelRef=useRef<PanelTab>('points');
+  const [toolSettings,setToolSettings]=useState<'navigation'|'information'|'lien'|'image'|'video'>('navigation');
   // Sélection multiple d'espaces : partager avec des membres, envoyer vers un autre projet
   const [spaceSelectMode,setSpaceSelectMode]=useState(false);
   const [spaceSelection,setSpaceSelection]=useState<Set<string>>(new Set());
@@ -3800,7 +3801,7 @@ function App(){
       ⟳ Remplacer {TYPE_LABELS[selected.type]??'tous les points du même type'} par cette icône <b>({n})</b></button>;
   }
   // « Retour » en haut à gauche de la colonne de droite : on revient toujours à l'écran précédent quand il existe.
-  const CHILD_PANELS:PanelTab[]=['icons','plan','music','medialib'];
+  const CHILD_PANELS:PanelTab[]=['icons','plan','music','medialib','tool'];
   useEffect(()=>{
     const prev=prevPanelRef.current;
     if(prev!==panel){
@@ -3847,31 +3848,6 @@ function App(){
         <button type="button" className="quiet" disabled={!project.closeButtonColor} onClick={()=>setCloseColor(undefined)}>Retirer la couleur</button>
       </div>
       {project.closeIconId&&<small className="hint-inline">Une icône de croix personnalisée (pack) est active : elle remplace la couleur. Choisir une couleur ci-dessus la désactive.</small>}
-    </div>;
-  }
-  /** Création rapide : tout ce qui se pose dans le 360° (et la barre) en tuiles, au même endroit, dans l'ordre d'usage. */
-  function quickCreateTiles(){
-    if(!active||preview)return null;
-    const pick=(tool:'navigation'|'information'|'lien'|'image'|'video')=>{if(autoNavigation)stopAutoNavigation();setMode(current=>current===tool?null:tool);};
-    const items:{key:string;label:string;hint:string;icon:ReactNode;tone:string;on:boolean;run:()=>void}[]=[
-      {key:'bar',label:'Barre',hint:'Boutons du bas',icon:<PanelBottom size={26}/>,tone:'#c79c5a',on:panel==='bar',run:()=>{if(autoNavigation)stopAutoNavigation();setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);}},
-      {key:'information',label:'Information',hint:'Cliquer dans le 360°',icon:<Info size={26}/>,tone:'#3fa7e0',on:mode==='information',run:()=>pick('information')},
-      {key:'navigation',label:'Flèche',hint:'Vers un panorama',icon:<ArrowRight size={26}/>,tone:'#2fbf8f',on:mode==='navigation'&&!autoNavigation,run:()=>pick('navigation')},
-      {key:'auto',label:'Auto',hint:autoNavigation?'Terminer':'Flèches en série',icon:<Zap size={26}/>,tone:'#e0645c',on:autoNavigation,run:toggleAutoNavigation},
-      {key:'icons',label:'Icônes',hint:'Ma bibliothèque',icon:<Smile size={26}/>,tone:'#a77bff',on:panel==='icons',run:()=>{if(autoNavigation)stopAutoNavigation();setPanel('icons');setMode(null);setSelectedId('');setRightHidden(false);}},
-      {key:'lien',label:'Lien web',hint:'Site, réservation…',icon:<Link2 size={26}/>,tone:'#ff8a3d',on:mode==='lien',run:()=>pick('lien')},
-      {key:'image',label:'Photo',hint:'Image dans le 360°',icon:<Camera size={26}/>,tone:'#ff6fa8',on:mode==='image',run:()=>pick('image')},
-      {key:'video',label:'Vidéo',hint:'Écran ou popup',icon:<Play size={26}/>,tone:'#f2c230',on:mode==='video',run:()=>pick('video')},
-    ];
-    return <div className="nv-quick-create">
-      <div className="section-title"><span>CRÉATION RAPIDE</span></div>
-      <small className="nv-arrival-caption">Choisis une tuile, puis clique dans le panorama : le point se pose et ses réglages s’ouvrent ici.</small>
-      <label className="toggle-row nv-auto-return"><input type="checkbox" checked={autoReturn} onChange={e=>setAutoReturn(e.target.checked)}/> ↩ Créer aussi la flèche retour (arrivée à 180°, à l’opposé de l’aller)</label>
-      <div className="nv-hub-tiles nv-quick-tiles">
-        {items.map(t=><button type="button" key={t.key} className={'nv-app-tile nv-hub-tile'+(t.on?' is-active':'')} aria-pressed={t.on} style={{'--tile-tone':t.tone} as CSSProperties} onClick={t.run}>
-          <span className="nv-app-tile-icon">{t.icon}</span><span className="nv-app-tile-label">{t.label}</span><small className="nv-hub-hint">{t.hint}</small>
-        </button>)}
-      </div>
     </div>;
   }
   /** Vue d'arrivée : de simples tuiles-icônes, un toucher = l'action (plus de paragraphes ni de longs boutons). */
@@ -5464,6 +5440,10 @@ function App(){
           </div>}
         </div>
         {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation}
+          onSettings={tool=>{
+            if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);return;}
+            setToolSettings(tool);setPanel('tool');setSelectedId('');setRightHidden(false);
+          }}
           onTool={tool=>{
             if(autoNavigation)stopAutoNavigation();
             if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);}
@@ -5831,10 +5811,10 @@ function App(){
             /* ============================================================== */
             <div className="scene-overview">
               <SectionHub id="scene" open={hubOpen.scene??null} onOpenChange={k=>setHubOpen(h=>({...h,scene:k}))}
-                intro={<>{quickCreateTiles()}{currentSpace?<div className="nv-action-rectangles" style={{display:'flex',flexDirection:'column',gap:8}}>
+                intro={currentSpace?<div className="nv-action-rectangles" style={{display:'flex',flexDirection:'column',gap:8}}>
                   <button type="button" className="primary" onClick={()=>{spacePanoramasTarget.current=currentSpace.id;spacePanoramasInput.current?.click();}}>⬆ Importer plusieurs panoramas 360° (40 Mo chacun)</button>
                   <button type="button" onClick={()=>setSpaceManagerOpen(true)}>▦ Modifier l’espace « {currentSpace.name} »</button>
-                </div>:null}</>}
+                </div>:null}
                 sections={[
                   {key:'name',title:'Nom du panorama',hint:active.name,icon:<Pencil size={26}/>,tone:'#4f7cff',content:<>
               <div className="nv-name-row"><label className="nv-name-main">Nom de la scène
@@ -6295,6 +6275,29 @@ function App(){
           </InspectorSection>)}
           {!project.audioTracks?.length&&<p className="hint">Aucune musique importée. Commence par ajouter un fichier audio.</p>}
         </div>}
+        {panel==='tool'&&(()=>{
+          const t=toolSettings;
+          const names={navigation:'Flèche · navigation',information:'Information',lien:'Lien web',image:'Photo',video:'Vidéo'} as const;
+          const list=active?.hotspots.filter(h=>h.type===t)??[];
+          return <div className="properties nv-tool-panel">
+            <div className="section-title"><span>RÉGLAGES · {names[t].toUpperCase()}</span></div>
+            {t==='navigation'&&<>
+              <label className="toggle-row"><input type="checkbox" checked={autoReturn} onChange={e=>setAutoReturn(e.target.checked)}/> ↩ Créer aussi la flèche retour (arrivée à 180°, à l’opposé de l’aller)</label>
+              <small className="hint-inline">Quand tu crées une nouvelle flèche A → B, la flèche B → A est ajoutée toute seule. Le mode Auto garde son pas à pas.</small>
+              <button type="button" className="nv-tool-action" onClick={()=>{setLibraryFor(null);setPanel('icons');}}>Choisir les icônes des flèches (bibliothèque)</button>
+            </>}
+            {(t==='image'||t==='video')&&<button type="button" className="nv-tool-action" onClick={()=>setPanel('medialib')}>📚 Ouvrir ma bibliothèque Photos &amp; Vidéos</button>}
+            {t!=='navigation'&&<>
+              <label>Animation d’ouverture (toute la visite)
+                <select value={project.windowAnimation??'fade'} onChange={e=>setProject(p=>({...p,windowAnimation:e.target.value as WindowAnimation}))}>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+              <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
+              <button type="button" className="nv-tool-action" onClick={()=>{setLibraryFor('global-close-icon');setPanel('icons');}}>✕ Croix de fermeture (couleur ou icône)</button>
+            </>}
+            <div className="section-title"><span>POINTS DE CE TYPE DANS CE PANORAMA ({list.length})</span></div>
+            {!list.length&&<p className="hint">Aucun point de ce type ici. Clique l’outil « {names[t]} » puis dans le panorama pour en poser un.</p>}
+            <div className="nv-tool-list">{list.map(h=><button type="button" key={h.id} onClick={()=>{setMode(null);setSelectedId(h.id);setPanel('points');}}>{h.title||names[t]}<small>Réglages ›</small></button>)}</div>
+          </div>;
+        })()}
         {panel==='icons' && <div className="properties nv-icons-panel">
           {libraryFor?.startsWith('global-close')&&<div className="nv-close-config-box"><div className="section-title"><span>COULEUR DE LA CROIX</span></div>{closeColorControls()}</div>}
           <details className="nv-icons-library" open>

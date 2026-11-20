@@ -6088,3 +6088,12 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-close-barcolors{display:flex;align-items:center;gap:10px;font:700 13px system-ui;cursor:pointer;border:1px solid #4aa9c0;border-radius:10px;background:#12485a;color:#e9fbff;padding:9px 12px;text-align:left}
 .nv-close-barcolors:disabled{opacity:.45;cursor:default}.nv-close-barcolors i{width:20px;height:20px;border-radius:50%;border:2px solid #fff6;flex:none}
 .nv-close-pipette{font:700 13px system-ui;cursor:pointer;border:1px solid #4aa9c0;border-radius:10px;background:#12485a;color:#e9fbff;padding:7px 12px}
+
+/* Petit bouton réglages à côté de chaque outil de la barre de création */
+.nv-creation-tool{display:inline-flex;align-items:center;gap:3px}
+.nv-tool-gear{display:inline-grid;place-items:center;width:26px;height:26px;padding:0;border-radius:8px;border:1px solid #35606f;background:#143543;color:#bfe0e8;cursor:pointer;flex:none}
+.nv-tool-gear:hover{background:#1f8aa8;color:#fff;border-color:#7ad6ee}
+.nv-auto-toolbar+.nv-tool-gear{margin-left:-2px}
+.nv-tool-panel{display:grid;gap:10px}
+.nv-tool-action{font:700 13px system-ui;cursor:pointer;border:1px solid #35606f;border-radius:10px;background:#143543;color:#e6f6f8;padding:10px 12px;text-align:left}
+.nv-tool-list{display:grid;gap:6px}.nv-tool-list button{display:flex;justify-content:space-between;align-items:center;font:600 14px system-ui;cursor:pointer;border:1px solid #2c4a57;border-radius:10px;background:#12303d;color:#e6f6f8;padding:10px 12px}.nv-tool-list small{color:#8fb3be}
