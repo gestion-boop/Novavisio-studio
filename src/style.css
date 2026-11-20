@@ -6136,3 +6136,10 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-cloud-delete-go:not(#nv-x){background-color:#b3261e!important;background-image:none!important;border-color:#ff8a8a!important;color:#fff}
 .nv-cloud-delete-go:not(#nv-x):disabled{opacity:.4;cursor:not-allowed}
 .nv-cloud-delete-go:not(#nv-x):not(:disabled):hover{background-color:#d6342b!important}
+
+/* Fenêtre d'export : choix du contenu */
+.nv-export-dialog{max-width:520px}
+.nv-export-choices{display:grid;gap:8px;margin:14px 0;max-height:46vh;overflow:auto}
+.nv-export-choice{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #3f7f8c;border-radius:12px;cursor:pointer;background:#0f2a35}
+.nv-export-choice.is-on{border-color:#ffd166;box-shadow:0 0 0 2px #ffd16655}
+.nv-export-choice span{display:grid;gap:2px}.nv-export-choice small{opacity:.75}

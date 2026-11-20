@@ -832,6 +832,7 @@ function App(){
   const [rightHidden,setRightHidden]=useState(()=>readStudioLayout().rightHidden);
   const [autoReturn,setAutoReturnState]=useState(()=>{try{return window.localStorage.getItem('nvstudio-auto-return')!=='0';}catch{return true;}});
   const setAutoReturn=(v:boolean)=>{setAutoReturnState(v);try{window.localStorage.setItem('nvstudio-auto-return',v?'1':'0');}catch{/* stockage indisponible */}};
+  const [exportDialog,setExportDialog]=useState<{spaceId:string|null}|null>(null);
   const [pendingSpaceIntent,setPendingSpaceIntent]=useState<{spaceId:string;intent:'share'|'export'}|null>(null);
   const [pickedSceneId,setPickedSceneId]=useState<string|null>(null);
   const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw2'));return v>=24&&v<=98?v:54;}catch{return 54;}});
@@ -2059,8 +2060,8 @@ function App(){
                 onClick={()=>{setToolsMenuOpen(false);setPublishConfirm(true);}} style={{'--tile-tone':'#e05d44'} as CSSProperties}>
                 <span className="nv-app-tile-icon"><Upload size={22}/></span><span className="nv-app-tile-label">Publier</span></button></div>
               <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={exporting||!visibleScenes.length}
-                title={currentSpace?'Exporter uniquement cet espace':'Exporter la visite complète au format HTML / ZIP'}
-                onClick={()=>{setToolsMenuOpen(false);void exportTour();}} style={{'--tile-tone':'#3aa0d8'} as CSSProperties}>
+                title="Exporter un dossier HTML / ZIP : tu choisis le projet complet ou un seul espace"
+                onClick={()=>{setToolsMenuOpen(false);setExportDialog({spaceId:currentSpace?.id??null});}} style={{'--tile-tone':'#3aa0d8'} as CSSProperties}>
                 <span className="nv-app-tile-icon"><Download size={22}/></span><span className="nv-app-tile-label">{exporting?'Export…':'Exporter ZIP'}</span></button></div>
               <div className="nv-tile-wrap"><button type="button" tabIndex={toolsMenuOpen?0:-1} className="nv-app-tile" disabled={!ready}
                 title="Télécharger uniquement le fichier HTML NovaVisio : il affiche toujours la dernière version publiée"
@@ -2593,16 +2594,26 @@ function App(){
       setFrame({title,url,...(full?{full:true}:{})});
     }else launchLink(link);
   }
-  async function exportTour(){
-    if(!visibleScenes.length){setStatus('Cet espace ne contient aucun panorama à exporter');return;}
+  /** Exporte un dossier HTML. `spaceId` : un espace précis, `null` : projet complet, absent : l'espace actuellement ouvert. */
+  async function exportTour(spaceId?:string|null){
+    const space=spaceId===undefined?currentSpace:(spaceId?(project.spaces??[]).find(sp=>sp.id===spaceId)??null:null);
+    const scoped=projectForSpaceExport(project,space,true);
+    if(!scoped.scenes.length){setStatus('Cet espace ne contient aucun panorama à exporter');return;}
     setExporting(true);
     setStatus('Préparation du dossier HTML…');
     try {
-      await exportStaticTour(projectForSpaceExport(project,currentSpace,true));
-      setStatus(currentSpace?'Espace « '+currentSpace.name+' » exporté en ZIP':'Dossier HTML prêt — archive ZIP téléchargée');
+      await exportStaticTour(scoped);
+      const nights=scoped.scenes.filter(sc=>sc.nightDataUrl).length;
+      setStatus((space?'Espace « '+space.name+' » exporté':'Projet complet exporté')+' : '+scoped.scenes.length+' panorama'+(scoped.scenes.length>1?'s':'')+(nights?' · '+nights+' avec mode nuit':' · sans mode nuit')+' — archive ZIP téléchargée');
     }catch(err){setStatus('Échec de l’export : '+(err instanceof Error?err.message:String(err)));}
     finally{setExporting(false);}
   }
+  // Fenêtre « Que veux-tu exporter ? » : le contenu du dossier est choisi explicitement (jamais deviné).
+  const exportChoices=useMemo(()=>{
+    if(!exportDialog)return [];
+    const count=(space:StudioSpace|null)=>{const p=projectForSpaceExport(project,space,true);return {n:p.scenes.length,night:p.scenes.filter(sc=>sc.nightDataUrl).length};};
+    return [{id:null as string|null,label:'Projet complet',...count(null)},...(project.spaces??[]).map(sp=>({id:sp.id as string|null,label:'Espace « '+sp.name+' »',...count(sp)}))];
+  },[exportDialog,project]);
   // Depuis « Mes projets Cloud » : après l'ouverture d'un espace, lance tout de suite son lien public ou son export.
   useEffect(()=>{
     if(!pendingSpaceIntent||activeSpaceId!==pendingSpaceIntent.spaceId||!currentSpace)return;
@@ -4199,8 +4210,8 @@ function App(){
                 <Download size={16}/><span>Télécharger une copie .nvstudio.json</span>
               </button>
               <button type="button" role="menuitem" disabled={exporting||!visibleScenes.length}
-                onClick={()=>{setOpenTopMenu(null);void exportTour();}}>
-                <Sparkles size={16}/><span>{currentSpace?'Exporter cet espace':'Exporter HTML / ZIP'}</span>
+                onClick={()=>{setOpenTopMenu(null);setExportDialog({spaceId:currentSpace?.id??null});}}>
+                <Sparkles size={16}/><span>Exporter HTML / ZIP…</span>
               </button>
             </div>}
           </div>
@@ -6276,6 +6287,23 @@ function App(){
       <h2>Résultat de la publication</h2>
       <ul className="nv-publish-check">{publishReport.length?publishReport.map((r,i)=><li key={i} className={r.ok?'is-warn':'is-error'}><span>{r.ok?'✅':'⛔'}</span><span>{r.text}</span></li>):<li className="is-error"><span>⛔</span><span>Rien n’a été publié (aucun lien public trouvé).</span></li>}</ul>
       <div><button type="button" onClick={()=>setPublishReport(null)}>OK</button></div></section></div>}
+    {exportDialog&&<div className="overlay" {...overlayClose(()=>setExportDialog(null))}>
+      <section className="modal nv-export-dialog" role="dialog" aria-modal="true" aria-label="Exporter un dossier HTML" onClick={e=>e.stopPropagation()}>
+        <button className="close" onClick={()=>setExportDialog(null)}><XMark/></button>
+        <h2>Que veux-tu exporter ?</h2>
+        <p className="hint">Le dossier ne contiendra que les panoramas choisis. Les flèches qui mènent vers un autre espace sont retirées.</p>
+        <div className="nv-export-choices" role="radiogroup">
+          {exportChoices.map(c=><label key={c.id??'all'} className={'nv-export-choice'+(exportDialog.spaceId===c.id?' is-on':'')}>
+            <input type="radio" name="export-scope" checked={exportDialog.spaceId===c.id} onChange={()=>setExportDialog({spaceId:c.id})}/>
+            <span><b>{c.label}</b><small>{c.n} panorama{c.n>1?'s':''} · {c.night?c.night+' avec mode nuit':'sans mode nuit'}</small></span>
+          </label>)}
+        </div>
+        <div className="nv-banner-actions">
+          <button type="button" className="quiet" onClick={()=>setExportDialog(null)}>Annuler</button>
+          <button type="button" className="primary" disabled={exporting} onClick={()=>{const id=exportDialog.spaceId;setExportDialog(null);void exportTour(id);}}>Exporter le dossier ZIP</button>
+        </div>
+      </section>
+    </div>}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>
