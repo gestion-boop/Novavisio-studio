@@ -3589,6 +3589,8 @@ function App(){
     project.bottomBar.forEach(b=>add('Barre : '+b.title,barIconSize(b),b.iconId,b.hoverIconId,b.pressedIconId));
     if(project.defaultNavigationIcon){const nav=project.defaultNavigationIcon;add('Flèche par défaut',nav.iconSize,nav.iconId,nav.hoverIconId,nav.pressedIconId);}
     add('Fermeture des popups',42,project.closeIconId,project.closeIconHoverId,project.closeIconPressedId);
+    add('Son activé',42,project.soundOnIconId,project.soundOnHoverIconId,project.soundOnPressedIconId);
+    add('Son coupé',42,project.soundOffIconId,project.soundOffHoverIconId,project.soundOffPressedIconId);
     project.scenes.forEach(sc=>sc.hotspots.forEach(h=>{
       if(h.type!=='image'&&h.type!=='video')add(sc.name+' : '+h.title,h.iconSize??28,h.iconId,h.hoverIconId,h.pressedIconId);
     }));
