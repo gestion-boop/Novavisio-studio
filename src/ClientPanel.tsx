@@ -2,6 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {ExternalLink,FileJson,Link2,PlusCircle,Search,RefreshCw,Sparkles,Check,Image as ImageIcon} from 'lucide-react';
 import {emptyClientProfile,type ClientProfile,type MediaLinkItem} from './storage';
 import {askAspirate,importPhotosAsMedia} from './aspirate';
+import type {SiteBrandAnalysis} from '../shared/siteBrandCore';
 import {mergeScrapes,applyScrapeToProfile,describeScrape} from './aspirateMerge';
 import {cloudConfigured,supabase} from './cloud';
 import {NovaGenVideos} from './NovaGenVideos';
@@ -72,20 +73,20 @@ export async function askNovaGen<T>(payload:Record<string,unknown>,signal?:Abort
  * si seul NovaGen connaît le site, il est lu ensuite. Les deux résultats sont fusionnés (voir aspirateMerge).
  * Une source en échec n'empêche pas l'autre : l'échec est signalé dans `log`.
  */
-export async function aspirateEstablishment(input:Record<string,unknown>&{site:string}):Promise<{merged:ScrapeResult|null;log:string[]}>{
+export async function aspirateEstablishment(input:Record<string,unknown>&{site:string}):Promise<{merged:ScrapeResult|null;log:string[];brand:SiteBrandAnalysis|null}>{
   const why=(e:unknown)=>e instanceof Error?e.message:String(e);
   const novagenRequest=askNovaGen<ScrapeResult>({mode:'search',...input}).then(r=>(r.fiche&&(r.fiche.nom||r.fiche.site))?r:null);
   const siteRequest=input.site?askAspirate(input.site):Promise.resolve(null);
   const [ng,st]=await Promise.allSettled([novagenRequest,siteRequest]);
   const log:string[]=[];
   const novagen=ng.status==='fulfilled'?ng.value:null;
-  let site:ScrapeResult|null=st.status==='fulfilled'?st.value:null;
+  let site:(ScrapeResult&{brand?:SiteBrandAnalysis|null})|null=st.status==='fulfilled'?st.value:null;
   if(ng.status==='rejected')log.push('NovaGen : '+why(ng.reason));
   if(st.status==='rejected')log.push('Site Internet : '+why(st.reason));
   if(!site&&!input.site&&novagen?.fiche.site){
     try{site=await askAspirate(novagen.fiche.site);}catch(e){log.push('Site Internet : '+why(e));}
   }
-  return {merged:mergeScrapes(site,novagen),log};
+  return {merged:mergeScrapes(site,novagen),log,brand:site?.brand??null};
 }
 
 export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo,compact=false,onImportPhotos,libraryNames=[],libraryRoom=300}:{
@@ -101,6 +102,7 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
   const input=useRef<HTMLInputElement>(null);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
+  const [brandFound,setBrandFound]=useState<SiteBrandAnalysis|null>(null);
   const [query,setQuery]=useState('');
   const [city,setCity]=useState('');
   const [suggestions,setSuggestions]=useState<Suggestion[]>([]);
@@ -152,7 +154,7 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
     setSuggestions([]);setCandidate(null);setScraping(true);setError('');setNotice('');
     if(target){setChosen(target);setQuery(target.nom);setCity(target.ville||city);}
     try{
-      const {merged,log}=await aspirateEstablishment({
+      const {merged,log,brand}=await aspirateEstablishment({
         nom:target?.nom||name,ville:target?.ville||city||(sameClient?p.city:''),
         type:target?.type||(sameClient?p.category:''),adresse:target?.adresse||(sameClient?p.address:''),
         tel:target?.tel||(sameClient?p.phone:''),site:website,
@@ -161,6 +163,7 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
       });
       if(!merged)throw Error(log[0]??'Aucune fiche exploitable renvoyée par NovaGen ni par le site.');
       setSiteLog(log);
+      setBrandFound(brand);
       setCandidate(merged);
       setNotice('Aspiration terminée : '+describeScrape(merged).join(' · ')+'. Vérifie le résultat puis valide son intégration.');
     }catch(e){setError(e instanceof Error?e.message:String(e));}
@@ -287,6 +290,11 @@ export function ClientPanel({value,onChange,onAddLink,onPlaceVideo,canPlaceVideo
     </section>
     {error&&<p role="alert" className="nv-client-error">{error}</p>}
     {notice&&<p className="nv-client-ok">{notice}</p>}
+    {brandFound&&(brandFound.colors.length>0||brandFound.fonts.length>0)&&<div className="nv-brand-found" aria-label="Charte détectée sur le site">
+      <p><strong>Charte détectée sur le site</strong> <span className="nv-brand-note">(proposition : à valider dans Fichier › Charte graphique)</span></p>
+      {brandFound.colors.length>0&&<p className="nv-brand-swatches">{brandFound.colors.slice(0,6).map(c=><span key={c.hex} title={c.hex+(c.source==='theme-color'?' · couleur de thème':'')} className="nv-brand-swatch" style={{background:c.hex}}>{c.hex}</span>)}</p>}
+      {brandFound.fonts.length>0&&<p>Polices : {brandFound.fonts.map(f=>f.name).join(', ')}</p>}
+    </div>}
     {siteLog.length>0&&<ul className="nv-client-sitelog">{siteLog.map((l,i)=><li key={i}><small>{l}</small></li>)}</ul>}
     <div className="nv-client-fields">
       {fields.map(f=><label key={f.key} className={['description','services','openingHours'].includes(f.key)?'nv-client-wide':''}>

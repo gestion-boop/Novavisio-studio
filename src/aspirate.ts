@@ -1,3 +1,4 @@
+import type {SiteBrandAnalysis} from '../shared/siteBrandCore';
 import {cloudConfigured, supabase} from './cloud';
 import {isSafeFrameImage, uid, type MediaLinkItem} from './storage';
 import type {ScrapeLike} from './aspirateMerge';
@@ -10,7 +11,7 @@ async function accessToken(): Promise<string> {
 }
 
 /** Lit le site Internet d'un établissement (accueil + pages utiles) via le serveur NovaStudio. */
-export async function askAspirate(site: string, signal?: AbortSignal): Promise<ScrapeLike & {pages?: string[]}> {
+export async function askAspirate(site: string, signal?: AbortSignal): Promise<ScrapeLike & {pages?: string[]; brand?: SiteBrandAnalysis | null}> {
   const token = await accessToken();
   const response = await fetch('/api/aspirate', {
     method: 'POST',
@@ -23,7 +24,7 @@ export async function askAspirate(site: string, signal?: AbortSignal): Promise<S
     throw new Error('L’aspirateur de site n’est pas disponible sur cette version de NovaStudio.');
   }
   if (!response.ok) throw new Error(String(parsed.error || 'Erreur de l’aspirateur ' + response.status));
-  return parsed as unknown as ScrapeLike & {pages?: string[]};
+  return parsed as unknown as ScrapeLike & {pages?: string[]; brand?: SiteBrandAnalysis | null};
 }
 
 const MAX_SIDE = 2000;

@@ -6166,3 +6166,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-toast button svg{width:14px;height:14px}
 @keyframes nvToastIn{from{opacity:0;translate:-50% 8px}to{opacity:1;translate:-50% 0}}
 @media(prefers-reduced-motion:reduce){.nv-toast{animation:none}}
+
+/* Charte détectée sur le site (panneau Client, proposition à valider) */
+.nv-brand-found{margin:6px 0;font-size:12px;color:#d6e9e4}
+.nv-brand-note{opacity:.7;font-size:11px}
+.nv-brand-swatches{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.nv-brand-swatch{padding:3px 7px;border-radius:6px;color:#fff;font-size:11px;text-shadow:0 1px 2px #0008;font-family:monospace}
