@@ -67,3 +67,42 @@ export function svgToPng(svg:string,size:number):Promise<string>{
     img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
   });
 }
+
+/**
+ * Icône personnalisée (IA) : recadre l'image générée dans le MÊME cercle / forme et le MÊME anneau que le pack standard,
+ * puis teinte le symbole aux couleurs de l'état. Navigateur uniquement.
+ */
+export function composeCustomIcon(aiPng:string,c:BrandColors,shape:IconShape,state:IconState,size=256):Promise<string>{
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const k=stateColors(c,state);
+        const canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;
+        const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas indisponible');
+        const u=size/24;
+        // fond et anneau : même géométrie que iconSvg
+        if(shape==='circle'){
+          ctx.beginPath();ctx.arc(12*u,12*u,10.7*u,0,Math.PI*2);ctx.fillStyle=k.fill;ctx.fill();
+          ctx.lineWidth=0.6*u;ctx.strokeStyle=k.ring;ctx.stroke();
+        }else if(shape==='rounded'){
+          const r=5.2*u;const x=1.2*u,y=1.2*u,w=21.6*u,h=21.6*u;
+          ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=k.fill;ctx.fill();
+          ctx.lineWidth=0.6*u;ctx.strokeStyle=k.ring;ctx.stroke();
+        }
+        // symbole : image recadrée dans la zone du glyphe (0,56 × 24), teintée à la couleur de l'état
+        const box=0.56*24*u;
+        const glyph=document.createElement('canvas');glyph.width=size;glyph.height=size;
+        const g=glyph.getContext('2d');if(!g)throw new Error('Canvas indisponible');
+        const scale=Math.min(box/img.width,box/img.height);
+        const w=img.width*scale,h=img.height*scale;
+        g.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+        g.globalCompositeOperation='source-in';g.fillStyle=k.glyph;g.fillRect(0,0,size,size);
+        ctx.drawImage(glyph,0,0);
+        resolve(canvas.toDataURL('image/png'));
+      }catch(e){reject(e);}
+    };
+    img.onerror=()=>reject(new Error('Image IA illisible'));
+    img.src=aiPng;
+  });
+}

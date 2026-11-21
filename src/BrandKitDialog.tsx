@@ -2,7 +2,8 @@ import './brandKitDialog.css';
 import {useMemo,useState} from 'react';
 import {STYLES,BRAND_COLOR_LABELS,generateBrand,checkContrast,contrastRatio,readableOn,toBarPatch,isHex,type BrandColors,type BrandKit,type StyleId} from './brandKit';
 import {XMark} from './XMark';
-import {buildPack,svgToPng,ICON_SHAPES,PACK_SIZE,type IconShape} from './brandIcons';
+import {buildPack,svgToPng,composeCustomIcon,ICON_SHAPES,PACK_SIZE,ICON_STATES,type IconShape} from './brandIcons';
+import {supabase,readLink,cloudConfigured} from './cloud';
 
 /**
  * Fenêtre « Charte graphique » (NovaStudio AI — phase 1).
@@ -19,6 +20,8 @@ export function BrandKitDialog({current,onApply,onClose,iconCount,onAddIcons}:{
   const [shape,setShape]=useState<IconShape>('circle');
   const [packBusy,setPackBusy]=useState('');
   const [packMsg,setPackMsg]=useState('');
+  const [aiText,setAiText]=useState('');
+  const [aiBusy,setAiBusy]=useState(false);
   const [styleId,setStyleId]=useState<StyleId>((current?.styleId as StyleId)||'moderne');
   const [seed,setSeed]=useState<string>(current?.seed&&isHex(current.seed)?current.seed:'#2f8fb5');
   const [colors,setColors]=useState<BrandColors>(current?.colors??generateBrand('#2f8fb5','moderne'));
@@ -112,6 +115,30 @@ export function BrandKitDialog({current,onApply,onClose,iconCount,onAddIcons}:{
             }catch(e){setPackMsg('ZIP impossible : '+(e instanceof Error?e.message:String(e)));}
             finally{setPackBusy('');}
           }}>Télécharger le pack (ZIP)</button>
+      </div>
+      <h3 className="nv-brand-h3">Icône personnalisée <small>NovaStudio AI · décris l’icône</small></h3>
+      <div className="nv-brand-pack-actions">
+        <input value={aiText} maxLength={200} placeholder="ex. : une piscine avec une échelle" onChange={e=>setAiText(e.target.value)} aria-label="Description de l’icône" style={{flex:1,minWidth:220}}/>
+        <button type="button" className="primary" disabled={aiBusy||aiText.trim().length<3||!cloudConfigured}
+          onClick={async()=>{
+            const projectId=readLink()?.projectId;
+            if(!projectId){setPackMsg('Enregistre d’abord le projet dans le Cloud : l’IA travaille sur un projet enregistré.');return;}
+            if(iconCount+3>150){setPackMsg('Le projet a déjà '+iconCount+' icônes : limite de 150 atteinte.');return;}
+            setAiBusy(true);setPackMsg('Génération en cours (quelques secondes)…');
+            try{
+              const {data,error}=await supabase().functions.invoke('nova-ai-icon',{body:{projectId,description:aiText.trim()}});
+              if(error||!data?.png)throw new Error(error?.message??data?.error??'génération impossible');
+              const out:Array<{name:string;dataUrl:string}>=[];
+              for(const st of ICON_STATES){
+                out.push({name:'IA · '+aiText.trim().slice(0,60)+' · '+({normal:'Normal',hover:'Survol',pressed:'Pressé'} as const)[st],dataUrl:await composeCustomIcon(data.png,colors,shape,st,256)});
+              }
+              onAddIcons(out);setPackMsg('Icône ajoutée à « Mes icônes » (3 états). Il reste '+data.remaining+' génération(s) aujourd’hui.');
+              setAiText('');
+            }catch(e){
+              const msg=e instanceof Error?e.message:String(e);
+              setPackMsg(/daily_limit/.test(msg)?'Limite quotidienne atteinte (20 par jour). Réessaie demain.':'Génération impossible : '+msg);
+            }finally{setAiBusy(false);}
+          }}>{aiBusy?'Génération…':'Générer l’icône'}</button>
       </div>
       {packMsg&&<p className="hint-inline" role="status">{packMsg}</p>}
       <div className="nv-brand-actions">
