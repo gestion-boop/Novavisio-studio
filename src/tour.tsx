@@ -6,7 +6,7 @@ import {informationFont} from './InformationEditor';
 import {projectForSpaceExport} from './spaces';
 import {isPopupMedia,popupMediaMarkerHtml} from './mediaDisplay';
 import {framedPhotoSource} from './photoFrame';
-import {useEffect,useRef,useState,type CSSProperties} from 'react';
+import {useEffect,useRef,useState,type CSSProperties,useCallback} from 'react';
 import {ui,pick} from './i18n';
 import {Viewer} from '@photo-sphere-viewer/core';
 import {PANORAMA_MIN_FOV,PANORAMA_MAX_FOV,panoramaArrivalZoom} from './panoramaLens';
@@ -28,6 +28,8 @@ import {settingsButtonStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
+import {NativeIntro} from './nativeIntro';
+import {nativeIntroActive,introDurationSec} from './introDesign';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
 import {applyCloseColor} from './closeColor';
@@ -248,11 +250,12 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const [photosId,setPhotosId]=useState<string|null>(null);
   const [arrival,setArrival]=useState<{sceneId:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [video,setVideo]=useState<Hotspot|null>(null);
-  const [showIntro,setShowIntro]=useState(()=>Boolean(
+  const [showIntro,setShowIntro]=useState(()=>Boolean(project && nativeIntroActive(project)) || Boolean(
     project?.introEnabled && project.introUrl?.startsWith('https://') &&
     // A generated Scaleway wrapper already starts the intro at HTML first paint.
     !(window.parent!==window && new URLSearchParams(window.location.search).get('external_intro')==='1')
   ));
+  const endNativeIntro=useCallback(()=>setShowIntro(false),[]);
   const [introEnding,setIntroEnding]=useState(false);
   const [introFrameReady,setIntroFrameReady]=useState(false);
   const [firstPanoramaReady,setFirstPanoramaReady]=useState(false);
@@ -283,6 +286,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   useEffect(()=>{
     if(introInitialised.current||!project)return;
     introInitialised.current=true;
+    if(!vrEntry&&project&&nativeIntroActive(project)){setShowIntro(true);return;}
     if(!vrEntry&&project.introEnabled&&project.introUrl?.startsWith('https://')&&
        !(window.parent!==window&&new URLSearchParams(window.location.search).get('external_intro')==='1')){
       setShowIntro(true);
@@ -521,6 +525,8 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       <div className="nv-tour-startup-spinner" aria-hidden="true"/>
       <span>Préparation de votre visite immersive…</span>
     </div>}
+    {showIntro&&project&&nativeIntroActive(project)&&project.introDesign&&<NativeIntro design={project.introDesign}
+      background={project.barStyle.background} accent={project.barStyle.button} durationSec={introDurationSec(project)} onDone={endNativeIntro}/>}
     {showIntro&&project.introUrl&&<div className={"tour-intro"+(introEnding?" is-ending":"")}>
       <iframe title={'Introduction de '+project.name} src={project.introUrl}
         onLoad={()=>setIntroFrameReady(true)}

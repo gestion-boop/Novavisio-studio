@@ -29,6 +29,8 @@ import {createRoot} from 'react-dom/client';
 import {ErrorBoundary,installErrorLog} from './ErrorBoundary';
 import {glyphs} from './glyphSet';
 import {BrandKitDialog} from './BrandKitDialog';
+import {NativeIntro} from './nativeIntro';
+import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
 import {EditMode,PanelTab,EmbedFrame,ensureFrameReferences,barColorFields,VISIT_MOTIFS,BarGlyph,safeLink,launchLink,startSceneId,FullscreenGalleryHoverPreview,Panorama} from './EditorPanorama';
 import {FrameLoupe} from './FrameLoupe';
 import {exportStaticTour} from './exportTour';
@@ -156,6 +158,9 @@ function App(){
   const [exportDialog,setExportDialog]=useState<{spaceId:string|null}|null>(null);
   const [pendingSpaceIntent,setPendingSpaceIntent]=useState<{spaceId:string;intent:'share'|'export'}|null>(null);
   const [brandOpen,setBrandOpen]=useState(false);
+  const [introPreview,setIntroPreview]=useState(false);
+  const logoInput=useRef<HTMLInputElement>(null);
+  const endIntroPreview=useCallback(()=>setIntroPreview(false),[]);
   const [pickedSceneId,setPickedSceneId]=useState<string|null>(null);
   const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw2'));return v>=24&&v<=98?v:54;}catch{return 54;}});
   const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(98,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw2',String(n));}catch{/* stockage indisponible */}};
@@ -2597,6 +2602,18 @@ function App(){
       scenes.splice(to,0,moved);
       return {...p,scenes};
     });
+  }
+  function patchIntroDesign(patch:Partial<IntroDesign>){
+    setProject(p=>({...p,introDesign:{...(p.introDesign??DEFAULT_INTRO_DESIGN),...patch}}));
+  }
+  async function importIntroLogo(file?:File){
+    if(!file)return;
+    if(!['image/png','image/jpeg','image/webp'].includes(file.type)){setStatus('Logo : PNG, JPG ou WebP');return;}
+    try{
+      const data=await readImage(file);
+      if(data.length>INTRO_LIMITS.logoChars){setStatus('Logo trop lourd (1 Mo maximum)');return;}
+      patchIntroDesign({logoDataUrl:data});setStatus('Logo de l’introduction ajouté · enregistre avec la disquette.');
+    }catch{setStatus('Impossible de lire ce logo');}
   }
   function patchBar(update:Partial<BottomBarItem>){
     setProject(p=>{
@@ -5251,6 +5268,37 @@ function App(){
           </button>)}
         </div>}
         {panel==='intro' && <div className="properties">
+          <div className="section-title">INTRODUCTION AUTOMATIQUE <span className="counter">NovaStudio AI</span></div>
+          <p className="hint">Une introduction créée ici, sans site externe : texte, logo, style et animation. Elle s’efface seule à la durée réglée plus bas, ou dès que le visiteur clique sur le bouton.</p>
+          <label className="toggle-row"><input type="checkbox" checked={!!project.introDesign?.enabled} onChange={e=>patchIntroDesign({enabled:e.target.checked})}/> Activer l’introduction automatique</label>
+          {(project.introUrl??'').startsWith('https://')&&<p className="warning-inline">Une adresse d’introduction externe est déjà définie plus bas : elle reste prioritaire. Vide ce champ pour utiliser l’introduction automatique.</p>}
+          <div className="section-title">STYLE</div>
+          <div className="nv-brand-styles" role="radiogroup" aria-label="Style de l’introduction">
+            {INTRO_STYLES.map(s=><button key={s.id} type="button" role="radio" aria-checked={(project.introDesign?.styleId??'premium')===s.id}
+              className={'nv-brand-style'+((project.introDesign?.styleId??'premium')===s.id?' is-on':'')} onClick={()=>patchIntroDesign({styleId:s.id})}>{s.label}</button>)}
+          </div>
+          <label>Titre
+            <input value={project.introDesign?.title??''} maxLength={INTRO_LIMITS.title} placeholder={project.name} onChange={e=>patchIntroDesign({title:e.target.value})}/>
+          </label>
+          <label>Phrase d’accueil
+            <input value={project.introDesign?.subtitle??''} maxLength={INTRO_LIMITS.subtitle} placeholder="Bienvenue dans votre visite" onChange={e=>patchIntroDesign({subtitle:e.target.value})}/>
+          </label>
+          <label>Texte du bouton
+            <input value={project.introDesign?.buttonLabel??'Découvrir'} maxLength={INTRO_LIMITS.button} onChange={e=>patchIntroDesign({buttonLabel:e.target.value})}/>
+          </label>
+          <label>Animation
+            <select value={project.introDesign?.animation??'fade'} onChange={e=>patchIntroDesign({animation:e.target.value as IntroDesign['animation']})}>
+              {INTRO_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+          </label>
+          <div className="nv-brand-pack-actions">
+            <button type="button" className="import" onClick={()=>logoInput.current?.click()}>{project.introDesign?.logoDataUrl?'Remplacer le logo':'Ajouter un logo'}</button>
+            {project.introDesign?.logoDataUrl&&<button type="button" className="quiet" onClick={()=>patchIntroDesign({logoDataUrl:undefined})}>Retirer le logo</button>}
+          </div>
+          <input ref={logoInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{void importIntroLogo(e.target.files?.[0]);e.target.value='';}}/>
+          <small className="hint-inline">Durée : {project.introDuration??6} s (réglée dans la section ci-dessous). Les couleurs viennent de la barre du bas ou de la charte graphique.</small>
+          <button type="button" className="primary" disabled={!project.introDesign} onClick={()=>setIntroPreview(true)}>▶ Prévisualiser l’introduction</button>
+          <div className="section-title">ADRESSE EXTERNE (FACULTATIF)</div>
           <div className="section-title">INTRODUCTION DE LA VISITE</div>
           <p className="hint">Chaque visite possède son URL d’introduction. L’introduction apparaît au lancement puis passe automatiquement au premier panorama, sans bouton supplémentaire.</p>
           <label className="toggle-row"><input type="checkbox" checked={project.introEnabled} onChange={e=>setProject(p=>({...p,introEnabled:e.target.checked}))}/> Activer l’introduction</label>
@@ -5653,6 +5701,9 @@ function App(){
       iconCount={project.icons.length}
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
+    {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
+      <NativeIntro design={project.introDesign} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
+    </div>}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>
