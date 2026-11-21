@@ -24,8 +24,9 @@ export function autoIconZoom(dataUrl:string):Promise<number>{
 /* ——— Rognage automatique des marges transparentes : toutes les icônes d'une barre remplissent leur bouton de la même façon ——— */
 const trimCache=new Map<string,Promise<string>>();
 /** Renvoie l'icône recadrée sur son contenu visible (carré centré). Si elle remplit déjà son cadre, elle est renvoyée telle quelle. */
-export function trimIcon(dataUrl:string):Promise<string>{
-  let p=trimCache.get(dataUrl);
+export function trimIcon(dataUrl:string,fitCircle=false):Promise<string>{
+  const cacheKey=fitCircle?'circle:'+dataUrl:dataUrl;
+  let p=trimCache.get(cacheKey);
   if(p)return p;
   p=new Promise<string>(resolve=>{
     const img=new Image();
@@ -39,9 +40,20 @@ export function trimIcon(dataUrl:string):Promise<string>{
         let x0=W,y0=H,x1=-1,y1=-1;
         for(let yy=0;yy<H;yy++)for(let xx=0;xx<W;xx++)if(d[(yy*W+xx)*4+3]>24){if(xx<x0)x0=xx;if(xx>x1)x1=xx;if(yy<y0)y0=yy;if(yy>y1)y1=yy;}
         if(x1<0){resolve(dataUrl);return;}
-        const bw=x1-x0+1,bh=y1-y0+1,side=Math.max(bw,bh);
+        const bw=x1-x0+1,bh=y1-y0+1;
+        let side=Math.max(bw,bh);
+        if(fitCircle){
+          const cx=x0+bw/2,cy=y0+bh/2;
+          let radiusSquared=0;
+          for(let yy=y0;yy<=y1;yy++)for(let xx=x0;xx<=x1;xx++){
+            if(d[(yy*W+xx)*4+3]>24){
+              radiusSquared=Math.max(radiusSquared,(xx+.5-cx)**2+(yy+.5-cy)**2);
+            }
+          }
+          side=Math.max(side,Math.ceil(2*(Math.sqrt(radiusSquared)+1)/.96));
+        }
         // Déjà bien rempli (≥ 96 % dans les deux sens) : on ne touche à rien.
-        if(bw/W>=0.96&&bh/H>=0.96){resolve(dataUrl);return;}
+        if(!fitCircle&&bw/W>=0.96&&bh/H>=0.96){resolve(dataUrl);return;}
         const o=document.createElement('canvas');o.width=o.height=side;
         o.getContext('2d')!.drawImage(c,x0,y0,bw,bh,(side-bw)/2,(side-bh)/2,bw,bh);
         resolve(o.toDataURL('image/png'));
@@ -50,7 +62,7 @@ export function trimIcon(dataUrl:string):Promise<string>{
     img.onerror=()=>resolve(dataUrl);
     img.src=dataUrl;
   });
-  trimCache.set(dataUrl,p);
+  trimCache.set(cacheKey,p);
   if(trimCache.size>150){const first=trimCache.keys().next().value;if(first)trimCache.delete(first);}
   return p;
 }
