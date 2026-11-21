@@ -89,6 +89,8 @@ import { NativeIntro } from './nativeIntro';
 export type NovaStudioAIProps = {
   project: StudioProject;
   defaultMode?: 'new' | 'update';
+  /** Nouveau client : les champs démarrent vides au lieu de reprendre la visite en cours. */
+  freshClient?: boolean;
   onApply: (
     updated: Partial<StudioProject>,
     clientProfile: ClientProfile,
@@ -112,33 +114,34 @@ async function iconStatesFor(spec: {label: string; nodes: ReadonlyArray<readonly
   return {normal, hover, pressed};
 }
 
-export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, onClose}: NovaStudioAIProps) {
+export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient = false, onApply, onClose}: NovaStudioAIProps) {
+  const seed: Partial<StudioProject> = freshClient ? {} : project;
   const [activeTab, setActiveTab] = useState<'info' | 'brand' | 'icons' | 'intro' | 'menu'>('info');
   const [creationMode, setCreationMode] = useState<'new' | 'update'>(defaultMode);
 
   // ==========================================
   // Champs Module 1 — Création et analyse
   // ==========================================
-  const [clientName, setClientName] = useState(project.clientProfile?.name || project.name || '');
-  const [projectName, setProjectName] = useState(project.name || '');
+  const [clientName, setClientName] = useState(seed.clientProfile?.name || seed.name || '');
+  const [projectName, setProjectName] = useState(seed.name || '');
   const [activityCategory, setActivityCategory] = useState<ActivityCategory>(
-    (project.clientProfile?.activityCategory as ActivityCategory) || 'autre'
+    (seed.clientProfile?.activityCategory as ActivityCategory) || 'autre'
   );
-  const [website, setWebsite] = useState(project.clientProfile?.website || '');
-  const [address, setAddress] = useState(project.clientProfile?.address || '');
-  const [city, setCity] = useState(project.clientProfile?.city || '');
-  const [phone, setPhone] = useState(project.clientProfile?.phone || '');
-  const [email, setEmail] = useState(project.clientProfile?.email || '');
-  const [bookingUrl, setBookingUrl] = useState(project.clientProfile?.bookingUrl || '');
-  const [facebook, setFacebook] = useState(project.clientProfile?.facebook || '');
-  const [instagram, setInstagram] = useState(project.clientProfile?.instagram || '');
+  const [website, setWebsite] = useState(seed.clientProfile?.website || '');
+  const [address, setAddress] = useState(seed.clientProfile?.address || '');
+  const [city, setCity] = useState(seed.clientProfile?.city || '');
+  const [phone, setPhone] = useState(seed.clientProfile?.phone || '');
+  const [email, setEmail] = useState(seed.clientProfile?.email || '');
+  const [bookingUrl, setBookingUrl] = useState(seed.clientProfile?.bookingUrl || '');
+  const [facebook, setFacebook] = useState(seed.clientProfile?.facebook || '');
+  const [instagram, setInstagram] = useState(seed.clientProfile?.instagram || '');
   const [visitType, setVisitType] = useState<VisitType>(
-    (project.clientProfile?.visitType as VisitType) || (project.vrEnabled ? 'hybrid' : 'premium')
+    (seed.clientProfile?.visitType as VisitType) || (seed.vrEnabled ? 'hybrid' : 'premium')
   );
   const [selectedLanguages, setSelectedLanguages] = useState<StudioLanguage[]>(
     project.languages && project.languages.length ? project.languages : ['fr', 'en']
   );
-  const [logoUrl, setLogoUrl] = useState<string>(project.clientProfile?.logoUrl || '');
+  const [logoUrl, setLogoUrl] = useState<string>(seed.clientProfile?.logoUrl || '');
   const [logoColors, setLogoColors] = useState<{primary: string; accent: string} | null>(null);
 
   // Données détectées

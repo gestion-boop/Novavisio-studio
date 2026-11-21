@@ -123,6 +123,7 @@ function App(){
   const topMenusRef=useRef<HTMLDivElement>(null);
   const [openTopMenu,setOpenTopMenu]=useState<HeaderMenu>(null);
   const [navigationDrawerOpen,setNavigationDrawerOpen]=useState(false);
+  const [aiFreshClient,setAiFreshClient]=useState(false);
   const [spacesDrawerOpen,setSpacesDrawerOpen]=useState(false);
   const [spaceDelete,setSpaceDelete]=useState<{id:string;target:string}|null>(null);  // fenêtre « supprimer un espace »
   const [spaceTransferTo,setSpaceTransferTo]=useState('');
@@ -3622,7 +3623,7 @@ function App(){
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setVrMenuOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Eye size={17}/> Vue casque</span></button>
-          <button type="button" className="nv-client-top-btn" onClick={()=>{setAiAssistantOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}} title="NovaStudio AI — Création intelligente"><span className="nv-drawer-item-label"><Sparkles size={17} color="#38bdf8"/> NovaStudio AI</span></button>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setAiFreshClient(true);setAiAssistantOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}} title="NovaStudio AI — Création intelligente"><span className="nv-drawer-item-label"><Sparkles size={17} color="#38bdf8"/> NovaStudio AI</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
             <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
           </button>
@@ -3634,7 +3635,7 @@ function App(){
               <span className="nv-drawer-item-label"><Plus size={17}/> Fichier</span><ChevronDown size={15}/>
             </button>
             {openTopMenu==='file'&&<div className="nv-menu-popover" role="menu" aria-label="Fichier">
-              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setAiAssistantOpen(true);}}>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setAiFreshClient(true);setAiAssistantOpen(true);}}>
                 <Sparkles size={16} color="#38bdf8"/><strong>Nouveau client (NovaStudio AI)</strong>
               </button>
               <div className="nv-menu-divider" role="separator"/>
@@ -4128,7 +4129,7 @@ function App(){
               <h1>Bienvenue dans NovaStudio</h1>
               <p>Crée un client : l'assistant analyse son site, sa charte et ses icônes, puis prépare la visite.</p>
               <div className="nv-home-actions">
-                <button className="primary" onClick={()=>setAiAssistantOpen(true)}>✨ Nouveau client (NovaStudio AI)</button>
+                <button className="primary" onClick={()=>{setAiFreshClient(true);setAiAssistantOpen(true);}}>✨ Nouveau client (NovaStudio AI)</button>
                 <button onClick={()=>setPreparationOpen(true)}>Démarrer sans assistant</button>
               </div>
             </>}
@@ -5758,7 +5759,7 @@ function App(){
       canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
       onClose={()=>{setClientOpen(false);backFrom();}}
       onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
-      onLaunchAiAssistant={()=>{setClientOpen(false);setAiAssistantOpen(true);}}
+      onLaunchAiAssistant={()=>{setClientOpen(false);setAiFreshClient(false);setAiAssistantOpen(true);}}
       currentStyle={project.barStyle}
       onUpdateCurrent={(profile,style)=>setProject(p=>({...p,...(profile?{clientProfile:profile}:{}),...(style?{barStyle:{...p.barStyle,...style}}:{})}))}
       onSaveDiscovered={(clientProfile,style)=>{
@@ -5826,7 +5827,7 @@ function App(){
       iconCount={project.icons.length}
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
-    {aiAssistantOpen&&<NovaStudioAIAssistant project={project} onClose={()=>setAiAssistantOpen(false)}
+    {aiAssistantOpen&&<NovaStudioAIAssistant project={project} freshClient={aiFreshClient} onClose={()=>setAiAssistantOpen(false)}
       onApply={(updated,clientProfile,brandKit,mode)=>{
         if(mode==='new'){
           const fresh=newProject();
