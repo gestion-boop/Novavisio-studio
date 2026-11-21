@@ -41,7 +41,7 @@ export function InterestDialog({category,info,points,canPlace,onPatch,onPlace,on
           {INTEREST_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
       </label>
-      <details className="nv-interest-info">
+      <details className="nv-interest-info" open={Object.keys(info).length===0}>
         <summary>Informations vérifiées ({Object.keys(info).length})</summary>
         {FIELDS.map(f=><label key={f.key}>{f.label}
           {f.list?<textarea rows={2} value={toText(info[f.key])} onChange={e=>onPatch({info:{...info,[f.key]:fromText(e.target.value,true)}})}/>
