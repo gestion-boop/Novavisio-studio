@@ -94,7 +94,7 @@ export default async function handler(req,res){
           const full=normal(row),p=full.profile;
           return {...full,profile:{novagenId:id,name:p.name,city:p.city,category:p.category,address:p.address,
             phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''},
-            photoUrls:[],logoUrl:'',notes:[],summaryOnly:true};
+            photoUrls:[],logoUrl:full.logoUrl||'',notes:[],summaryOnly:true};
         }catch{return {id,unavailable:true};}
       }));
       return res.status(200).json({clients});
