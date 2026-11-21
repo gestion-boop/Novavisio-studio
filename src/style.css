@@ -6172,3 +6172,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-brand-note{opacity:.7;font-size:11px}
 .nv-brand-swatches{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
 .nv-brand-swatch{padding:3px 7px;border-radius:6px;color:#fff;font-size:11px;text-shadow:0 1px 2px #0008;font-family:monospace}
+
+/* Accueil : aucune visite ouverte (remplace le fond bleu vide) */
+.nv-studio-pro .empty.nv-home{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:100%;padding:32px;text-align:center;background:transparent}
+.nv-studio-pro .empty.nv-home h1{font-size:28px;margin:0}
+.nv-studio-pro .empty.nv-home p{max-width:460px;opacity:.8;margin:0}
+.nv-studio-pro .nv-home-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}

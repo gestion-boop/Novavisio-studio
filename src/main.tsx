@@ -4119,13 +4119,19 @@ function App(){
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
-            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className={'empty'+(!currentSpace?' nv-immersive-welcome':'')}>
+            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className={'empty'+(!currentSpace?' nv-home':'')}>
             {currentSpace&&<div className="empty-icon">◎</div>}
             {currentSpace&&<h1>Cet espace est vide</h1>}
             {currentSpace&&<p>Sélectionne les panoramas de la visite principale à inclure dans cet espace.</p>}
-            <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):setPreparationOpen(true)}>
-              {currentSpace?'Choisir les panoramas':'Démarrer'}
-            </button>
+            {currentSpace&&<button className="primary" onClick={()=>setSpaceManagerOpen(true)}>Choisir les panoramas</button>}
+            {!currentSpace&&<>
+              <h1>Bienvenue dans NovaStudio</h1>
+              <p>Crée un client : l'assistant analyse son site, sa charte et ses icônes, puis prépare la visite.</p>
+              <div className="nv-home-actions">
+                <button className="primary" onClick={()=>setAiAssistantOpen(true)}>✨ Nouveau client (NovaStudio AI)</button>
+                <button onClick={()=>setPreparationOpen(true)}>Démarrer sans assistant</button>
+              </div>
+            </>}
           </div>}
           {navigationDraft&&visibleScenes.some(sc=>sc.id===navigationDraft.targetId)&&
             <section className="nv-direction-preview" role="dialog" aria-modal="true" aria-label="Valider la direction de la destination">
