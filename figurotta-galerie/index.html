@@ -29,6 +29,11 @@ html,body{min-height:100%;font-family:-apple-system,"Segoe UI",Helvetica,Arial,s
 #lb button{position:absolute;background:rgba(255,255,255,.16);color:#fff;border:2px solid var(--vert);border-radius:50%;width:48px;height:48px;font-size:24px;cursor:pointer}
 #lb .x{top:16px;right:16px}#lb .p{left:14px;top:50%}#lb .n{right:14px;top:50%}
 #lb .c{position:absolute;bottom:18px;color:#fff;font-size:13px;font-weight:600}
+.hero{position:relative;min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 18px;color:#fff;background:url("img/221.jpg") center/cover no-repeat;border-bottom:4px solid var(--vert)}
+.hero::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(34,74,149,.55),rgba(34,74,149,.78))}
+.hero>*{position:relative}
+.hero .ttl{color:#fff;margin:0 0 8px}
+.hero .sub{color:var(--or);margin:0}
 @media(max-width:600px){.top b{font-size:16px}.top img{width:38px;height:38px}}
 </style>
 </head>
@@ -40,9 +45,11 @@ html,body{min-height:100%;font-family:-apple-system,"Segoe UI",Helvetica,Arial,s
     <button data-l="fr">FR</button><button data-l="en">EN</button><button data-l="es">ES</button><button data-l="de">DE</button>
   </nav>
 </header>
-<main class="wrap">
+<section class="hero">
   <h1 class="ttl" id="h">Découvrez le camping</h1>
   <p class="sub" id="s">Bizanet · Pays Cathare</p>
+</section>
+<main class="wrap">
   <div class="grid" id="g">
     <a href="img/211.jpg"><img loading="lazy" src="img/211.jpg" alt="Camping Figurotta — vue 1"></a>
     <a href="img/212.jpg"><img loading="lazy" src="img/212.jpg" alt="Camping Figurotta — vue 2"></a>
