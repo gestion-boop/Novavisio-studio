@@ -100,12 +100,13 @@ export type NovaStudioAIProps = {
 
 
 /** États (normal, survol, pressé) d'une icône de charte : brillant (glossy) ou plat, selon le choix du client. */
-async function iconStatesFor(spec: {label: string; nodes: ReadonlyArray<readonly [string, Record<string, string | number>]>}, colors: BrandColors, shape: IconShape, finish: 'plat' | 'glossy') {
+export type GlossyColors = {background: string; pictogram: string; outline: string};
+async function iconStatesFor(spec: {label: string; nodes: ReadonlyArray<readonly [string, Record<string, string | number>]>}, colors: BrandColors, shape: IconShape, finish: 'plat' | 'glossy', glossy: GlossyColors) {
   if (finish === 'glossy') {
     const body = spec.nodes.map(([tag, a]) => `<${tag} ${Object.entries(a).map(([k, v]) => `${k}="${v}"`).join(' ')}/>`).join('');
-    const glyphSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24"><g fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" transform="translate(12 12) scale(0.56) translate(-12 -12)">${body}</g></svg>`;
+    const glyphSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24"><g fill="none" stroke="${glossy.pictogram}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" transform="translate(12 12) scale(0.56) translate(-12 -12)">${body}</g></svg>`;
     const glyph = await svgToPng(glyphSvg, 256);
-    return glossyIconStates({base: colors.primary, glyph, size: 256, format: 'png'});
+    return glossyIconStates({base: glossy.background, rim: glossy.outline, glyph, size: 256, format: 'png'});
   }
   const [normal, hover, pressed] = await Promise.all((['normal', 'hover', 'pressed'] as const).map(st => svgToPng(iconSvg(spec as never, colors, shape, st as IconState), 256)));
   return {normal, hover, pressed};
@@ -163,6 +164,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, on
   // ==========================================
   const [iconShape, setIconShape] = useState<IconShape>('circle');
   const [iconFinish, setIconFinish] = useState<'plat' | 'glossy'>('plat');
+  const [glossyColors, setGlossyColors] = useState<GlossyColors>({background: '#224A95', pictogram: '#ffffff', outline: '#15336B'});
   const [iconResolution, setIconResolution] = useState<256 | 512 | 1024>(512);
   const [previewState, setPreviewState] = useState<IconState>('normal');
   const [hoveredCardKey, setHoveredCardKey] = useState<string | null>(null);
@@ -479,7 +481,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, on
       const buttonSetsToAdd: ImportedButtonSet[] = [];
 
       for (const spec of allIconSpecs) {
-        const {normal: normalData, hover: hoverData, pressed: pressedData} = await iconStatesFor(spec, colors, iconShape, iconFinish);
+        const {normal: normalData, hover: hoverData, pressed: pressedData} = await iconStatesFor(spec, colors, iconShape, iconFinish, glossyColors);
 
         const normalId = crypto.randomUUID();
         const hoverId = crypto.randomUUID();
@@ -556,7 +558,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, on
 
     // Si le pack d'icônes est activé ou pour alimenter les boutons automatiques
     for (const spec of allIconSpecs) {
-      const {normal: normalData, hover: hoverData, pressed: pressedData} = await iconStatesFor(spec, colors, iconShape, iconFinish);
+      const {normal: normalData, hover: hoverData, pressed: pressedData} = await iconStatesFor(spec, colors, iconShape, iconFinish, glossyColors);
 
       const normalId = crypto.randomUUID();
       const hoverId = crypto.randomUUID();
@@ -1193,6 +1195,14 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, on
                     </button>
                   </div>
                 </div>
+
+                {iconFinish === 'glossy' && (
+                  <div className="nv-ai-pill-selector" aria-label="Couleurs du brillant">
+                    <label>Fond <input type="color" value={glossyColors.background} onChange={e => setGlossyColors({...glossyColors, background: e.target.value})}/></label>
+                    <label>Pictogramme <input type="color" value={glossyColors.pictogram} onChange={e => setGlossyColors({...glossyColors, pictogram: e.target.value})}/></label>
+                    <label>Contour <input type="color" value={glossyColors.outline} onChange={e => setGlossyColors({...glossyColors, outline: e.target.value})}/></label>
+                  </div>
+                )}
 
                 <div className="nv-ai-toolbar-group">
                   <label>Résolution PNG :</label>
