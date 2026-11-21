@@ -3652,7 +3652,7 @@ function App(){
             </button>
             {openTopMenu==='file'&&<div className="nv-menu-popover" role="menu" aria-label="Fichier">
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setAiAssistantOpen(true);}}>
-                <Sparkles size={16} color="#38bdf8"/><strong>Nouveau projet (NovaStudio AI)</strong>
+                <Sparkles size={16} color="#38bdf8"/><strong>Nouveau client (NovaStudio AI)</strong>
               </button>
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
                 <Plus size={16}/><span>Nouveau projet vierge</span>
