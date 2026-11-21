@@ -5,6 +5,8 @@
  */
 import {verifyAdmin,safeFetch} from './_net.js';
 import {crawlSite} from './_aspirate.js';
+import {analyzeSiteBrand,collectStylesheetUrls} from '../shared/siteBrandCore.js';
+const MAX_CSS_BYTES=300*1024;
 export const config={maxDuration:60};
 const MAX_BYTES=1.5*1024*1024;
 
@@ -15,7 +17,7 @@ const normalizeSite=(raw)=>{
   try{const u=new URL(v);return u.hostname.includes('.')?u.href:'';}catch{return '';}
 };
 
-async function fetchPage(url){
+async function fetchPage(url,sink){
   const {response,finalUrl}=await safeFetch(url,{accept:'text/html,application/xhtml+xml',timeout:9000,allowHttp:true});
   if(!response.ok)throw new Error('HTTP '+response.status);
   const type=(response.headers.get('content-type')||'').toLowerCase();
@@ -23,7 +25,23 @@ async function fetchPage(url){
   if(Number(response.headers.get('content-length')||0)>MAX_BYTES)throw new Error('page trop volumineuse');
   const buffer=Buffer.from(await response.arrayBuffer());
   if(buffer.length>MAX_BYTES)throw new Error('page trop volumineuse');
-  return {html:buffer.toString('utf8'),finalUrl};
+  const html=buffer.toString('utf8');
+  sink.push(html);
+  return {html,finalUrl};
+}
+
+/* Identité graphique : feuilles de style des premières pages (300 Ko au plus chacune, 3 au plus). Échecs ignorés. */
+async function fetchStylesheets(html,baseUrl){
+  let css='';
+  for(const href of collectStylesheetUrls(html,baseUrl,3)){
+    try{
+      const {response}=await safeFetch(href,{accept:'text/css,*/*;q=0.1',timeout:6000,allowHttp:true});
+      if(!response.ok)continue;
+      const buf=Buffer.from(await response.arrayBuffer());
+      if(buf.length<=MAX_CSS_BYTES)css+='\n'+buf.toString('utf8');
+    }catch{/* feuille illisible : on continue */}
+  }
+  return css;
 }
 
 export default async function handler(req,res){
@@ -34,9 +52,15 @@ export default async function handler(req,res){
     const body=typeof req.body==='string'?JSON.parse(req.body):req.body;
     const site=normalizeSite(body?.site);
     if(!site)return res.status(400).json({error:'Renseigne l’adresse du site Internet de l’établissement.'});
-    const result=await crawlSite(site,fetchPage,{maxPages:6,maxPhotos:60});
+    const pageHtml=[];
+    const result=await crawlSite(site,(u)=>fetchPage(u,pageHtml),{maxPages:6,maxPhotos:60});
     if(!result.ok)return res.status(502).json({error:'Site inaccessible : '+(result.notes[0]||'aucune réponse')+'.'});
-    return res.status(200).json({fiche:result.fiche,photos:result.photos,logos:result.logos,notes:result.notes,pages:result.pages});
+    let brand=null;
+    try{
+      const css=pageHtml[0]?await fetchStylesheets(pageHtml[0],result.pages[0]||site):'';
+      brand=analyzeSiteBrand(pageHtml.join('\n'),css);
+    }catch{brand=null;}
+    return res.status(200).json({fiche:result.fiche,photos:result.photos,logos:result.logos,notes:result.notes,pages:result.pages,brand});
   }catch(err){
     const timeout=err?.name==='TimeoutError'||err?.name==='AbortError';
     return res.status(timeout?504:500).json({error:timeout?'Le site met trop de temps à répondre.':'Erreur de lecture du site : '+String(err?.message||'inconnue').slice(0,200)});

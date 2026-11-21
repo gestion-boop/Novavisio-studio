@@ -1,0 +1,10 @@
+export type ColorFinding = {hex: string; count: number; source: 'theme-color' | 'css'};
+export type FontFinding = {name: string; source: 'google-fonts' | 'css'};
+export type SiteBrandAnalysis = {colors: ColorFinding[]; fonts: FontFinding[]; themeColor: string};
+export function normalizeHex(raw: string): string;
+export function isUsefulColor(hex: string): boolean;
+export function extractColors(css: string): ColorFinding[];
+export function extractThemeColor(html: string): string;
+export function extractFonts(html: string, css: string): FontFinding[];
+export function analyzeSiteBrand(html: string, css?: string): SiteBrandAnalysis;
+export function collectStylesheetUrls(html: string, baseUrl: string, limit?: number): string[];

@@ -51,3 +51,15 @@ describe('analyse de l’identité du site',()=>{
     expect(r.seed).toBe('#2b899d');
   });
 });
+
+import {collectStylesheetUrls} from '../shared/siteBrandCore.js';
+describe('feuilles de style liées',()=>{
+  it('résout les liens relatifs et garde les https',()=>{
+    const html='<link rel="stylesheet" href="/css/main.css"><link rel="stylesheet" href="https://cdn.example.org/a.css"><link rel="icon" href="x.png">';
+    expect(collectStylesheetUrls(html,'https://camping.example.fr/accueil')).toEqual(['https://camping.example.fr/css/main.css','https://cdn.example.org/a.css']);
+  });
+  it('ignore les schémas non web et limite le nombre',()=>{
+    const html='<link rel="stylesheet" href="data:text/css,x"><link rel="stylesheet" href="a.css"><link rel="stylesheet" href="b.css"><link rel="stylesheet" href="c.css">';
+    expect(collectStylesheetUrls(html,'https://s.example.fr/',2)).toEqual(['https://s.example.fr/a.css','https://s.example.fr/b.css']);
+  });
+});
