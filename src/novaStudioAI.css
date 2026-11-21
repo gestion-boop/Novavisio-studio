@@ -844,3 +844,476 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* ==========================================================================
+   PHASE 3 — MODULE 5 : INTRODUCTION AUTOMATIQUE PERSONNALISÉE
+   ========================================================================== */
+
+.nv-ai-intro-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.nv-ai-switch-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nv-ai-switch-info h4 {
+  margin: 0 0 0.25rem 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.nv-ai-switch-info p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.nv-ai-toggle {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+}
+
+.nv-ai-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.nv-ai-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #334155;
+  transition: 0.25s;
+  border-radius: 26px;
+}
+
+.nv-ai-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.25s;
+  border-radius: 50%;
+}
+
+.nv-ai-toggle input:checked + .nv-ai-toggle-slider {
+  background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+}
+
+.nv-ai-toggle input:checked + .nv-ai-toggle-slider:before {
+  transform: translateX(22px);
+}
+
+.nv-ai-intro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.nv-ai-intro-card {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.nv-ai-intro-card h4 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.nv-ai-intro-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.5rem;
+}
+
+.nv-ai-intro-style-btn {
+  padding: 0.65rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(30, 41, 59, 0.6);
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.nv-ai-intro-style-btn:hover {
+  background: rgba(51, 65, 85, 0.8);
+  color: #ffffff;
+}
+
+.nv-ai-intro-style-btn.is-active {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.nv-ai-anim-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.nv-ai-anim-pill {
+  padding: 0.4rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.5);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.nv-ai-anim-pill:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nv-ai-anim-pill.is-active {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.nv-ai-duration-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.nv-ai-duration-slider {
+  flex: 1;
+  accent-color: #38bdf8;
+}
+
+.nv-ai-duration-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #38bdf8;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* Aperçu miniature de l'introduction */
+.nv-ai-intro-preview-frame {
+  position: relative;
+  height: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.nv-ai-intro-preview-logo {
+  max-height: 52px;
+  max-width: 140px;
+  object-fit: contain;
+  margin-bottom: 0.75rem;
+}
+
+.nv-ai-intro-preview-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 0 0 0.4rem 0;
+  line-height: 1.2;
+}
+
+.nv-ai-intro-preview-sub {
+  font-size: 0.82rem;
+  margin: 0 0 1rem 0;
+  max-width: 85%;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.nv-ai-intro-preview-btn {
+  padding: 0.55rem 1.4rem;
+  border-radius: 30px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+
+.nv-ai-intro-preview-btn:hover {
+  transform: scale(1.05);
+}
+
+.nv-ai-test-intro-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+/* Mode prévisualisation plein écran de l'intro native */
+.nv-ai-fullscreen-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: #000;
+}
+
+.nv-ai-fullscreen-close {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 100001;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s;
+}
+
+.nv-ai-fullscreen-close:hover {
+  background: rgba(220, 38, 38, 0.85);
+}
+
+/* ==========================================================================
+   PHASE 3 — MODULE 7 : INTERFACE ET MENUS AUTOMATIQUES
+   ========================================================================== */
+
+.nv-ai-menu-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.nv-ai-layouts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.nv-ai-layout-card {
+  padding: 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.6);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.18s ease;
+}
+
+.nv-ai-layout-card:hover {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.nv-ai-layout-card.is-active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+}
+
+.nv-ai-layout-card strong {
+  font-size: 0.85rem;
+  color: #f8fafc;
+}
+
+.nv-ai-layout-card small {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Aperçu interactif de la barre de visite */
+.nv-ai-live-bar-preview {
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 130px;
+}
+
+.nv-ai-simulated-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 1.25rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  max-width: 95%;
+  overflow-x: auto;
+}
+
+.nv-ai-simulated-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  user-select: none;
+}
+
+.nv-ai-simulated-btn:hover {
+  transform: translateY(-2px);
+}
+
+.nv-ai-simulated-btn-badge {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nv-ai-simulated-btn-badge svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nv-ai-simulated-btn span {
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Liste des propositions de boutons */
+.nv-ai-proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.nv-ai-proposal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s;
+}
+
+.nv-ai-proposal-row:hover {
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.nv-ai-proposal-row.is-selected {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(15, 23, 42, 0.85);
+}
+
+.nv-ai-proposal-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nv-ai-proposal-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nv-ai-proposal-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nv-ai-proposal-info-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nv-ai-proposal-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.3rem 0.55rem;
+  max-width: 220px;
+}
+
+.nv-ai-proposal-badge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+
+.nv-ai-proposal-badge.is-rec {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.nv-ai-proposal-desc {
+  font-size: 0.73rem;
+  color: #94a3b8;
+}
+
+.nv-ai-proposals-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+

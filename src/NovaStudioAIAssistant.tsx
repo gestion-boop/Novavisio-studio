@@ -17,7 +17,9 @@ import {
   Check,
   Download,
   Wand2,
-  FolderDown
+  FolderDown,
+  Play,
+  Eye
 } from 'lucide-react';
 import {
   ACTIVITY_CATEGORIES,
@@ -37,7 +39,6 @@ import {
   checkContrast,
   contrastRatio,
   readableOn,
-  toBarPatch,
   isHex,
   type BrandColors,
   type BrandKit,
@@ -55,6 +56,12 @@ import {
   ICON_SHAPES,
   ICON_STATES
 } from './brandIcons';
+
+const ICON_STATE_OPTIONS: {id: IconState; label: string}[] = [
+  {id: 'normal', label: 'Normal'},
+  {id: 'hover', label: 'Survol ✨'},
+  {id: 'pressed', label: 'Pressé'}
+];
 import {
   STUDIO_LANGUAGES,
   type StudioLanguage,
@@ -62,8 +69,28 @@ import {
   type StudioProject,
   type CustomIcon,
   type ImportedButtonSet,
+  type BottomBarItem,
   readImage
 } from './storage';
+import {
+  INTRO_STYLES,
+  INTRO_ANIMATIONS,
+  INTRO_LOGO_SHAPES,
+  type IntroDesign,
+  type IntroStyleId,
+  type IntroAnimation,
+  type IntroLogoShape,
+  introWelcomeColor
+} from './introDesign';
+import {
+  generateAutoIntroPreset,
+  generateAutoMenuProposals,
+  buildBarStyle,
+  AUTO_BAR_LAYOUTS,
+  type AutoBarLayout,
+  type AutoButtonItem
+} from './autoMenu';
+import { NativeIntro } from './nativeIntro';
 
 export type NovaStudioAIProps = {
   project: StudioProject;
@@ -72,9 +99,11 @@ export type NovaStudioAIProps = {
 };
 
 export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'brand' | 'icons'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'brand' | 'icons' | 'intro' | 'menu'>('info');
 
+  // ==========================================
   // Champs Module 1 — Création et analyse
+  // ==========================================
   const [clientName, setClientName] = useState(project.clientProfile?.name || project.name || '');
   const [projectName, setProjectName] = useState(project.name || '');
   const [activityCategory, setActivityCategory] = useState<ActivityCategory>(
@@ -94,8 +123,6 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
   const [selectedLanguages, setSelectedLanguages] = useState<StudioLanguage[]>(
     project.languages && project.languages.length ? project.languages : ['fr', 'en']
   );
-
-  // Logo & Couleurs
   const [logoUrl, setLogoUrl] = useState<string>(project.clientProfile?.logoUrl || '');
   const [logoColors, setLogoColors] = useState<{primary: string; accent: string} | null>(null);
 
@@ -104,7 +131,9 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
   const [detected, setDetected] = useState<DetectedInfo | null>(null);
   const [analysisError, setAnalysisError] = useState('');
 
+  // ==========================================
   // Module 2 — Charte graphique
+  // ==========================================
   const [styleId, setStyleId] = useState<StyleId>(
     (project.brandKit?.styleId as StyleId) || 'moderne'
   );
@@ -115,7 +144,9 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
     project.brandKit?.colors || generateBrand('#2f8fb5', 'moderne')
   );
 
+  // ==========================================
   // Module 3 — Icônes et Boutons (Phase 2)
+  // ==========================================
   const [iconShape, setIconShape] = useState<IconShape>('circle');
   const [iconFinish, setIconFinish] = useState<'plat' | 'glossy'>('plat');
   const [iconResolution, setIconResolution] = useState<256 | 512 | 1024>(512);
@@ -127,6 +158,89 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
   const [packBusy, setPackBusy] = useState('');
   const [packMessage, setPackMessage] = useState('');
   const [appliedPack, setAppliedPack] = useState(false);
+
+  // ==========================================
+  // Module 5 — Introduction automatique (Phase 3)
+  // ==========================================
+  const initialIntroPreset = useMemo(
+    () => generateAutoIntroPreset({
+      category: activityCategory,
+      clientName: clientName || project.name || 'Visite 360°',
+      colors,
+      logoUrl: logoUrl || undefined,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const [introEnabled, setIntroEnabled] = useState<boolean>(
+    project.introDesign?.enabled ?? project.introEnabled ?? true
+  );
+  const [introStyleId, setIntroStyleId] = useState<IntroStyleId>(
+    project.introDesign?.styleId || initialIntroPreset.styleId
+  );
+  const [introAnimation, setIntroAnimation] = useState<IntroAnimation>(
+    project.introDesign?.animation || initialIntroPreset.animation
+  );
+  const [introTitle, setIntroTitle] = useState<string>(
+    project.introDesign?.title || clientName || project.name || ''
+  );
+  const [introSubtitle, setIntroSubtitle] = useState<string>(
+    project.introDesign?.subtitle || initialIntroPreset.subtitle
+  );
+  const [introButtonLabel, setIntroButtonLabel] = useState<string>(
+    project.introDesign?.buttonLabel || initialIntroPreset.buttonLabel
+  );
+  const [introDuration, setIntroDuration] = useState<number>(
+    project.introDuration ?? 6
+  );
+  const [introLogoShape, setIntroLogoShape] = useState<IntroLogoShape>(
+    project.introDesign?.logoShape || 'original'
+  );
+  const [previewIntroActive, setPreviewIntroActive] = useState(false);
+
+  // ==========================================
+  // Module 7 — Interface & Menus automatiques (Phase 3)
+  // ==========================================
+  const [barLayout, setBarLayout] = useState<AutoBarLayout>('discrete');
+  const [menuCustomTitles, setMenuCustomTitles] = useState<Record<string, string>>({});
+
+  const menuProposals: AutoButtonItem[] = useMemo(() => {
+    return generateAutoMenuProposals({
+      category: activityCategory,
+      clientName: clientName || project.name || 'Établissement',
+      bookingUrl: bookingUrl || undefined,
+      phone: phone || undefined,
+      email: email || undefined,
+      website: website || undefined,
+      address: address ? `${address}${city ? ', ' + city : ''}` : undefined,
+      services: detected?.services,
+      openingHours: detected?.openingHours,
+      hasPhotos: (detected?.photoUrls?.length ?? 0) > 0 || (project.scenes?.length ?? 0) > 0,
+    });
+  }, [activityCategory, clientName, project.name, bookingUrl, phone, email, website, address, city, detected, project.scenes]);
+
+  const [selectedMenuKeys, setSelectedMenuKeys] = useState<Set<string>>(() => {
+    const initial = generateAutoMenuProposals({
+      category: (project.clientProfile?.activityCategory as ActivityCategory) || 'autre',
+      clientName: project.clientProfile?.name || project.name || '',
+      bookingUrl: project.clientProfile?.bookingUrl,
+      phone: project.clientProfile?.phone,
+      email: project.clientProfile?.email,
+      website: project.clientProfile?.website,
+      address: project.clientProfile?.address,
+    });
+    return new Set(initial.filter((p) => p.recommended).map((p) => p.key));
+  });
+
+  const toggleMenuProposal = (key: string) => {
+    setSelectedMenuKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   // Ratios et alertes WCAG
   const contrastIssues = useMemo(() => checkContrast(colors), [colors]);
@@ -172,6 +286,18 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       );
       setSeedColor(initial.seed);
       setColors(initial.kit.colors);
+
+      // Met à jour les propositions d'introduction avec les données fraîches
+      const freshIntro = generateAutoIntroPreset({
+        category: activityCategory !== 'autre' ? activityCategory : suggestedCategory,
+        clientName: clientName || project.name || 'Visite 360°',
+        colors: initial.kit.colors,
+        logoUrl: data.logoUrls[0] || logoUrl,
+      });
+      setIntroSubtitle(freshIntro.subtitle);
+      setIntroButtonLabel(freshIntro.buttonLabel);
+      setIntroStyleId(freshIntro.styleId);
+      setIntroAnimation(freshIntro.animation);
     } catch (err) {
       setAnalysisError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -179,78 +305,79 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
     }
   };
 
-  // Import local d'un logo
+  // Traiter l'import d'un logo par fichier
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
       const dataUrl = await readImage(file);
       setLogoUrl(dataUrl);
-
-      try {
-        const pal = await analyzeLogoColors(dataUrl);
-        setLogoColors(pal);
-        if (pal.primary && isHex(pal.primary)) {
-          setSeedColor(pal.primary);
-          setColors(generateBrand(pal.primary, styleId));
-        }
-      } catch {
-        // Logo sans couleur dominante détectable
-      }
+      const extracted = await analyzeLogoColors(dataUrl);
+      setLogoColors(extracted);
+      setSeedColor(extracted.primary);
+      setColors(generateBrand(extracted.primary, styleId));
     } catch (err) {
-      setAnalysisError(err instanceof Error ? err.message : 'Fichier image non supporté');
+      setAnalysisError('Échec de la lecture du logo : ' + String(err));
     }
-    e.target.value = '';
   };
 
-  // Changement de style de charte
+  // Recalculer les couleurs en changeant de style prédéfini
   const handleStyleChange = (newStyle: StyleId) => {
     setStyleId(newStyle);
     setColors(generateBrand(seedColor, newStyle));
   };
 
-  // Changement de couleur de départ
-  const handleSeedChange = (hex: string) => {
-    setSeedColor(hex);
-    if (isHex(hex)) {
-      setColors(generateBrand(hex, styleId));
+  // Modification manuelle d'une couleur dans la palette
+  const handleColorUpdate = (key: keyof BrandColors, val: string) => {
+    setColors((prev) => ({...prev, [key]: val}));
+  };
+
+  // Basculer une langue
+  const toggleLanguage = (lang: StudioLanguage) => {
+    if (selectedLanguages.includes(lang)) {
+      if (selectedLanguages.length <= 1) return;
+      setSelectedLanguages(selectedLanguages.filter((l) => l !== lang));
+    } else {
+      setSelectedLanguages([...selectedLanguages, lang]);
     }
   };
 
-  // Modification manuelle d'une des 10 couleurs
-  const handleColorUpdate = (key: keyof BrandColors, hex: string) => {
-    if (isHex(hex)) {
-      setColors((prev) => ({...prev, [key]: hex}));
-    }
-  };
-
-  // Téléchargement du pack ZIP haute définition
-  const downloadPackZip = async () => {
-    setPackBusy('Préparation de l’export ZIP…');
+  // Télécharger le pack complet ZIP avec toutes les icônes en HD PNG et SVG
+  const downloadZip = async () => {
+    setPackBusy(`Génération du pack ZIP (${iconResolution}px)…`);
     setPackMessage('');
     try {
-      const {default: JSZip} = await import('jszip');
+      const JSZipModule = await import('jszip');
+      const JSZip = JSZipModule.default || JSZipModule;
       const zip = new JSZip();
-      const safeName = (clientName || 'novastudio').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const folderName = `pack-${safeName}-${styleId}-${iconShape}-${iconResolution}px`;
-      const folder = zip.folder(folderName)!;
-      const totalFiles = allIconSpecs.length * ICON_STATES.length;
 
-      let count = 0;
+      const folderName = `novastudio-icons-${iconShape}-${iconResolution}px`;
+      const rootFolder = zip.folder(folderName) || zip;
+      const pngFolder = rootFolder.folder(`png-${iconResolution}px`);
+      const svgFolder = rootFolder.folder('svg-vectoriel');
+
+      let totalFiles = 0;
       for (const spec of allIconSpecs) {
-        for (const st of ICON_STATES) {
-          count++;
-          setPackBusy(`Rendu ${count} / ${totalFiles} (${iconResolution}px)…`);
-          const svg = iconSvg(spec, colors, iconShape, st);
-          const pngDataUrl = await svgToPng(svg, iconResolution);
-          const base64Data = pngDataUrl.split(',')[1];
-          folder.file(`${spec.key}_${st}.png`, base64Data, {base64: true});
-          folder.file(`${spec.key}_${st}.svg`, svg);
+        for (const state of ICON_STATES) {
+          const svgCode = iconSvg(spec, colors, iconShape, state);
+          const baseName = `${spec.key}_${state}`;
+
+          svgFolder?.file(`${baseName}.svg`, svgCode);
+
+          const pngDataUrl = await svgToPng(svgCode, iconResolution);
+          const base64Data = pngDataUrl.replace(/^data:image\/png;base64,/, '');
+          pngFolder?.file(`${baseName}.png`, base64Data, {base64: true});
+
+          totalFiles++;
         }
       }
 
-      setPackBusy('Compression de l’archive ZIP…');
-      const blob = await zip.generateAsync({type: 'blob'});
+      const blob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: {level: 6}
+      });
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -278,7 +405,6 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       return;
     }
 
-    // Matching ou création de noeuds vectoriels
     const lower = prompt.toLowerCase();
     let nodes: BrandIconSpec['nodes'] = [
       ['circle', {cx: 12, cy: 12, r: 4}],
@@ -378,7 +504,7 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
     }
   };
 
-  // Validation finale et application au projet
+  // Validation finale et application au projet (Phases 1, 2 et 3)
   const handleApply = async () => {
     if (!clientName.trim()) {
       setActiveTab('info');
@@ -417,28 +543,34 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       visitType,
     };
 
-    const barPatch = toBarPatch(colors);
-
-    // Préparation des icônes pour le projet si demandé
+    // Préparation des icônes pour le projet
     const iconsToAdd: CustomIcon[] = [...project.icons];
     const buttonSetsToAdd: ImportedButtonSet[] = [...(project.buttonSets || [])];
+    const iconIdMap: Record<string, {normal: string; hover: string; pressed: string}> = {};
 
-    if (appliedPack) {
-      for (const spec of allIconSpecs) {
-        const normalSvg = iconSvg(spec, colors, iconShape, 'normal');
-        const hoverSvg = iconSvg(spec, colors, iconShape, 'hover');
-        const pressedSvg = iconSvg(spec, colors, iconShape, 'pressed');
+    // Si le pack d'icônes est activé ou pour alimenter les boutons automatiques
+    for (const spec of allIconSpecs) {
+      const normalSvg = iconSvg(spec, colors, iconShape, 'normal');
+      const hoverSvg = iconSvg(spec, colors, iconShape, 'hover');
+      const pressedSvg = iconSvg(spec, colors, iconShape, 'pressed');
 
-        const [normalData, hoverData, pressedData] = await Promise.all([
-          svgToPng(normalSvg, 256),
-          svgToPng(hoverSvg, 256),
-          svgToPng(pressedSvg, 256)
-        ]);
+      const [normalData, hoverData, pressedData] = await Promise.all([
+        svgToPng(normalSvg, 256),
+        svgToPng(hoverSvg, 256),
+        svgToPng(pressedSvg, 256)
+      ]);
 
-        const normalId = crypto.randomUUID();
-        const hoverId = crypto.randomUUID();
-        const pressedId = crypto.randomUUID();
+      const normalId = crypto.randomUUID();
+      const hoverId = crypto.randomUUID();
+      const pressedId = crypto.randomUUID();
 
+      iconIdMap[spec.key] = {
+        normal: normalId,
+        hover: hoverId,
+        pressed: pressedId,
+      };
+
+      if (appliedPack) {
         iconsToAdd.push(
           {id: normalId, name: `${spec.label} · Normal`, dataUrl: normalData},
           {id: hoverId, name: `${spec.label} · Survol`, dataUrl: hoverData},
@@ -456,14 +588,53 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       }
     }
 
+    // Construction de la barre du bas avec les boutons automatiques sélectionnés
+    const selectedProposals = menuProposals.filter((p) => selectedMenuKeys.has(p.key));
+    const newBottomBar: BottomBarItem[] = selectedProposals.map((proposal) => {
+      const iconIds = iconIdMap[proposal.iconKey];
+      return {
+        id: crypto.randomUUID(),
+        title: menuCustomTitles[proposal.key] || proposal.title,
+        type: proposal.type,
+        url: proposal.url || '',
+        text: proposal.text || '',
+        target: '',
+        iconId: iconIds?.normal,
+        hoverIconId: iconIds?.hover,
+        pressedIconId: iconIds?.pressed,
+        builtinIcon: proposal.iconKey,
+        useCustomIcon: !!iconIds,
+        iconSize: 48,
+      };
+    });
+
+    // Configuration de l'introduction native (Module 5)
+    const appliedIntro: IntroDesign = {
+      enabled: introEnabled,
+      styleId: introStyleId,
+      animation: introAnimation,
+      title: (introTitle.trim() || clientName.trim() || project.name).slice(0, 80),
+      subtitle: introSubtitle.trim().slice(0, 160),
+      buttonLabel: (introButtonLabel.trim() || 'Découvrir').slice(0, 30),
+      backgroundColor: colors.background,
+      buttonColor: colors.btnRest,
+      welcomeColor: introWelcomeColor(colors.accent, colors.background),
+      logoShape: introLogoShape,
+      logoDataUrl: logoUrl || undefined,
+    };
+
+    // Configuration du style de la barre (Module 7)
+    const appliedBarStyle = buildBarStyle(colors, barLayout, project.barStyle);
+
     const projectUpdate: Partial<StudioProject> = {
       name: projectName.trim() || clientName.trim(),
       clientProfile,
       brandKit,
-      barStyle: {
-        ...project.barStyle,
-        ...barPatch,
-      },
+      introDesign: appliedIntro,
+      introEnabled: appliedIntro.enabled,
+      introDuration,
+      bottomBar: newBottomBar.length > 0 ? newBottomBar : project.bottomBar,
+      barStyle: appliedBarStyle,
       languages: selectedLanguages,
       vrEnabled: visitType === 'vr' || visitType === 'hybrid',
       icons: iconsToAdd,
@@ -479,27 +650,19 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       <div className="nv-ai-modal" role="dialog" aria-modal="true" aria-label="NovaStudio AI">
         {/* Entête */}
         <header className="nv-ai-header">
-          <div className="nv-ai-header-title">
-            <div className="nv-ai-badge-sparkle">
-              <Sparkles size={24} />
+          <div className="nv-ai-title-wrap">
+            <div className="nv-ai-badge">
+              <Sparkles size={16} />
+              <span>NovaStudio AI</span>
             </div>
-            <div>
-              <h2>
-                NovaStudio AI
-                <span className="nv-ai-tag">Création intelligente</span>
-              </h2>
-              <p>
-                Automatise la préparation complète de votre visite immersive 360° : coordonnées,
-                charte graphique, boutons et points interactifs.
-              </p>
-            </div>
+            <h2>Création intelligente de visite immersive 360°</h2>
           </div>
           <button className="nv-ai-close-btn" onClick={onClose} title="Fermer" aria-label="Fermer">
             <X size={18} />
           </button>
         </header>
 
-        {/* Onglets d'étapes */}
+        {/* Onglets d'étapes (Phases 1, 2 et 3) */}
         <nav className="nv-ai-tabs" aria-label="Étapes de création">
           <button
             type="button"
@@ -515,7 +678,7 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
             onClick={() => setActiveTab('brand')}
           >
             <span className="nv-ai-tab-step">2</span>
-            <span>Charte graphique & Couleurs</span>
+            <span>Charte & Couleurs</span>
           </button>
           <button
             type="button"
@@ -523,15 +686,31 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
             onClick={() => setActiveTab('icons')}
           >
             <span className="nv-ai-tab-step">3</span>
-            <span>Boutons & Icônes IA (3 états)</span>
+            <span>Icônes & Boutons (3 états)</span>
+          </button>
+          <button
+            type="button"
+            className={`nv-ai-tab ${activeTab === 'intro' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('intro')}
+          >
+            <span className="nv-ai-tab-step">4</span>
+            <span>Introduction personnalisée</span>
+          </button>
+          <button
+            type="button"
+            className={`nv-ai-tab ${activeTab === 'menu' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('menu')}
+          >
+            <span className="nv-ai-tab-step">5</span>
+            <span>Interface & Menus automatiques</span>
           </button>
         </nav>
 
         {/* Corps de la modale */}
         <div className="nv-ai-body">
+          {/* ONGLET 1 : Client & Analyse */}
           {activeTab === 'info' && (
             <div className="nv-ai-grid">
-              {/* Nom du client */}
               <div className="nv-ai-field">
                 <label>
                   Nom commercial du client <span className="is-required">*</span>
@@ -544,12 +723,12 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                   onChange={(e) => {
                     setClientName(e.target.value);
                     if (!projectName) setProjectName(e.target.value);
+                    if (!introTitle) setIntroTitle(e.target.value);
                   }}
                   autoFocus
                 />
               </div>
 
-              {/* Nom du projet */}
               <div className="nv-ai-field">
                 <label>Nom du projet / de la visite</label>
                 <input
@@ -561,7 +740,6 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                 />
               </div>
 
-              {/* Catégorie d'activité */}
               <div className="nv-ai-field">
                 <label>Catégorie d'activité</label>
                 <select
@@ -586,7 +764,6 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                 </select>
               </div>
 
-              {/* Type de visite */}
               <div className="nv-ai-field">
                 <label>Type de visite souhaité</label>
                 <select
@@ -602,13 +779,11 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                 </select>
               </div>
 
-              {/* Site Internet & Analyse IA */}
-              <div className="nv-ai-field is-wide">
+              <div className="nv-ai-field is-full">
                 <label>
-                  Site internet
-                  {detected && <span className="badge-detected">✓ Analysé par l’IA</span>}
+                  Site internet public du client (pour analyse et aspiration automatique)
                 </label>
-                <div className="nv-ai-website-row">
+                <div className="nv-ai-input-with-action">
                   <input
                     type="url"
                     className="nv-ai-input"
@@ -618,282 +793,210 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                   />
                   <button
                     type="button"
-                    className="nv-ai-analyze-btn"
+                    className="nv-ai-btn-action"
                     disabled={analyzing || !website.trim()}
                     onClick={runWebsiteAnalysis}
                   >
-                    <Sparkles size={16} />
-                    <span>{analyzing ? 'Analyse en cours…' : 'Analyser avec NovaStudio AI'}</span>
+                    {analyzing ? (
+                      <>
+                        <span className="nv-ai-spinner" />
+                        <span>Analyse en cours…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={16} />
+                        <span>Analyser le site internet</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
 
-              {/* Logo du client */}
-              <div className="nv-ai-field is-wide">
-                <label>Logo du client</label>
-                <div className="nv-ai-logo-zone">
-                  <div className="nv-ai-logo-preview">
-                    {logoUrl ? (
-                      <img src={logoUrl} alt="Logo client" />
-                    ) : (
-                      <Building2 size={24} color="#64748b" />
-                    )}
+              {analysisError && (
+                <div className="nv-ai-alert nv-ai-alert-error is-full">
+                  <AlertTriangle size={16} />
+                  <span>{analysisError}</span>
+                </div>
+              )}
+
+              {detected && (
+                <div className="nv-ai-alert nv-ai-alert-success is-full">
+                  <CheckCircle2 size={16} />
+                  <div>
+                    <strong>Analyse réussie du site web :</strong>
+                    <div style={{fontSize: '0.82rem', marginTop: '0.25rem'}}>
+                      {(detected.services?.length ?? 0) > 0 && (
+                        <span>Prestations identifiées : {(detected.services ?? []).slice(0, 4).join(', ')}. </span>
+                      )}
+                      {detected.notes && detected.notes.length > 0 && (
+                        <span>{detected.notes[0]}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="nv-ai-logo-actions">
-                    <label className="nv-ai-file-btn">
-                      <Upload size={14} style={{display: 'inline', marginRight: 4}} />
-                      Importer un logo (PNG, JPG, WebP)
+                </div>
+              )}
+
+              <div className="nv-ai-field is-full">
+                <label>Logo du client</label>
+                <div className="nv-ai-logo-row">
+                  {logoUrl ? (
+                    <div className="nv-ai-logo-preview">
+                      <img src={logoUrl} alt="Logo client" />
+                      <button
+                        type="button"
+                        className="nv-ai-btn-remove"
+                        onClick={() => {
+                          setLogoUrl('');
+                          setLogoColors(null);
+                        }}
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="nv-ai-upload-btn">
+                      <Upload size={16} />
+                      <span>Importer un fichier logo (PNG, JPG, SVG)</span>
                       <input
                         type="file"
-                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        accept="image/png,image/jpeg,image/svg+xml,image/webp"
                         style={{display: 'none'}}
                         onChange={handleLogoUpload}
                       />
                     </label>
-                    <span>
-                      {logoColors
-                        ? `Couleurs extraites du logo : ${logoColors.primary} / ${logoColors.accent}`
-                        : 'Importe le logo ou laisse l’IA l’extraire automatiquement du site web.'}
+                  )}
+                  {logoColors && (
+                    <span className="nv-ai-extracted-chip">
+                      Couleurs du logo :{' '}
+                      <span className="nv-ai-swatch" style={{background: logoColors.primary}} />
+                      {logoColors.primary} ·{' '}
+                      <span className="nv-ai-swatch" style={{background: logoColors.accent}} />
+                      {logoColors.accent}
                     </span>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              {/* Adresse et Ville */}
               <div className="nv-ai-field">
-                <label>Adresse</label>
+                <label>
+                  <Building2 size={14} style={{display: 'inline', marginRight: 4}} />
+                  Adresse postale
+                </label>
                 <input
                   type="text"
                   className="nv-ai-input"
-                  placeholder="Ex. 12 avenue des Plages"
+                  placeholder="Ex. 12 avenue de la Plage"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                 />
               </div>
 
               <div className="nv-ai-field">
-                <label>Ville</label>
+                <label>Ville & Code postal</label>
                 <input
                   type="text"
                   className="nv-ai-input"
-                  placeholder="Ex. Biarritz, Paris, Annecy..."
+                  placeholder="Ex. 13260 Cassis"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                 />
               </div>
 
-              {/* Téléphone et Email */}
               <div className="nv-ai-field">
-                <label>Téléphone</label>
+                <label>
+                  <Phone size={14} style={{display: 'inline', marginRight: 4}} />
+                  Téléphone
+                </label>
                 <input
                   type="tel"
                   className="nv-ai-input"
-                  placeholder="Ex. +33 4 68 00 00 00"
+                  placeholder="Ex. +33 4 42 01 02 03"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
               </div>
 
               <div className="nv-ai-field">
-                <label>Adresse e-mail</label>
+                <label>
+                  <Mail size={14} style={{display: 'inline', marginRight: 4}} />
+                  Adresse e-mail
+                </label>
                 <input
                   type="email"
                   className="nv-ai-input"
-                  placeholder="Ex. contact@etablissement.fr"
+                  placeholder="contact@etablissement.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
 
-              {/* URL de réservation */}
-              <div className="nv-ai-field">
-                <label>Lien de réservation (moteur direct, Booking, TheFork, Airbnb...)</label>
+              <div className="nv-ai-field is-full">
+                <label>
+                  <Calendar size={14} style={{display: 'inline', marginRight: 4}} />
+                  Lien direct de réservation en ligne (optionnel)
+                </label>
                 <input
                   type="url"
                   className="nv-ai-input"
-                  placeholder="https://booking.com/hotel/..."
+                  placeholder="https://booking.com/... ou https://etablissement.com/reserver"
                   value={bookingUrl}
                   onChange={(e) => setBookingUrl(e.target.value)}
                 />
               </div>
 
-              {/* Réseaux sociaux */}
-              <div className="nv-ai-field">
-                <label>Réseaux sociaux (Facebook / Instagram)</label>
-                <div style={{display: 'flex', gap: '0.5rem'}}>
-                  <input
-                    type="url"
-                    className="nv-ai-input"
-                    placeholder="Instagram"
-                    value={instagram}
-                    onChange={(e) => setInstagram(e.target.value)}
-                  />
-                  <input
-                    type="url"
-                    className="nv-ai-input"
-                    placeholder="Facebook"
-                    value={facebook}
-                    onChange={(e) => setFacebook(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Langues souhaitées */}
-              <div className="nv-ai-field is-wide">
+              <div className="nv-ai-field is-full">
                 <label>Langues souhaitées pour la visite</label>
-                <div style={{display: 'flex', gap: '0.65rem', flexWrap: 'wrap'}}>
-                  {STUDIO_LANGUAGES.map((lang) => {
-                    const isChecked = selectedLanguages.includes(lang.code);
-                    return (
-                      <button
-                        key={lang.code}
-                        type="button"
-                        className={`nv-ai-chip ${isChecked ? 'is-selected' : ''}`}
-                        style={{
-                          cursor: 'pointer',
-                          border: isChecked ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
-                          background: isChecked ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.05)',
-                        }}
-                        onClick={() => {
-                          if (isChecked) {
-                            if (selectedLanguages.length > 1) {
-                              setSelectedLanguages(selectedLanguages.filter((c) => c !== lang.code));
-                            }
-                          } else {
-                            setSelectedLanguages([...selectedLanguages, lang.code]);
-                          }
-                        }}
-                      >
-                        <span>{lang.flag}</span>
-                        <span>{lang.name}</span>
-                        {isChecked && <Check size={13} color="#38bdf8" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Erreur d'analyse éventuelle */}
-              {analysisError && (
-                <div className="nv-ai-field is-wide" style={{color: '#f43f5e', fontSize: '0.85rem'}}>
-                  ⚠️ {analysisError}
-                </div>
-              )}
-
-              {/* Synthèse des données détectées */}
-              {detected && (
-                <div className="nv-ai-field is-wide nv-ai-detected-card">
-                  <div className="nv-ai-detected-head">
-                    <h4>
-                      <CheckCircle2 size={16} />
-                      Informations publiques récupérées sur le site
-                    </h4>
-                    <span style={{fontSize: '0.78rem', color: '#94a3b8'}}>
-                      Vérifie et complète les données avant validation
-                    </span>
-                  </div>
-                  <div className="nv-ai-detected-chips">
-                    {detected.colors.length > 0 && (
-                      <div className="nv-ai-chip">
-                        <span>Palette du site :</span>
-                        {detected.colors.slice(0, 6).map((c, i) => (
-                          <i key={i} className="color-dot" style={{background: c}} title={c} />
-                        ))}
-                      </div>
-                    )}
-                    {detected.fonts.length > 0 && (
-                      <div className="nv-ai-chip">
-                        <span>Typographies :</span>
-                        <strong>{detected.fonts.slice(0, 3).join(', ')}</strong>
-                      </div>
-                    )}
-                    {detected.phone && (
-                      <div className="nv-ai-chip">
-                        <Phone size={12} /> {detected.phone}
-                      </div>
-                    )}
-                    {detected.email && (
-                      <div className="nv-ai-chip">
-                        <Mail size={12} /> {detected.email}
-                      </div>
-                    )}
-                    {detected.bookingUrl && (
-                      <div className="nv-ai-chip">
-                        <Calendar size={12} /> Réservation détectée
-                      </div>
-                    )}
-                    {detected.services && detected.services.length > 0 && (
-                      <div className="nv-ai-chip">
-                        <Layers size={12} /> {detected.services.length} prestations identifiées
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'brand' && (
-            <div>
-              {/* Choix du style de la charte */}
-              <div style={{marginBottom: '1rem'}}>
-                <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '0.5rem'}}>
-                  Ambiance graphique & style de la charte
-                </label>
-                <div className="nv-ai-styles-selector">
-                  {STYLES.map((s) => (
+                <div className="nv-ai-languages-selector">
+                  {STUDIO_LANGUAGES.map((lang) => (
                     <button
-                      key={s.id}
+                      key={lang.code}
                       type="button"
-                      className={`nv-ai-style-card ${styleId === s.id ? 'is-selected' : ''}`}
-                      onClick={() => handleStyleChange(s.id)}
+                      className={`nv-ai-lang-chip ${selectedLanguages.includes(lang.code) ? 'is-selected' : ''}`}
+                      onClick={() => toggleLanguage(lang.code)}
                     >
-                      <strong>{s.label}</strong>
+                      <span className="nv-ai-lang-flag">{lang.flag}</span>
+                      <span>{lang.name}</span>
+                      {selectedLanguages.includes(lang.code) && <Check size={14} />}
                     </button>
                   ))}
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Couleur de départ (graine) */}
-              <div style={{marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
-                <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1'}}>
-                  Couleur de départ (seed) :
-                </label>
-                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                  <input
-                    type="color"
-                    className="nv-ai-color-picker"
-                    value={seedColor}
-                    onChange={(e) => handleSeedChange(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    className="nv-ai-color-hex"
-                    value={seedColor}
-                    onChange={(e) => handleSeedChange(e.target.value)}
-                    maxLength={7}
-                  />
-                </div>
-                {detected?.themeColor && (
+          {/* ONGLET 2 : Charte & Couleurs */}
+          {activeTab === 'brand' && (
+            <div className="nv-ai-brand-section">
+              <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '0.5rem'}}>
+                Sélectionnez un style prédéfini adapté au client :
+              </label>
+              <div className="nv-ai-styles-grid">
+                {STYLES.map((st) => (
                   <button
+                    key={st.id}
                     type="button"
-                    className="nv-ai-btn-ghost"
-                    style={{padding: '0.25rem 0.65rem', fontSize: '0.78rem'}}
-                    onClick={() => handleSeedChange(detected.themeColor!)}
+                    className={`nv-ai-style-card ${styleId === st.id ? 'is-active' : ''}`}
+                    onClick={() => handleStyleChange(st.id)}
                   >
-                    Reprendre la couleur du site ({detected.themeColor})
+                    <div className="nv-ai-style-card-head">
+                      <strong>{st.label}</strong>
+                    </div>
+                    <div className="nv-ai-style-swatches">
+                      <span style={{background: colors.primary}} />
+                      <span style={{background: colors.secondary}} />
+                      <span style={{background: colors.accent}} />
+                    </div>
                   </button>
-                )}
+                ))}
               </div>
 
-              {/* Grille des 10 couleurs */}
-              <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '0.5rem'}}>
-                Palette personnalisée des 10 couleurs du projet
+              <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginTop: '1.25rem', marginBottom: '0.5rem'}}>
+                Palette personnalisée des 10 couleurs (cliquez pour ajuster) :
               </label>
               <div className="nv-ai-colors-grid">
-                {(Object.keys(BRAND_COLOR_LABELS) as Array<keyof BrandColors>).map((key) => (
-                  <div key={key} className="nv-ai-color-row">
-                    <span className="nv-ai-color-label">{BRAND_COLOR_LABELS[key]}</span>
+                {(Object.keys(BRAND_COLOR_LABELS) as (keyof BrandColors)[]).map((key) => (
+                  <div key={key} className="nv-ai-color-item">
+                    <span className="nv-ai-color-name">{BRAND_COLOR_LABELS[key]}</span>
                     <div className="nv-ai-color-controls">
                       <input
                         type="color"
@@ -1023,9 +1126,9 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
             </div>
           )}
 
+          {/* ONGLET 3 : Boutons & Icônes IA (3 états) */}
           {activeTab === 'icons' && (
             <div>
-              {/* Barre de contrôle des icônes : Forme, Finition et Résolution */}
               <div className="nv-ai-icons-toolbar">
                 <div className="nv-ai-toolbar-group">
                   <label>Forme :</label>
@@ -1051,152 +1154,134 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                       className={`nv-ai-pill-btn ${iconFinish === 'plat' ? 'is-active' : ''}`}
                       onClick={() => setIconFinish('plat')}
                     >
-                      Épuré / Plat
+                      Plat épuré
                     </button>
                     <button
                       type="button"
                       className={`nv-ai-pill-btn ${iconFinish === 'glossy' ? 'is-active' : ''}`}
                       onClick={() => setIconFinish('glossy')}
                     >
-                      Glossy 3D
+                      Brillant (Glossy)
                     </button>
                   </div>
                 </div>
 
                 <div className="nv-ai-toolbar-group">
-                  <label>Résolution export :</label>
+                  <label>Résolution PNG :</label>
                   <div className="nv-ai-pill-selector">
-                    <button
-                      type="button"
-                      className={`nv-ai-pill-btn ${iconResolution === 256 ? 'is-active' : ''}`}
-                      onClick={() => setIconResolution(256)}
-                      title="256x256 px - Web & Mobile"
-                    >
-                      256 px
-                    </button>
-                    <button
-                      type="button"
-                      className={`nv-ai-pill-btn ${iconResolution === 512 ? 'is-active' : ''}`}
-                      onClick={() => setIconResolution(512)}
-                      title="512x512 px - Recommandé VR WebXR"
-                    >
-                      512 px (VR)
-                    </button>
-                    <button
-                      type="button"
-                      className={`nv-ai-pill-btn ${iconResolution === 1024 ? 'is-active' : ''}`}
-                      onClick={() => setIconResolution(1024)}
-                      title="1024x1024 px - Ultra HD"
-                    >
-                      1024 px (HD)
-                    </button>
+                    {([256, 512, 1024] as const).map((res) => (
+                      <button
+                        key={res}
+                        type="button"
+                        className={`nv-ai-pill-btn ${iconResolution === res ? 'is-active' : ''}`}
+                        onClick={() => setIconResolution(res)}
+                      >
+                        {res} × {res}
+                      </button>
+                    ))}
                   </div>
+                </div>
+
+                <div className="nv-ai-state-switcher">
+                  <span style={{fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600}}>État simulé :</span>
+                  {ICON_STATE_OPTIONS.map((st) => (
+                    <button
+                      key={st.id}
+                      type="button"
+                      className={`nv-ai-state-btn ${previewState === st.id ? 'is-active' : ''}`}
+                      onClick={() => setPreviewState(st.id)}
+                    >
+                      {st.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Onglets de simulation des 3 états (Normal / Survol / Pressé) */}
-              <div className="nv-ai-state-tabs" role="tablist" aria-label="État de prévisualisation des icônes">
-                <button
-                  type="button"
-                  className={`nv-ai-state-btn ${previewState === 'normal' ? 'is-active' : ''}`}
-                  onClick={() => setPreviewState('normal')}
-                >
-                  <span>1. État NORMAL (Repos)</span>
-                </button>
-                <button
-                  type="button"
-                  className={`nv-ai-state-btn ${previewState === 'hover' ? 'is-active' : ''}`}
-                  onClick={() => setPreviewState('hover')}
-                >
-                  <span>2. État SURVOL ✨ (Lumineux)</span>
-                </button>
-                <button
-                  type="button"
-                  className={`nv-ai-state-btn ${previewState === 'pressed' ? 'is-active' : ''}`}
-                  onClick={() => setPreviewState('pressed')}
-                >
-                  <span>3. État PRESSÉ (Enfoncé)</span>
-                </button>
-              </div>
-
-              {/* Zone générateur d'icônes personnalisées par IA */}
+              {/* Générateur d'icônes sur mesure par prompt textuel */}
               <div className="nv-ai-custom-box">
                 <div className="nv-ai-custom-head">
                   <h4>
                     <Wand2 size={16} />
-                    Générateur d’icône sur mesure par l'IA
+                    <span>Générateur d'icône IA personnalisée</span>
                   </h4>
-                  <span style={{fontSize: '0.75rem', color: '#94a3b8'}}>
-                    Décris un équipement ou service (ex. borne de recharge, cocktail, vue mer...)
-                  </span>
+                  <small style={{color: '#94a3b8', fontSize: '0.75rem'}}>
+                    Générez une icône vectorielle sur mesure avec ses 3 états coordonnés
+                  </small>
                 </div>
                 <div className="nv-ai-custom-row">
                   <input
                     type="text"
                     className="nv-ai-input"
-                    placeholder="Ex. Borne de recharge électrique, Terrasse panoramique, Bar lounge..."
+                    placeholder="Ex. Borne de recharge électrique, terrasse vue mer, bar cocktail, wifi..."
                     value={customPrompt}
                     onChange={(e) => setCustomPrompt(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') generateCustomIcon(); }}
                   />
                   <button
                     type="button"
-                    className="nv-ai-analyze-btn"
+                    className="nv-ai-btn-action"
                     disabled={!customPrompt.trim()}
                     onClick={generateCustomIcon}
                   >
                     <Sparkles size={15} />
-                    <span>Créer l'icône</span>
+                    <span>Générer l'icône IA</span>
                   </button>
                 </div>
               </div>
 
-              {/* Grille des 36 icônes sectorielles */}
-              <div className="nv-ai-icons-grid" role="list">
+              {/* Grille des icônes avec 3 états interactifs */}
+              <div className="nv-ai-icons-grid">
                 {allIconSpecs.map((spec) => {
-                  const stateForCard = activeCardKey === spec.key
-                    ? 'pressed'
-                    : hoveredCardKey === spec.key
-                    ? 'hover'
-                    : previewState;
+                  let effectiveState = previewState;
+                  if (activeCardKey === spec.key) {
+                    effectiveState = 'pressed';
+                  } else if (hoveredCardKey === spec.key && previewState === 'normal') {
+                    effectiveState = 'hover';
+                  }
 
-                  const svg = iconSvg(spec, colors, iconShape, stateForCard);
+                  const svgCode = iconSvg(spec, colors, iconShape, effectiveState);
+                  const svgUri = `data:image/svg+xml;utf8,${encodeURIComponent(svgCode)}`;
 
                   return (
                     <div
                       key={spec.key}
                       className="nv-ai-icon-card"
                       onMouseEnter={() => setHoveredCardKey(spec.key)}
-                      onMouseLeave={() => { setHoveredCardKey(null); setActiveCardKey(null); }}
+                      onMouseLeave={() => {
+                        setHoveredCardKey(null);
+                        setActiveCardKey(null);
+                      }}
                       onMouseDown={() => setActiveCardKey(spec.key)}
                       onMouseUp={() => setActiveCardKey(null)}
-                      title={`Double-clic pour tester · ${spec.label}`}
                     >
-                      <div
-                        className="nv-ai-icon-badge"
-                        dangerouslySetInnerHTML={{__html: svg}}
-                      />
+                      <div className="nv-ai-icon-badge">
+                        <img src={svgUri} alt={spec.label} />
+                      </div>
                       <div className="nv-ai-icon-info">
-                        <span className="nv-ai-icon-label">{spec.label}</span>
-                        <span className="nv-ai-icon-filename">{`${spec.key}_${stateForCard}.png`}</span>
+                        <span className="nv-ai-icon-label" title={spec.label}>
+                          {spec.label}
+                        </span>
+                        <span className="nv-ai-icon-filename">
+                          {spec.key}_{effectiveState}.png
+                        </span>
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Barre d'actions d'export et d'intégration */}
-              <div className="nv-ai-export-bar">
-                <div style={{display: 'flex', alignItems: 'center', gap: '0.6rem'}}>
+              {/* Barre d'exportation et d'intégration */}
+              <div className="nv-ai-export-bar" style={{marginTop: '1.25rem'}}>
+                <div style={{display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap'}}>
                   <button
                     type="button"
                     className="nv-ai-btn-ghost"
                     disabled={!!packBusy}
-                    onClick={downloadPackZip}
-                    title="Télécharge l'archive ZIP contenant les 108 fichiers PNG HD et les SVG vectoriels"
+                    onClick={downloadZip}
+                    title="Télécharge l'archive ZIP contenant tous les PNG (256/512/1024px) et SVG vectoriels"
                   >
                     <Download size={16} style={{display: 'inline', marginRight: 6}} />
-                    <span>{packBusy || `Télécharger le pack ZIP (${allIconSpecs.length * 3} fichiers HD)`}</span>
+                    <span>Télécharger le pack ZIP ({iconResolution}px + SVG)</span>
                   </button>
 
                   <button
@@ -1220,14 +1305,337 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
               </div>
             </div>
           )}
+
+          {/* ONGLET 4 : Introduction automatique personnalisée (Module 5) */}
+          {activeTab === 'intro' && (
+            <div className="nv-ai-intro-container">
+              {/* Bannière d'activation */}
+              <div className="nv-ai-switch-banner">
+                <div className="nv-ai-switch-info">
+                  <h4>Écran d’introduction de la visite immersive</h4>
+                  <p>Affiche un écran d’accueil immersif élégant avant la première vue panoramique 360°</p>
+                </div>
+                <label className="nv-ai-toggle" aria-label="Activer l'introduction">
+                  <input
+                    type="checkbox"
+                    checked={introEnabled}
+                    onChange={(e) => setIntroEnabled(e.target.checked)}
+                  />
+                  <span className="nv-ai-toggle-slider" />
+                </label>
+              </div>
+
+              {introEnabled && (
+                <>
+                  <div className="nv-ai-intro-grid">
+                    {/* Bloc Styles & Animations */}
+                    <div className="nv-ai-intro-card">
+                      <h4>
+                        <Sparkles size={16} />
+                        <span>Style visuel de l'introduction</span>
+                      </h4>
+                      <div className="nv-ai-intro-styles">
+                        {INTRO_STYLES.map((st) => (
+                          <button
+                            key={st.id}
+                            type="button"
+                            className={`nv-ai-intro-style-btn ${introStyleId === st.id ? 'is-active' : ''}`}
+                            onClick={() => setIntroStyleId(st.id)}
+                          >
+                            {st.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <h4 style={{marginTop: '0.5rem'}}>
+                        <Layers size={16} />
+                        <span>Animation d'entrée & transition</span>
+                      </h4>
+                      <div className="nv-ai-anim-pills">
+                        {INTRO_ANIMATIONS.map((anim) => (
+                          <button
+                            key={anim.id}
+                            type="button"
+                            className={`nv-ai-anim-pill ${introAnimation === anim.id ? 'is-active' : ''}`}
+                            onClick={() => setIntroAnimation(anim.id)}
+                          >
+                            {anim.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <h4 style={{marginTop: '0.5rem'}}>
+                        <Eye size={16} />
+                        <span>Forme du logo</span>
+                      </h4>
+                      <div className="nv-ai-anim-pills">
+                        {INTRO_LOGO_SHAPES.map((shape) => (
+                          <button
+                            key={shape.id}
+                            type="button"
+                            className={`nv-ai-anim-pill ${introLogoShape === shape.id ? 'is-active' : ''}`}
+                            onClick={() => setIntroLogoShape(shape.id)}
+                          >
+                            {shape.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="nv-ai-duration-row">
+                        <label style={{fontSize: '0.82rem', color: '#cbd5e1', fontWeight: 600}}>
+                          Durée d'affichage :
+                        </label>
+                        <input
+                          type="range"
+                          min={2}
+                          max={15}
+                          value={introDuration}
+                          className="nv-ai-duration-slider"
+                          onChange={(e) => setIntroDuration(Number(e.target.value))}
+                        />
+                        <span className="nv-ai-duration-val">{introDuration} s</span>
+                      </div>
+                    </div>
+
+                    {/* Bloc Textes & Aperçu interactif */}
+                    <div className="nv-ai-intro-card">
+                      <h4>
+                        <Building2 size={16} />
+                        <span>Textes de l'écran d'accueil</span>
+                      </h4>
+
+                      <div className="nv-ai-field">
+                        <label>Titre de l'établissement</label>
+                        <input
+                          type="text"
+                          className="nv-ai-input"
+                          maxLength={80}
+                          placeholder={clientName || 'Nom de votre établissement'}
+                          value={introTitle}
+                          onChange={(e) => setIntroTitle(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="nv-ai-field">
+                        <label>Phrase d'accueil / Sous-titre</label>
+                        <input
+                          type="text"
+                          className="nv-ai-input"
+                          maxLength={160}
+                          placeholder="Bienvenue dans votre visite immersive 360°"
+                          value={introSubtitle}
+                          onChange={(e) => setIntroSubtitle(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="nv-ai-field">
+                        <label>Libellé du bouton d'action</label>
+                        <input
+                          type="text"
+                          className="nv-ai-input"
+                          maxLength={30}
+                          placeholder="Découvrir"
+                          value={introButtonLabel}
+                          onChange={(e) => setIntroButtonLabel(e.target.value)}
+                        />
+                      </div>
+
+                      {/* Aperçu miniature */}
+                      <label style={{fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, marginTop: '0.25rem'}}>
+                        Aperçu miniature :
+                      </label>
+                      <div
+                        className="nv-ai-intro-preview-frame"
+                        style={{
+                          backgroundColor: colors.background,
+                          color: colors.text,
+                        }}
+                      >
+                        {logoUrl && (
+                          <img
+                            src={logoUrl}
+                            alt="Logo client"
+                            className="nv-ai-intro-preview-logo"
+                            style={{
+                              borderRadius: introLogoShape === 'round' ? '999px' : introLogoShape === 'square' ? '6px' : '0'
+                            }}
+                          />
+                        )}
+                        <h3 className="nv-ai-intro-preview-title" style={{color: colors.text}}>
+                          {introTitle || clientName || 'Établissement'}
+                        </h3>
+                        <p className="nv-ai-intro-preview-sub" style={{color: colors.accent}}>
+                          {introSubtitle}
+                        </p>
+                        <button
+                          type="button"
+                          className="nv-ai-intro-preview-btn"
+                          style={{
+                            backgroundColor: colors.btnRest,
+                            color: readableOn(colors.btnRest),
+                          }}
+                        >
+                          {introButtonLabel || 'Découvrir'}
+                        </button>
+                      </div>
+
+                      <div className="nv-ai-test-intro-action">
+                        <button
+                          type="button"
+                          className="nv-ai-btn-action"
+                          onClick={() => setPreviewIntroActive(true)}
+                        >
+                          <Play size={15} />
+                          <span>Tester l'introduction en plein écran</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ONGLET 5 : Interface & Menus automatiques (Module 7) */}
+          {activeTab === 'menu' && (
+            <div className="nv-ai-menu-container">
+              {/* Disposition de la barre */}
+              <div>
+                <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '0.5rem'}}>
+                  Style et disposition de la barre de navigation :
+                </label>
+                <div className="nv-ai-layouts-grid">
+                  {AUTO_BAR_LAYOUTS.map((layout) => (
+                    <div
+                      key={layout.id}
+                      className={`nv-ai-layout-card ${barLayout === layout.id ? 'is-active' : ''}`}
+                      onClick={() => setBarLayout(layout.id)}
+                    >
+                      <strong>{layout.label}</strong>
+                      <small>{layout.description}</small>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Aperçu en direct de la barre de navigation */}
+              <div>
+                <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1', display: 'block', marginBottom: '0.5rem'}}>
+                  Aperçu en direct de votre barre de visite immersive :
+                </label>
+                <div className="nv-ai-live-bar-preview">
+                  <div
+                    className="nv-ai-simulated-bar"
+                    style={{
+                      backgroundColor: colors.background,
+                      borderColor: colors.border,
+                      borderWidth: barLayout === 'minimal' ? 1 : 2,
+                      borderStyle: 'solid',
+                      borderRadius: barLayout === 'floating' ? 80 : barLayout === 'minimal' ? 24 : 60,
+                      color: colors.text,
+                    }}
+                  >
+                    {menuProposals.filter((p) => selectedMenuKeys.has(p.key)).map((proposal) => {
+                      const spec = allIconSpecs.find((s) => s.key === proposal.iconKey) || allIconSpecs[0];
+                      const svgCode = iconSvg(spec, colors, iconShape, 'normal');
+                      const svgUri = `data:image/svg+xml;utf8,${encodeURIComponent(svgCode)}`;
+
+                      return (
+                        <div key={proposal.key} className="nv-ai-simulated-btn">
+                          <div className="nv-ai-simulated-btn-badge">
+                            <img src={svgUri} alt={proposal.title} />
+                          </div>
+                          <span style={{color: colors.text}}>
+                            {menuCustomTitles[proposal.key] || proposal.title}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Liste des boutons intelligents proposés */}
+              <div>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem'}}>
+                  <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1'}}>
+                    Boutons intelligents recommandés par l’IA (cochez et personnalisez) :
+                  </label>
+                  <div className="nv-ai-proposals-actions">
+                    <button
+                      type="button"
+                      className="nv-ai-pill-btn"
+                      onClick={() => setSelectedMenuKeys(new Set(menuProposals.map((p) => p.key)))}
+                    >
+                      Tout cocher
+                    </button>
+                    <button
+                      type="button"
+                      className="nv-ai-pill-btn"
+                      onClick={() => setSelectedMenuKeys(new Set(menuProposals.filter((p) => p.recommended).map((p) => p.key)))}
+                    >
+                      Recommandés uniquement
+                    </button>
+                  </div>
+                </div>
+
+                <div className="nv-ai-proposals-list">
+                  {menuProposals.map((prop) => {
+                    const isSelected = selectedMenuKeys.has(prop.key);
+                    const spec = allIconSpecs.find((s) => s.key === prop.iconKey) || allIconSpecs[0];
+                    const svgCode = iconSvg(spec, colors, iconShape, isSelected ? 'hover' : 'normal');
+                    const svgUri = `data:image/svg+xml;utf8,${encodeURIComponent(svgCode)}`;
+
+                    return (
+                      <div
+                        key={prop.key}
+                        className={`nv-ai-proposal-row ${isSelected ? 'is-selected' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleMenuProposal(prop.key)}
+                          style={{accentColor: '#38bdf8', width: 18, height: 18, cursor: 'pointer'}}
+                        />
+                        <div className="nv-ai-proposal-icon">
+                          <img src={svgUri} alt={prop.title} />
+                        </div>
+                        <div className="nv-ai-proposal-info">
+                          <div className="nv-ai-proposal-info-top">
+                            <input
+                              type="text"
+                              className="nv-ai-proposal-input"
+                              value={menuCustomTitles[prop.key] ?? prop.title}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setMenuCustomTitles((prev) => ({...prev, [prop.key]: val}));
+                              }}
+                            />
+                            {prop.recommended && (
+                              <span className="nv-ai-proposal-badge is-rec">Recommandé</span>
+                            )}
+                            <span className="nv-ai-proposal-badge">
+                              {prop.type === 'lien' ? 'Lien externe' : prop.type === 'photos' ? 'Galerie' : prop.type === 'plan' ? 'Plan interactif' : 'Information'}
+                            </span>
+                          </div>
+                          <span className="nv-ai-proposal-desc">{prop.description}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Pied de page d'action */}
+        {/* Pied de page d'action multi-étapes */}
         <footer className="nv-ai-footer">
           <div className="nv-ai-footer-left">
-            <span>NovaStudio AI · Phases 1 & 2</span>
+            <span>NovaStudio AI · Assistant global</span>
             {hasContrastError && <span style={{color: '#f43f5e'}}> · ⚠️ Contrastes WCAG à surveiller</span>}
-            {appliedPack && <span style={{color: '#34d399'}}> · ✓ Pack d'icônes prêt</span>}
+            {appliedPack && <span style={{color: '#34d399'}}> · ✓ Packs 3 états prêts</span>}
+            {selectedMenuKeys.size > 0 && <span style={{color: '#38bdf8'}}> · {selectedMenuKeys.size} boutons actifs</span>}
           </div>
           <div className="nv-ai-footer-right">
             {activeTab === 'info' && (
@@ -1264,7 +1672,7 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                   className="nv-ai-btn-primary"
                   onClick={() => setActiveTab('icons')}
                 >
-                  <span>Passer aux Icônes & Boutons (3 états)</span>
+                  <span>Continuer vers les Icônes</span>
                   <ArrowRight size={16} style={{display: 'inline', marginLeft: 4}} />
                 </button>
               </>
@@ -1273,6 +1681,40 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
             {activeTab === 'icons' && (
               <>
                 <button type="button" className="nv-ai-btn-ghost" onClick={() => setActiveTab('brand')}>
+                  <ArrowLeft size={16} style={{display: 'inline', marginRight: 4}} />
+                  Précédent
+                </button>
+                <button
+                  type="button"
+                  className="nv-ai-btn-primary"
+                  onClick={() => setActiveTab('intro')}
+                >
+                  <span>Continuer vers l'Introduction</span>
+                  <ArrowRight size={16} style={{display: 'inline', marginLeft: 4}} />
+                </button>
+              </>
+            )}
+
+            {activeTab === 'intro' && (
+              <>
+                <button type="button" className="nv-ai-btn-ghost" onClick={() => setActiveTab('icons')}>
+                  <ArrowLeft size={16} style={{display: 'inline', marginRight: 4}} />
+                  Précédent
+                </button>
+                <button
+                  type="button"
+                  className="nv-ai-btn-primary"
+                  onClick={() => setActiveTab('menu')}
+                >
+                  <span>Continuer vers les Menus</span>
+                  <ArrowRight size={16} style={{display: 'inline', marginLeft: 4}} />
+                </button>
+              </>
+            )}
+
+            {activeTab === 'menu' && (
+              <>
+                <button type="button" className="nv-ai-btn-ghost" onClick={() => setActiveTab('intro')}>
                   <ArrowLeft size={16} style={{display: 'inline', marginRight: 4}} />
                   Précédent
                 </button>
@@ -1289,6 +1731,36 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
           </div>
         </footer>
       </div>
+
+      {/* Prévisualisation plein écran de l'intro native */}
+      {previewIntroActive && (
+        <div className="nv-ai-fullscreen-intro">
+          <button
+            type="button"
+            className="nv-ai-fullscreen-close"
+            onClick={() => setPreviewIntroActive(false)}
+          >
+            ✕ Quitter l'aperçu
+          </button>
+          <NativeIntro
+            design={{
+              enabled: true,
+              styleId: introStyleId,
+              animation: introAnimation,
+              title: introTitle.trim() || clientName.trim() || 'Établissement',
+              subtitle: introSubtitle.trim(),
+              buttonLabel: introButtonLabel.trim() || 'Découvrir',
+              backgroundColor: colors.background,
+              buttonColor: colors.btnRest,
+              welcomeColor: introWelcomeColor(colors.accent, colors.background),
+              logoShape: introLogoShape,
+              logoDataUrl: logoUrl || undefined,
+            }}
+            durationSec={introDuration}
+            onDone={() => setPreviewIntroActive(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
