@@ -8,10 +8,10 @@ const geometry=(svg:string)=>svg.replace(/(fill|stroke|stop-color|stop-opacity)=
 
 describe('icônes de charte',()=>{
   const c=generateBrand('#2f8fb5','moderne');
-  it('36 icônes, 3 états chacune, noms normalisés',()=>{
+  it('50 icônes, 3 états chacune, noms normalisés',()=>{
     const pack=buildPack(c,'circle');
     expect(pack.length).toBe(PACK_SIZE);
-    expect(PACK_SIZE).toBe(108);
+    expect(PACK_SIZE).toBe(150);
     expect(pack.find(f=>f.filename==='reservation_normal')).toBeTruthy();
     expect(pack.find(f=>f.filename==='reservation_hover')).toBeTruthy();
     expect(pack.find(f=>f.filename==='reservation_pressed')).toBeTruthy();

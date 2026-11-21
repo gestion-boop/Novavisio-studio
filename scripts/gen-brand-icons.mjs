@@ -15,7 +15,12 @@ const SPEC=[
   ['restaurant','utensils','Restaurant'],['chambre','bed-double','Chambre'],['hebergement','bed','Hébergement'],
   ['piscine','waves','Piscine'],['spa','sparkles','Spa'],['massage','hand-heart','Massage'],
   ['produits','package','Produits'],['boutique','shopping-bag','Boutique'],['services','concierge-bell','Services'],
-  ['tarifs','tag','Tarifs'],['accessibilite','accessibility','Accessibilité'],['retour','undo-2','Retour']
+  ['tarifs','tag','Tarifs'],['accessibilite','accessibility','Accessibilité'],['retour','undo-2','Retour'],
+  // Extension : 50 icônes au total = 150 images, soit la limite d'un projet.
+  ['tente','tent','Tente'],['caravane','caravan','Caravane'],['nature','trees','Nature'],['velo','bike','Vélo'],
+  ['voiture','car','Voiture'],['animaux','dog','Animaux acceptés'],['cafe','coffee','Café'],['vin','wine','Bar'],
+  ['glaces','ice-cream-cone','Glaces'],['wifi','wifi','Wi-Fi'],['douche','shower-head','Douches'],['television','tv','Télévision'],
+  ['localisation-plan','map-pinned','Localisation sur plan'],['randonnee','footprints','Randonnée']
 ];
 const out=[];const missing=[];
 for(const [key,name,label] of SPEC){
