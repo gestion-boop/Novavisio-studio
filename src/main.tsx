@@ -31,6 +31,7 @@ import {glyphs} from './glyphSet';
 import {BrandKitDialog} from './BrandKitDialog';
 import {NativeIntro} from './nativeIntro';
 import {InterestDialog} from './InterestDialog';
+import {ProjectSummaryDialog} from './ProjectSummaryDialog';
 import {urlForSuggestion,type Suggestion as InterestSuggestion} from './interestPoints';
 import {BRAND_ICON_SET} from './brandIconSet';
 import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
@@ -163,6 +164,7 @@ function App(){
   const [brandOpen,setBrandOpen]=useState(false);
   const [introPreview,setIntroPreview]=useState(false);
   const [interestOpen,setInterestOpen]=useState(false);
+  const [summaryOpen,setSummaryOpen]=useState(false);
   const logoInput=useRef<HTMLInputElement>(null);
   const endIntroPreview=useCallback(()=>setIntroPreview(false),[]);
   const [pickedSceneId,setPickedSceneId]=useState<string|null>(null);
@@ -3572,6 +3574,9 @@ function App(){
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
                 <Plus size={16}/><span>Nouveau projet</span>
               </button>
+              <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setSummaryOpen(true);}}>
+                <Sparkles size={16}/><span>Synthèse avant publication (NovaStudio AI)</span>
+              </button>
               <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setInterestOpen(true);}}>
                 <Sparkles size={16}/><span>Points d’information (NovaStudio AI)</span>
               </button>
@@ -5722,6 +5727,7 @@ function App(){
     {interestOpen&&<InterestDialog category={project.interestCategory} info={project.interestInfo??{}} points={project.interestPoints??[]}
       canPlace={!!activeId&&cameraRef.current.sceneId===activeId} onClose={()=>setInterestOpen(false)} onPlace={placeInterestPoint}
       onPatch={patch=>setProject(p=>({...p,...(patch.category!==undefined?{interestCategory:patch.category}:{}),...(patch.info!==undefined?{interestInfo:patch.info}:{}),...(patch.points!==undefined?{interestPoints:patch.points}:{})}))}/>}
+    {summaryOpen&&<ProjectSummaryDialog project={project} onClose={()=>setSummaryOpen(false)}/>}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>

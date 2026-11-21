@@ -1,0 +1,11 @@
+.nv-summary-dialog{width:min(640px,96vw);max-height:calc(100vh - 32px);overflow:auto}
+.nv-summary-dialog h2 small{font-size:12px;opacity:.7;font-weight:600}
+.nv-summary-list{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:8px}
+.nv-summary-list li{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:#12333f;border:1px solid #3f7f8c}
+.nv-summary-list li.is-todo{border-color:#d9a63b;background:#3d3212}
+.nv-summary-list li.is-ok{border-color:#7fe3b8}
+.nv-summary-ico{width:22px;text-align:center;font-weight:800;flex:none}
+.nv-summary-list li.is-ok .nv-summary-ico{color:#7fe3b8}
+.nv-summary-list li.is-todo .nv-summary-ico{color:#ffd166}
+.nv-summary-list li>span:nth-child(2){display:grid;gap:2px}
+.nv-summary-list small{opacity:.85;font-size:13px}
