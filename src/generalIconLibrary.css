@@ -1,0 +1,18 @@
+.nv-general-icons{display:grid;gap:12px;padding:10px 0}
+.nv-general-icon-filters,.nv-general-icon-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.nv-general-icon-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:6px;max-height:240px;overflow:auto;padding:4px}
+.nv-general-icon-catalog button{display:grid;justify-items:center;align-content:center;gap:5px;min-height:65px;padding:5px;border:1px solid #27485b;border-radius:8px;background:#142a37;color:#e4f1f4;cursor:pointer;overflow-wrap:anywhere;font-size:.76rem}
+.nv-general-icon-catalog button[aria-pressed=true]{border-color:#6ddbd7;background:#1c4954}
+.nv-general-icon-editor{display:grid;grid-template-columns:minmax(95px,1fr) minmax(0,2fr);align-items:start;gap:12px}
+.nv-general-icon-sample{display:grid;justify-items:center;gap:8px;padding:5px}
+.nv-general-icon-swatch{width:min(85px,100%);aspect-ratio:1;display:grid;place-items:center;border:2px solid;position:relative;overflow:hidden}
+.nv-general-icon-swatch svg{z-index:1}
+.nv-general-icon-swatch.round{border-radius:50%}
+.nv-general-icon-swatch.rounded{border-radius:19%}
+.nv-general-icon-swatch.glossy{background-image:radial-gradient(ellipse at 37% 2%,#fff9,transparent 58%),linear-gradient(145deg,#fff2,transparent 48%,#0007)}
+.nv-general-icon-swatch.hover{filter:brightness(1.18)}
+.nv-general-icon-swatch.hover svg{scale:1.06}
+.nv-general-icon-swatch.pressed{filter:brightness(.78)}
+.nv-general-icon-swatch.pressed svg{scale:.94;translate:0 2px}
+.nv-general-icon-actions{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:440px){.nv-general-icon-editor{grid-template-columns:1fr}.nv-general-icon-sample{display:flex;justify-content:center;align-items:center;gap:12px}}
