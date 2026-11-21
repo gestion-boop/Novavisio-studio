@@ -17,7 +17,7 @@ import {isPopupMedia,MediaDisplayControl} from './mediaDisplay';
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
-import {cloudHasDefaultSkin,cloudListSkins,cloudNewProjectFromDefault} from './cloudSkins';
+import {cloudListSkins} from './cloudSkins';
 import {applySkin} from './skins';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
@@ -3569,23 +3569,6 @@ function App(){
     setProject(fresh);setActiveId('');setSelectedId('');setLock(null);setPreparationOpen(true);
     void persist(fresh,true);
   }
-  async function startFresh(){
-    if(project.scenes.length && !await confirmAsk('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
-    // Toujours charger le modèle Supabase AVANT de quitter la visite active.
-    // En cas d'échec réseau, conserver l'ancien projet pour éviter toute perte.
-    let fresh:StudioProject,hasModel:boolean;
-    try{
-      hasModel=await cloudHasDefaultSkin();
-      fresh=await cloudNewProjectFromDefault();
-    }catch(e){
-      setStatus('Impossible de préparer la nouvelle visite depuis le Cloud : '+String(e));
-      window.alert('Le modèle Cloud n’a pas pu être chargé. La visite actuelle est conservée. Vérifie ta connexion Supabase.');
-      return;
-    }
-    setActiveSpaceId(null);setSpaceManagerOpen(false);resetProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
-    cloud.unlink();
-    if(hasModel)setStatus('Modèle Cloud appliqué au nouveau projet : packs d’icônes, charte, barre et VR. Ajoute les panoramas puis sauvegarde.');
-  }
   function addClientLink(item:ClientLink){
     const next:BottomBarItem={id:uid(),title:item.label,type:item.kind==='info'?'information':'lien',target:'',text:'',url:item.url,builtinIcon:item.label==='Appeler'?'phone':item.label==='Itinéraire'?'grid':'info'};
     setProject(p=>({...p,bottomBar:[...p.bottomBar,next]}));
@@ -3654,23 +3637,10 @@ function App(){
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setAiAssistantOpen(true);}}>
                 <Sparkles size={16} color="#38bdf8"/><strong>Nouveau client (NovaStudio AI)</strong>
               </button>
-              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
-                <Plus size={16}/><span>Nouveau projet vierge</span>
-              </button>
-              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);projectInput.current?.click();}}>
-                <Download size={16}/><span>Ouvrir un projet</span>
-              </button>
               <div className="nv-menu-divider" role="separator"/>
               <button type="button" role="menuitem" disabled={!ready||savingManually||!!lock}
                 onClick={()=>{setOpenTopMenu(null);void manualSave();}}>
                 <Save size={16}/><span>Enregistrer maintenant</span><b>⌘ S</b>
-              </button>
-              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);download();}}>
-                <Download size={16}/><span>Télécharger une copie .nvstudio.json</span>
-              </button>
-              <button type="button" role="menuitem" disabled={exporting||!visibleScenes.length}
-                onClick={()=>{setOpenTopMenu(null);setExportDialog({spaceId:currentSpace?.id??null});}}>
-                <Sparkles size={16}/><span>Exporter HTML / ZIP…</span>
               </button>
             </div>}
           </div>
