@@ -2,7 +2,7 @@ import {MediaIconDefaults} from './MediaIconSettings';
 import {ButtonImporter} from './ButtonImporter';
 import {SetupBarPreview} from './SetupBarPreview';
 import {useRef,useState,type Dispatch,type SetStateAction} from 'react';
-import {STUDIO_LANGUAGES,defaultBarStyle,barIconSize,withBarSize,isSafeAudioData,readImage,type BarStyle,type StudioProject} from './storage';
+import {updateBarStyle,STUDIO_LANGUAGES,defaultBarStyle,barIconSize,withBarSize,isSafeAudioData,readImage,type BarStyle,type StudioProject} from './storage';
 import {BarDimensions,PreparationDialog} from './PreparationControls';
 import {SkinChoices} from './SkinLibrary';
 import {ICON_PACKS,packPreview,prepareIconPack} from './iconPacks';
@@ -27,7 +27,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
   const steps=keys.map(k=>TITLES[k]);
   const key=keys[Math.min(step,keys.length-1)];
   function move(index:number){setStep(index);setMessage('');content.current?.scrollTo({top:0});}
-  const patchStyle=(value:Partial<BarStyle>)=>setProject(p=>({...p,barStyle:{...p.barStyle,...value}}));
+  const patchStyle=(value:Partial<BarStyle>)=>setProject(p=>({...p,barStyle:updateBarStyle(p.barStyle,value)}));
   async function choosePack(id:string){setBusy(true);setMessage('Préparation des icônes…');try{const apply=await prepareIconPack(id,project);const next=apply(project);setProject(next);setMessage('Collection appliquée à la barre et aux prochaines flèches.');}catch(e){setMessage(String(e));}finally{setBusy(false);}}
   async function importMusic(file?:File){
     if(!file)return;setBusy(true);setMessage('Import de la musique…');

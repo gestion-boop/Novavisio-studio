@@ -92,7 +92,7 @@ import {NotesPanel} from './NotesPanel';
 import {pngFromSvg} from './svgIcons';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {refusesEmbedding,getFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,VIDEO_MAX_BYTES} from './storage';
+import {updateBarStyle,refusesEmbedding,getFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
@@ -1910,7 +1910,7 @@ function App(){
     '--nv-bar-height':Math.max(project.barStyle.height??82,project.bottomBar.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
   function changeBarStyle(update:Partial<BarStyle>) {
-    setProject(p=>({...p,barStyle:{...p.barStyle,...update}}));
+    setProject(p=>({...p,barStyle:updateBarStyle(p.barStyle,update)}));
   }
   function openLinkInTour(title:string,raw:string,mode?:'embed'|'tab',full?:boolean) {
     const link=safeLink(raw);
@@ -4628,7 +4628,7 @@ function App(){
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
           {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" data-hsort={!preview?'':undefined} aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
-              const icon=project.icons.find(i=>i.id===item.iconId);
+              const icon=!project.barStyle.useBarGlyphs&&project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
               return <div key={item.id} data-hsort-id={!preview?item.id:undefined} className={liveBarSort.drag===item.id?'nv-live-bar-dragging':undefined}><div className="nv-bar-sort-item">{!preview&&project.bottomBar.length>1&&liveBarSort.grip(item.id,item.title)}<button type="button" style={{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
@@ -5188,7 +5188,7 @@ function App(){
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
             {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
             {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
-            {!selectedBar.iconId && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
+            {(!selectedBar.iconId||project.barStyle.useBarGlyphs) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
               {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
             </select></label>}
             </InspectorSection>
@@ -5213,13 +5213,17 @@ function App(){
                 <span className="style-picker"><input type="color" value={project.barStyle[field.key]} aria-label={field.label} onChange={e=>changeBarStyle({[field.key]:e.target.value})}/><small>{project.barStyle[field.key]}</small></span>
               </label>)}
             </div>
+            {project.bottomBar.some(item=>item.iconId)&&<label className="toggle-row">
+              <input type="checkbox" checked={project.barStyle.useBarGlyphs===true} onChange={e=>changeBarStyle({useBarGlyphs:e.target.checked})}/>
+              Utiliser les couleurs de la barre avec les pictogrammes intégrés
+            </label>}
             <label>Épaisseur du contour de la barre : {project.barStyle.outlineWidth} px
               <input type="range" min="0" max="8" step="1" value={project.barStyle.outlineWidth} onChange={e=>changeBarStyle({outlineWidth:Number(e.target.value)})}/></label>
             <label>Épaisseur du contour des boutons : {project.barStyle.buttonOutlineWidth} px
               <input type="range" min="0" max="8" step="1" value={project.barStyle.buttonOutlineWidth} onChange={e=>changeBarStyle({buttonOutlineWidth:Number(e.target.value)})}/></label>
             <label>Arrondi de la barre : {project.barStyle.roundness} px
               <input type="range" min="0" max="60" step="1" value={project.barStyle.roundness} onChange={e=>changeBarStyle({roundness:Number(e.target.value)})}/></label>
-            <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
+            <button type="button" className="style-reset" onClick={()=>changeBarStyle({...defaultBarStyle(),useBarGlyphs:true})}>Restaurer les couleurs bordeaux et argent</button>
           </div>
 </>},
             {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/><label className="toggle-row"><input type="checkbox" checked={project.barIconTrim!==false} onChange={e=>setProject(p=>({...p,barIconTrim:e.target.checked}))}/> Remplir les boutons : rogner les marges transparentes des icônes (toutes à la même taille)</label></></>},
