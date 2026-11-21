@@ -4,6 +4,7 @@ import {STYLES,BRAND_COLOR_LABELS,generateBrand,checkContrast,contrastRatio,read
 import {XMark} from './XMark';
 import {buildPack,svgToPng,composeCustomIcon,ICON_SHAPES,PACK_SIZE,ICON_STATES,type IconShape} from './brandIcons';
 import {supabase,readLink,cloudConfigured} from './cloud';
+import {publishPack,listLibrarySets,copyToProject,type LibrarySet} from './iconLibrary';
 
 /**
  * Fenêtre « Charte graphique » (NovaStudio AI — phase 1).
@@ -17,6 +18,9 @@ export function BrandKitDialog({current,onApply,onClose,iconCount,onAddIcons}:{
   iconCount:number;
   onAddIcons:(files:Array<{name:string;dataUrl:string}>)=>void;
 }){
+  const [libSets,setLibSets]=useState<LibrarySet[]|null>(null);
+  const [libMsg,setLibMsg]=useState('');
+  const [libBusy,setLibBusy]=useState('');
   const [shape,setShape]=useState<IconShape>('circle');
   const [packBusy,setPackBusy]=useState('');
   const [packMsg,setPackMsg]=useState('');
@@ -79,6 +83,40 @@ export function BrandKitDialog({current,onApply,onClose,iconCount,onAddIcons}:{
           className={'nv-brand-style'+(shape===s.id?' is-on':'')} onClick={()=>setShape(s.id)}>{s.label}</button>)}
       </div>
       <p className="hint-inline">Même dessin pour les trois états : seule la lumière change. Noms normalisés : <code>reservation_normal.png</code>, <code>reservation_hover.png</code>, <code>reservation_pressed.png</code>.</p>
+      <div className="nv-brand-library">
+        <button type="button" className="quiet" disabled={!!libBusy||!!packBusy}
+          onClick={async()=>{
+            setLibBusy('Création du pack…');setLibMsg('');
+            try{
+              const files=buildPack(colors,shape);const out:Array<{id:string;name:string;dataUrl:string}>=[];
+              for(let i=0;i<files.length;i++){
+                setLibBusy(`Création des icônes ${i+1} / ${files.length}…`);
+                const f=files[i];
+                out.push({id:String(i),name:f.label+' · '+({normal:'Normal',hover:'Survol',pressed:'Pressé'} as const)[f.state],dataUrl:await svgToPng(f.svg,256)});
+              }
+              setLibBusy('Publication dans la bibliothèque générale…');
+              const n=await publishPack(out,shape,colors.primary.replace('#','').toLowerCase(),'Pack '+shape);
+              setLibMsg(n+' images publiées dans la bibliothèque générale.');
+            }catch(e){setLibMsg('Publication impossible : '+(e instanceof Error?e.message:String(e)));}
+            finally{setLibBusy('');}
+          }}>{libBusy||'Publier ce pack dans la bibliothèque générale'}</button>
+        <button type="button" className="quiet" disabled={!!libBusy}
+          onClick={async()=>{
+            setLibBusy('Lecture de la bibliothèque…');setLibMsg('');
+            try{setLibSets(await listLibrarySets());}catch(e){setLibMsg('Lecture impossible : '+(e instanceof Error?e.message:String(e)));}
+            finally{setLibBusy('');}
+          }}>Voir la bibliothèque générale</button>
+        {libMsg&&<p className="hint-inline">{libMsg}</p>}
+        {libSets&&<ul className="nv-brand-library-list">
+          {libSets.length===0&&<li>Bibliothèque vide.</li>}
+          {libSets.map(set=><li key={set.setKey}>
+            <img src={set.icons.find(i=>i.name.endsWith('Normal'))?.dataUrl} alt="" width={36} height={36}/>
+            <span>{set.setName}</span>
+            <button type="button" className="quiet" disabled={iconCount+set.icons.length>150}
+              onClick={()=>{onAddIcons(copyToProject(set).map(i=>({name:i.name,dataUrl:i.dataUrl})));setPackMsg(set.setName+' ajoutée au projet.');}}>Ajouter au projet</button>
+          </li>)}
+        </ul>}
+      </div>
       <div className="nv-brand-pack-actions">
         <button type="button" className="primary" disabled={!!packBusy||blocking}
           onClick={async()=>{
