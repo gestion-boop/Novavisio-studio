@@ -21,11 +21,13 @@ export function PhotoGallery({title,items,onClose}:{title:string;items:MediaLink
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[index,count]);
   const current=index!==null?resolved[index]:null;
-  return <div className="nv-photo-gallery" role="dialog" aria-modal="true" aria-label={title}>
+  // Toucher le fond (hors des photos) ferme la galerie : seul moyen de sortir sur téléphone, sans croix.
+  const closeOnBackdrop=(e:React.MouseEvent<HTMLElement>)=>{if(index===null&&e.target===e.currentTarget)onClose();};
+  return <div className="nv-photo-gallery" role="dialog" aria-modal="true" aria-label={title} onClick={closeOnBackdrop}>
     <header><strong>{title}</strong><span>{count} {count>1?'éléments':'élément'}</span>
 </header>
     {count===0?<p className="nv-pg-empty">Aucune photo dans cette galerie.</p>:
-      <div className="nv-pg-grid">{resolved.map(({item,r},i)=>{
+      <div className="nv-pg-grid" onClick={closeOnBackdrop}>{resolved.map(({item,r},i)=>{
         const src=r.thumb??r.image;
         return <button type="button" key={item.id} className="nv-pg-tile" onClick={()=>setIndex(i)} aria-label={item.name}>
           {item.kind==='photo'?(src?<img src={src} alt={item.name} loading="lazy" referrerPolicy="no-referrer"/>:<span className="nv-pg-wait">…</span>):<span className="nv-pg-video">▶</span>}
