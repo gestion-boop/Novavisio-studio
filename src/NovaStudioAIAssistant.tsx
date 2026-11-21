@@ -94,12 +94,19 @@ import { NativeIntro } from './nativeIntro';
 
 export type NovaStudioAIProps = {
   project: StudioProject;
-  onApply: (updated: Partial<StudioProject>, clientProfile: ClientProfile, brandKit: BrandKit) => void;
+  defaultMode?: 'new' | 'update';
+  onApply: (
+    updated: Partial<StudioProject>,
+    clientProfile: ClientProfile,
+    brandKit: BrandKit,
+    mode: 'new' | 'update'
+  ) => void;
   onClose: () => void;
 };
 
-export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIProps) {
+export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, onClose}: NovaStudioAIProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'brand' | 'icons' | 'intro' | 'menu'>('info');
+  const [creationMode, setCreationMode] = useState<'new' | 'update'>(defaultMode);
 
   // ==========================================
   // Champs Module 1 — Création et analyse
@@ -641,7 +648,7 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       buttonSets: buttonSetsToAdd,
     };
 
-    onApply(projectUpdate, clientProfile, brandKit);
+    onApply(projectUpdate, clientProfile, brandKit, creationMode);
     onClose();
   };
 
@@ -710,7 +717,36 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
         <div className="nv-ai-body">
           {/* ONGLET 1 : Client & Analyse */}
           {activeTab === 'info' && (
-            <div className="nv-ai-grid">
+            <div>
+              {/* Sélecteur de mode de création */}
+              <div className="nv-ai-mode-selector">
+                <div className="nv-ai-mode-cards">
+                  <button
+                    type="button"
+                    className={`nv-ai-mode-card ${creationMode === 'new' ? 'is-active' : ''}`}
+                    onClick={() => setCreationMode('new')}
+                  >
+                    <div className="nv-ai-mode-card-title">
+                      <Sparkles size={16} />
+                      <strong>Créer une nouvelle visite</strong>
+                    </div>
+                    <p>Initialise un nouveau projet vierge dédié à ce client, sans écraser votre visite en cours.</p>
+                  </button>
+                  <button
+                    type="button"
+                    className={`nv-ai-mode-card ${creationMode === 'update' ? 'is-active' : ''}`}
+                    onClick={() => setCreationMode('update')}
+                  >
+                    <div className="nv-ai-mode-card-title">
+                      <Layers size={16} />
+                      <strong>Appliquer à la visite en cours</strong>
+                    </div>
+                    <p>Conserve vos panoramas actuels (« {project.name || 'Visite en cours'} ») et met à jour l’identité visuelle.</p>
+                  </button>
+                </div>
+              </div>
+
+              <div className="nv-ai-grid">
               <div className="nv-ai-field">
                 <label>
                   Nom commercial du client <span className="is-required">*</span>
@@ -962,6 +998,7 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                 </div>
               </div>
             </div>
+          </div>
           )}
 
           {/* ONGLET 2 : Charte & Couleurs */}
@@ -1732,7 +1769,7 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                   onClick={handleApply}
                 >
                   <Sparkles size={16} />
-                  <span>Valider & Appliquer au projet</span>
+                  <span>{creationMode === 'new' ? '✨ Créer la nouvelle visite (IA)' : 'Valider & Appliquer au projet'}</span>
                 </button>
               </>
             )}

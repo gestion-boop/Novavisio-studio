@@ -5851,9 +5851,32 @@ function App(){
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
     {aiAssistantOpen&&<NovaStudioAIAssistant project={project} onClose={()=>setAiAssistantOpen(false)}
-      onApply={(updated,clientProfile,brandKit)=>{
-        setProject(p=>({...p,...updated,clientProfile,brandKit}));
-        setStatus('NovaStudio AI : Client « '+clientProfile.name+' » et charte graphique configurés · Enregistre avec la disquette.');
+      onApply={(updated,clientProfile,brandKit,mode)=>{
+        if(mode==='new'){
+          const fresh=newProject();
+          const created:StudioProject={
+            ...fresh,
+            ...updated,
+            name:updated.name||clientProfile.name||'Nouvelle visite 360°',
+            clientProfile,
+            brandKit,
+            scenes:[],
+            spaces:[],
+            updatedAt:new Date().toISOString(),
+          };
+          setActiveSpaceId(null);
+          setSpaceManagerOpen(false);
+          resetProject(created);
+          setActiveId('');
+          setSelectedId('');
+          setMode(null);
+          setPreview(false);
+          cloud.unlink();
+          setStatus('✨ Nouvelle visite « '+clientProfile.name+' » créée avec succès ! Tu peux maintenant ajouter tes panoramas 360°.');
+        }else{
+          setProject(p=>({...p,...updated,clientProfile,brandKit}));
+          setStatus('NovaStudio AI : Visite « '+(updated.name||clientProfile.name)+' » mise à jour avec la charte.');
+        }
       }}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
       <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
