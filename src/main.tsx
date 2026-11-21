@@ -2821,6 +2821,13 @@ function App(){
     setProject(apply);
     setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé'+(applyTo?' et appliqué au popup sélectionné':'')+'. Enregistre avec la disquette.');
   }
+  /** Bibliothèque générale à côté des sélecteurs de packs : ajoute les icônes au projet, puis on les choisit. */
+  function generalLibraryBlock(){
+    return <details className="nv-icons-library">
+      <summary>Bibliothèque générale d’icônes</summary>
+      <GeneralIconLibrary applyLabel="" barTheme={project.barStyle} onAdd={(name,images)=>createLibraryIconSet(name,images)}/>
+    </details>;
+  }
   function popupIconSettings(hotspot:Hotspot,kind:'image'|'video'){
     const target={sceneId:activeId,pointId:hotspot.id};
     return <>
@@ -5552,6 +5559,7 @@ function App(){
             {([['Normal',project.settingsIconId],['Survol',project.settingsHoverIconId],['Pressé',project.settingsPressedIconId]] as const).map(([label,id])=>
               <div key={label}><span>{id&&project.icons.some(i=>i.id===id)?<img src={project.icons.find(i=>i.id===id)!.dataUrl} alt={'Paramètres '+label}/>:<i>⚙</i>}</span><small>{label}</small></div>)}
           </div>}
+          {generalLibraryBlock()}
           <ExistingIconPackPicker project={project}
             value={{iconId:project.settingsIconId,hoverIconId:project.settingsHoverIconId,pressedIconId:project.settingsPressedIconId}}
             preferred="settings" label="Choisir un pack de 3 pour Paramètres"
@@ -5580,6 +5588,7 @@ function App(){
           <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
           <button type="button" className="style-reset" onClick={()=>void addSoundIcons()}>＋ Ajouter les icônes Son à mes icônes (aux couleurs de la barre)</button>
           <div className="section-title">SON ACTIVÉ — 3 ICÔNES</div>
+          {generalLibraryBlock()}
           <ExistingIconPackPicker project={project}
             value={{iconId:project.soundOnIconId,hoverIconId:project.soundOnHoverIconId,pressedIconId:project.soundOnPressedIconId}}
             preferred="audio" label="Choisir un pack de 3 pour Son activé"
@@ -5591,6 +5600,7 @@ function App(){
           {iconStateEditor('audio-on-pressed','Son activé · Clic',project.soundOnPressedIconId,
             id=>setProject(p=>({...p,soundOnPressedIconId:id})),'🔊')}
           <div className="section-title">SON COUPÉ — 3 ICÔNES</div>
+          {generalLibraryBlock()}
           <ExistingIconPackPicker project={project}
             value={{iconId:project.soundOffIconId,hoverIconId:project.soundOffHoverIconId,pressedIconId:project.soundOffPressedIconId}}
             preferred="audio" label="Choisir un pack de 3 pour Son coupé"
@@ -5682,7 +5692,8 @@ function App(){
               <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
               <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Croix classique par défaut'}</small></div>
             </div>
-            {libraryPackPicker(project.closeIconId,patch=>setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId})))}
+            {generalLibraryBlock()}
+          {libraryPackPicker(project.closeIconId,patch=>setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId})))}
             <details className="nv-icons-states">
               <summary>Croix : PNG normal, survol et clic un par un</summary>
               <ExistingIconPackPicker project={project}
