@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Camping Figurotta — Galerie</title>
+<style>
+:root{--bleu:#224A95;--vert:#98C05B;--or:#E1C886;--fond:#f7f9f1;--ink:#1d1a17;--mu:#5d6470}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%;font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);background:var(--fond)}
+.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--bleu);border-bottom:3px solid var(--vert)}
+.top img{width:46px;height:46px;object-fit:contain;border-radius:50%;background:#fff;padding:3px;border:2px solid var(--vert)}
+.top small{display:block;font:400 18px Georgia,serif;color:var(--or);line-height:1.1}
+.top b{display:block;font-size:19px;color:#fff;line-height:1.2}
+.lang{margin-left:auto;display:flex;gap:6px}
+.lang button{background:transparent;border:2px solid transparent;border-radius:8px;padding:2px 6px;color:#fff;font-weight:700;cursor:pointer;opacity:.7}
+.lang button.on{opacity:1;border-color:var(--or)}
+.wrap{max-width:1100px;margin:0 auto;padding:22px 16px 60px}
+.grid{columns:3 260px;column-gap:14px}
+.grid a{display:block;margin-bottom:14px;border-radius:16px;overflow:hidden;box-shadow:0 8px 22px rgba(34,74,149,.18);break-inside:avoid;cursor:zoom-in;background:#fff}
+.grid img{display:block;width:100%;height:auto;transition:transform .35s}
+.grid a:hover img{transform:scale(1.03)}
+.ttl{font:400 clamp(26px,4vw,38px) Georgia,serif;color:var(--bleu);margin:4px 0 18px;text-align:center}
+.sub{text-align:center;color:var(--mu);font-size:14px;margin-bottom:20px;letter-spacing:.08em;text-transform:uppercase}
+#lb{position:fixed;inset:0;z-index:99;background:rgba(10,14,28,.94);display:none;align-items:center;justify-content:center}
+#lb.on{display:flex}
+#lb img{max-width:94vw;max-height:88vh;border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#lb button{position:absolute;background:rgba(255,255,255,.16);color:#fff;border:2px solid var(--vert);border-radius:50%;width:48px;height:48px;font-size:24px;cursor:pointer}
+#lb .x{top:16px;right:16px}#lb .p{left:14px;top:50%}#lb .n{right:14px;top:50%}
+#lb .c{position:absolute;bottom:18px;color:#fff;font-size:13px;font-weight:600}
+@media(max-width:600px){.top b{font-size:16px}.top img{width:38px;height:38px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <img src="img/logo.png" alt="Camping Figurotta">
+  <div><small>Camping Figurotta</small><b id="ttl">Galerie photos</b></div>
+  <nav class="lang" id="lang">
+    <button data-l="fr">FR</button><button data-l="en">EN</button><button data-l="es">ES</button><button data-l="de">DE</button>
+  </nav>
+</header>
+<main class="wrap">
+  <h1 class="ttl" id="h">Découvrez le camping</h1>
+  <p class="sub" id="s">Bizanet · Pays Cathare</p>
+  <div class="grid" id="g">
+    <a href="img/211.jpg"><img loading="lazy" src="img/211.jpg" alt="Camping Figurotta — vue 1"></a>
+    <a href="img/212.jpg"><img loading="lazy" src="img/212.jpg" alt="Camping Figurotta — vue 2"></a>
+    <a href="img/213.jpg"><img loading="lazy" src="img/213.jpg" alt="Camping Figurotta — vue 3"></a>
+    <a href="img/214.jpg"><img loading="lazy" src="img/214.jpg" alt="Camping Figurotta — vue 4"></a>
+    <a href="img/215.jpg"><img loading="lazy" src="img/215.jpg" alt="Camping Figurotta — vue 5"></a>
+  </div>
+</main>
+<div id="lb"><button class="x" aria-label="Fermer">✕</button><button class="p" aria-label="Précédente">‹</button><img alt=""><button class="n" aria-label="Suivante">›</button><div class="c"></div></div>
+<script>
+(function(){
+  const T={
+    fr:{ttl:'Galerie photos',h:'Découvrez le camping',s:'Bizanet · Pays Cathare'},
+    en:{ttl:'Photo gallery',h:'Discover the campsite',s:'Bizanet · Cathar Country'},
+    es:{ttl:'Galería de fotos',h:'Descubre el camping',s:'Bizanet · País Cátaro'},
+    de:{ttl:'Fotogalerie',h:'Entdecken Sie den Campingplatz',s:'Bizanet · Katharerland'}
+  };
+  const A=[...document.querySelectorAll('#g a')];
+  function set(l){
+    const t=T[l]||T.fr;
+    document.documentElement.lang=T[l]?l:'fr';
+    document.getElementById('ttl').textContent=t.ttl;
+    document.getElementById('h').textContent=t.h;
+    document.getElementById('s').textContent=t.s;
+    document.querySelectorAll('#lang button').forEach(b=>b.classList.toggle('on',b.dataset.l===l));
+  }
+  document.querySelectorAll('#lang button').forEach(b=>b.onclick=()=>set(b.dataset.l));
+  let l='fr';try{l=localStorage.getItem('nt_lang')||'fr'}catch(e){}
+  set(T[l]?l:'fr');
+  const lb=document.getElementById('lb'),im=lb.querySelector('img'),c=lb.querySelector('.c');let k=0;
+  function show(i){k=(i+A.length)%A.length;im.src=A[k].href;c.textContent=(k+1)+' / '+A.length;lb.classList.add('on')}
+  A.forEach((a,i)=>a.onclick=e=>{e.preventDefault();show(i)});
+  lb.querySelector('.x').onclick=()=>lb.classList.remove('on');
+  lb.querySelector('.p').onclick=()=>show(k-1);
+  lb.querySelector('.n').onclick=()=>show(k+1);
+  lb.onclick=e=>{if(e.target===lb)lb.classList.remove('on')};
+  document.addEventListener('keydown',e=>{if(!lb.classList.contains('on'))return;if(e.key==='Escape')lb.classList.remove('on');if(e.key==='ArrowLeft')show(k-1);if(e.key==='ArrowRight')show(k+1)});
+})();
+</script>
+</body>
+</html>
