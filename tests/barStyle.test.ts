@@ -1,3 +1,4 @@
+import {DEFAULT_INTRO_DESIGN} from '../src/introDesign';
 import {describe,expect,it} from 'vitest';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {createElement} from 'react';
@@ -28,4 +29,18 @@ describe('fond des boutons de la barre',()=>{
     expect(validateProject({...newProject(),barStyle:oldStyle}).barStyle.useBarGlyphs).toBe(false);
     expect(updateBarStyle(oldStyle,{background:'#224a95'}).useBarGlyphs).toBe(false);
   });
+});
+
+it('initialise les couleurs historiques de l’intro puis les conserve quand la barre change',()=>{
+  const project=validateProject({...newProject(),introDesign:DEFAULT_INTRO_DESIGN});
+  const before=project.introDesign;
+  const barStyle=updateBarStyle(project.barStyle,{button:'#224a95'});
+  expect(before?.buttonColor).toBe(defaultBarStyle().button);
+  expect(validateProject({...project,barStyle}).introDesign).toEqual(before);
+});
+
+it('applique les réglages de contour et de pictogramme aux boutons',()=>{
+  for(const update of [{buttonOutline:'#224a95'},{buttonOutlineWidth:2},{icon:'#224a95'}]){
+    expect(updateBarStyle(defaultBarStyle(),update).useBarGlyphs).toBe(true);
+  }
 });

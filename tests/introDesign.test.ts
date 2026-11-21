@@ -1,5 +1,6 @@
+import {contrastRatio} from '../src/brandKit';
 import {describe,expect,it} from 'vitest';
-import {INTRO_STYLES,INTRO_ANIMATIONS,DEFAULT_INTRO_DESIGN,validateIntroDesign,nativeIntroActive,introDurationSec,INTRO_LIMITS} from '../src/introDesign';
+import {INTRO_STYLES,INTRO_ANIMATIONS,DEFAULT_INTRO_DESIGN,validateIntroDesign,nativeIntroActive,introDurationSec,introWelcomeColor,INTRO_LIMITS} from '../src/introDesign';
 
 const ok={...DEFAULT_INTRO_DESIGN,enabled:true,title:'Ariya',subtitle:'Bien-être',styleId:'luxe' as const};
 describe('introduction native (logique pure)',()=>{
@@ -44,4 +45,11 @@ describe('introduction native (logique pure)',()=>{
     expect(introDurationSec({introDuration:500})).toBe(60);
     expect(introDurationSec({introDuration:NaN})).toBe(6);
   });
+});
+
+it('conserve ou ajuste la teinte du texte d’accueil selon le fond',()=>{
+  expect(introWelcomeColor('#224a95','#ffffff')).toBe('#224a95');
+  for(const [accent,background] of [['#224a95','#394846'],['#a3ca26','#ffffff'],['#777777','#767676']]){
+    expect(contrastRatio(introWelcomeColor(accent,background),background)).toBeGreaterThanOrEqual(4.5);
+  }
 });

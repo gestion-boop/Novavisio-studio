@@ -34,7 +34,7 @@ import {InterestDialog} from './InterestDialog';
 import {ProjectSummaryDialog} from './ProjectSummaryDialog';
 import {urlForSuggestion,type Suggestion as InterestSuggestion} from './interestPoints';
 import {BRAND_ICON_SET} from './brandIconSet';
-import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LOGO_SHAPES,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
+import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LOGO_SHAPES,INTRO_DEFAULT_COLORS,introWelcomeColor,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
 import {EditMode,PanelTab,EmbedFrame,ensureFrameReferences,barColorFields,VISIT_MOTIFS,BarGlyph,safeLink,launchLink,startSceneId,FullscreenGalleryHoverPreview,Panorama} from './EditorPanorama';
 import {FrameLoupe} from './FrameLoupe';
 import {exportStaticTour} from './exportTour';
@@ -2622,7 +2622,7 @@ function App(){
     setStatus(s.title+' placé dans le panorama'+(url?' (lien vérifié)':'')+' · enregistre avec la disquette.');
   }
   function patchIntroDesign(patch:Partial<IntroDesign>){
-    setProject(p=>({...p,introDesign:{...(p.introDesign??DEFAULT_INTRO_DESIGN),...patch}}));
+    setProject(p=>({...p,introDesign:{backgroundColor:INTRO_DEFAULT_COLORS.background,buttonColor:INTRO_DEFAULT_COLORS.button,...(p.introDesign??DEFAULT_INTRO_DESIGN),...patch}}));
   }
   async function importIntroLogo(file?:File){
     if(!file)return;
@@ -5220,7 +5220,7 @@ function App(){
             </div>
             {project.bottomBar.some(item=>item.iconId)&&<label className="toggle-row">
               <input type="checkbox" checked={project.barStyle.useBarGlyphs===true} onChange={e=>changeBarStyle({useBarGlyphs:e.target.checked})}/>
-              Utiliser les couleurs de la barre avec les pictogrammes intégrés
+              Appliquer les couleurs aux boutons avec les pictogrammes intégrés
             </label>}
             <label>Épaisseur du contour de la barre : {project.barStyle.outlineWidth} px
               <input type="range" min="0" max="8" step="1" value={project.barStyle.outlineWidth} onChange={e=>changeBarStyle({outlineWidth:Number(e.target.value)})}/></label>
@@ -5314,6 +5314,20 @@ function App(){
           <label>Texte du bouton
             <input value={project.introDesign?.buttonLabel??'Découvrir'} maxLength={INTRO_LIMITS.button} onChange={e=>patchIntroDesign({buttonLabel:e.target.value})}/>
           </label>
+          <div className="section-title">COULEURS DE L’INTRODUCTION</div>
+          <label>Fond de l’introduction
+            <input type="color" value={project.introDesign?.backgroundColor??INTRO_DEFAULT_COLORS.background} onChange={e=>patchIntroDesign({backgroundColor:e.target.value})}/>
+          </label>
+          <label>Fond du bouton de l’introduction
+            <input type="color" value={project.introDesign?.buttonColor??INTRO_DEFAULT_COLORS.button} onChange={e=>patchIntroDesign({buttonColor:e.target.value})}/>
+          </label>
+          <label className="toggle-row"><input type="checkbox" checked={!project.introDesign?.welcomeColor}
+            onChange={e=>{const d=project.introDesign;const cover=d?.animation==='iris'||d?.animation==='curtain'||d?.animation==='sweep';patchIntroDesign({welcomeColor:e.target.checked?undefined:introWelcomeColor(d?.buttonColor??INTRO_DEFAULT_COLORS.button,cover?'#394846':d?.backgroundColor??INTRO_DEFAULT_COLORS.background)});}}/>
+            Couleur automatique du texte d’accueil
+          </label>
+          {project.introDesign?.welcomeColor&&<label>Couleur du texte d’accueil
+            <input type="color" value={project.introDesign.welcomeColor} onChange={e=>patchIntroDesign({welcomeColor:e.target.value})}/>
+          </label>}
           <label>Forme du cadre du logo
             <select value={project.introDesign?.logoShape??'original'} onChange={e=>patchIntroDesign({logoShape:e.target.value as IntroDesign['logoShape']})}>
               {INTRO_LOGO_SHAPES.map(shape=><option key={shape.id} value={shape.id}>{shape.label}</option>)}
@@ -5330,7 +5344,7 @@ function App(){
             {project.introDesign?.logoDataUrl&&<button type="button" className="quiet" onClick={()=>patchIntroDesign({logoDataUrl:undefined})}>Retirer le logo</button>}
           </div>
           <input ref={logoInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{void importIntroLogo(e.target.files?.[0]);e.target.value='';}}/>
-          <small className="hint-inline">Durée : {project.introDuration??6} s (réglée dans la section ci-dessous). Les couleurs viennent de la barre du bas ou de la charte graphique.</small>
+          <small className="hint-inline">Durée : {project.introDuration??6} s (réglée dans la section ci-dessous).</small>
           <button type="button" className="primary" disabled={!project.introDesign} onClick={()=>setIntroPreview(true)}>▶ Prévisualiser l’introduction</button>
           <div className="section-title">ADRESSE EXTERNE (FACULTATIF)</div>
           <div className="section-title">INTRODUCTION DE LA VISITE</div>
@@ -5736,7 +5750,7 @@ function App(){
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
-      <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
+      <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
     </div>}
     {interestOpen&&<InterestDialog category={project.interestCategory} info={project.interestInfo??{}} points={project.interestPoints??[]}
       canPlace={!!activeId&&cameraRef.current.sceneId===activeId} onClose={()=>setInterestOpen(false)} onPlace={placeInterestPoint}
