@@ -98,7 +98,8 @@ function drawState(state: 'normal' | 'hover' | 'pressed', o: Required<Pick<Gloss
     sheen.addColorStop(0, `rgba(255,255,255,${(hover ? 0.6 : 0.42) * o.gloss})`);
     sheen.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = sheen;
-    ctx.beginPath(); ctx.ellipse(-90, -195, 420, 155, -0.28, 0, Math.PI * 2); ctx.fill();
+    // Reflet en dégradé sans contour elliptique apparent en haut du bouton.
+    ctx.fillRect(-357, -357, 714, 340);
     ctx.restore();
   }
 
