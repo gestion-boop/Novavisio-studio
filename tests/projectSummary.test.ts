@@ -28,10 +28,16 @@ describe('synthèse avant application',()=>{
   it('tout en ordre quand chaque élément est prêt',()=>{
     const p={...base,languages:['fr','en'],bottomBar:[{id:'b',title:'Carte',titleTranslations:{en:'Map'}}],
       scenes:[{id:'a',name:'Accueil',nameTranslations:{en:'Entrance'},hotspots:[{type:'navigation',target:'b'}]},{id:'b',name:'B',nameTranslations:{en:'B'},hotspots:[{type:'navigation',target:'a'}]}],
-      icons:[{id:'i',name:'x',dataUrl:'data:image/png;base64,AA=='}],clientProfile:{name:'Figurotta'},vrEnabled:true};
+      icons:[{id:'i',name:'x',dataUrl:'data:image/png;base64,AA=='}],clientProfile:{name:'Figurotta'},vrEnabled:true,translationsValidated:true};
     const lines=summarizeProject(p);
     expect(find(lines,'traductions').state).toBe('ok');
     expect(find(lines,'navigation').state).toBe('ok');
     expect(find(lines,'identite').state).toBe('ok');
+  });
+  it('des traductions complètes mais non validées restent à relire',()=>{
+    const p={...base,languages:['fr','en'],bottomBar:[{id:'b',title:'Carte',titleTranslations:{en:'Map'}}],scenes:[{id:'a',name:'Accueil',nameTranslations:{en:'Entrance'},hotspots:[]}]};
+    const t=find(summarizeProject(p),'traductions');
+    expect(t.state).toBe('todo');
+    expect(t.detail).toContain('à relire');
   });
 });

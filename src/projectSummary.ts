@@ -57,8 +57,9 @@ export function summarizeProject(p:StudioProject):SummaryLine[]{
   const supported=langs.filter(l=>SUPPORTED.includes(l as LangCode)) as LangCode[];
   const gaps=translationGaps(items,supported);
   const unsupported=langs.filter(l=>!SUPPORTED.includes(l as LangCode));
-  add('traductions','Traductions',gaps.length?'todo':'ok',
-    (supported.length?(gaps.length?`${gaps.length} texte(s) non traduit(s) (${[...new Set(gaps.map(g=>g.lang))].join(', ')}).`:'Tous les textes sont traduits.'):'Aucune langue étrangère choisie.')
+  const pendingReview=supported.length>0&&!gaps.length&&p.translationsValidated!==true;
+  add('traductions','Traductions',(gaps.length||pendingReview)?'todo':'ok',
+    (supported.length?(gaps.length?`${gaps.length} texte(s) non traduit(s) (${[...new Set(gaps.map(g=>g.lang))].join(', ')}).`:(pendingReview?'Traductions à relire puis valider.':'Tous les textes sont traduits et validés.')):'Aucune langue étrangère choisie.')
     +(unsupported.length?` Langue sans champ de traduction : ${unsupported.join(', ')}.`:''));
 
   // Mobile / VR

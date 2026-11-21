@@ -5727,7 +5727,7 @@ function App(){
     {interestOpen&&<InterestDialog category={project.interestCategory} info={project.interestInfo??{}} points={project.interestPoints??[]}
       canPlace={!!activeId&&cameraRef.current.sceneId===activeId} onClose={()=>setInterestOpen(false)} onPlace={placeInterestPoint}
       onPatch={patch=>setProject(p=>({...p,...(patch.category!==undefined?{interestCategory:patch.category}:{}),...(patch.info!==undefined?{interestInfo:patch.info}:{}),...(patch.points!==undefined?{interestPoints:patch.points}:{})}))}/>}
-    {summaryOpen&&<ProjectSummaryDialog project={project} onClose={()=>setSummaryOpen(false)}/>}
+    {summaryOpen&&<ProjectSummaryDialog project={project} onClose={()=>setSummaryOpen(false)} onPatch={fn=>{setProject(p=>({...p,...fn(p)}));setStatus('Traductions mises à jour · enregistre avec la disquette.');}}/>}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>
