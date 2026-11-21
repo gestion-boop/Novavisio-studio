@@ -235,6 +235,8 @@ function App(){
     setHistTick(t=>t+1);
   },[]);
   /** Remplace tout le projet (ouverture, nouveau projet…) : l'historique repart de zéro. */
+  /** Ajoute des icônes issues de la bibliothèque générale au projet courant (copie indépendante). */
+  const addLibraryIcons=useCallback((icons:CustomIcon[])=>{setProject(p=>({...p,icons:[...p.icons,...icons]}));},[setProject]);
   const resetProject=useCallback((p:StudioProject)=>{histRef.current={past:[],future:[],last:0,ops:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
   const [ready,setReady]=useState(false);
   const [preparationOpen,setPreparationOpen]=useState(false);
@@ -4356,7 +4358,7 @@ function App(){
                     {selected.type==='image'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onAddIcons={addLibraryIcons}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
@@ -4377,7 +4379,7 @@ function App(){
                     {selected.type==='video'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onAddIcons={addLibraryIcons}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <label>URL de la vidéo
@@ -4882,7 +4884,7 @@ function App(){
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onAddIcons={addLibraryIcons}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
@@ -4917,7 +4919,7 @@ function App(){
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint} onAddIcons={addLibraryIcons}/>}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Choisir dans ma bibliothèque Photos & Vidéos (Drive, kDrive…)</button>

@@ -2,17 +2,20 @@ import {useState} from 'react';
 import {Image,Play} from 'lucide-react';
 import {IconStateVisual} from './media';
 import {buildIconSets} from './IconLibrary';
+import {listLibrarySets,copyToProject,type LibrarySet} from './iconLibrary';
 import {ExistingIconPackPicker} from './ExistingIconPackPicker';
-import type {DefaultNavigationIcon,StudioProject} from './storage';
+import type {CustomIcon,DefaultNavigationIcon,StudioProject} from './storage';
 import type {Dispatch,SetStateAction} from 'react';
 const KIND_NAME={image:/photo|image|picto|galerie|gallery|camera|appareil|diapo/i,video:/vid[eé]o|film|play|lecture|cin[eé]ma|clip/i};
 /** Choix visuel de l'icône d'un popup : uniquement des icônes du bon type (photo ou vidéo), sans les variantes survol / pressé. */
-export function MediaIconSelector({project,value,onChange,label,kind}:{
+export function MediaIconSelector({project,value,onChange,label,kind,onAddIcons}:{
  project:StudioProject;value?:Partial<DefaultNavigationIcon>;
  onChange:(value:Partial<DefaultNavigationIcon>)=>void;
- label:string;kind:'image'|'video';
+ label:string;kind:'image'|'video';onAddIcons?:(icons:CustomIcon[])=>void;
 }){
  const [open,setOpen]=useState(false);
+ const [lib,setLib]=useState<LibrarySet[]|null>(null);
+ const [libMsg,setLibMsg]=useState('');
  const match=KIND_NAME[kind];
  // Toutes les icônes de la bibliothèque, regroupées en jeux (normal / survol / pressé reconnus d'après le nom du fichier) : une icône ajoutée apparaît tout de suite ici.
  const libSets=buildIconSets(project.icons).map(g=>{const main=g.normal??g.hover??g.pressed;return main?{id:'lib:'+g.key,name:g.name,iconId:main.id,hoverIconId:g.hover?.id,pressedIconId:g.pressed?.id,iconSize:42}:null;}).filter((x):x is NonNullable<typeof x>=>!!x);
@@ -37,6 +40,22 @@ export function MediaIconSelector({project,value,onChange,label,kind}:{
     {allSets.map(item=><button type="button" role="option" key={'s'+item.id} aria-selected={set?.id===item.id} className={'nv-icon-tile'+(set?.id===item.id?' is-selected':'')} title={item.name}
       onClick={()=>pick({iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})}>
       <span><img alt="" src={thumb(item.iconId)}/></span><small>{item.name}</small></button>)}
+   </div>
+   <div className="nv-media-icon-library">
+     <button type="button" className="quiet" onClick={async()=>{setLibMsg('Chargement…');try{setLib(await listLibrarySets());setLibMsg('');}catch(e){setLibMsg('Bibliothèque indisponible : '+(e instanceof Error?e.message:String(e)));}}}>Bibliothèque générale</button>
+     {libMsg&&<small>{libMsg}</small>}
+     {lib&&<div className="nv-icon-picker-grid">
+       {lib.length===0&&<small>Aucune icône publiée pour l'instant.</small>}
+       {lib.map(set=><button type="button" key={set.setKey} className="nv-icon-tile" title={set.setName} onClick={()=>{
+         if(!onAddIcons)return;
+         const copies=copyToProject(set);
+         onAddIcons(copies);
+         const pick3=(suffix:string)=>copies.find(c=>c.name.endsWith(suffix))?.id;
+         pick({iconId:pick3('Normal'),hoverIconId:pick3('Survol'),pressedIconId:pick3('Pressé'),iconSize:42});
+       }}>
+         <span>{set.icons.find(i=>i.name.endsWith('Normal'))&&<img alt="" src={set.icons.find(i=>i.name.endsWith('Normal'))!.dataUrl}/>}</span><small>{set.setName}</small>
+       </button>)}
+     </div>}
    </div>
    <div className="nv-media-icon-import">
      <ExistingIconPackPicker project={project} value={value} preferred={kind}
