@@ -28,6 +28,7 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {ErrorBoundary,installErrorLog} from './ErrorBoundary';
 import {glyphs} from './glyphSet';
+import {BrandKitDialog} from './BrandKitDialog';
 import {EditMode,PanelTab,EmbedFrame,ensureFrameReferences,barColorFields,VISIT_MOTIFS,BarGlyph,safeLink,launchLink,startSceneId,FullscreenGalleryHoverPreview,Panorama} from './EditorPanorama';
 import {FrameLoupe} from './FrameLoupe';
 import {exportStaticTour} from './exportTour';
@@ -154,6 +155,7 @@ function App(){
   const setAutoReturn=(v:boolean)=>{setAutoReturnState(v);try{window.localStorage.setItem('nvstudio-auto-return',v?'1':'0');}catch{/* stockage indisponible */}};
   const [exportDialog,setExportDialog]=useState<{spaceId:string|null}|null>(null);
   const [pendingSpaceIntent,setPendingSpaceIntent]=useState<{spaceId:string;intent:'share'|'export'}|null>(null);
+  const [brandOpen,setBrandOpen]=useState(false);
   const [pickedSceneId,setPickedSceneId]=useState<string|null>(null);
   const [inspectorVw,setInspectorVw]=useState(()=>{try{const v=Number(window.localStorage.getItem('nvstudio-inspector-vw2'));return v>=24&&v<=98?v:54;}catch{return 54;}});
   const setInspectorWidth=(v:number)=>{const n=Math.round(Math.max(24,Math.min(98,v)));setInspectorVw(n);try{window.localStorage.setItem('nvstudio-inspector-vw2',String(n));}catch{/* stockage indisponible */}};
@@ -3537,6 +3539,9 @@ function App(){
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
                 <Plus size={16}/><span>Nouveau projet</span>
               </button>
+              <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setBrandOpen(true);}}>
+                <Sparkles size={16}/><span>Charte graphique (NovaStudio AI)</span>
+              </button>
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);projectInput.current?.click();}}>
                 <Download size={16}/><span>Ouvrir un projet</span>
               </button>
@@ -5644,6 +5649,8 @@ function App(){
         </div>
       </section>
     </div>}
+    {brandOpen&&<BrandKitDialog current={project.brandKit} onClose={()=>setBrandOpen(false)}
+      onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>
