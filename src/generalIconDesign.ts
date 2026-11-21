@@ -51,8 +51,10 @@ export async function renderGeneralIcon(design:GeneralIconDesign):Promise<IconSe
         const sheen=ctx.createLinearGradient(0,32+offset,0,265+offset);
         sheen.addColorStop(0,'rgba(255,255,255,.65)');
         sheen.addColorStop(1,'rgba(255,255,255,0)');
-        ctx.beginPath();ctx.ellipse(220,100+offset,245,120,-.15,0,Math.PI*2);
-        ctx.fillStyle=sheen;ctx.fill();
+        // Reflet doux sans ellipse : l'ancien tracé créait un arc parasite
+        // visible en haut des pictogrammes sur toute la bibliothèque.
+        ctx.fillStyle=sheen;
+        ctx.fillRect(25,25+offset,462,235);
       }
       if(state!=='normal'){
         ctx.fillStyle=hovered?'rgba(255,255,255,.16)':'rgba(0,0,0,.22)';
