@@ -21,6 +21,12 @@ describe('introduction native (logique pure)',()=>{
     expect(()=>validateIntroDesign({...ok,animation:'explosion'})).toThrow();
     expect(()=>validateIntroDesign({...ok,title:'x'.repeat(INTRO_LIMITS.title+1)})).toThrow();
   });
+  it('valide les cadres de logo et accepte les intros existantes sans cadre explicite',()=>{
+    expect(validateIntroDesign(ok).logoShape).toBeUndefined();
+    expect(validateIntroDesign({...ok,logoShape:'round',animation:'iris'})).toMatchObject({logoShape:'round',animation:'iris'});
+    expect(validateIntroDesign({...ok,logoShape:'square',animation:'sweep'})).toMatchObject({logoShape:'square',animation:'sweep'});
+    expect(()=>validateIntroDesign({...ok,logoShape:'triangle'})).toThrow('Forme du logo invalide');
+  });
   it('refuse un logo non image ou trop lourd',()=>{
     expect(()=>validateIntroDesign({...ok,logoDataUrl:'data:text/html;base64,AAAA'})).toThrow();
     expect(()=>validateIntroDesign({...ok,logoDataUrl:'data:image/png;base64,'+'A'.repeat(INTRO_LIMITS.logoChars)})).toThrow();

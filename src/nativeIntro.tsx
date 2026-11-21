@@ -24,7 +24,7 @@ export function NativeIntro({design,background,accent,cover,durationSec,onDone}:
   return <div ref={intro} className={'nv-native-intro is-'+design.styleId+' is-anim-'+design.animation+(staged?' nv-ni-staged':'')+(hasCover?' nv-ni-has-cover':'')} role="dialog" aria-label="Introduction de la visite"
     style={{'--ni-bg':background,'--ni-accent':accent,'--ni-text':text} as React.CSSProperties}>
     {hasCover&&<div className="nv-ni-cover" aria-hidden="true"><img src={cover} alt=""/></div>}
-    {design.logoDataUrl&&<img className="nv-ni-logo" src={design.logoDataUrl} alt=""/>}
+    {design.logoDataUrl&&<img className={'nv-ni-logo nv-ni-logo-'+(design.logoShape??'original')} src={design.logoDataUrl} alt=""/>}
     {design.title&&<h1 className="nv-ni-title">{design.title}</h1>}
     {design.subtitle&&<p className="nv-ni-sub">{design.subtitle}</p>}
     <button type="button" className="nv-ni-button" style={{color:readableOn(accent)}} onClick={onDone}>{design.buttonLabel||'Découvrir'}</button>

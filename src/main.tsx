@@ -33,7 +33,7 @@ import {NativeIntro} from './nativeIntro';
 import {InterestDialog} from './InterestDialog';
 import {urlForSuggestion,type Suggestion as InterestSuggestion} from './interestPoints';
 import {BRAND_ICON_SET} from './brandIconSet';
-import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
+import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LOGO_SHAPES,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
 import {EditMode,PanelTab,EmbedFrame,ensureFrameReferences,barColorFields,VISIT_MOTIFS,BarGlyph,safeLink,launchLink,startSceneId,FullscreenGalleryHoverPreview,Panorama} from './EditorPanorama';
 import {FrameLoupe} from './FrameLoupe';
 import {exportStaticTour} from './exportTour';
@@ -5309,7 +5309,12 @@ function App(){
           <label>Texte du bouton
             <input value={project.introDesign?.buttonLabel??'Découvrir'} maxLength={INTRO_LIMITS.button} onChange={e=>patchIntroDesign({buttonLabel:e.target.value})}/>
           </label>
-          <label>Animation
+          <label>Forme du cadre du logo
+            <select value={project.introDesign?.logoShape??'original'} onChange={e=>patchIntroDesign({logoShape:e.target.value as IntroDesign['logoShape']})}>
+              {INTRO_LOGO_SHAPES.map(shape=><option key={shape.id} value={shape.id}>{shape.label}</option>)}
+            </select>
+          </label>
+          <label>Effet d’entrée
             <select value={project.introDesign?.animation??'fade'} onChange={e=>patchIntroDesign({animation:e.target.value as IntroDesign['animation']})}>
               {INTRO_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
             </select>

@@ -65,3 +65,11 @@
   .nv-native-intro:is(.is-anim-iris,.is-anim-curtain,.is-anim-sweep)::before,
   .nv-native-intro.is-anim-curtain::after{display:none}
 }
+
+.nv-native-intro .nv-ni-logo:is(.nv-ni-logo-round,.nv-ni-logo-square){
+  box-sizing:border-box;width:clamp(72px,29vmin,225px);height:clamp(72px,29vmin,225px);
+  max-height:none;flex:none;object-fit:contain;padding:clamp(9px,3.8vmin,32px);
+  background:#fcf8ea;box-shadow:0 15px 55px #091a1670;
+}
+.nv-native-intro .nv-ni-logo-round{border-radius:50%}
+.nv-native-intro .nv-ni-logo-square{border-radius:0}
