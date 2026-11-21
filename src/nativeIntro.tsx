@@ -23,6 +23,6 @@ export function NativeIntro({design,background,accent,durationSec,onDone}:{
     {design.logoDataUrl&&<img className="nv-ni-logo" src={design.logoDataUrl} alt=""/>}
     {design.title&&<h1 className="nv-ni-title">{design.title}</h1>}
     {design.subtitle&&<p className="nv-ni-sub">{design.subtitle}</p>}
-    <button type="button" className="nv-ni-button" onClick={onDone}>{design.buttonLabel||'Découvrir'}</button>
+    <button type="button" className="nv-ni-button" style={{color:readableOn(accent)}} onClick={onDone}>{design.buttonLabel||'Découvrir'}</button>
   </div>;
 }
