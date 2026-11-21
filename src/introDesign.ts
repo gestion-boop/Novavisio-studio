@@ -7,9 +7,10 @@ export const INTRO_STYLES: ReadonlyArray<{id: IntroStyleId; label: string}> = [
   {id:'luxe',label:'Luxe'},{id:'nature',label:'Nature'},{id:'moderne',label:'Moderne'},{id:'dynamique',label:'Dynamique'}
 ];
 export type IntroStyleId='premium'|'cinematic'|'minimal'|'luxe'|'nature'|'moderne'|'dynamique';
-export type IntroAnimation='fade'|'zoom'|'slide';
+export type IntroAnimation='fade'|'zoom'|'slide'|'iris'|'curtain'|'sweep';
 export const INTRO_ANIMATIONS: ReadonlyArray<{id: IntroAnimation; label: string}> = [
-  {id:'fade',label:'Fondu'},{id:'zoom',label:'Zoom doux'},{id:'slide',label:'Glissement'}
+  {id:'fade',label:'Fondu'},{id:'zoom',label:'Zoom doux'},{id:'slide',label:'Glissement'},
+  {id:'iris',label:'Ouverture iris'},{id:'curtain',label:'Ouverture rideau'},{id:'sweep',label:'Balayage diagonal'}
 ];
 export type IntroDesign = {
   enabled: boolean;

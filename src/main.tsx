@@ -5314,6 +5314,7 @@ function App(){
               {INTRO_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
             </select>
           </label>
+          <small className="hint-inline">L’iris, le rideau et le balayage révèlent le panorama de départ, puis le logo et le titre.</small>
           <div className="nv-brand-pack-actions">
             <button type="button" className="import" onClick={()=>logoInput.current?.click()}>{project.introDesign?.logoDataUrl?'Remplacer le logo':'Ajouter un logo'}</button>
             {project.introDesign?.logoDataUrl&&<button type="button" className="quiet" onClick={()=>patchIntroDesign({logoDataUrl:undefined})}>Retirer le logo</button>}
@@ -5725,7 +5726,7 @@ function App(){
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
-      <NativeIntro design={project.introDesign} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
+      <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
     </div>}
     {interestOpen&&<InterestDialog category={project.interestCategory} info={project.interestInfo??{}} points={project.interestPoints??[]}
       canPlace={!!activeId&&cameraRef.current.sceneId===activeId} onClose={()=>setInterestOpen(false)} onPlace={placeInterestPoint}

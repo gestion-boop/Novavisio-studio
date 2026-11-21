@@ -525,7 +525,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       <div className="nv-tour-startup-spinner" aria-hidden="true"/>
       <span>Préparation de votre visite immersive…</span>
     </div>}
-    {showIntro&&project&&nativeIntroActive(project)&&project.introDesign&&<NativeIntro design={project.introDesign}
+    {showIntro&&project&&nativeIntroActive(project)&&project.introDesign&&<NativeIntro design={project.introDesign} cover={current.dataUrl}
       background={project.barStyle.background} accent={project.barStyle.button} durationSec={introDurationSec(project)} onDone={endNativeIntro}/>}
     {showIntro&&project.introUrl&&<div className={"tour-intro"+(introEnding?" is-ending":"")}>
       <iframe title={'Introduction de '+project.name} src={project.introUrl}

@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {INTRO_STYLES,DEFAULT_INTRO_DESIGN,validateIntroDesign,nativeIntroActive,introDurationSec,INTRO_LIMITS} from '../src/introDesign';
+import {INTRO_STYLES,INTRO_ANIMATIONS,DEFAULT_INTRO_DESIGN,validateIntroDesign,nativeIntroActive,introDurationSec,INTRO_LIMITS} from '../src/introDesign';
 
 const ok={...DEFAULT_INTRO_DESIGN,enabled:true,title:'Ariya',subtitle:'Bien-être',styleId:'luxe' as const};
 describe('introduction native (logique pure)',()=>{
@@ -9,6 +9,12 @@ describe('introduction native (logique pure)',()=>{
   });
   it('accepte une introduction valide',()=>{
     expect(validateIntroDesign(ok).title).toBe('Ariya');
+  });
+  it('conserve les animations historiques et valide les nouvelles entrées',()=>{
+    for(const id of ['fade','zoom','slide','iris','curtain','sweep']){
+      expect(INTRO_ANIMATIONS.some(animation=>animation.id===id)).toBe(true);
+      expect(validateIntroDesign({...ok,animation:id}).animation).toBe(id);
+    }
   });
   it('refuse un style, une animation ou une longueur hors limites',()=>{
     expect(()=>validateIntroDesign({...ok,styleId:'inconnu'})).toThrow();
