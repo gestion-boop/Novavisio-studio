@@ -6158,6 +6158,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-toast{position:fixed;left:50%;top:74px;translate:-50% 0;z-index:260;display:flex;align-items:center;gap:12px;max-width:min(640px,92vw);padding:12px 14px 12px 18px;border:1px solid #6eb2ac;border-radius:14px;background:#153842;color:#e3fff6;font:600 13px/1.45 system-ui,sans-serif;box-shadow:0 14px 40px #000a;animation:nvToastIn .22s ease-out both}
 .nv-toast.is-error{border-color:#ff9b93;background:#4a1d1b;color:#ffe3e0}
 .nv-toast span{min-width:0;overflow-wrap:anywhere}
+/* La notification ne bloque jamais une commande dessous : seule sa croix reste cliquable. */
+.nv-toast{pointer-events:none}
+.nv-toast button:not(#nv-x){pointer-events:auto}
 .nv-toast button:not(#nv-x){flex:none;display:grid;place-items:center;width:28px;height:28px;padding:0;border-radius:8px;border:1px solid #ffffff40!important;background:transparent!important;background-image:none!important;color:inherit!important;box-shadow:none;cursor:pointer}
 .nv-toast button:not(#nv-x):hover{background:#ffffff22!important}
 .nv-toast button svg{width:14px;height:14px}
