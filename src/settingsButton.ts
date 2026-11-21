@@ -11,3 +11,12 @@ export function settingsButtonStyle(p:Pick<StudioProject,'settingsIconSize'|'set
   if(p.settingsIconColor)s['--nv-set-fg']=p.settingsIconColor;
   return s as CSSProperties;
 }
+
+/** Bouton Paramètres aux couleurs de la barre du bas : fond = couleur des boutons de la barre, icône = couleur des icônes.
+ *  Une couleur personnalisée du bouton (settingsColor / settingsIconColor) reste prioritaire. */
+export function settingsButtonBarStyle(p:Pick<StudioProject,'settingsIconSize'|'settingsIconZoom'|'settingsColor'|'settingsIconColor'>,bar:{button:string;icon:string}):CSSProperties{
+  const s=settingsButtonStyle(p) as Record<string,string>;
+  if(!p.settingsColor&&bar.button)s['--nv-set-bg']=bar.button;
+  if(!p.settingsIconColor&&bar.icon)s['--nv-set-fg']=bar.icon;
+  return s as CSSProperties;
+}

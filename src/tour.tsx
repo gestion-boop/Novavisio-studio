@@ -24,7 +24,7 @@ import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {PhotoGallery} from './PhotoGallery';
-import {settingsButtonStyle,settingsSize} from './settingsButton';
+import {settingsButtonBarStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
@@ -493,7 +493,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       })}
     </nav>}
     {!showIntro&&firstPanoramaReady&&<div className="nv-visitor-settings">
-      <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label={ui('settings',lang)} aria-expanded={settingsOpen} title={ui('settingsTitle',lang)} onClick={()=>setSettingsOpen(o=>!o)}>
+      <button type="button" style={settingsButtonBarStyle(project,theme)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label={ui('settings',lang)} aria-expanded={settingsOpen} title={ui('settingsTitle',lang)} onClick={()=>setSettingsOpen(o=>!o)}>
         {hasSettingsIcon?<IconStateVisual icons={project.icons??[]} normal={settingsIcon} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<Settings size={Math.round(settingsSize(project)*0.42)}/>}
       </button>
       {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label={ui('settings',lang)}>

@@ -55,7 +55,7 @@ import {autoIconZoom} from './iconFit';
 import {MediaLibraryPanel} from './MediaLibraryPanel';
 import {PhotoGallery} from './PhotoGallery';
 import {resolveLink} from './mediaLinks';
-import {settingsButtonStyle,settingsSize} from './settingsButton';
+import {settingsButtonBarStyle,settingsSize} from './settingsButton';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {ui,pick} from './i18n';
 import {TranslationInputs} from './TranslationFields';
@@ -4646,7 +4646,7 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} animation={videoZoom.openAnimation??project.windowAnimation} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" style={settingsButtonStyle(project)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label={ui('settings',visitorLang)} aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
+            <button type="button" style={settingsButtonBarStyle(project,project.barStyle??defaultBarStyle())} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label={ui('settings',visitorLang)} aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
             {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
               <strong>{ui('sound',visitorLang)}</strong>
               <div className="nv-vs-row">
