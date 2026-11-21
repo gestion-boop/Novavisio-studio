@@ -2821,6 +2821,17 @@ function App(){
     setProject(apply);
     setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé'+(applyTo?' et appliqué au popup sélectionné':'')+'. Enregistre avec la disquette.');
   }
+  function popupIconSettings(hotspot:Hotspot,kind:'image'|'video'){
+    const target={sceneId:activeId,pointId:hotspot.id};
+    return <>
+      <MediaIconSelector project={project} value={hotspot} kind={kind} label="Icône du popup" onChange={patchPoint}/>
+      <details className="nv-icons-library" key={target.sceneId+':'+target.pointId}>
+        <summary>Bibliothèque générale d’icônes</summary>
+        <GeneralIconLibrary applyLabel="à ce popup"
+          onAdd={(name,images,apply)=>createLibraryIconSet(name,images,apply?target:undefined)}/>
+      </details>
+    </>;
+  }
   // Jeux d'icônes déjà utilisés dans le projet (barre + points) : la même combinaison normal / survol / clic n'apparaît qu'une fois.
   type IconSet={key:string;iconId:string;hoverIconId?:string;pressedIconId?:string;size:number;users:string[]};
   function allIconSets():IconSet[]{
@@ -4366,7 +4377,7 @@ function App(){
                     {selected.type==='image'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
@@ -4387,7 +4398,7 @@ function App(){
                     {selected.type==='video'&&<>
                       <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                       <label>URL de la vidéo
@@ -4892,7 +4903,7 @@ function App(){
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
@@ -4927,7 +4938,7 @@ function App(){
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
                 {frameLoupe(selected)}
-                {isPopupMedia(selected)&&<MediaIconSelector project={project} value={selected} kind={selected.type} label="Icône du popup" onChange={patchPoint}/>}
+                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Choisir dans ma bibliothèque Photos & Vidéos (Drive, kDrive…)</button>
