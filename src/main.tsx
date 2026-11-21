@@ -34,7 +34,7 @@ import {InterestDialog} from './InterestDialog';
 import {ProjectSummaryDialog} from './ProjectSummaryDialog';
 import {urlForSuggestion,type Suggestion as InterestSuggestion} from './interestPoints';
 import {BRAND_ICON_SET} from './brandIconSet';
-import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
+import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LOGO_SHAPES,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
 import {EditMode,PanelTab,EmbedFrame,ensureFrameReferences,barColorFields,VISIT_MOTIFS,BarGlyph,safeLink,launchLink,startSceneId,FullscreenGalleryHoverPreview,Panorama} from './EditorPanorama';
 import {FrameLoupe} from './FrameLoupe';
 import {exportStaticTour} from './exportTour';
@@ -93,7 +93,7 @@ import {NotesPanel} from './NotesPanel';
 import {pngFromSvg} from './svgIcons';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
-import {refusesEmbedding,getFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,VIDEO_MAX_BYTES} from './storage';
+import {updateBarStyle,refusesEmbedding,getFloorPlans,loadProject,newProject,readImage,readPanorama,saveProject,projectJsonParts,readProjectFile,SaveConflictError,WINDOW_ANIMATIONS,type WindowAnimation,barIconSize,barHeightFor,withBarSize,uid,validateProject,defaultBar,isSafeIconDataUrl,type Hotspot,type CustomIcon,type BottomBarItem,type Scene,type StudioProject,type ProjectComment,type StudioLanguage,STUDIO_LANGUAGES,type BarStyle,defaultBarStyle,defaultFrameCorners,isSafeFrameImage,isSafeVideoData,isSafeAudioData,isSafeMediaUrl,VIDEO_MAX_BYTES} from './storage';
 import './style.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
@@ -1912,7 +1912,7 @@ function App(){
     '--nv-bar-height':Math.max(project.barStyle.height??82,project.bottomBar.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
   function changeBarStyle(update:Partial<BarStyle>) {
-    setProject(p=>({...p,barStyle:{...p.barStyle,...update}}));
+    setProject(p=>({...p,barStyle:updateBarStyle(p.barStyle,update)}));
   }
   function openLinkInTour(title:string,raw:string,mode?:'embed'|'tab',full?:boolean) {
     const link=safeLink(raw);
@@ -4633,7 +4633,7 @@ function App(){
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
           {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" data-hsort={!preview?'':undefined} aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
-              const icon=project.icons.find(i=>i.id===item.iconId);
+              const icon=!project.barStyle.useBarGlyphs&&project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
               return <div key={item.id} data-hsort-id={!preview?item.id:undefined} className={liveBarSort.drag===item.id?'nv-live-bar-dragging':undefined}><div className="nv-bar-sort-item">{!preview&&project.bottomBar.length>1&&liveBarSort.grip(item.id,item.title)}<button type="button" style={{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
@@ -5193,7 +5193,7 @@ function App(){
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
             {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
             {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
-            {!selectedBar.iconId && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
+            {(!selectedBar.iconId||project.barStyle.useBarGlyphs) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
               {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
             </select></label>}
             </InspectorSection>
@@ -5218,13 +5218,17 @@ function App(){
                 <span className="style-picker"><input type="color" value={project.barStyle[field.key]} aria-label={field.label} onChange={e=>changeBarStyle({[field.key]:e.target.value})}/><small>{project.barStyle[field.key]}</small></span>
               </label>)}
             </div>
+            {project.bottomBar.some(item=>item.iconId)&&<label className="toggle-row">
+              <input type="checkbox" checked={project.barStyle.useBarGlyphs===true} onChange={e=>changeBarStyle({useBarGlyphs:e.target.checked})}/>
+              Utiliser les couleurs de la barre avec les pictogrammes intégrés
+            </label>}
             <label>Épaisseur du contour de la barre : {project.barStyle.outlineWidth} px
               <input type="range" min="0" max="8" step="1" value={project.barStyle.outlineWidth} onChange={e=>changeBarStyle({outlineWidth:Number(e.target.value)})}/></label>
             <label>Épaisseur du contour des boutons : {project.barStyle.buttonOutlineWidth} px
               <input type="range" min="0" max="8" step="1" value={project.barStyle.buttonOutlineWidth} onChange={e=>changeBarStyle({buttonOutlineWidth:Number(e.target.value)})}/></label>
             <label>Arrondi de la barre : {project.barStyle.roundness} px
               <input type="range" min="0" max="60" step="1" value={project.barStyle.roundness} onChange={e=>changeBarStyle({roundness:Number(e.target.value)})}/></label>
-            <button type="button" className="style-reset" onClick={()=>changeBarStyle(defaultBarStyle())}>Restaurer les couleurs bordeaux et argent</button>
+            <button type="button" className="style-reset" onClick={()=>changeBarStyle({...defaultBarStyle(),useBarGlyphs:true})}>Restaurer les couleurs bordeaux et argent</button>
           </div>
 </>},
             {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/><label className="toggle-row"><input type="checkbox" checked={project.barIconTrim!==false} onChange={e=>setProject(p=>({...p,barIconTrim:e.target.checked}))}/> Remplir les boutons : rogner les marges transparentes des icônes (toutes à la même taille)</label></></>},
@@ -5310,11 +5314,17 @@ function App(){
           <label>Texte du bouton
             <input value={project.introDesign?.buttonLabel??'Découvrir'} maxLength={INTRO_LIMITS.button} onChange={e=>patchIntroDesign({buttonLabel:e.target.value})}/>
           </label>
-          <label>Animation
+          <label>Forme du cadre du logo
+            <select value={project.introDesign?.logoShape??'original'} onChange={e=>patchIntroDesign({logoShape:e.target.value as IntroDesign['logoShape']})}>
+              {INTRO_LOGO_SHAPES.map(shape=><option key={shape.id} value={shape.id}>{shape.label}</option>)}
+            </select>
+          </label>
+          <label>Effet d’entrée
             <select value={project.introDesign?.animation??'fade'} onChange={e=>patchIntroDesign({animation:e.target.value as IntroDesign['animation']})}>
               {INTRO_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
             </select>
           </label>
+          <small className="hint-inline">L’iris, le rideau et le balayage révèlent le panorama de départ, puis le logo et le titre.</small>
           <div className="nv-brand-pack-actions">
             <button type="button" className="import" onClick={()=>logoInput.current?.click()}>{project.introDesign?.logoDataUrl?'Remplacer le logo':'Ajouter un logo'}</button>
             {project.introDesign?.logoDataUrl&&<button type="button" className="quiet" onClick={()=>patchIntroDesign({logoDataUrl:undefined})}>Retirer le logo</button>}
@@ -5603,7 +5613,11 @@ function App(){
           </div>;
         })()}
         {panel==='icons' && <div className="properties nv-icons-panel">
-          {libraryFor?.startsWith('global-close')&&<div className="nv-close-config-box"><div className="section-title"><span>COULEUR DE LA CROIX</span></div>{closeColorControls()}</div>}
+          <div className="nv-close-config-box">
+            <div className="section-title"><span>COULEUR DE LA CROIX DE FERMETURE</span></div>
+            <p className="hint">Harmonise les croix de fermeture avec la charte graphique de cette visite.</p>
+            {closeColorControls()}
+          </div>
           <details className="nv-icons-library" open>
             <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
           <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
@@ -5722,7 +5736,7 @@ function App(){
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
-      <NativeIntro design={project.introDesign} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
+      <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
     </div>}
     {interestOpen&&<InterestDialog category={project.interestCategory} info={project.interestInfo??{}} points={project.interestPoints??[]}
       canPlace={!!activeId&&cameraRef.current.sceneId===activeId} onClose={()=>setInterestOpen(false)} onPlace={placeInterestPoint}

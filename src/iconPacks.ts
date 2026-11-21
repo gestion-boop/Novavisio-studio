@@ -16,6 +16,7 @@ export async function prepareIconPack(id:string,project:StudioProject){
     const icons=[...current.icons],mapping=new Map<string,string>();
     for(const item of generated){const existing=icons.find(icon=>icon.dataUrl===item.dataUrl);mapping.set(item.glyph,existing?.id??item.id);if(!existing)icons.push({id:item.id,name:item.name,dataUrl:item.dataUrl});}
     return validateProject({...current,icons,iconPackId:id,defaultPhotoIcon:{iconId:mapping.get('photo')!,iconSize:42},defaultVideoIcon:{iconId:mapping.get('video')!,iconSize:42},defaultNavigationIcon:{iconId:mapping.get('arrow')!,iconSize:40},favoriteNavigationIconSet:undefined,
+      barStyle:{...current.barStyle,useBarGlyphs:false},
       bottomBar:current.bottomBar.map(item=>({...item,iconId:mapping.get(glyphMap[item.builtinIcon??'info']??'info'),hoverIconId:undefined,pressedIconId:undefined}))});
   };
 }

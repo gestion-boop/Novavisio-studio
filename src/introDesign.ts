@@ -7,10 +7,16 @@ export const INTRO_STYLES: ReadonlyArray<{id: IntroStyleId; label: string}> = [
   {id:'luxe',label:'Luxe'},{id:'nature',label:'Nature'},{id:'moderne',label:'Moderne'},{id:'dynamique',label:'Dynamique'}
 ];
 export type IntroStyleId='premium'|'cinematic'|'minimal'|'luxe'|'nature'|'moderne'|'dynamique';
-export type IntroAnimation='fade'|'zoom'|'slide';
+export type IntroAnimation='fade'|'zoom'|'slide'|'iris'|'curtain'|'sweep';
 export const INTRO_ANIMATIONS: ReadonlyArray<{id: IntroAnimation; label: string}> = [
-  {id:'fade',label:'Fondu'},{id:'zoom',label:'Zoom doux'},{id:'slide',label:'Glissement'}
+  {id:'fade',label:'Fondu'},{id:'zoom',label:'Zoom doux'},{id:'slide',label:'Glissement'},
+  {id:'iris',label:'Ouverture iris'},{id:'curtain',label:'Ouverture rideau'},{id:'sweep',label:'Balayage diagonal'}
 ];
+export const INTRO_LOGO_SHAPES = [
+  {id:'original',label:'Par défaut'}, {id:'round',label:'Rond'}, {id:'square',label:'Carré'}
+] as const;
+export type IntroLogoShape = typeof INTRO_LOGO_SHAPES[number]['id'];
+
 export type IntroDesign = {
   enabled: boolean;
   styleId: IntroStyleId;
@@ -19,6 +25,7 @@ export type IntroDesign = {
   buttonLabel: string;
   animation: IntroAnimation;
   logoDataUrl?: string;
+  logoShape?: IntroLogoShape;
 };
 export const INTRO_LIMITS={title:80,subtitle:160,button:30,logoChars:1_500_000} as const;
 export const DEFAULT_INTRO_DESIGN: IntroDesign={enabled:false,styleId:'premium',title:'',subtitle:'',buttonLabel:'Découvrir',animation:'fade'};
@@ -33,6 +40,7 @@ export function validateIntroDesign(v: unknown): IntroDesign {
   if(typeof d.title!=='string'||d.title.length>INTRO_LIMITS.title) throw new Error('Titre d’introduction trop long');
   if(typeof d.subtitle!=='string'||d.subtitle.length>INTRO_LIMITS.subtitle) throw new Error('Sous-titre d’introduction trop long');
   if(typeof d.buttonLabel!=='string'||d.buttonLabel.length>INTRO_LIMITS.button) throw new Error('Libellé du bouton trop long');
+  if(d.logoShape!==undefined&&!INTRO_LOGO_SHAPES.some(shape=>shape.id===d.logoShape)) throw new Error('Forme du logo invalide');
   if(d.logoDataUrl!==undefined&&(typeof d.logoDataUrl!=='string'||d.logoDataUrl.length>INTRO_LIMITS.logoChars||!LOGO.test(d.logoDataUrl)))
     throw new Error('Logo d’introduction invalide (PNG, JPG ou WebP, 1 Mo maximum)');
   return {...DEFAULT_INTRO_DESIGN,...d};

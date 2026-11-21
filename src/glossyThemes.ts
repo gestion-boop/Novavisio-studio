@@ -80,7 +80,7 @@ export async function applyGlossyTheme(project: StudioProject, theme: GlossyThem
       defaultNavigationIcon: {...packs.get('arrow')!, iconSize: project.defaultNavigationIcon?.iconSize ?? 40},
       defaultPhotoIcon: {...packs.get('camera')!, iconSize: project.defaultPhotoIcon?.iconSize ?? 40},
     } : {}),
-    barStyle: {...project.barStyle, ...theme.bar},
+    barStyle: {...project.barStyle, ...theme.bar, useBarGlyphs:false},
     glossyStyle: style,
     ...(theme.vr ? {vrEnabled: true, vrMenu: theme.vr} : {}),
     icons: [...project.icons, ...icons],

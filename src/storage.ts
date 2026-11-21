@@ -56,6 +56,7 @@ export type BarStyle = {
   background: string;
   outline: string;
   button: string;
+  useBarGlyphs?: boolean;
   buttonOutline: string;
   icon: string;
   dayNightColor?: string;
@@ -66,10 +67,18 @@ export type BarStyle = {
   height?: number;
 };
 export const defaultBarStyle = ():BarStyle => ({
+  useBarGlyphs:false,
   background:'#c2c5c6', outline:'#987974',button:'#5d131a',
   buttonOutline:'#4a1518',icon:'#f4d69a',dayNightColor:'#2f72b4',
   outlineWidth:2,buttonOutlineWidth:1,roundness:60
 });
+/** Une couleur sélectionnée manuellement utilise les pictogrammes intégrés.
+ * Les images du pack restent disponibles pour rétablir son apparence.
+ */
+export function updateBarStyle(style:BarStyle,update:Partial<BarStyle>):BarStyle {
+  return {...style,...update,useBarGlyphs:update.useBarGlyphs??(update.button!==undefined||style.useBarGlyphs===true)};
+}
+
 /** Une vignette de la galerie : panorama + nom affiché (vide = nom du panorama). */
 export type GalleryItem = { sceneId: string; label: string };
 export type BottomBarItem = {
@@ -358,7 +367,7 @@ export function validateProject(value:unknown):StudioProject {
   const barStyle = {...defaultBarStyle(),...(p.barStyle ?? {})};
   const isColor = (v:unknown)=>typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v);
   if (!isColor(barStyle.background) || !isColor(barStyle.outline) ||
-      !isColor(barStyle.button) || !isColor(barStyle.buttonOutline) || !isColor(barStyle.icon) || !isColor(barStyle.dayNightColor) ||
+      typeof barStyle.useBarGlyphs!=='boolean' || !isColor(barStyle.button) || !isColor(barStyle.buttonOutline) || !isColor(barStyle.icon) || !isColor(barStyle.dayNightColor) ||
       !Number.isInteger(barStyle.outlineWidth) || barStyle.outlineWidth < 0 || barStyle.outlineWidth > 8 ||
       !Number.isInteger(barStyle.buttonOutlineWidth) || barStyle.buttonOutlineWidth < 0 || barStyle.buttonOutlineWidth > 8 ||
       !Number.isInteger(barStyle.roundness) || barStyle.roundness < 0 || barStyle.roundness > 60 ||
