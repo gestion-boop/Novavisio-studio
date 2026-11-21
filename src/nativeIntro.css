@@ -67,7 +67,8 @@
   max-height:none;flex:none;object-fit:contain;padding:clamp(9px,3.8vmin,32px);
   background:#fcf8ea;box-shadow:0 15px 55px #091a1670;
 }
-.nv-native-intro .nv-ni-logo.nv-ni-logo-round{border-radius:50%;object-fit:cover;padding:0}
+.nv-native-intro .nv-ni-logo.nv-ni-logo-round{border-radius:50%;object-fit:contain;object-position:center;padding:clamp(13px,7.1vmin,50px)}
+.nv-native-intro .nv-ni-logo.nv-ni-logo-round.nv-ni-logo-fitted{padding:0}
 .nv-native-intro .nv-ni-logo-square{border-radius:0}
 
 /* Chaque ouverture a son mouvement de caméra et son rythme de titrage. */
@@ -110,7 +111,7 @@
   --ni-hero-gap:clamp(8px,2vmin,20px);
 }
 .nv-ni-staged .nv-ni-logo{
-  position:absolute;inset:0;margin:auto;width:var(--ni-hero-size);max-height:var(--ni-hero-size);
+  position:absolute;top:50%;left:50%;translate:-50% -50%;margin:0;width:var(--ni-hero-size);max-height:var(--ni-hero-size);
 }
 .nv-ni-staged .nv-ni-logo:is(.nv-ni-logo-round,.nv-ni-logo-square){
   width:var(--ni-hero-size);height:var(--ni-hero-size);

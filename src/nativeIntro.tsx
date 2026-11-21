@@ -18,10 +18,11 @@ export function NativeIntro({design,background,accent,cover,durationSec,onDone}:
   useEffect(()=>{
     if(!roundLogo)return;
     let active=true;
-    void trimIcon(roundLogo).then(src=>{if(active)setTrimmed({original:roundLogo,src});});
+    void trimIcon(roundLogo,true).then(src=>{if(active)setTrimmed({original:roundLogo,src});});
     return ()=>{active=false;};
   },[roundLogo]);
-  const logo=roundLogo&&trimmed?.original===roundLogo?trimmed.src:design.logoDataUrl;
+  const circleFitted=!!roundLogo&&trimmed?.original===roundLogo&&trimmed.src!==roundLogo;
+  const logo=circleFitted?trimmed.src:design.logoDataUrl;
   useEffect(()=>{
     const ms=Math.max(2,Math.min(60,durationSec))*1000;
     const fade=Math.min(350,ms/4);
@@ -36,7 +37,7 @@ export function NativeIntro({design,background,accent,cover,durationSec,onDone}:
     style={{'--ni-bg':background,'--ni-accent':accent,'--ni-text':text} as React.CSSProperties}>
     {design.animation==='iris'&&<IntroIris/>}
     {hasCover&&<div className="nv-ni-cover" aria-hidden="true"><img src={cover} alt=""/></div>}
-    {logo&&<img className={'nv-ni-logo nv-ni-logo-'+(design.logoShape??'original')} src={logo} alt=""/>}
+    {logo&&<img className={'nv-ni-logo nv-ni-logo-'+(design.logoShape??'original')+(circleFitted?' nv-ni-logo-fitted':'')} src={logo} alt=""/>}
     <div className="nv-ni-copy">
       {design.title&&<h1 className="nv-ni-title">{design.title}</h1>}
       {design.subtitle&&<p className="nv-ni-sub">{design.subtitle}</p>}
