@@ -16,8 +16,8 @@ const TEAM_ID = 'team_Xexdj7soTgzYhrqGogr15lzZ';
 const PROJECT_ID = 'prj_DoDglHb9ubtymhaxvSMNr8pHOTSa';
 const REPO_ID = 1451961082;
 
-const sha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
-const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+const sha = process.env.GITHUB_SHA || execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+const branch = process.env.GITHUB_REF_NAME || execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
 
 console.log(`🚀 Déclenchement déploiement Vercel pour ${sha.slice(0, 7)} (${branch})...`);
 
