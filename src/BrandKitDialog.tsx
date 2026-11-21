@@ -5,6 +5,7 @@ import {XMark} from './XMark';
 import {buildPack,svgToPng,composeCustomIcon,ICON_SHAPES,PACK_SIZE,ICON_STATES,type IconShape} from './brandIcons';
 import {supabase,readLink,cloudConfigured} from './cloud';
 import {publishPack,listLibrarySets,copyToProject,type LibrarySet} from './iconLibrary';
+import {buildGlossyPack} from './glossyPack';
 
 /**
  * Fenêtre « Charte graphique » (NovaStudio AI — phase 1).
@@ -21,6 +22,7 @@ export function BrandKitDialog({current,onApply,onClose,iconCount,onAddIcons}:{
   const [libSets,setLibSets]=useState<LibrarySet[]|null>(null);
   const [libMsg,setLibMsg]=useState('');
   const [libBusy,setLibBusy]=useState('');
+  const [packStyle,setPackStyle]=useState<'plat'|'glossy'>('plat');
   const [shape,setShape]=useState<IconShape>('circle');
   const [packBusy,setPackBusy]=useState('');
   const [packMsg,setPackMsg]=useState('');
@@ -83,12 +85,16 @@ export function BrandKitDialog({current,onApply,onClose,iconCount,onAddIcons}:{
           className={'nv-brand-style'+(shape===s.id?' is-on':'')} onClick={()=>setShape(s.id)}>{s.label}</button>)}
       </div>
       <p className="hint-inline">Même dessin pour les trois états : seule la lumière change. Noms normalisés : <code>reservation_normal.png</code>, <code>reservation_hover.png</code>, <code>reservation_pressed.png</code>.</p>
+      <div className="nv-brand-styles" role="group" aria-label="Style des icônes">
+        {([['plat','Plat (forme au choix)'],['glossy','Glossy (brillant)']] as const).map(([id,label])=>
+          <button key={id} type="button" aria-pressed={packStyle===id} className={'nv-brand-style'+(packStyle===id?' is-on':'')} onClick={()=>setPackStyle(id)}>{label}</button>)}
+      </div>
       <div className="nv-brand-library">
         <button type="button" className="quiet" disabled={!!libBusy||!!packBusy}
           onClick={async()=>{
             setLibBusy('Création du pack…');setLibMsg('');
             try{
-              const files=buildPack(colors,shape);const out:Array<{id:string;name:string;dataUrl:string}>=[];
+              const out:Array<{id:string;name:string;dataUrl:string}>=[];const files=packStyle==='glossy'?[]:buildPack(colors,shape);if(packStyle==='glossy'){out.push(...(await buildGlossyPack(colors,shape)).map(i=>({id:i.id,name:i.name,dataUrl:i.dataUrl})));}
               for(let i=0;i<files.length;i++){
                 setLibBusy(`Création des icônes ${i+1} / ${files.length}…`);
                 const f=files[i];
@@ -99,7 +105,7 @@ export function BrandKitDialog({current,onApply,onClose,iconCount,onAddIcons}:{
               setLibMsg(n+' images publiées dans la bibliothèque générale.');
             }catch(e){setLibMsg('Publication impossible : '+(e instanceof Error?e.message:String(e)));}
             finally{setLibBusy('');}
-          }}>{libBusy||'Publier ce pack dans la bibliothèque générale'}</button>
+          }}>{libBusy||'Appliquer le thème du projet'}</button>
         <button type="button" className="quiet" disabled={!!libBusy}
           onClick={async()=>{
             setLibBusy('Lecture de la bibliothèque…');setLibMsg('');
