@@ -1,3 +1,4 @@
+import {barUsesIconImage} from './storage';
 import type {CSSProperties} from 'react';
 import {Home,Info,CalendarDays,MapPin,Phone,Globe,ArrowRight,Menu,Star,Utensils,Images,LayoutGrid} from 'lucide-react';
 import {barIconSize,barHeightFor,type StudioProject} from './storage';
@@ -12,7 +13,7 @@ export function SetupBarPreview({project}:{project:StudioProject}){
     '--nv-bar-width':theme.width?theme.width+'px':'max-content','--nv-bar-height':Math.max(theme.height??82,project.bottomBar.length?barHeightFor(project.bottomBar):0)+'px'} as CSSProperties;
   return <div className="nv-setup-preview-panel" style={vars}><small>Aperçu en direct</small>
     <nav className="visitor-bottom-bar nv-setup-live-bar" aria-label="Aperçu en direct de la barre">{project.bottomBar.map(item=>{
-      const custom=!theme.useBarGlyphs&&project.icons.some(icon=>icon.id===item.iconId),Glyph=glyphs[item.builtinIcon as keyof typeof glyphs]??Info;
+      const custom=barUsesIconImage(theme,item)&&project.icons.some(icon=>icon.id===item.iconId),Glyph=glyphs[item.builtinIcon as keyof typeof glyphs]??Info;
       return <button type="button" key={item.id} aria-label={'Aperçu : '+item.title} title={item.title} className={'visitor-bar-button '+(custom?'has-custom-png':'')}
         style={{'--nv-bar-btn':(barIconSize(item)+(custom?0:10))+'px'} as CSSProperties}>
         <span className="visitor-bar-icon">{custom?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<Glyph size={29} strokeWidth={1.9} aria-hidden="true"/>}</span>

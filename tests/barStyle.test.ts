@@ -44,3 +44,15 @@ it('applique les réglages de contour et de pictogramme aux boutons',()=>{
     expect(updateBarStyle(defaultBarStyle(),update).useBarGlyphs).toBe(true);
   }
 });
+
+it('affiche l’icône personnalisée d’un bouton sans désactiver les couleurs des autres',()=>{
+  const project=newProject();
+  const icon={id:'library',name:'Accueil',dataUrl:'data:image/png;base64,AAAA'};
+  project.icons=[icon];
+  project.bottomBar=project.bottomBar.slice(0,2).map((item,index)=>({
+    ...item,iconId:icon.id,useCustomIcon:index===0
+  }));
+  project.barStyle=updateBarStyle(project.barStyle,{button:'#224a95'});
+  const markup=renderToStaticMarkup(createElement(SetupBarPreview,{project:validateProject(project)}));
+  expect(markup.match(/has-custom-png/g)).toHaveLength(1);
+});

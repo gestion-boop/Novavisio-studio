@@ -83,7 +83,10 @@ export function updateBarStyle(style:BarStyle,update:Partial<BarStyle>):BarStyle
 
 /** Une vignette de la galerie : panorama + nom affiché (vide = nom du panorama). */
 export type GalleryItem = { sceneId: string; label: string };
+export const barUsesIconImage=(style:BarStyle,item:BottomBarItem)=>!style.useBarGlyphs||item.useCustomIcon===true;
+
 export type BottomBarItem = {
+  useCustomIcon?: boolean;
   id: string;
   /** Zoom de l'icône dans son bouton (100–250 %) : compense les marges transparentes de l'image. */
   iconZoom?: number;
@@ -400,6 +403,7 @@ export function validateProject(value:unknown):StudioProject {
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||
       (item.translations!==undefined && (typeof item.translations!=='object' || item.translations===null || Object.entries(item.translations).some(([lang,txt])=>!['en','es','de','nl'].includes(lang)||typeof txt!=='string'||txt.length>8000))) ||
+      (item.useCustomIcon!==undefined&&typeof item.useCustomIcon!=='boolean') ||
       (item.iconId !== undefined && (typeof item.iconId !== 'string' || !icons.some(icon => icon.id === item.iconId))) ||
       (item.hoverIconId !== undefined && (typeof item.hoverIconId !== 'string' || !icons.some(icon => icon.id === item.hoverIconId))) ||
       (item.pressedIconId !== undefined && (typeof item.pressedIconId !== 'string' || !icons.some(icon => icon.id === item.pressedIconId))) ||

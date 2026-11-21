@@ -1,3 +1,4 @@
+import {barUsesIconImage} from './storage';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
@@ -87,6 +88,7 @@ import {SpacesActions} from './SpacesActions';
 import {mergeImportedSpaces} from './spaceTransfer';
 import {rememberMedia} from './mediaLibrary';
 import {IconLibrary,buildIconSets} from './IconLibrary';
+import {GeneralIconLibrary} from './GeneralIconLibrary';
 import type {IconSetImages} from './IconSetCreator';
 import {ExistingIconPackPicker} from './ExistingIconPackPicker';
 import {NotesPanel} from './NotesPanel';
@@ -2787,7 +2789,8 @@ function App(){
   // Création d'un pack depuis la bibliothèque ou directement depuis « Icône du popup ».
   // L'import et l'application au point se font dans UNE mise à jour du projet.
   async function createLibraryIconSet(
-    name:string,images:IconSetImages,applyTo?:{sceneId:string;pointId:string}
+    name:string,images:IconSetImages,applyTo?:{sceneId:string;pointId:string},
+    generalTarget?:{barId:string}|{sceneId:string;pointId:string}|{close:true}
   ):Promise<void>{
     const label=name.trim().replace(/[\\/]/g,' ').trim();
     if(!label||label.length>100)throw Error('Donne un nom au pack (100 caractères maximum).');
@@ -2803,12 +2806,19 @@ function App(){
       id:uid(),name:label+' · '+suffix,dataUrl:images[state]
     }));
     const patch={iconId:added[0].id,hoverIconId:added[1].id,pressedIconId:added[2].id};
-    const updateScenes=(scenes:Scene[])=>applyTo?scenes.map(sc=>sc.id!==applyTo.sceneId?sc:{
-      ...sc,hotspots:sc.hotspots.map(h=>h.id===applyTo.pointId?{...h,...patch}:h)
-    }):scenes;
-    const nextIcons=[...project.icons,...added];
-    validateProject({...project,icons:nextIcons,scenes:updateScenes(project.scenes)});
-    setProject(p=>({...p,icons:[...p.icons,...added],scenes:updateScenes(p.scenes)}));
+    const point=applyTo??(generalTarget&&'pointId' in generalTarget?generalTarget:undefined);
+    const apply=(p:StudioProject):StudioProject=>({...p,icons:[...p.icons,...added],
+      scenes:point?p.scenes.map(sc=>sc.id!==point.sceneId?sc:{
+        ...sc,hotspots:sc.hotspots.map(h=>h.id===point.pointId?{...h,...patch}:h)
+      }):p.scenes,
+      bottomBar:generalTarget&&'barId' in generalTarget?p.bottomBar.map(item=>item.id===generalTarget.barId?
+        {...item,...patch,useCustomIcon:true}:item):p.bottomBar,
+      ...(generalTarget&&'close' in generalTarget?{
+        closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId
+      }:{})
+    });
+    validateProject(apply(project));
+    setProject(apply);
     setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé'+(applyTo?' et appliqué au popup sélectionné':'')+'. Enregistre avec la disquette.');
   }
   // Jeux d'icônes déjà utilisés dans le projet (barre + points) : la même combinaison normal / survol / clic n'apparaît qu'une fois.
@@ -4633,7 +4643,7 @@ function App(){
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
           {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" data-hsort={!preview?'':undefined} aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
-              const icon=!project.barStyle.useBarGlyphs&&project.icons.find(i=>i.id===item.iconId);
+              const icon=barUsesIconImage(project.barStyle,item)&&project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
               return <div key={item.id} data-hsort-id={!preview?item.id:undefined} className={liveBarSort.drag===item.id?'nv-live-bar-dragging':undefined}><div className="nv-bar-sort-item">{!preview&&project.bottomBar.length>1&&liveBarSort.grip(item.id,item.title)}<button type="button" style={{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
@@ -5193,7 +5203,7 @@ function App(){
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
             {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
             {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
-            {(!selectedBar.iconId||project.barStyle.useBarGlyphs) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
+            {(!selectedBar.iconId||!barUsesIconImage(project.barStyle,selectedBar)) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
               {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
             </select></label>}
             </InspectorSection>
@@ -5627,6 +5637,15 @@ function App(){
           </div>;
         })()}
         {panel==='icons' && <div className="properties nv-icons-panel">
+          <details className="nv-icons-library">
+            <summary>Bibliothèque générale · créer des icônes personnalisées</summary>
+            <GeneralIconLibrary
+              applyLabel={libraryFor?.startsWith('global-close')?'à la croix de fermeture':selectedBar?'au bouton sélectionné':active&&selected?'au point sélectionné':undefined}
+              onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?(
+                libraryFor?.startsWith('global-close')?{close:true}:selectedBar?{barId:selectedBar.id}:
+                active&&selected?{sceneId:active.id,pointId:selected.id}:undefined
+              ):undefined)}/>
+          </details>
           <div className="nv-close-config-box">
             <div className="section-title"><span>COULEUR DE LA CROIX DE FERMETURE</span></div>
             <p className="hint">Harmonise les croix de fermeture avec la charte graphique de cette visite.</p>
