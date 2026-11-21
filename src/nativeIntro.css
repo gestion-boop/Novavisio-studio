@@ -69,3 +69,37 @@
 }
 .nv-native-intro .nv-ni-logo.nv-ni-logo-round{border-radius:50%;object-fit:cover;padding:0}
 .nv-native-intro .nv-ni-logo-square{border-radius:0}
+
+/* Chaque ouverture a son mouvement de caméra et son rythme de titrage. */
+.nv-ni-staged{--ni-logo-time:.62s;--ni-title-time:.86s;--ni-copy-time:1.02s;--ni-button-time:1.2s}
+.nv-ni-staged.is-anim-curtain{--ni-logo-time:.48s;--ni-title-time:.72s;--ni-copy-time:.94s;--ni-button-time:1.12s}
+.nv-ni-staged.is-anim-sweep{--ni-logo-time:.69s;--ni-title-time:.81s;--ni-copy-time:.99s;--ni-button-time:1.17s}
+.nv-ni-staged .nv-ni-logo{
+  animation:nvNiResolve .8s var(--ni-logo-time) cubic-bezier(.18,.7,.25,1) both;
+}
+.nv-ni-staged .nv-ni-title{
+  animation:nvNiTitle .76s var(--ni-title-time) cubic-bezier(.18,.7,.25,1) both;
+  text-shadow:0 4px 28px #0008;
+}
+.nv-ni-staged .nv-ni-sub{animation-delay:var(--ni-copy-time)}
+.nv-ni-staged .nv-ni-button{animation-delay:var(--ni-button-time)}
+.nv-ni-staged.is-ending .nv-ni-cover{opacity:0}
+.nv-ni-cover{transition:opacity .35s ease}
+.is-anim-curtain .nv-ni-cover img{animation-name:nvNiDolly}
+.is-anim-sweep .nv-ni-cover img{animation-name:nvNiTrack}
+@keyframes nvNiDolly{
+  from{transform:scale(1.02)}
+  to{transform:scale(1.12)}
+}
+@keyframes nvNiTrack{
+  from{transform:translateX(4%) scale(1.14)}
+  to{transform:translateX(-3%) scale(1.09)}
+}
+@keyframes nvNiResolve{
+  from{opacity:0;transform:scale(.88);filter:blur(7px)}
+  to{opacity:1;transform:none;filter:none}
+}
+@keyframes nvNiTitle{
+  from{opacity:0;transform:translateY(14px);clip-path:inset(0 0 100% 0)}
+  to{opacity:1;transform:none;clip-path:inset(-.15em -1em -.22em -1em)}
+}
