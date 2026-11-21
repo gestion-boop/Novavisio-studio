@@ -103,3 +103,22 @@
   from{opacity:0;transform:translateY(14px);clip-path:inset(0 0 100% 0)}
   to{opacity:1;transform:none;clip-path:inset(-.15em -1em -.22em -1em)}
 }
+
+.nv-ni-copy{display:contents}
+.nv-ni-staged:has(.nv-ni-logo){
+  --ni-hero-size:min(48vmin,38dvh,340px);
+  --ni-hero-gap:clamp(8px,2vmin,20px);
+}
+.nv-ni-staged .nv-ni-logo{
+  position:absolute;inset:0;margin:auto;width:var(--ni-hero-size);max-height:var(--ni-hero-size);
+}
+.nv-ni-staged .nv-ni-logo:is(.nv-ni-logo-round,.nv-ni-logo-square){
+  width:var(--ni-hero-size);height:var(--ni-hero-size);
+}
+.nv-ni-staged:has(.nv-ni-logo) .nv-ni-copy{
+  position:absolute;inset-inline:5%;top:calc(50% + var(--ni-hero-size)/2 + var(--ni-hero-gap));bottom:8px;
+  display:flex;flex-direction:column;align-items:center;gap:clamp(4px,1vmin,11px);
+  overflow:auto;
+}
+.nv-ni-staged:has(.nv-ni-logo) .nv-ni-title{font-size:clamp(21px,5.3vmin,50px)}
+.nv-ni-staged:has(.nv-ni-logo) .nv-ni-button{padding:clamp(6px,1.5vmin,14px) clamp(15px,4vmin,30px)}

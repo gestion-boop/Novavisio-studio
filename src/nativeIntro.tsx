@@ -37,8 +37,10 @@ export function NativeIntro({design,background,accent,cover,durationSec,onDone}:
     {design.animation==='iris'&&<IntroIris/>}
     {hasCover&&<div className="nv-ni-cover" aria-hidden="true"><img src={cover} alt=""/></div>}
     {logo&&<img className={'nv-ni-logo nv-ni-logo-'+(design.logoShape??'original')} src={logo} alt=""/>}
-    {design.title&&<h1 className="nv-ni-title">{design.title}</h1>}
-    {design.subtitle&&<p className="nv-ni-sub">{design.subtitle}</p>}
-    <button type="button" className="nv-ni-button" style={{color:readableOn(accent)}} onClick={onDone}>{design.buttonLabel||'Découvrir'}</button>
+    <div className="nv-ni-copy">
+      {design.title&&<h1 className="nv-ni-title">{design.title}</h1>}
+      {design.subtitle&&<p className="nv-ni-sub">{design.subtitle}</p>}
+      <button type="button" className="nv-ni-button" style={{color:readableOn(accent)}} onClick={onDone}>{design.buttonLabel||'Découvrir'}</button>
+    </div>
   </div>;
 }
