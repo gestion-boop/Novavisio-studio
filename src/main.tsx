@@ -3640,7 +3640,6 @@ function App(){
           <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setVrMenuOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Eye size={17}/> Vue casque</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setAiAssistantOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}} title="NovaStudio AI — Création intelligente"><span className="nv-drawer-item-label"><Sparkles size={17} color="#38bdf8"/> NovaStudio AI</span></button>
-          <button type="button" className="nv-client-top-btn" onClick={()=>{setPreparationOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Sparkles size={17}/> Préparer le projet</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
             <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
           </button>
@@ -3657,15 +3656,6 @@ function App(){
               </button>
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
                 <Plus size={16}/><span>Nouveau projet vierge</span>
-              </button>
-              <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setSummaryOpen(true);}}>
-                <Sparkles size={16}/><span>Synthèse avant publication (NovaStudio AI)</span>
-              </button>
-              <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setInterestOpen(true);}}>
-                <Sparkles size={16}/><span>Points d’information (NovaStudio AI)</span>
-              </button>
-              <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setBrandOpen(true);}}>
-                <Sparkles size={16}/><span>Charte graphique (NovaStudio AI)</span>
               </button>
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);projectInput.current?.click();}}>
                 <Download size={16}/><span>Ouvrir un projet</span>
