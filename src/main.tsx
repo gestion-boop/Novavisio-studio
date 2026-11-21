@@ -69,7 +69,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,openCloudProject,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -2846,6 +2846,8 @@ function App(){
         onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?target:undefined)}/>
     </details>;
   }
+  /** Ouvre une visite cloud dans l'éditeur (panneau Cloud et fiche client). */
+  const openCloudVisit=(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);};
   function popupIconSettings(hotspot:Hotspot,kind:'image'|'video'){
     const target={sceneId:activeId,pointId:hotspot.id};
     return <>
@@ -5754,6 +5756,11 @@ function App(){
       </aside>
     </div>
     {clientOpen&&<ClientsDirectory
+      onOpenProject={async(projectId:string)=>{
+        if(projectRef.current!==savedRef.current&&!await confirmAsk('Des modifications du projet actuel ne sont pas encore enregistrées. Ouvrir ce projet sans sauvegarder ces modifications ?'))return;
+        try{const loaded=await openCloudProject(projectId,()=>{});writeLink(loaded.link);openCloudVisit(loaded.project,loaded.link);setClientOpen(false);}
+        catch(e){setStatus('Ouverture impossible : '+(e instanceof Error?e.message:String(e)));}
+      }}
       currentProjectName={project.name}
       currentProfile={project.clientProfile}
       canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
@@ -5901,7 +5908,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
+      onOpen={openCloudVisit}/>}
     {saveWarning&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSaveWarning(null);}}>
       <section className="modal" role="alertdialog" aria-modal="true" aria-label="Sauvegarde impossible" onClick={e=>e.stopPropagation()}>
         <h2>⚠ Sauvegarde impossible</h2>

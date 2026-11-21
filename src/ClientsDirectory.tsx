@@ -26,12 +26,12 @@ const safeRemoteUrl=(s:string)=>{
 };
 const blankProfile:ClientProfile={novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''};
 
-export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit,currentStyle,onUpdateCurrent,onLaunchAiAssistant}:{
+export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit,currentStyle,onUpdateCurrent,onLaunchAiAssistant,onOpenProject}:{
  currentStyle?:Palette;onUpdateCurrent?:(profile:ClientProfile|undefined,style?:Palette)=>void;
  currentHasProject?:boolean;onSaveDiscovered:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>,visitName?:string)=>void;
  currentProjectName:string;currentProfile?:ClientProfile;
  canPlaceVideo:boolean;onPlaceVideo:(video:ImportedClientVideo)=>void;
- onClose:()=>void;onAssociate:(profile:ClientProfile)=>void;onOpenCloud:()=>void;
+ onClose:()=>void;onAssociate:(profile:ClientProfile)=>void;onOpenCloud:()=>void;onOpenProject?:(projectId:string)=>void;
  onLaunchAiAssistant?:()=>void;
 }){
  const [studio,setStudio]=useState<CloudProject[]>([]);
@@ -354,6 +354,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
                 <div><strong>{pr.name}</strong>
                   <small>Dernière activité : {new Date(pr.updated_at).toLocaleDateString('fr-FR')}</small></div>
                 {pr.autosave&&<span>Sauvegardé</span>}
+                {onOpenProject&&<button type="button" className="nv-directory-associate" onClick={()=>onOpenProject(pr.id)}>Ouvrir</button>}
               </div>)}
               {!selected.projects.length&&<p className="nv-directory-muted">Aucun projet Studio enregistré pour ce client.</p>}
               <button className="nv-directory-secondary-action" type="button" onClick={onOpenCloud}>
