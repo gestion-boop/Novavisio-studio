@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import './nativeIntro.css';
-import {introWelcomeColor,type IntroDesign} from './introDesign';
+import {INTRO_DEFAULT_COLORS,introWelcomeColor,type IntroDesign} from './introDesign';
 import {readableOn} from './brandKit';
 import {trimIcon} from './iconFit';
 import {IntroIris} from './introIris';
@@ -9,8 +9,8 @@ import {IntroIris} from './introIris';
  * Introduction native : texte, logo, style et animation. Durée stricte, bouton « Découvrir » pour passer tout de suite.
  * Aucun réseau : seul le logo (déjà dans le projet) est affiché. Respecte le mouvement réduit.
  */
-export function NativeIntro({design,background,accent,cover,durationSec,onDone}:{
-  design:IntroDesign;background:string;accent:string;cover?:string;durationSec:number;onDone:()=>void;
+export function NativeIntro({design,cover,durationSec,onDone}:{
+  design:IntroDesign;cover?:string;durationSec:number;onDone:()=>void;
 }){
   const intro=useRef<HTMLDivElement>(null);
   const roundLogo=design.logoShape==='round'?design.logoDataUrl:undefined;
@@ -32,8 +32,10 @@ export function NativeIntro({design,background,accent,cover,durationSec,onDone}:
   },[durationSec,onDone]);
   const staged=design.animation==='iris'||design.animation==='curtain'||design.animation==='sweep';
   const hasCover=staged&&!!cover;
+  const background=design.backgroundColor??INTRO_DEFAULT_COLORS.background;
+  const accent=design.buttonColor??INTRO_DEFAULT_COLORS.button;
   const text=hasCover?'#fff':readableOn(background);
-  const welcome=introWelcomeColor(accent,hasCover?'#394846':background);
+  const welcome=design.welcomeColor??introWelcomeColor(accent,hasCover?'#394846':background);
   return <div ref={intro} className={'nv-native-intro is-'+design.styleId+' is-anim-'+design.animation+(staged?' nv-ni-staged':'')+(hasCover?' nv-ni-has-cover':'')} role="dialog" aria-label="Introduction de la visite"
     style={{'--ni-bg':background,'--ni-accent':accent,'--ni-text':text} as React.CSSProperties}>
     {design.animation==='iris'&&<IntroIris/>}
