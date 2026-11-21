@@ -1,0 +1,90 @@
+#!/usr/bin/env node
+// Génère une intro statique à partir du modèle commun (même animation « iris » que les intros existantes).
+// Usage : node scripts/gen-intro.mjs config.json   → écrit public/<slug>-intro/index.html
+// config : { "slug": "ariya", "name": "Ariya", "logo": "public/ariya/logo.png", "accent": "#c9973a",
+//            "fr": {"title": "Bienvenue chez Ariya", "tagline": "Massage thaïlandais · Narbonne", "label": "Visite immersive"},
+//            "en": {...}, "es": {...}, "de": {...}, "nl": {...} }   (langues facultatives : repli sur le français)
+import {readFileSync,writeFileSync,mkdirSync,existsSync,copyFileSync} from 'node:fs';
+import {dirname,basename} from 'node:path';
+
+const esc=(s)=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const jsStr=(s)=>JSON.stringify(String(s)).replace(/</g,'\\u003c');
+const HEX=/^#[0-9a-fA-F]{6}$/;
+const LANGS=['fr','en','es','de','nl'];
+
+export function buildIntro(cfg){
+  if(!/^[a-z0-9-]{2,40}$/.test(cfg.slug||'')) throw new Error('slug invalide (minuscules, chiffres, tirets)');
+  if(!cfg.name||cfg.name.length>80) throw new Error('nom invalide');
+  const accent=cfg.accent&&HEX.test(cfg.accent)?cfg.accent:'#c9973a';
+  const fr=cfg.fr;
+  if(!fr||!fr.title||!fr.tagline||!fr.label) throw new Error('la langue fr (title, tagline, label) est obligatoire');
+  const dict={};
+  for(const l of LANGS){
+    const t=cfg[l]??fr;
+    dict[l]=[t.title,t.tagline,t.label].map(v=>String(v).slice(0,140));
+  }
+  const alt=esc(cfg.logoAlt??cfg.name);
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(cfg.name)} · Visite immersive</title>
+<style>
+:root{--gold:${accent};--gold2:${accent}}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#f6ecd8;font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+.bg{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 42%,#fffaf0 0%,#f6ecd8 55%,#e9dcc0 100%)}
+.c{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 6vw;perspective:1000px}
+.badge{width:min(46vmin,330px);height:min(46vmin,330px);border-radius:50%;display:flex;align-items:center;justify-content:center;opacity:0;background:#fff;box-shadow:0 0 0 8px #f8f0e0,0 0 0 10px ${accent},0 26px 60px rgba(60,40,20,.28);transform:translateZ(-2200px) rotateY(-540deg);filter:blur(12px);animation:far 1.1s .9s cubic-bezier(.16,.9,.3,1) forwards;position:relative;overflow:hidden}
+.badge img{width:100%;height:100%;object-fit:contain;padding:8%;border-radius:50%}
+h1{margin-top:4.5vmin;font-size:clamp(26px,5.2vmin,54px);color:#161311;font-family:Georgia,"Times New Roman",serif;font-weight:700;opacity:0;animation:up .8s cubic-bezier(.2,.8,.2,1) 2.1s forwards}
+.sub{margin-top:1.2vmin;font-size:clamp(11px,1.8vmin,17px);letter-spacing:.3em;text-transform:uppercase;color:var(--gold2);font-weight:700;opacity:0;animation:up .8s 2.35s forwards}
+.line{width:clamp(60px,9vmin,110px);height:3px;border-radius:3px;background:var(--gold);margin:2.6vmin 0 3vmin;opacity:0;animation:up .8s 2.55s forwards}
+.sig{display:flex;align-items:center;gap:16px;opacity:0;animation:up .8s 2.75s forwards}
+.sig .v{font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:#125C68;font-size:clamp(12px,1.9vmin,20px)}
+.sig .n i{font-style:italic;font-weight:400;font-family:Georgia,serif;margin-right:.25em}.sig .n{font-weight:700;font-size:clamp(22px,3.4vmin,36px);color:#125C68}
+@keyframes far{55%{opacity:1;filter:blur(2px)}80%{transform:translateZ(60px) rotateY(10deg);filter:blur(0)}100%{opacity:1;transform:none;filter:blur(0)}}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (orientation:portrait){.badge{width:62vmin;height:62vmin}h1{font-size:7.6vmin}.sub{font-size:3vmin;letter-spacing:.2em}.sig{flex-direction:column;gap:2vmin}.sig .v{font-size:3vmin}.sig .n{font-size:6.4vmin}}
+body.fin{animation:fin .8s forwards}@keyframes fin{to{opacity:0}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;opacity:1!important;transform:none!important;filter:none!important}}
+</style></head><body>
+<div class="bg"></div>
+<div class="c">
+ <div class="badge"><img src="logo.png" alt="${alt}"></div>
+ <h1 id="t">${esc(fr.title)}</h1>
+ <div class="sub" id="s">${esc(fr.tagline)}</div>
+ <div class="line"></div>
+ <div class="sig"><span class="v" id="v">${esc(fr.label)}</span><span class="n"><i>by</i> NovaVisio</span></div>
+</div>
+<svg id="iris" style="position:fixed;inset:0;width:100%;height:100%;z-index:50;pointer-events:none"><defs>
+<linearGradient id="ng" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#345C95"/><stop offset=".55" stop-color="#2B899D"/><stop offset="1" stop-color="#125C68"/></linearGradient>
+<mask id="mk"><rect id="mr" fill="#fff"/><polygon id="hole" fill="#000"/></mask></defs>
+<rect id="cov" fill="url(#ng)" mask="url(#mk)"/><polygon id="edge" fill="none" stroke="#A8DBE5" stroke-width="4"/><g id="blades" stroke="#A8DBE5" stroke-width="3" opacity=".8"></g></svg>
+<script>
+(function(){const L=${JSON.stringify(dict).replace(/</g,'\\u003c')};
+ const q=new URLSearchParams(location.search).get('lang'),nav=(navigator.language||'fr').slice(0,2).toLowerCase(),k=L[q]?q:(L[nav]?nav:'fr');
+ document.documentElement.lang=k;document.getElementById('t').textContent=L[k][0];document.getElementById('s').textContent=L[k][1];document.getElementById('v').textContent=L[k][2];})();
+(function(){const sv=document.getElementById('iris'),NB=8,ns='http://www.w3.org/2000/svg',bl=document.getElementById('blades');
+ for(let i=0;i<NB;i++)bl.appendChild(document.createElementNS(ns,'line'));
+ const W=innerWidth,H=innerHeight,cx=W/2,cy=H/2,Rmax=Math.hypot(W,H)*.62;sv.setAttribute('viewBox','0 0 '+W+' '+H);
+ ['mr','cov'].forEach(i=>{const r=document.getElementById(i);r.setAttribute('width',W);r.setAttribute('height',H)});
+ const eio=x=>{x=Math.max(0,Math.min(1,x));return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2},D=1200,t0=performance.now()+150;
+ (function f(now){const t=(now-t0)/D,o=eio(t),r=Rmax*o,rot=-60*(1-o)*Math.PI/180,p=[];
+  for(let i=0;i<NB;i++){const a=rot+i*2*Math.PI/NB;p.push((cx+r*Math.cos(a)).toFixed(1)+','+(cy+r*Math.sin(a)).toFixed(1))}
+  document.getElementById('hole').setAttribute('points',p.join(' '));const e=document.getElementById('edge');e.setAttribute('points',p.join(' '));e.style.opacity=1-o*.6;
+  [...bl.children].forEach((l,i)=>{const a=rot+i*2*Math.PI/NB,a2=a+2*Math.PI/NB*1.8;l.setAttribute('x1',cx+r*Math.cos(a));l.setAttribute('y1',cy+r*Math.sin(a));l.setAttribute('x2',cx+Rmax*1.6*Math.cos(a2));l.setAttribute('y2',cy+Rmax*1.6*Math.sin(a2))});
+  bl.style.opacity=.8*(1-o);if(t<1.02)requestAnimationFrame(f);else sv.remove()})(performance.now());})();
+setTimeout(()=>{document.body.classList.add('fin');setTimeout(()=>{document.documentElement.style.background='transparent';document.body.innerHTML=''},850)},5000);
+</script></body></html>
+`;
+}
+
+if(process.argv[1]&&process.argv[1].endsWith('gen-intro.mjs')&&process.argv[2]){
+  const cfg=JSON.parse(readFileSync(process.argv[2],'utf8'));
+  const html=buildIntro(cfg);
+  const dir=`public/${cfg.slug}-intro`;
+  mkdirSync(dir,{recursive:true});
+  writeFileSync(`${dir}/index.html`,html);
+  if(cfg.logo){
+    if(!existsSync(cfg.logo)) throw new Error('logo introuvable : '+cfg.logo);
+    copyFileSync(cfg.logo,`${dir}/logo.png`);
+  }
+  console.log('intro générée :',dir);
+}
