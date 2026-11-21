@@ -1543,7 +1543,11 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                       return (
                         <div key={proposal.key} className="nv-ai-simulated-btn">
                           <div className="nv-ai-simulated-btn-badge">
-                            <img src={svgUri} alt={proposal.title} />
+                            <img
+                              src={svgUri}
+                              alt={proposal.title}
+                              style={{width: 36, height: 36, maxWidth: 36, maxHeight: 36, objectFit: 'contain', display: 'block'}}
+                            />
                           </div>
                           <span style={{color: colors.text}}>
                             {menuCustomTitles[proposal.key] || proposal.title}
@@ -1595,10 +1599,14 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleMenuProposal(prop.key)}
-                          style={{accentColor: '#38bdf8', width: 18, height: 18, cursor: 'pointer'}}
+                          style={{accentColor: '#38bdf8', width: 18, height: 18, cursor: 'pointer', flexShrink: 0}}
                         />
                         <div className="nv-ai-proposal-icon">
-                          <img src={svgUri} alt={prop.title} />
+                          <img
+                            src={svgUri}
+                            alt={prop.title}
+                            style={{width: 40, height: 40, maxWidth: 40, maxHeight: 40, objectFit: 'contain', display: 'block'}}
+                          />
                         </div>
                         <div className="nv-ai-proposal-info">
                           <div className="nv-ai-proposal-info-top">
