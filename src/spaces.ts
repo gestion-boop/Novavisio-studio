@@ -94,9 +94,9 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
     comments:undefined,
     mediaLibrary:undefined,
     name:project.name+' - '+space.name,
-    floorPlan:plansInSpace(project,space)[0]?{...plansInSpace(project,space)[0],spaceId:undefined,
-      points:plansInSpace(project,space)[0].points.filter(point=>ids.has(point.sceneId))}:undefined,
-    floorPlans:plansInSpace(project,space).map(plan=>({...plan,spaceId:undefined,
+    floorPlan:(plansInSpace(project,space).length?plansInSpace(project,space):getFloorPlans(project))[0]?{...(plansInSpace(project,space).length?plansInSpace(project,space):getFloorPlans(project))[0],spaceId:undefined,
+      points:(plansInSpace(project,space).length?plansInSpace(project,space):getFloorPlans(project))[0].points.filter(point=>ids.has(point.sceneId))}:undefined,
+    floorPlans:(plansInSpace(project,space).length?plansInSpace(project,space):getFloorPlans(project)).map(plan=>({...plan,spaceId:undefined,
       points:plan.points.filter(point=>ids.has(point.sceneId))})),
     scenes:scenes.map(scene=>({
       ...scene,
