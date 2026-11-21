@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import './nativeIntro.css';
-import type {IntroDesign} from './introDesign';
+import {introWelcomeColor,type IntroDesign} from './introDesign';
 import {readableOn} from './brandKit';
 import {trimIcon} from './iconFit';
 import {IntroIris} from './introIris';
@@ -33,6 +33,7 @@ export function NativeIntro({design,background,accent,cover,durationSec,onDone}:
   const staged=design.animation==='iris'||design.animation==='curtain'||design.animation==='sweep';
   const hasCover=staged&&!!cover;
   const text=hasCover?'#fff':readableOn(background);
+  const welcome=introWelcomeColor(accent,hasCover?'#394846':background);
   return <div ref={intro} className={'nv-native-intro is-'+design.styleId+' is-anim-'+design.animation+(staged?' nv-ni-staged':'')+(hasCover?' nv-ni-has-cover':'')} role="dialog" aria-label="Introduction de la visite"
     style={{'--ni-bg':background,'--ni-accent':accent,'--ni-text':text} as React.CSSProperties}>
     {design.animation==='iris'&&<IntroIris/>}
@@ -40,7 +41,7 @@ export function NativeIntro({design,background,accent,cover,durationSec,onDone}:
     {logo&&<img className={'nv-ni-logo nv-ni-logo-'+(design.logoShape??'original')+(circleFitted?' nv-ni-logo-fitted':'')} src={logo} alt=""/>}
     <div className="nv-ni-copy">
       {design.title&&<h1 className="nv-ni-title">{design.title}</h1>}
-      {design.subtitle&&<p className="nv-ni-sub">{design.subtitle}</p>}
+      {design.subtitle&&<p className="nv-ni-sub" style={{color:welcome}}>{design.subtitle}</p>}
       <button type="button" className="nv-ni-button" style={{color:readableOn(accent)}} onClick={onDone}>{design.buttonLabel||'Découvrir'}</button>
     </div>
   </div>;

@@ -1,3 +1,5 @@
+import {contrastRatio,hexToHsl,hslToHex,isHex,readableOn} from './brandKit';
+
 /**
  * Introduction native (NovaStudio AI — phase 3). Logique PURE, sans réseau.
  * Priorité : une URL d'introduction externe (existante) reste prioritaire ; l'introduction native ne s'active que sans URL.
@@ -54,4 +56,18 @@ export function nativeIntroActive(p:{introUrl?:string;introDesign?:IntroDesign})
 export function introDurationSec(p:{introDuration?:number}): number {
   const n=p.introDuration??6;
   return Number.isFinite(n)?Math.max(2,Math.min(60,n)):6;
+}
+
+/** Conserve la teinte du projet et ajuste sa luminosité pour le texte d’accueil. */
+export function introWelcomeColor(accent:string,background:string):string {
+  const fallback=readableOn(background);
+  if(!isHex(accent))return fallback;
+  if(contrastRatio(accent,background)>=4.5)return accent;
+  const [hue,saturation,lightness]=hexToHsl(accent);
+  const direction=fallback==='#ffffff'?1:-1;
+  for(let step=1;step<=20;step++){
+    const color=hslToHex(hue,saturation,lightness+step*5*direction);
+    if(contrastRatio(color,background)>=4.5)return color;
+  }
+  return fallback;
 }
