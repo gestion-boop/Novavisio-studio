@@ -2660,7 +2660,7 @@ function App(){
     if(type==='plan'){patchBar({type,builtinIcon:'map'});return;}
     patchBar(type==='gallery'?{type,gallery:selectedBar?.gallery??[]}:type==='photos'?{type,photos:selectedBar?.photos??[]}:{type});
   }
-  const activeLanguages:StudioLanguage[]=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
+  const activeLanguages:StudioLanguage[]=project.languages??STUDIO_LANGUAGES.map(lang=>lang.code);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   const [windowDemo,setWindowDemo]=useState(false);
   useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor);},[project.closeButtonColor,project.closeIconId]);

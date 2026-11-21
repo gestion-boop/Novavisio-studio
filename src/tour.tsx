@@ -375,7 +375,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[warmCurrentId]);
   if(!project || !Array.isArray(project.scenes)||!project.scenes.length)return <main className="tour-empty">Cette visite ne contient aucun panorama.</main>;
-  const activeLanguages=project.languages??(project.name.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(lang=>lang.code):['fr']);
+  const activeLanguages=project.languages??STUDIO_LANGUAGES.map(lang=>lang.code);
   const lang=effectiveLang(prefs,activeLanguages);
   const settingsIcon=project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId;
   const hasSettingsIcon=!!project.icons?.find(i=>i.id===settingsIcon&&i.dataUrl);

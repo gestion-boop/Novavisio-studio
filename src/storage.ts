@@ -498,7 +498,7 @@ export function validateProject(value:unknown):StudioProject {
   }
   for(const plan of allPlans)if(plan.spaceId!==undefined&&!spaceIds.has(plan.spaceId))
     throw new Error('Le plan appartient à un espace inexistant');
-  const languages=p.languages===undefined?(p.name?.toLowerCase().includes('figurotta')?STUDIO_LANGUAGES.map(l=>l.code):['fr' as StudioLanguage]):p.languages;
+  const languages=p.languages===undefined?STUDIO_LANGUAGES.map(l=>l.code):p.languages;
   if(!Array.isArray(languages)||!languages.length||languages.length>5||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
   if(p.preparationComplete!==undefined && typeof p.preparationComplete!=='boolean')throw new Error('Préparation de projet invalide');
   if(p.vrEnabled!==undefined&&typeof p.vrEnabled!=='boolean')throw new Error('Option VR du projet invalide');
