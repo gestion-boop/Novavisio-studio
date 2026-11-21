@@ -48,14 +48,8 @@ import {
   BRAND_ICON_SET,
   type BrandIconSpec
 } from './brandIconSet';
-import {
-  iconSvg,
-  svgToPng,
-  type IconShape,
-  type IconState,
-  ICON_SHAPES,
-  ICON_STATES
-} from './brandIcons';
+import {iconSvg, svgToPng, type IconShape, type IconState, ICON_SHAPES, ICON_STATES} from './brandIcons';
+import {glossyIconStates} from './glossyIcon';
 
 const ICON_STATE_OPTIONS: {id: IconState; label: string}[] = [
   {id: 'normal', label: 'Normal'},
@@ -103,6 +97,19 @@ export type NovaStudioAIProps = {
   ) => void;
   onClose: () => void;
 };
+
+
+/** États (normal, survol, pressé) d'une icône de charte : brillant (glossy) ou plat, selon le choix du client. */
+async function iconStatesFor(spec: {label: string; nodes: ReadonlyArray<readonly [string, Record<string, string | number>]>}, colors: BrandColors, shape: IconShape, finish: 'plat' | 'glossy') {
+  if (finish === 'glossy') {
+    const body = spec.nodes.map(([tag, a]) => `<${tag} ${Object.entries(a).map(([k, v]) => `${k}="${v}"`).join(' ')}/>`).join('');
+    const glyphSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24"><g fill="none" stroke="#ffffff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" transform="translate(12 12) scale(0.56) translate(-12 -12)">${body}</g></svg>`;
+    const glyph = await svgToPng(glyphSvg, 256);
+    return glossyIconStates({base: colors.primary, glyph, size: 256, format: 'png'});
+  }
+  const [normal, hover, pressed] = await Promise.all((['normal', 'hover', 'pressed'] as const).map(st => svgToPng(iconSvg(spec as never, colors, shape, st as IconState), 256)));
+  return {normal, hover, pressed};
+}
 
 export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, onClose}: NovaStudioAIProps) {
   const [activeTab, setActiveTab] = useState<'info' | 'brand' | 'icons' | 'intro' | 'menu'>('info');
@@ -472,15 +479,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, on
       const buttonSetsToAdd: ImportedButtonSet[] = [];
 
       for (const spec of allIconSpecs) {
-        const normalSvg = iconSvg(spec, colors, iconShape, 'normal');
-        const hoverSvg = iconSvg(spec, colors, iconShape, 'hover');
-        const pressedSvg = iconSvg(spec, colors, iconShape, 'pressed');
-
-        const [normalData, hoverData, pressedData] = await Promise.all([
-          svgToPng(normalSvg, 256),
-          svgToPng(hoverSvg, 256),
-          svgToPng(pressedSvg, 256)
-        ]);
+        const {normal: normalData, hover: hoverData, pressed: pressedData} = await iconStatesFor(spec, colors, iconShape, iconFinish);
 
         const normalId = crypto.randomUUID();
         const hoverId = crypto.randomUUID();
@@ -557,15 +556,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', onApply, on
 
     // Si le pack d'icônes est activé ou pour alimenter les boutons automatiques
     for (const spec of allIconSpecs) {
-      const normalSvg = iconSvg(spec, colors, iconShape, 'normal');
-      const hoverSvg = iconSvg(spec, colors, iconShape, 'hover');
-      const pressedSvg = iconSvg(spec, colors, iconShape, 'pressed');
-
-      const [normalData, hoverData, pressedData] = await Promise.all([
-        svgToPng(normalSvg, 256),
-        svgToPng(hoverSvg, 256),
-        svgToPng(pressedSvg, 256)
-      ]);
+      const {normal: normalData, hover: hoverData, pressed: pressedData} = await iconStatesFor(spec, colors, iconShape, iconFinish);
 
       const normalId = crypto.randomUUID();
       const hoverId = crypto.randomUUID();
