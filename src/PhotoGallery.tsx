@@ -23,7 +23,7 @@ export function PhotoGallery({title,items,onClose}:{title:string;items:MediaLink
   const current=index!==null?resolved[index]:null;
   return <div className="nv-photo-gallery" role="dialog" aria-modal="true" aria-label={title}>
     <header><strong>{title}</strong><span>{count} {count>1?'éléments':'élément'}</span>
-      <button type="button" onClick={onClose} aria-label="Fermer la galerie"><XMark/></button></header>
+</header>
     {count===0?<p className="nv-pg-empty">Aucune photo dans cette galerie.</p>:
       <div className="nv-pg-grid">{resolved.map(({item,r},i)=>{
         const src=r.thumb??r.image;
