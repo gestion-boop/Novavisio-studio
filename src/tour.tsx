@@ -477,7 +477,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {vrError&&<div className="tour-vr-error" role="alert" onClick={()=>setVrError('')}>{vrError}</div>}
     {project.bottomBar?.length>0&&!nightActive&&<nav className="tour-bottom-bar" style={cssVars} aria-label="Navigation de la visite">
       {project.bottomBar.map(item=>{
-        const icon=project.icons?.find(i=>i.id===item.iconId);
+        const icon=!theme.useBarGlyphs&&project.icons?.find(i=>i.id===item.iconId);
         return <button type="button" style={{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties} className={'tour-bar-button '+(icon?'has-custom-png':'')} key={item.id} onClick={()=>act(item)} aria-label={pick(item.title,item.titleTranslations,lang)} title={pick(item.title,item.titleTranslations,lang)}>
           <span className="tour-bar-icon">{icon?<IconStateVisual icons={project.icons??[]} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<Symbol name={item.builtinIcon??'info'}/>}</span>
         </button>;
