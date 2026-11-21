@@ -31,7 +31,7 @@
 
 
 /* Les volets couvrent le contenu pendant la révélation sans intercepter les clics. */
-.nv-native-intro:is(.is-anim-iris,.is-anim-curtain,.is-anim-sweep)::before,
+.nv-native-intro:is(.is-anim-curtain,.is-anim-sweep)::before,
 .nv-native-intro.is-anim-curtain::after{
   content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
   background:linear-gradient(130deg,var(--ni-bg),color-mix(in srgb,var(--ni-accent) 60%,var(--ni-bg)));
@@ -46,15 +46,11 @@
 .nv-ni-staged .nv-ni-sub{animation-delay:.96s}
 .nv-ni-staged .nv-ni-button{margin-top:0;animation-delay:1.08s}
 @keyframes nvNiApproach{from{transform:scale(1.13)}to{transform:scale(1.02)}}
-.nv-native-intro.is-anim-iris::before{animation-name:nvNiIris;mask-image:radial-gradient(circle,transparent var(--nv-ni-opening),#000 calc(var(--nv-ni-opening) + 1px))}
 .nv-native-intro.is-anim-curtain::before{right:50%;animation-name:nvNiCurtainLeft}
 .nv-native-intro.is-anim-curtain::after{left:50%;animation-name:nvNiCurtainRight}
 .nv-native-intro.is-anim-sweep::before{animation-name:nvNiSweep}
-@property --nv-ni-opening{syntax:"<length>";inherits:false;initial-value:0px}
-@keyframes nvNiIris{
-  from{--nv-ni-opening:0px}
-  to{--nv-ni-opening:80vmax;visibility:hidden}
-}
+.nv-ni-iris{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.nv-ni-iris{display:none}}
 @keyframes nvNiCurtainLeft{to{transform:translateX(-101%);visibility:hidden}}
 @keyframes nvNiCurtainRight{to{transform:translateX(101%);visibility:hidden}}
 @keyframes nvNiSweep{
@@ -62,7 +58,7 @@
   to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 0);visibility:hidden}
 }
 @media(prefers-reduced-motion:reduce){
-  .nv-native-intro:is(.is-anim-iris,.is-anim-curtain,.is-anim-sweep)::before,
+  .nv-native-intro:is(.is-anim-curtain,.is-anim-sweep)::before,
   .nv-native-intro.is-anim-curtain::after{display:none}
 }
 
@@ -71,5 +67,5 @@
   max-height:none;flex:none;object-fit:contain;padding:clamp(9px,3.8vmin,32px);
   background:#fcf8ea;box-shadow:0 15px 55px #091a1670;
 }
-.nv-native-intro .nv-ni-logo-round{border-radius:50%}
+.nv-native-intro .nv-ni-logo.nv-ni-logo-round{border-radius:50%;object-fit:cover;padding:0}
 .nv-native-intro .nv-ni-logo-square{border-radius:0}
