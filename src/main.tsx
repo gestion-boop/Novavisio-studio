@@ -30,6 +30,9 @@ import {ErrorBoundary,installErrorLog} from './ErrorBoundary';
 import {glyphs} from './glyphSet';
 import {BrandKitDialog} from './BrandKitDialog';
 import {NativeIntro} from './nativeIntro';
+import {InterestDialog} from './InterestDialog';
+import {urlForSuggestion,type Suggestion as InterestSuggestion} from './interestPoints';
+import {BRAND_ICON_SET} from './brandIconSet';
 import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
 import {EditMode,PanelTab,EmbedFrame,ensureFrameReferences,barColorFields,VISIT_MOTIFS,BarGlyph,safeLink,launchLink,startSceneId,FullscreenGalleryHoverPreview,Panorama} from './EditorPanorama';
 import {FrameLoupe} from './FrameLoupe';
@@ -159,6 +162,7 @@ function App(){
   const [pendingSpaceIntent,setPendingSpaceIntent]=useState<{spaceId:string;intent:'share'|'export'}|null>(null);
   const [brandOpen,setBrandOpen]=useState(false);
   const [introPreview,setIntroPreview]=useState(false);
+  const [interestOpen,setInterestOpen]=useState(false);
   const logoInput=useRef<HTMLInputElement>(null);
   const endIntroPreview=useCallback(()=>setIntroPreview(false),[]);
   const [pickedSceneId,setPickedSceneId]=useState<string|null>(null);
@@ -2603,6 +2607,18 @@ function App(){
       return {...p,scenes};
     });
   }
+  /** Place un point proposé à la position actuelle de la caméra. Lien/téléphone seulement si l'information est vérifiée. */
+  function placeInterestPoint(s:InterestSuggestion){
+    const cam=cameraRef.current;
+    if(!activeId||cam.sceneId!==activeId){setStatus('Ouvre un panorama et oriente la vue avant de placer le point.');return;}
+    const label=BRAND_ICON_SET.find(i=>i.key===s.icon)?.label;
+    const icon=label?project.icons.find(i=>i.name===label+' · Normal'):undefined;
+    const url=urlForSuggestion(s,project.interestInfo??{});
+    const h:Hotspot={id:uid(),type:url?'lien':'information',title:s.title,text:'',target:'',yaw:cam.yaw,pitch:cam.pitch,
+      ...(url?{url}:{}),...(icon?{iconId:icon.id}:{})} as Hotspot;
+    patchScene(sc=>({...sc,hotspots:[...sc.hotspots,h]}));
+    setStatus(s.title+' placé dans le panorama'+(url?' (lien vérifié)':'')+' · enregistre avec la disquette.');
+  }
   function patchIntroDesign(patch:Partial<IntroDesign>){
     setProject(p=>({...p,introDesign:{...(p.introDesign??DEFAULT_INTRO_DESIGN),...patch}}));
   }
@@ -3555,6 +3571,9 @@ function App(){
             {openTopMenu==='file'&&<div className="nv-menu-popover" role="menu" aria-label="Fichier">
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
                 <Plus size={16}/><span>Nouveau projet</span>
+              </button>
+              <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setInterestOpen(true);}}>
+                <Sparkles size={16}/><span>Points d’information (NovaStudio AI)</span>
               </button>
               <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setBrandOpen(true);}}>
                 <Sparkles size={16}/><span>Charte graphique (NovaStudio AI)</span>
@@ -5700,6 +5719,9 @@ function App(){
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
       <NativeIntro design={project.introDesign} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
     </div>}
+    {interestOpen&&<InterestDialog category={project.interestCategory} info={project.interestInfo??{}} points={project.interestPoints??[]}
+      canPlace={!!activeId&&cameraRef.current.sceneId===activeId} onClose={()=>setInterestOpen(false)} onPlace={placeInterestPoint}
+      onPatch={patch=>setProject(p=>({...p,...(patch.category!==undefined?{interestCategory:patch.category}:{}),...(patch.info!==undefined?{interestInfo:patch.info}:{}),...(patch.points!==undefined?{interestPoints:patch.points}:{})}))}/>}
     {publishConfirm&&<div className="nv-publish-overlay"><section role="alertdialog" aria-modal="true" aria-label="Publier sur NovaVisio" className="nv-publish-warning"><h2>⚠ Attention : publication sur NovaVisio</h2><p>La mise à jour va s’appliquer sur NovaVisio. Le projet et les espaces déjà publiés seront actualisés pour les visiteurs. Les liens publics restent identiques.</p><p>Enregistrer seul ne publie plus les modifications.</p>
       {publishIssues.length===0?<p className="nv-publish-ok">✓ Contrôle automatique : rien d’anormal détecté.</p>:<>
         <p><b>Contrôle automatique : {publishIssues.length} point{publishIssues.length>1?'s':''} à vérifier</b></p>

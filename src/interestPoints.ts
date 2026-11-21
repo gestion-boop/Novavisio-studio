@@ -100,3 +100,14 @@ export function buildSuggestions(category:InterestCategory,info:VerifiedInfo):{r
 }
 /** Seul un point confirmé par l'utilisateur peut être publié. */
 export const isPublishable=(s:Suggestion):boolean=>s.status==='confirmed';
+
+/** Lien d'un point, dérivé UNIQUEMENT d'une information vérifiée (jamais inventé). Undefined si absent. */
+export function urlForSuggestion(s:Pick<Suggestion,'key'|'kind'>,info:VerifiedInfo):string|undefined{
+  const pick=(k:keyof VerifiedInfo)=>{const v=info[k];const t=Array.isArray(v)?v[0]:v;return typeof t==='string'&&t.trim()?t.trim():undefined;};
+  if(s.kind==='phone'){const p=pick('phone');return p?'tel:'+p.replace(/[^+\d]/g,''):undefined;}
+  if(s.kind==='email'){const e=pick('email');return e?'mailto:'+e:undefined;}
+  if(s.kind!=='link')return undefined;
+  const byKey:Record<string,keyof VerifiedInfo>={reservation:'bookingUrl',carte:'menuUrl',tarifs:'tariffUrl',site:'website'};
+  const k=byKey[s.key];
+  return k?pick(k):undefined;
+}

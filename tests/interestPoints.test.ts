@@ -39,3 +39,19 @@ describe('points d’information (sans IA)',()=>{
     expect(missing.find(m=>m.key==='telephone')).toBeTruthy();
   });
 });
+
+import {urlForSuggestion} from '../src/interestPoints';
+describe('liens des points (verifiés uniquement)',()=>{
+  it('un lien vient de l’information vérifiée, sinon rien',()=>{
+    expect(urlForSuggestion({key:'reservation',kind:'link'},{bookingUrl:'https://exemple.fr/resa'})).toBe('https://exemple.fr/resa');
+    expect(urlForSuggestion({key:'reservation',kind:'link'},{})).toBeUndefined();
+    expect(urlForSuggestion({key:'carte',kind:'link'},{bookingUrl:'https://x.fr'})).toBeUndefined();
+  });
+  it('téléphone et e-mail deviennent des liens tel: et mailto:',()=>{
+    expect(urlForSuggestion({key:'telephone',kind:'phone'},{phone:'04 68 00 00 00'})).toBe('tel:0468000000');
+    expect(urlForSuggestion({key:'contact',kind:'email'},{email:'a@b.fr'})).toBe('mailto:a@b.fr');
+  });
+  it('un point texte n’a jamais de lien',()=>{
+    expect(urlForSuggestion({key:'chambre',kind:'text'},{website:'https://x.fr'})).toBeUndefined();
+  });
+});
