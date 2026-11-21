@@ -31,7 +31,7 @@
 
 
 /* Les volets couvrent le contenu pendant la révélation sans intercepter les clics. */
-.nv-native-intro:is(.is-anim-iris,.is-anim-curtain,.is-anim-sweep)::before,
+.nv-native-intro:is(.is-anim-curtain,.is-anim-sweep)::before,
 .nv-native-intro.is-anim-curtain::after{
   content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
   background:linear-gradient(130deg,var(--ni-bg),color-mix(in srgb,var(--ni-accent) 60%,var(--ni-bg)));
@@ -46,15 +46,11 @@
 .nv-ni-staged .nv-ni-sub{animation-delay:.96s}
 .nv-ni-staged .nv-ni-button{margin-top:0;animation-delay:1.08s}
 @keyframes nvNiApproach{from{transform:scale(1.13)}to{transform:scale(1.02)}}
-.nv-native-intro.is-anim-iris::before{animation-name:nvNiIris;mask-image:radial-gradient(circle,transparent var(--nv-ni-opening),#000 calc(var(--nv-ni-opening) + 1px))}
 .nv-native-intro.is-anim-curtain::before{right:50%;animation-name:nvNiCurtainLeft}
 .nv-native-intro.is-anim-curtain::after{left:50%;animation-name:nvNiCurtainRight}
 .nv-native-intro.is-anim-sweep::before{animation-name:nvNiSweep}
-@property --nv-ni-opening{syntax:"<length>";inherits:false;initial-value:0px}
-@keyframes nvNiIris{
-  from{--nv-ni-opening:0px}
-  to{--nv-ni-opening:80vmax;visibility:hidden}
-}
+.nv-ni-iris{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.nv-ni-iris{display:none}}
 @keyframes nvNiCurtainLeft{to{transform:translateX(-101%);visibility:hidden}}
 @keyframes nvNiCurtainRight{to{transform:translateX(101%);visibility:hidden}}
 @keyframes nvNiSweep{
@@ -62,7 +58,7 @@
   to{clip-path:polygon(100% 0,100% 0,100% 100%,100% 0);visibility:hidden}
 }
 @media(prefers-reduced-motion:reduce){
-  .nv-native-intro:is(.is-anim-iris,.is-anim-curtain,.is-anim-sweep)::before,
+  .nv-native-intro:is(.is-anim-curtain,.is-anim-sweep)::before,
   .nv-native-intro.is-anim-curtain::after{display:none}
 }
 
@@ -71,5 +67,58 @@
   max-height:none;flex:none;object-fit:contain;padding:clamp(9px,3.8vmin,32px);
   background:#fcf8ea;box-shadow:0 15px 55px #091a1670;
 }
-.nv-native-intro .nv-ni-logo-round{border-radius:50%}
+.nv-native-intro .nv-ni-logo.nv-ni-logo-round{border-radius:50%;object-fit:cover;padding:0}
 .nv-native-intro .nv-ni-logo-square{border-radius:0}
+
+/* Chaque ouverture a son mouvement de caméra et son rythme de titrage. */
+.nv-ni-staged{--ni-logo-time:.62s;--ni-title-time:.86s;--ni-copy-time:1.02s;--ni-button-time:1.2s}
+.nv-ni-staged.is-anim-curtain{--ni-logo-time:.48s;--ni-title-time:.72s;--ni-copy-time:.94s;--ni-button-time:1.12s}
+.nv-ni-staged.is-anim-sweep{--ni-logo-time:.69s;--ni-title-time:.81s;--ni-copy-time:.99s;--ni-button-time:1.17s}
+.nv-ni-staged .nv-ni-logo{
+  animation:nvNiResolve .8s var(--ni-logo-time) cubic-bezier(.18,.7,.25,1) both;
+}
+.nv-ni-staged .nv-ni-title{
+  animation:nvNiTitle .76s var(--ni-title-time) cubic-bezier(.18,.7,.25,1) both;
+  text-shadow:0 4px 28px #0008;
+}
+.nv-ni-staged .nv-ni-sub{animation-delay:var(--ni-copy-time)}
+.nv-ni-staged .nv-ni-button{animation-delay:var(--ni-button-time)}
+.nv-ni-staged.is-ending .nv-ni-cover{opacity:0}
+.nv-ni-cover{transition:opacity .35s ease}
+.is-anim-curtain .nv-ni-cover img{animation-name:nvNiDolly}
+.is-anim-sweep .nv-ni-cover img{animation-name:nvNiTrack}
+@keyframes nvNiDolly{
+  from{transform:scale(1.02)}
+  to{transform:scale(1.12)}
+}
+@keyframes nvNiTrack{
+  from{transform:translateX(4%) scale(1.14)}
+  to{transform:translateX(-3%) scale(1.09)}
+}
+@keyframes nvNiResolve{
+  from{opacity:0;transform:scale(.88);filter:blur(7px)}
+  to{opacity:1;transform:none;filter:none}
+}
+@keyframes nvNiTitle{
+  from{opacity:0;transform:translateY(14px);clip-path:inset(0 0 100% 0)}
+  to{opacity:1;transform:none;clip-path:inset(-.15em -1em -.22em -1em)}
+}
+
+.nv-ni-copy{display:contents}
+.nv-ni-staged:has(.nv-ni-logo){
+  --ni-hero-size:min(48vmin,38dvh,340px);
+  --ni-hero-gap:clamp(8px,2vmin,20px);
+}
+.nv-ni-staged .nv-ni-logo{
+  position:absolute;inset:0;margin:auto;width:var(--ni-hero-size);max-height:var(--ni-hero-size);
+}
+.nv-ni-staged .nv-ni-logo:is(.nv-ni-logo-round,.nv-ni-logo-square){
+  width:var(--ni-hero-size);height:var(--ni-hero-size);
+}
+.nv-ni-staged:has(.nv-ni-logo) .nv-ni-copy{
+  position:absolute;inset-inline:5%;top:calc(50% + var(--ni-hero-size)/2 + var(--ni-hero-gap));bottom:8px;
+  display:flex;flex-direction:column;align-items:center;gap:clamp(4px,1vmin,11px);
+  overflow:auto;
+}
+.nv-ni-staged:has(.nv-ni-logo) .nv-ni-title{font-size:clamp(21px,5.3vmin,50px)}
+.nv-ni-staged:has(.nv-ni-logo) .nv-ni-button{padding:clamp(6px,1.5vmin,14px) clamp(15px,4vmin,30px)}
