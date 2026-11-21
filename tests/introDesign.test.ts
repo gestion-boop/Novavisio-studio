@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {INTRO_STYLES,DEFAULT_INTRO_DESIGN,validateIntroDesign,nativeIntroActive,introDurationSec,INTRO_LIMITS} from '../src/introDesign';
+import {INTRO_STYLES,INTRO_ANIMATIONS,DEFAULT_INTRO_DESIGN,validateIntroDesign,nativeIntroActive,introDurationSec,INTRO_LIMITS} from '../src/introDesign';
 
 const ok={...DEFAULT_INTRO_DESIGN,enabled:true,title:'Ariya',subtitle:'Bien-être',styleId:'luxe' as const};
 describe('introduction native (logique pure)',()=>{
@@ -10,10 +10,22 @@ describe('introduction native (logique pure)',()=>{
   it('accepte une introduction valide',()=>{
     expect(validateIntroDesign(ok).title).toBe('Ariya');
   });
+  it('conserve les animations historiques et valide les nouvelles entrées',()=>{
+    for(const id of ['fade','zoom','slide','iris','curtain','sweep']){
+      expect(INTRO_ANIMATIONS.some(animation=>animation.id===id)).toBe(true);
+      expect(validateIntroDesign({...ok,animation:id}).animation).toBe(id);
+    }
+  });
   it('refuse un style, une animation ou une longueur hors limites',()=>{
     expect(()=>validateIntroDesign({...ok,styleId:'inconnu'})).toThrow();
     expect(()=>validateIntroDesign({...ok,animation:'explosion'})).toThrow();
     expect(()=>validateIntroDesign({...ok,title:'x'.repeat(INTRO_LIMITS.title+1)})).toThrow();
+  });
+  it('valide les cadres de logo et accepte les intros existantes sans cadre explicite',()=>{
+    expect(validateIntroDesign(ok).logoShape).toBeUndefined();
+    expect(validateIntroDesign({...ok,logoShape:'round',animation:'iris'})).toMatchObject({logoShape:'round',animation:'iris'});
+    expect(validateIntroDesign({...ok,logoShape:'square',animation:'sweep'})).toMatchObject({logoShape:'square',animation:'sweep'});
+    expect(()=>validateIntroDesign({...ok,logoShape:'triangle'})).toThrow('Forme du logo invalide');
   });
   it('refuse un logo non image ou trop lourd',()=>{
     expect(()=>validateIntroDesign({...ok,logoDataUrl:'data:text/html;base64,AAAA'})).toThrow();

@@ -33,7 +33,7 @@ import {NativeIntro} from './nativeIntro';
 import {InterestDialog} from './InterestDialog';
 import {urlForSuggestion,type Suggestion as InterestSuggestion} from './interestPoints';
 import {BRAND_ICON_SET} from './brandIconSet';
-import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
+import {INTRO_STYLES,INTRO_ANIMATIONS,INTRO_LOGO_SHAPES,INTRO_LIMITS,DEFAULT_INTRO_DESIGN,type IntroDesign} from './introDesign';
 import {EditMode,PanelTab,EmbedFrame,ensureFrameReferences,barColorFields,VISIT_MOTIFS,BarGlyph,safeLink,launchLink,startSceneId,FullscreenGalleryHoverPreview,Panorama} from './EditorPanorama';
 import {FrameLoupe} from './FrameLoupe';
 import {exportStaticTour} from './exportTour';
@@ -5309,11 +5309,17 @@ function App(){
           <label>Texte du bouton
             <input value={project.introDesign?.buttonLabel??'Découvrir'} maxLength={INTRO_LIMITS.button} onChange={e=>patchIntroDesign({buttonLabel:e.target.value})}/>
           </label>
-          <label>Animation
+          <label>Forme du cadre du logo
+            <select value={project.introDesign?.logoShape??'original'} onChange={e=>patchIntroDesign({logoShape:e.target.value as IntroDesign['logoShape']})}>
+              {INTRO_LOGO_SHAPES.map(shape=><option key={shape.id} value={shape.id}>{shape.label}</option>)}
+            </select>
+          </label>
+          <label>Effet d’entrée
             <select value={project.introDesign?.animation??'fade'} onChange={e=>patchIntroDesign({animation:e.target.value as IntroDesign['animation']})}>
               {INTRO_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
             </select>
           </label>
+          <small className="hint-inline">L’iris, le rideau et le balayage révèlent le panorama de départ, puis le logo et le titre.</small>
           <div className="nv-brand-pack-actions">
             <button type="button" className="import" onClick={()=>logoInput.current?.click()}>{project.introDesign?.logoDataUrl?'Remplacer le logo':'Ajouter un logo'}</button>
             {project.introDesign?.logoDataUrl&&<button type="button" className="quiet" onClick={()=>patchIntroDesign({logoDataUrl:undefined})}>Retirer le logo</button>}
@@ -5725,7 +5731,7 @@ function App(){
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
-      <NativeIntro design={project.introDesign} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
+      <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} background={project.barStyle.background} accent={project.barStyle.button} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
     </div>}
     {interestOpen&&<InterestDialog category={project.interestCategory} info={project.interestInfo??{}} points={project.interestPoints??[]}
       canPlace={!!activeId&&cameraRef.current.sceneId===activeId} onClose={()=>setInterestOpen(false)} onPlace={placeInterestPoint}
