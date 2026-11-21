@@ -19,6 +19,8 @@ type Group={key:string;name:string;city:string;projects:CloudProject[];records:R
 const norm=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
  .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const safeRemoteUrl=(s:string)=>{
+ // Logo stocké dans la visite : image intégrée (PNG, JPEG, WebP, GIF) — pas de SVG ni d'autre type.
+ if(/^data:image\/(png|jpe?g|webp|gif);base64,/i.test(s))return s;
  try{const u=new URL(s);return u.protocol==='https:'&&u.username===''&&u.password===''?u.href:'';}
  catch{return '';}
 };
