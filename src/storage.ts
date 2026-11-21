@@ -76,7 +76,9 @@ export const defaultBarStyle = ():BarStyle => ({
  * Les images du pack restent disponibles pour rétablir son apparence.
  */
 export function updateBarStyle(style:BarStyle,update:Partial<BarStyle>):BarStyle {
-  return {...style,...update,useBarGlyphs:update.useBarGlyphs??(update.button!==undefined||style.useBarGlyphs===true)};
+  const editsButton=update.button!==undefined||update.buttonOutline!==undefined||
+    update.buttonOutlineWidth!==undefined||update.icon!==undefined;
+  return {...style,...update,useBarGlyphs:update.useBarGlyphs??(editsButton||style.useBarGlyphs===true)};
 }
 
 /** Une vignette de la galerie : panorama + nom affiché (vide = nom du panorama). */
@@ -526,6 +528,11 @@ export function validateProject(value:unknown):StudioProject {
     return k;
   })();
   const introDesign = p.introDesign === undefined ? undefined : validateIntroDesign(p.introDesign);
+  // Initialise les anciennes intros à partir de leurs couleurs historiques.
+  if(introDesign){
+    introDesign.backgroundColor??=barStyle.background;
+    introDesign.buttonColor??=barStyle.button;
+  }
   const interestPoints = p.interestPoints === undefined ? undefined : (Array.isArray(p.interestPoints) && p.interestPoints.length <= 200 && p.interestPoints.every((x: any) => x && typeof x.id === 'string' && typeof x.key === 'string' && typeof x.title === 'string' && typeof x.icon === 'string' && ['proposed','confirmed','rejected'].includes(x.status) && x.title.length <= 120))
     ? p.interestPoints : (() => { throw new Error('Points d’information invalides'); })();
   const interestInfo = p.interestInfo === undefined ? undefined : (typeof p.interestInfo === 'object' && Object.values(p.interestInfo).every((v: any) => typeof v === 'string' || (Array.isArray(v) && v.every((x: any) => typeof x === 'string'))) ? p.interestInfo : (() => { throw new Error('Informations vérifiées invalides'); })());
