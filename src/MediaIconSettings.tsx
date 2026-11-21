@@ -14,6 +14,7 @@ export function MediaIconSelector({project,value,onChange,label,kind,onAddIcons}
  label:string;kind:'image'|'video';onAddIcons?:(icons:CustomIcon[])=>void;
 }){
  const [open,setOpen]=useState(false);
+ const [mode,setMode]=useState<'standard'|'pack'>(value?.iconId?'pack':'standard');
  const [lib,setLib]=useState<LibrarySet[]|null>(null);
  const [libMsg,setLibMsg]=useState('');
  const match=KIND_NAME[kind];
@@ -33,6 +34,10 @@ export function MediaIconSelector({project,value,onChange,label,kind,onAddIcons}
    <span className="nv-icon-picker-name">{current}</span><span aria-hidden="true">{open?'▴':'▾'}</span>
   </button>
   {open&&<div className="nv-icon-picker-panel">
+   <div className="nv-icon-mode" role="group" aria-label="Type d'icône">
+    <button type="button" aria-pressed={mode==='standard'} className={'nv-icon-mode-btn'+(mode==='standard'?' is-on':'')} onClick={()=>{setMode('standard');pick({iconId:undefined,hoverIconId:undefined,pressedIconId:undefined});}}>Icône standard</button>
+    <button type="button" aria-pressed={mode==='pack'} className={'nv-icon-mode-btn'+(mode==='pack'?' is-on':'')} onClick={()=>setMode('pack')}>Pack de 3</button>
+   </div>
    <div className="nv-icon-picker-grid" role="listbox" aria-label={label}>
     <button type="button" role="option" aria-selected={!value?.iconId} className={'nv-icon-tile'+(!value?.iconId?' is-selected':'')} onClick={()=>pick({iconId:undefined,hoverIconId:undefined,pressedIconId:undefined,iconSize:42})}>
      <span>{kind==='image'?<Image size={30}/>:<Play size={30}/>}</span><small>Standard</small>
