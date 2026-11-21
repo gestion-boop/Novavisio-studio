@@ -21,3 +21,6 @@
 .nv-brand-h3{margin:18px 0 6px;font-size:15px}
 .nv-brand-h3 small{font-size:12px;opacity:.7;font-weight:600}
 .nv-brand-pack-actions{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+
+.nv-native-intro-preview{position:fixed;inset:0;z-index:99990}
+.nv-native-intro-preview .nv-native-intro{position:absolute;inset:0}
