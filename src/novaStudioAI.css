@@ -619,3 +619,228 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Section Icônes & Boutons (Module 3) */
+.nv-ai-icons-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+}
+
+.nv-ai-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nv-ai-toolbar-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.nv-ai-pill-selector {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.nv-ai-pill-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.nv-ai-pill-btn:hover {
+  color: #ffffff;
+}
+
+.nv-ai-pill-btn.is-active {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.nv-ai-state-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.nv-ai-state-btn {
+  flex: 1;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  padding: 0.6rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.nv-ai-state-btn:hover {
+  background: rgba(30, 41, 59, 0.6);
+  color: #ffffff;
+}
+
+.nv-ai-state-btn.is-active {
+  border-color: #38bdf8;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 0 1px #38bdf8;
+}
+
+.nv-ai-icons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
+  gap: 0.75rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+  margin-bottom: 1.25rem;
+}
+
+.nv-ai-icon-card {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.85rem 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  user-select: none;
+}
+
+.nv-ai-icon-card:hover {
+  background: rgba(30, 41, 59, 0.75);
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.nv-ai-icon-card:active {
+  transform: scale(0.96);
+}
+
+.nv-ai-icon-badge {
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.nv-ai-icon-card:hover .nv-ai-icon-badge {
+  transform: scale(1.06);
+}
+
+.nv-ai-icon-card:active .nv-ai-icon-badge {
+  transform: scale(0.93);
+}
+
+.nv-ai-icon-badge svg,
+.nv-ai-icon-badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.nv-ai-icon-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+}
+
+.nv-ai-icon-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nv-ai-icon-filename {
+  font-size: 0.66rem;
+  color: #64748b;
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Générateur d'icônes sur mesure */
+.nv-ai-custom-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px dashed rgba(56, 189, 248, 0.3);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.nv-ai-custom-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nv-ai-custom-head h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nv-ai-custom-row {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.nv-ai-custom-row input {
+  flex: 1;
+}
+
+.nv-ai-export-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  background: rgba(15, 23, 42, 0.7);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+

@@ -14,7 +14,10 @@ import {
   Mail,
   Calendar,
   Layers,
-  Check
+  Check,
+  Download,
+  Wand2,
+  FolderDown
 } from 'lucide-react';
 import {
   ACTIVITY_CATEGORIES,
@@ -41,10 +44,24 @@ import {
   type StyleId
 } from './brandKit';
 import {
+  BRAND_ICON_SET,
+  type BrandIconSpec
+} from './brandIconSet';
+import {
+  iconSvg,
+  svgToPng,
+  type IconShape,
+  type IconState,
+  ICON_SHAPES,
+  ICON_STATES
+} from './brandIcons';
+import {
   STUDIO_LANGUAGES,
   type StudioLanguage,
   type ClientProfile,
   type StudioProject,
+  type CustomIcon,
+  type ImportedButtonSet,
   readImage
 } from './storage';
 
@@ -55,7 +72,7 @@ export type NovaStudioAIProps = {
 };
 
 export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'brand'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'brand' | 'icons'>('info');
 
   // Champs Module 1 — Création et analyse
   const [clientName, setClientName] = useState(project.clientProfile?.name || project.name || '');
@@ -98,9 +115,25 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
     project.brandKit?.colors || generateBrand('#2f8fb5', 'moderne')
   );
 
+  // Module 3 — Icônes et Boutons (Phase 2)
+  const [iconShape, setIconShape] = useState<IconShape>('circle');
+  const [iconFinish, setIconFinish] = useState<'plat' | 'glossy'>('plat');
+  const [iconResolution, setIconResolution] = useState<256 | 512 | 1024>(512);
+  const [previewState, setPreviewState] = useState<IconState>('normal');
+  const [hoveredCardKey, setHoveredCardKey] = useState<string | null>(null);
+  const [activeCardKey, setActiveCardKey] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [customIcons, setCustomIcons] = useState<BrandIconSpec[]>([]);
+  const [packBusy, setPackBusy] = useState('');
+  const [packMessage, setPackMessage] = useState('');
+  const [appliedPack, setAppliedPack] = useState(false);
+
   // Ratios et alertes WCAG
   const contrastIssues = useMemo(() => checkContrast(colors), [colors]);
   const hasContrastError = contrastIssues.some((i) => i.level === 'error');
+
+  // Liste de toutes les icônes (les 36 standard + personnalisées)
+  const allIconSpecs = useMemo(() => [...BRAND_ICON_SET, ...customIcons], [customIcons]);
 
   // Lancer l'analyse automatique du site web
   const runWebsiteAnalysis = async () => {
@@ -114,7 +147,6 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       const data = await analyzeWebsite(website.trim());
       setDetected(data);
 
-      // Auto-remplissage des champs s'ils sont vides
       if (data.address && !address) setAddress(data.address);
       if (data.city && !city) setCity(data.city);
       if (data.phone && !phone) setPhone(data.phone);
@@ -123,18 +155,15 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       if (data.facebook && !facebook) setFacebook(data.facebook);
       if (data.instagram && !instagram) setInstagram(data.instagram);
 
-      // Logo sélectionné si trouvé
       if (data.logoUrls.length > 0 && !logoUrl) {
         setLogoUrl(data.logoUrls[0]);
       }
 
-      // Catégorie suggérée
       const suggestedCategory = inferCategory(clientName || '', data.notes?.join(' '), data.services);
       if (suggestedCategory !== 'autre' && activityCategory === 'autre') {
         setActivityCategory(suggestedCategory);
       }
 
-      // Initialisation de la charte
       const initial = buildInitialBrandKit(
         activityCategory !== 'autre' ? activityCategory : suggestedCategory,
         data,
@@ -158,7 +187,6 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       const dataUrl = await readImage(file);
       setLogoUrl(dataUrl);
 
-      // Analyse des couleurs du logo
       try {
         const pal = await analyzeLogoColors(dataUrl);
         setLogoColors(pal);
@@ -196,8 +224,162 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
     }
   };
 
+  // Téléchargement du pack ZIP haute définition
+  const downloadPackZip = async () => {
+    setPackBusy('Préparation de l’export ZIP…');
+    setPackMessage('');
+    try {
+      const {default: JSZip} = await import('jszip');
+      const zip = new JSZip();
+      const safeName = (clientName || 'novastudio').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const folderName = `pack-${safeName}-${styleId}-${iconShape}-${iconResolution}px`;
+      const folder = zip.folder(folderName)!;
+      const totalFiles = allIconSpecs.length * ICON_STATES.length;
+
+      let count = 0;
+      for (const spec of allIconSpecs) {
+        for (const st of ICON_STATES) {
+          count++;
+          setPackBusy(`Rendu ${count} / ${totalFiles} (${iconResolution}px)…`);
+          const svg = iconSvg(spec, colors, iconShape, st);
+          const pngDataUrl = await svgToPng(svg, iconResolution);
+          const base64Data = pngDataUrl.split(',')[1];
+          folder.file(`${spec.key}_${st}.png`, base64Data, {base64: true});
+          folder.file(`${spec.key}_${st}.svg`, svg);
+        }
+      }
+
+      setPackBusy('Compression de l’archive ZIP…');
+      const blob = await zip.generateAsync({type: 'blob'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folderName}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setPackMessage(`✓ Archive ZIP téléchargée avec succès (${totalFiles} PNG HD + ${totalFiles} SVG vectoriels) !`);
+    } catch (err) {
+      setPackMessage('Échec du téléchargement ZIP : ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setPackBusy('');
+    }
+  };
+
+  // Génération d'une icône sur mesure par prompt textuel
+  const generateCustomIcon = () => {
+    const prompt = customPrompt.trim();
+    if (!prompt) return;
+
+    const key = prompt.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30) || 'custom-icon';
+    if (allIconSpecs.some((s) => s.key === key)) {
+      setPackMessage(`L’icône « ${prompt} » existe déjà dans la liste.`);
+      return;
+    }
+
+    // Matching ou création de noeuds vectoriels
+    const lower = prompt.toLowerCase();
+    let nodes: BrandIconSpec['nodes'] = [
+      ['circle', {cx: 12, cy: 12, r: 4}],
+      ['path', {d: 'M12 2v4m0 12v4M2 12h4m12 0h4'}]
+    ];
+
+    if (/borne|recharge|prise|electrique|charge|plug/i.test(lower)) {
+      nodes = [
+        ['path', {d: 'M12 22v-5'}],
+        ['path', {d: 'M9 8V2'}],
+        ['path', {d: 'M15 2v6'}],
+        ['path', {d: 'M6 8h12a2 2 0 0 1 2 2v3a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6v-3a2 2 0 0 1 2-2z'}]
+      ];
+    } else if (/terrasse|vue|panoram|mer|horizon|plage/i.test(lower)) {
+      nodes = [
+        ['path', {d: 'm2 16 20 0'}],
+        ['path', {d: 'm6 16-2 5'}],
+        ['path', {d: 'm18 16 2 5'}],
+        ['path', {d: 'M12 5a7 7 0 0 1 7 7H5a7 7 0 0 1 7-7Z'}]
+      ];
+    } else if (/bar|cocktail|boisson|verre|aperitif/i.test(lower)) {
+      nodes = [
+        ['path', {d: 'm8 22 8 0'}],
+        ['path', {d: 'm12 15 0 7'}],
+        ['path', {d: 'm19 3-14 0 7 12 7-12z'}]
+      ];
+    } else if (/velo|cycl|bike/i.test(lower)) {
+      nodes = [
+        ['circle', {cx: 18.5, cy: 17.5, r: 3.5}],
+        ['circle', {cx: 5.5, cy: 17.5, r: 3.5}],
+        ['path', {d: 'M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5 3.5-7h3l2 3'}],
+        ['path', {d: 'm5.5 17.5 4-7h5'}]
+      ];
+    } else if (/wifi|internet|connexion/i.test(lower)) {
+      nodes = [
+        ['path', {d: 'M2.5 9a15 15 0 0 1 19 0M5.8 12.5a10 10 0 0 1 12.4 0M9 16a5 5 0 0 1 6 0'}],
+        ['circle', {cx: 12, cy: 19, r: 1}]
+      ];
+    }
+
+    const newSpec: BrandIconSpec = {
+      key,
+      label: prompt.slice(0, 32),
+      nodes
+    };
+
+    setCustomIcons((prev) => [...prev, newSpec]);
+    setCustomPrompt('');
+    setPackMessage(`✓ Icône personnalisée « ${prompt} » générée et ajoutée aux 3 états !`);
+  };
+
+  // Intégration directe des icônes dans le projet
+  const integrateIconsIntoProject = async () => {
+    setPackBusy('Génération des 3 états pour le projet…');
+    setPackMessage('');
+    try {
+      const iconsToAdd: CustomIcon[] = [];
+      const buttonSetsToAdd: ImportedButtonSet[] = [];
+
+      for (const spec of allIconSpecs) {
+        const normalSvg = iconSvg(spec, colors, iconShape, 'normal');
+        const hoverSvg = iconSvg(spec, colors, iconShape, 'hover');
+        const pressedSvg = iconSvg(spec, colors, iconShape, 'pressed');
+
+        const [normalData, hoverData, pressedData] = await Promise.all([
+          svgToPng(normalSvg, 256),
+          svgToPng(hoverSvg, 256),
+          svgToPng(pressedSvg, 256)
+        ]);
+
+        const normalId = crypto.randomUUID();
+        const hoverId = crypto.randomUUID();
+        const pressedId = crypto.randomUUID();
+
+        iconsToAdd.push(
+          {id: normalId, name: `${spec.label} · Normal`, dataUrl: normalData},
+          {id: hoverId, name: `${spec.label} · Survol`, dataUrl: hoverData},
+          {id: pressedId, name: `${spec.label} · Pressé`, dataUrl: pressedData}
+        );
+
+        buttonSetsToAdd.push({
+          id: crypto.randomUUID(),
+          name: spec.label,
+          iconId: normalId,
+          hoverIconId: hoverId,
+          pressedIconId: pressedId,
+          iconSize: 48,
+        });
+      }
+
+      setAppliedPack(true);
+      setPackMessage(`✓ ${allIconSpecs.length} packs d'icônes intégrés (${iconsToAdd.length} fichiers Normal / Survol / Pressé) !`);
+    } catch (err) {
+      setPackMessage('Erreur d’intégration : ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setPackBusy('');
+    }
+  };
+
   // Validation finale et application au projet
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!clientName.trim()) {
       setActiveTab('info');
       setAnalysisError('Le nom commercial du client est obligatoire.');
@@ -237,6 +419,43 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
 
     const barPatch = toBarPatch(colors);
 
+    // Préparation des icônes pour le projet si demandé
+    const iconsToAdd: CustomIcon[] = [...project.icons];
+    const buttonSetsToAdd: ImportedButtonSet[] = [...(project.buttonSets || [])];
+
+    if (appliedPack) {
+      for (const spec of allIconSpecs) {
+        const normalSvg = iconSvg(spec, colors, iconShape, 'normal');
+        const hoverSvg = iconSvg(spec, colors, iconShape, 'hover');
+        const pressedSvg = iconSvg(spec, colors, iconShape, 'pressed');
+
+        const [normalData, hoverData, pressedData] = await Promise.all([
+          svgToPng(normalSvg, 256),
+          svgToPng(hoverSvg, 256),
+          svgToPng(pressedSvg, 256)
+        ]);
+
+        const normalId = crypto.randomUUID();
+        const hoverId = crypto.randomUUID();
+        const pressedId = crypto.randomUUID();
+
+        iconsToAdd.push(
+          {id: normalId, name: `${spec.label} · Normal`, dataUrl: normalData},
+          {id: hoverId, name: `${spec.label} · Survol`, dataUrl: hoverData},
+          {id: pressedId, name: `${spec.label} · Pressé`, dataUrl: pressedData}
+        );
+
+        buttonSetsToAdd.push({
+          id: crypto.randomUUID(),
+          name: spec.label,
+          iconId: normalId,
+          hoverIconId: hoverId,
+          pressedIconId: pressedId,
+          iconSize: 48,
+        });
+      }
+    }
+
     const projectUpdate: Partial<StudioProject> = {
       name: projectName.trim() || clientName.trim(),
       clientProfile,
@@ -247,6 +466,8 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
       },
       languages: selectedLanguages,
       vrEnabled: visitType === 'vr' || visitType === 'hybrid',
+      icons: iconsToAdd,
+      buttonSets: buttonSetsToAdd,
     };
 
     onApply(projectUpdate, clientProfile, brandKit);
@@ -295,6 +516,14 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
           >
             <span className="nv-ai-tab-step">2</span>
             <span>Charte graphique & Couleurs</span>
+          </button>
+          <button
+            type="button"
+            className={`nv-ai-tab ${activeTab === 'icons' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('icons')}
+          >
+            <span className="nv-ai-tab-step">3</span>
+            <span>Boutons & Icônes IA (3 états)</span>
           </button>
         </nav>
 
@@ -626,7 +855,7 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
               </div>
 
               {/* Couleur de départ (graine) */}
-              <div style={{marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem'}}>
+              <div style={{marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap'}}>
                 <label style={{fontSize: '0.85rem', fontWeight: 600, color: '#cbd5e1'}}>
                   Couleur de départ (seed) :
                 </label>
@@ -793,31 +1022,215 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
               </div>
             </div>
           )}
+
+          {activeTab === 'icons' && (
+            <div>
+              {/* Barre de contrôle des icônes : Forme, Finition et Résolution */}
+              <div className="nv-ai-icons-toolbar">
+                <div className="nv-ai-toolbar-group">
+                  <label>Forme :</label>
+                  <div className="nv-ai-pill-selector">
+                    {ICON_SHAPES.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        className={`nv-ai-pill-btn ${iconShape === s.id ? 'is-active' : ''}`}
+                        onClick={() => setIconShape(s.id)}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="nv-ai-toolbar-group">
+                  <label>Finition :</label>
+                  <div className="nv-ai-pill-selector">
+                    <button
+                      type="button"
+                      className={`nv-ai-pill-btn ${iconFinish === 'plat' ? 'is-active' : ''}`}
+                      onClick={() => setIconFinish('plat')}
+                    >
+                      Épuré / Plat
+                    </button>
+                    <button
+                      type="button"
+                      className={`nv-ai-pill-btn ${iconFinish === 'glossy' ? 'is-active' : ''}`}
+                      onClick={() => setIconFinish('glossy')}
+                    >
+                      Glossy 3D
+                    </button>
+                  </div>
+                </div>
+
+                <div className="nv-ai-toolbar-group">
+                  <label>Résolution export :</label>
+                  <div className="nv-ai-pill-selector">
+                    <button
+                      type="button"
+                      className={`nv-ai-pill-btn ${iconResolution === 256 ? 'is-active' : ''}`}
+                      onClick={() => setIconResolution(256)}
+                      title="256x256 px - Web & Mobile"
+                    >
+                      256 px
+                    </button>
+                    <button
+                      type="button"
+                      className={`nv-ai-pill-btn ${iconResolution === 512 ? 'is-active' : ''}`}
+                      onClick={() => setIconResolution(512)}
+                      title="512x512 px - Recommandé VR WebXR"
+                    >
+                      512 px (VR)
+                    </button>
+                    <button
+                      type="button"
+                      className={`nv-ai-pill-btn ${iconResolution === 1024 ? 'is-active' : ''}`}
+                      onClick={() => setIconResolution(1024)}
+                      title="1024x1024 px - Ultra HD"
+                    >
+                      1024 px (HD)
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Onglets de simulation des 3 états (Normal / Survol / Pressé) */}
+              <div className="nv-ai-state-tabs" role="tablist" aria-label="État de prévisualisation des icônes">
+                <button
+                  type="button"
+                  className={`nv-ai-state-btn ${previewState === 'normal' ? 'is-active' : ''}`}
+                  onClick={() => setPreviewState('normal')}
+                >
+                  <span>1. État NORMAL (Repos)</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nv-ai-state-btn ${previewState === 'hover' ? 'is-active' : ''}`}
+                  onClick={() => setPreviewState('hover')}
+                >
+                  <span>2. État SURVOL ✨ (Lumineux)</span>
+                </button>
+                <button
+                  type="button"
+                  className={`nv-ai-state-btn ${previewState === 'pressed' ? 'is-active' : ''}`}
+                  onClick={() => setPreviewState('pressed')}
+                >
+                  <span>3. État PRESSÉ (Enfoncé)</span>
+                </button>
+              </div>
+
+              {/* Zone générateur d'icônes personnalisées par IA */}
+              <div className="nv-ai-custom-box">
+                <div className="nv-ai-custom-head">
+                  <h4>
+                    <Wand2 size={16} />
+                    Générateur d’icône sur mesure par l'IA
+                  </h4>
+                  <span style={{fontSize: '0.75rem', color: '#94a3b8'}}>
+                    Décris un équipement ou service (ex. borne de recharge, cocktail, vue mer...)
+                  </span>
+                </div>
+                <div className="nv-ai-custom-row">
+                  <input
+                    type="text"
+                    className="nv-ai-input"
+                    placeholder="Ex. Borne de recharge électrique, Terrasse panoramique, Bar lounge..."
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') generateCustomIcon(); }}
+                  />
+                  <button
+                    type="button"
+                    className="nv-ai-analyze-btn"
+                    disabled={!customPrompt.trim()}
+                    onClick={generateCustomIcon}
+                  >
+                    <Sparkles size={15} />
+                    <span>Créer l'icône</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Grille des 36 icônes sectorielles */}
+              <div className="nv-ai-icons-grid" role="list">
+                {allIconSpecs.map((spec) => {
+                  const stateForCard = activeCardKey === spec.key
+                    ? 'pressed'
+                    : hoveredCardKey === spec.key
+                    ? 'hover'
+                    : previewState;
+
+                  const svg = iconSvg(spec, colors, iconShape, stateForCard);
+
+                  return (
+                    <div
+                      key={spec.key}
+                      className="nv-ai-icon-card"
+                      onMouseEnter={() => setHoveredCardKey(spec.key)}
+                      onMouseLeave={() => { setHoveredCardKey(null); setActiveCardKey(null); }}
+                      onMouseDown={() => setActiveCardKey(spec.key)}
+                      onMouseUp={() => setActiveCardKey(null)}
+                      title={`Double-clic pour tester · ${spec.label}`}
+                    >
+                      <div
+                        className="nv-ai-icon-badge"
+                        dangerouslySetInnerHTML={{__html: svg}}
+                      />
+                      <div className="nv-ai-icon-info">
+                        <span className="nv-ai-icon-label">{spec.label}</span>
+                        <span className="nv-ai-icon-filename">{`${spec.key}_${stateForCard}.png`}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Barre d'actions d'export et d'intégration */}
+              <div className="nv-ai-export-bar">
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.6rem'}}>
+                  <button
+                    type="button"
+                    className="nv-ai-btn-ghost"
+                    disabled={!!packBusy}
+                    onClick={downloadPackZip}
+                    title="Télécharge l'archive ZIP contenant les 108 fichiers PNG HD et les SVG vectoriels"
+                  >
+                    <Download size={16} style={{display: 'inline', marginRight: 6}} />
+                    <span>{packBusy || `Télécharger le pack ZIP (${allIconSpecs.length * 3} fichiers HD)`}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="nv-ai-btn-primary"
+                    style={{background: appliedPack ? '#059669' : undefined}}
+                    disabled={!!packBusy}
+                    onClick={integrateIconsIntoProject}
+                    title="Ajoute les 36 packs de 3 états directement dans la visite pour la barre, les flèches et la VR"
+                  >
+                    <FolderDown size={16} style={{display: 'inline', marginRight: 6}} />
+                    <span>{appliedPack ? '✓ Icônes intégrées au projet' : 'Intégrer les 36 packs au projet'}</span>
+                  </button>
+                </div>
+
+                {packMessage && (
+                  <span style={{fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600}}>
+                    {packMessage}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pied de page d'action */}
         <footer className="nv-ai-footer">
           <div className="nv-ai-footer-left">
-            <span>NovaStudio AI · Assistant Phase 1</span>
+            <span>NovaStudio AI · Phases 1 & 2</span>
             {hasContrastError && <span style={{color: '#f43f5e'}}> · ⚠️ Contrastes WCAG à surveiller</span>}
+            {appliedPack && <span style={{color: '#34d399'}}> · ✓ Pack d'icônes prêt</span>}
           </div>
           <div className="nv-ai-footer-right">
-            {activeTab === 'brand' ? (
-              <>
-                <button type="button" className="nv-ai-btn-ghost" onClick={() => setActiveTab('info')}>
-                  <ArrowLeft size={16} style={{display: 'inline', marginRight: 4}} />
-                  Précédent
-                </button>
-                <button
-                  type="button"
-                  className="nv-ai-btn-primary"
-                  onClick={handleApply}
-                >
-                  <Sparkles size={16} />
-                  <span>Valider la charte & Appliquer au projet</span>
-                </button>
-              </>
-            ) : (
+            {activeTab === 'info' && (
               <>
                 <button type="button" className="nv-ai-btn-ghost" onClick={onClose}>
                   Annuler
@@ -836,6 +1249,40 @@ export function NovaStudioAIAssistant({project, onApply, onClose}: NovaStudioAIP
                 >
                   <span>Continuer vers la Charte</span>
                   <ArrowRight size={16} style={{display: 'inline', marginLeft: 4}} />
+                </button>
+              </>
+            )}
+
+            {activeTab === 'brand' && (
+              <>
+                <button type="button" className="nv-ai-btn-ghost" onClick={() => setActiveTab('info')}>
+                  <ArrowLeft size={16} style={{display: 'inline', marginRight: 4}} />
+                  Précédent
+                </button>
+                <button
+                  type="button"
+                  className="nv-ai-btn-primary"
+                  onClick={() => setActiveTab('icons')}
+                >
+                  <span>Passer aux Icônes & Boutons (3 états)</span>
+                  <ArrowRight size={16} style={{display: 'inline', marginLeft: 4}} />
+                </button>
+              </>
+            )}
+
+            {activeTab === 'icons' && (
+              <>
+                <button type="button" className="nv-ai-btn-ghost" onClick={() => setActiveTab('brand')}>
+                  <ArrowLeft size={16} style={{display: 'inline', marginRight: 4}} />
+                  Précédent
+                </button>
+                <button
+                  type="button"
+                  className="nv-ai-btn-primary"
+                  onClick={handleApply}
+                >
+                  <Sparkles size={16} />
+                  <span>Valider & Appliquer au projet</span>
                 </button>
               </>
             )}
