@@ -386,6 +386,15 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
   const move=(id:string,via?:Hotspot)=>{if(project.scenes.some(s=>s.id===id)){onNeedScene?.(id);
     setArrival(via&&via.arrivalCustom&&via.arrivalYaw!==undefined?{sceneId:id,yaw:via.arrivalYaw,pitch:via.arrivalPitch??0,zoom:panoramaArrivalZoom(via)}:null);
     setSceneId(id);setModal(null);setPhoto(null);setVideo(null);}};
+  /** Adresse d'une page intégrée (mini-site .vercel.app) avec la langue du visiteur au moment présent :
+   *  si le visiteur change de langue pendant que la fenêtre est ouverte, la page se recharge dans la nouvelle langue. */
+  const withVisitorLang=(u:string)=>{
+    try{
+      const parsed=new URL(u);
+      if(parsed.hostname.endsWith('.vercel.app')){parsed.searchParams.set('langs',activeLanguages.join(','));parsed.searchParams.set('lang',lang);}
+      return parsed.toString();
+    }catch{return u;}
+  };
   const openLink=(title:string,url:string,mode?:'embed'|'tab',full?:boolean)=>{
     const checked=checkedLink(url);
     if(!checked)return;
@@ -503,7 +512,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {modal&&<div className="tour-overlay" {...overlayClose(()=>setModal(null))}>
       <section className={'tour-dialog'+(modal.full?' is-full':'')} onClick={e=>e.stopPropagation()} aria-label={modal.title}>
         <header><h2>{modal.title}</h2><button type="button" aria-label={ui('close',lang)} onClick={()=>setModal(null)}><X/></button></header>
-        {modal.url?<EmbeddedPage url={modal.url} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||ui('noInfo',lang)}</p>}
+        {modal.url?<EmbeddedPage url={withVisitorLang(modal.url)} title={modal.title}/>:<p className="tour-dialog-text" style={{fontFamily:informationFont(modal.fontFamily)+', Arial, sans-serif'}}>{modal.text||ui('noInfo',lang)}</p>}
 
       </section>
     </div>}
