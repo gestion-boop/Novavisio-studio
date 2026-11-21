@@ -2786,20 +2786,24 @@ function App(){
   }
   function deleteIcon(id:string,confirmed=false){deleteIcons([id],confirmed);}
 
-  // Création d'un pack depuis la bibliothèque ou directement depuis « Icône du popup ».
-  // L'import et l'application au point se font dans UNE mise à jour du projet.
+  type GeneralIconTarget={barId:string}|{sceneId:string;pointId:string}|{close:true}|{settings:true}|{soundOn:true}|{soundOff:true};
+
+  // Création d'un pack depuis la bibliothèque générale ou directement depuis n'importe quel onglet/sélecteur.
+  // L'import et l'application se font dans UNE mise à jour du projet.
   async function createLibraryIconSet(
     name:string,images:IconSetImages,applyTo?:{sceneId:string;pointId:string},
-    generalTarget?:{barId:string}|{sceneId:string;pointId:string}|{close:true}
+    generalTarget?:GeneralIconTarget
   ):Promise<void>{
-    const label=name.trim().replace(/[\\/]/g,' ').trim();
-    if(!label||label.length>100)throw Error('Donne un nom au pack (100 caractères maximum).');
-    if(buildIconSets(project.icons).some(set=>set.name.toLocaleLowerCase('fr')===label.toLocaleLowerCase('fr'))){
-      throw Error('Un pack porte déjà ce nom. Choisis un autre nom pour éviter de mélanger les états.');
-    }
+    const rawLabel=name.trim().replace(/[\\/]/g,' ').trim();
+    if(!rawLabel||rawLabel.length>100)throw Error('Donne un nom au pack (100 caractères maximum).');
     if(project.icons.length+3>150)throw Error('La bibliothèque est pleine (150 icônes maximum). Supprime un ancien pack avant de continuer.');
     if(applyTo&&!project.scenes.some(sc=>sc.id===applyTo.sceneId&&sc.hotspots.some(h=>h.id===applyTo.pointId&&(h.type==='image'||h.type==='video')))){
       throw Error('Le point photo ou vidéo sélectionné est introuvable.');
+    }
+    const existingNames=new Set(buildIconSets(project.icons).map(set=>set.name.toLocaleLowerCase('fr')));
+    let label=rawLabel,n=2;
+    while(existingNames.has(label.toLocaleLowerCase('fr'))){
+      label=`${rawLabel} ${n++}`;
     }
     const suffixes=[['normal','Normal'],['hover','Survol'],['pressed','Pressé']] as const;
     const added:CustomIcon[]=suffixes.map(([state,suffix])=>({
@@ -2815,25 +2819,37 @@ function App(){
         {...item,...patch,useCustomIcon:true}:item):p.bottomBar,
       ...(generalTarget&&'close' in generalTarget?{
         closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId
+      }:{}),
+      ...(generalTarget&&'settings' in generalTarget?{
+        settingsIconId:patch.iconId,settingsHoverIconId:patch.hoverIconId,settingsPressedIconId:patch.pressedIconId
+      }:{}),
+      ...(generalTarget&&'soundOn' in generalTarget?{
+        soundOnIconId:patch.iconId,soundOnHoverIconId:patch.hoverIconId,soundOnPressedIconId:patch.pressedIconId
+      }:{}),
+      ...(generalTarget&&'soundOff' in generalTarget?{
+        soundOffIconId:patch.iconId,soundOffHoverIconId:patch.hoverIconId,soundOffPressedIconId:patch.pressedIconId
       }:{})
     });
     validateProject(apply(project));
     setProject(apply);
-    setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé'+(applyTo?' et appliqué au popup sélectionné':'')+'. Enregistre avec la disquette.');
+    const applied=!!(applyTo||generalTarget);
+    setStatus('Pack « '+label+' » créé avec Normal, Survol et Pressé'+(applied?' et appliqué':'')+'. Enregistre avec la disquette.');
   }
-  /** Bibliothèque générale à côté des sélecteurs de packs : ajoute les icônes au projet, puis on les choisit. */
-  function generalLibraryBlock(){
+  /** Bibliothèque générale disponible partout : ajoute les icônes au projet (avec le thème de la barre) et les applique si demandé. */
+  function generalLibraryBlock(target?:GeneralIconTarget,applyLabel?:string){
     return <details className="nv-icons-library">
-      <summary>Bibliothèque générale d’icônes</summary>
-      <GeneralIconLibrary applyLabel="" barTheme={project.barStyle} onAdd={(name,images)=>createLibraryIconSet(name,images)}/>
+      <summary>Bibliothèque générale d’icônes (thème de la barre)</summary>
+      <GeneralIconLibrary applyLabel={applyLabel??''} barTheme={project.barStyle}
+        onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?target:undefined)}/>
     </details>;
   }
   function popupIconSettings(hotspot:Hotspot,kind:'image'|'video'){
     const target={sceneId:activeId,pointId:hotspot.id};
     return <>
-      <MediaIconSelector project={project} value={hotspot} kind={kind} label="Icône du popup" onChange={patchPoint}/>
+      <MediaIconSelector project={project} value={hotspot} kind={kind} label="Icône du popup" onChange={patchPoint}
+        onCreateGeneral={(name,images,apply)=>createLibraryIconSet(name,images,apply?target:undefined)}/>
       <details className="nv-icons-library" key={target.sceneId+':'+target.pointId}>
-        <summary>Bibliothèque générale d’icônes</summary>
+        <summary>Bibliothèque générale d’icônes (thème de la barre)</summary>
         <GeneralIconLibrary applyLabel="à ce popup" barTheme={project.barStyle}
           onAdd={(name,images,apply)=>createLibraryIconSet(name,images,apply?target:undefined)}/>
       </details>
@@ -2965,28 +2981,62 @@ function App(){
       </button>}
     </div>;
   }
-  // Un seul état à la fois : on voit l'icône de CE bouton, pas toute la bibliothèque.
+  // Un seul état à la fois : on voit l'icône de CE bouton, avec accès direct à la bibliothèque du projet ET à la bibliothèque générale.
   function iconStateEditor(key:string,label:string,iconId:string|undefined,apply:(value:string|undefined)=>void,fallback:string){
     const icon=project.icons.find(i=>i.id===iconId);
-    const open=libraryFor===key;
+    const openProject=libraryFor===key;
+    const openGeneral=libraryFor===key+':general';
+    const open=openProject||openGeneral;
     return <div className="icon-state">
       <div className="icon-state-label">{label}</div>
       <div className="icon-state-row">
         <div className="icon-state-preview" title={icon?.name??fallback}>{icon?<img src={icon.dataUrl} alt={icon.name}/>:<span>{fallback}</span>}</div>
         <div className="icon-state-actions">
           <button type="button" className="tool" onClick={()=>{stateTarget.current=apply;stateIconInput.current?.click();}}>{icon?'Remplacer par un fichier…':'Importer un fichier…'}</button>
-          <button type="button" className="tool" onClick={()=>setLibraryFor(open?null:key)}>{open?'Fermer la bibliothèque':'Choisir dans ma bibliothèque'}</button>
+          <button type="button" className="tool" onClick={()=>setLibraryFor(openProject?null:key)}>{openProject?'Fermer ma bibliothèque':'Choisir dans ma bibliothèque'}</button>
+          <button type="button" className="tool" onClick={()=>setLibraryFor(openGeneral?null:key+':general')}>{openGeneral?'Fermer la bibliothèque générale':'Bibliothèque générale (thème barre)'}</button>
           {icon&&<button type="button" className="tool" onClick={()=>apply(undefined)}>Retirer</button>}
         </div>
       </div>
-      {open&&<div className="icon-choice-row">
-        {[...project.icons].sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})).map(i=><span key={i.id} className="icon-choice-wrap">
-          <button type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
-            <img src={i.dataUrl} alt={i.name}/></button>
-          <button type="button" className="icon-delete" title={'Supprimer « '+i.name+' » de la bibliothèque'} aria-label={'Supprimer '+i.name} onClick={()=>deleteIcon(i.id)}><XMark/></button>
-        </span>)}
-        <button type="button" className="icon-choice icon-upload" title="Ajouter un nouveau PNG" onClick={()=>{stateTarget.current=apply;stateIconInput.current?.click();}}>＋</button>
-      </div>}
+      {open&&<>
+        <div className="nv-general-tab-bar" role="tablist" aria-label="Source de l'icône">
+          <button type="button" role="tab" aria-selected={openProject} aria-pressed={openProject} className={openProject?'is-on':''} onClick={()=>setLibraryFor(key)}>
+            Icônes du projet ({project.icons.length})
+          </button>
+          <button type="button" role="tab" aria-selected={openGeneral} aria-pressed={openGeneral} className={openGeneral?'is-on':''} onClick={()=>setLibraryFor(key+':general')}>
+            Bibliothèque générale
+          </button>
+        </div>
+        {openGeneral?<GeneralIconLibrary
+          barTheme={project.barStyle}
+          applyLabel={'à « '+label+' »'}
+          onAdd={async(name,images,shouldApply)=>{
+            const rawLabel=name.trim().replace(/[\\/]/g,' ').trim()||'Icône';
+            if(project.icons.length+3>150)throw Error('La bibliothèque est pleine (150 icônes maximum).');
+            const existingNames=new Set(buildIconSets(project.icons).map(set=>set.name.toLocaleLowerCase('fr')));
+            let packLabel=rawLabel,n=2;
+            while(existingNames.has(packLabel.toLocaleLowerCase('fr')))packLabel=`${rawLabel} ${n++}`;
+            const added:CustomIcon[]=[
+              {id:uid(),name:packLabel+' · Normal',dataUrl:images.normal},
+              {id:uid(),name:packLabel+' · Survol',dataUrl:images.hover},
+              {id:uid(),name:packLabel+' · Pressé',dataUrl:images.pressed}
+            ];
+            setProject(p=>({...p,icons:[...p.icons,...added].slice(0,150)}));
+            if(shouldApply){
+              const chosenId=key.includes('hover')?added[1].id:key.includes('pressed')?added[2].id:added[0].id;
+              apply(chosenId);
+              setLibraryFor(null);
+            }
+          }}
+        />:<div className="icon-choice-row">
+          {[...project.icons].sort((a,b)=>a.name.localeCompare(b.name,'fr',{sensitivity:'base'})).map(i=><span key={i.id} className="icon-choice-wrap">
+            <button type="button" title={i.name} className={i.id===iconId?'icon-choice chosen':'icon-choice'} onClick={()=>{apply(i.id);setLibraryFor(null);}}>
+              <img src={i.dataUrl} alt={i.name}/></button>
+            <button type="button" className="icon-delete" title={'Supprimer « '+i.name+' » de la bibliothèque'} aria-label={'Supprimer '+i.name} onClick={()=>deleteIcon(i.id)}><XMark/></button>
+          </span>)}
+          <button type="button" className="icon-choice icon-upload" title="Ajouter un nouveau PNG" onClick={()=>{stateTarget.current=apply;stateIconInput.current?.click();}}>＋</button>
+        </div>}
+      </>}
     </div>;
   }
   async function importStateIcon(file?:File){
@@ -4433,11 +4483,14 @@ function App(){
                         </select>
                       </label>}
                     </>}
-                    {selected.type!=='image'&&selected.type!=='video'&&fullscreenIconSetPicker(
-                      {...selected,size:selected.iconSize??28},
-                      set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,
-                        pressedIconId:set.pressedIconId,iconSize:set.size})
-                    )}
+                    {selected.type!=='image'&&selected.type!=='video'&&<>
+                      {generalLibraryBlock({sceneId:activeId,pointId:selected.id},'à ce point')}
+                      {fullscreenIconSetPicker(
+                        {...selected,size:selected.iconSize??28},
+                        set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,
+                          pressedIconId:set.pressedIconId,iconSize:set.size})
+                      )}
+                    </>}
                     <details className="nv-quick-icon-advanced">
                       <summary>Personnaliser les PNG séparément</summary>
                     {(['iconId','hoverIconId','pressedIconId'] as const).map((field,index)=>
@@ -4506,10 +4559,11 @@ function App(){
                     {(selectedBar.type==='lien'||selectedBar.type==='information')&&<label>Lien
                       <input value={selectedBar.url??''} placeholder="https://…" onChange={e=>patchBar({url:e.target.value})}/>
                     </label>}
+                    {generalLibraryBlock({barId:selectedBar.id},'à ce bouton')}
                     {fullscreenIconSetPicker(
                       {...selectedBar,size:barIconSize(selectedBar)},
                       set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,
-                        pressedIconId:set.pressedIconId,iconSize:set.size})
+                        pressedIconId:set.pressedIconId,iconSize:set.size,useCustomIcon:true})
                     )}
                     <details className="nv-quick-icon-advanced">
                       <summary>Personnaliser les PNG séparément</summary>
@@ -5068,6 +5122,7 @@ function App(){
 
               {!['image','video'].includes(selected.type) && <InspectorSection title="Icône et apparence">
                 <div className="section-title">ICÔNE DU POINT</div>
+                {generalLibraryBlock({sceneId:activeId,pointId:selected.id},'à ce point')}
                 {iconSetPicker({...selected,size:selected.iconSize??28},set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:Math.max(16,Math.min(80,set.size))}))}
                 {libraryPackPicker(selected.iconId,patch=>patchPoint(patch))}
                 {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
@@ -5215,9 +5270,10 @@ function App(){
               <select value={selectedBar.linkMode??'embed'} onChange={e=>patchBar({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite (fenêtre intégrée)</option><option value="tab">Dans un nouvel onglet</option></select>
               {refusesEmbedding(selectedBar.url)&&<small className="hint-inline">Instagram, Facebook, LinkedIn… refusent d’être affichés dans une fenêtre intégrée : ce lien s’ouvre automatiquement dans un nouvel onglet.</small>}</label>}
             <InspectorSection title="Icônes : normal, survol, clic">
-            {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size}))}
-            {libraryPackPicker(selectedBar.iconId,patch=>patchBar(patch))}
-            {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id}),'Icône par défaut')}
+            {generalLibraryBlock({barId:selectedBar.id},'au bouton « '+selectedBar.title+' »')}
+            {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size,useCustomIcon:true}))}
+            {libraryPackPicker(selectedBar.iconId,patch=>patchBar({...patch,useCustomIcon:true}))}
+            {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id,useCustomIcon:!!id}),'Icône par défaut')}
             {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
             {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
             {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
@@ -5240,6 +5296,7 @@ function App(){
             </>},
             {key:'colors',title:'Couleurs et contours',hint:'Fond, boutons, pictogrammes',icon:<Palette size={26}/>,tone:'#ff8a3d',content:<><div className="style-settings">
             <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
+            {generalLibraryBlock(selectedBar?{barId:selectedBar.id}:undefined,selectedBar?'au bouton « '+selectedBar.title+' »':'')}
             <div className="style-colors">
               {barColorFields.map(field=><label className="style-color-field" key={field.key}>
                 <span>{field.label}</span>
@@ -5291,6 +5348,7 @@ function App(){
             </button>)}</div>
             {!active.hotspots.length&&<p className="hint">Pas encore d’élément dans cette scène.</p>}
           </>}
+          {generalLibraryBlock(active&&selected?{sceneId:active.id,pointId:selected.id}:undefined,active&&selected?'au point sélectionné':'')}
           <div className="section-title">ICÔNES DISPONIBLES</div>
           <div className="elements-icon-grid">
             {project.icons.filter(icon=>!(project.hiddenAvailableIcons??[]).includes(icon.id)).map(icon=><div className="nv-element-icon-wrap" key={icon.id}><button type="button" draggable
@@ -5559,10 +5617,11 @@ function App(){
             {([['Normal',project.settingsIconId],['Survol',project.settingsHoverIconId],['Pressé',project.settingsPressedIconId]] as const).map(([label,id])=>
               <div key={label}><span>{id&&project.icons.some(i=>i.id===id)?<img src={project.icons.find(i=>i.id===id)!.dataUrl} alt={'Paramètres '+label}/>:<i>⚙</i>}</span><small>{label}</small></div>)}
           </div>}
-          {generalLibraryBlock()}
+          {generalLibraryBlock({settings:true},'au bouton Paramètres')}
           <ExistingIconPackPicker project={project}
             value={{iconId:project.settingsIconId,hoverIconId:project.settingsHoverIconId,pressedIconId:project.settingsPressedIconId}}
             preferred="settings" label="Choisir un pack de 3 pour Paramètres"
+            onCreateGeneral={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?{settings:true}:undefined)}
             onSelect={pack=>{setProject(p=>({...p,settingsIconId:pack.iconId,settingsHoverIconId:pack.hoverIconId,settingsPressedIconId:pack.pressedIconId}));setStatus('Pack Paramètres appliqué : '+pack.name);}}/>
           {iconStateEditor('settings-normal','Paramètres · Normal',project.settingsIconId,
             id=>setProject(p=>({...p,settingsIconId:id})),'⚙')}
@@ -5588,10 +5647,11 @@ function App(){
           <p className="hint">À la fin de l’introduction, le visiteur choisit « Avec le son » ou « Sans le son ». Les mêmes boutons sont utilisés dans les liens publics, privés et les exports. Ils peuvent être personnalisés depuis ta bibliothèque d’icônes.</p>
           <button type="button" className="style-reset" onClick={()=>void addSoundIcons()}>＋ Ajouter les icônes Son à mes icônes (aux couleurs de la barre)</button>
           <div className="section-title">SON ACTIVÉ — 3 ICÔNES</div>
-          {generalLibraryBlock()}
+          {generalLibraryBlock({soundOn:true},'à Son activé')}
           <ExistingIconPackPicker project={project}
             value={{iconId:project.soundOnIconId,hoverIconId:project.soundOnHoverIconId,pressedIconId:project.soundOnPressedIconId}}
             preferred="audio" label="Choisir un pack de 3 pour Son activé"
+            onCreateGeneral={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?{soundOn:true}:undefined)}
             onSelect={pack=>{setProject(p=>({...p,soundOnIconId:pack.iconId,soundOnHoverIconId:pack.hoverIconId,soundOnPressedIconId:pack.pressedIconId}));setStatus('Pack Son activé appliqué : '+pack.name);}}/>
           {iconStateEditor('audio-on-normal','Son activé · Normal',project.soundOnIconId,
             id=>setProject(p=>({...p,soundOnIconId:id})),'🔊')}
@@ -5600,10 +5660,11 @@ function App(){
           {iconStateEditor('audio-on-pressed','Son activé · Clic',project.soundOnPressedIconId,
             id=>setProject(p=>({...p,soundOnPressedIconId:id})),'🔊')}
           <div className="section-title">SON COUPÉ — 3 ICÔNES</div>
-          {generalLibraryBlock()}
+          {generalLibraryBlock({soundOff:true},'à Son coupé')}
           <ExistingIconPackPicker project={project}
             value={{iconId:project.soundOffIconId,hoverIconId:project.soundOffHoverIconId,pressedIconId:project.soundOffPressedIconId}}
             preferred="audio" label="Choisir un pack de 3 pour Son coupé"
+            onCreateGeneral={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?{soundOff:true}:undefined)}
             onSelect={pack=>{setProject(p=>({...p,soundOffIconId:pack.iconId,soundOffHoverIconId:pack.hoverIconId,soundOffPressedIconId:pack.pressedIconId}));setStatus('Pack Son coupé appliqué : '+pack.name);}}/>
           {iconStateEditor('audio-off-normal','Son coupé · Normal',project.soundOffIconId,
             id=>setProject(p=>({...p,soundOffIconId:id})),'🔇')}
@@ -5658,8 +5719,8 @@ function App(){
           </div>;
         })()}
         {panel==='icons' && <div className="properties nv-icons-panel">
-          <details className="nv-icons-library">
-            <summary>Bibliothèque générale · créer des icônes personnalisées</summary>
+          <details className="nv-icons-library" open>
+            <summary>Bibliothèque générale · créer des icônes personnalisées (thème de la barre)</summary>
             <GeneralIconLibrary
               barTheme={project.barStyle}
               applyLabel={libraryFor?.startsWith('global-close')?'à la croix de fermeture':selectedBar?'au bouton sélectionné':active&&selected?'au point sélectionné':undefined}
@@ -5682,7 +5743,7 @@ function App(){
             onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
               const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
               if(libraryFor?.startsWith('global-close')){setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId}));setStatus('Pack de croix appliqué : normal, survol et pressé.');}
-              else if(selectedBar){patchBar(patch);setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
+              else if(selectedBar){patchBar({...patch,useCustomIcon:true});setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
               else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
             }:undefined}/>
           </details>
@@ -5692,13 +5753,14 @@ function App(){
               <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
               <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Croix classique par défaut'}</small></div>
             </div>
-            {generalLibraryBlock()}
+            {generalLibraryBlock({close:true},'à la croix de fermeture')}
           {libraryPackPicker(project.closeIconId,patch=>setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId})))}
             <details className="nv-icons-states">
               <summary>Croix : PNG normal, survol et clic un par un</summary>
               <ExistingIconPackPicker project={project}
               value={{iconId:project.closeIconId,hoverIconId:project.closeIconHoverId,pressedIconId:project.closeIconPressedId}}
               preferred="close" label="Choisir une croix dans mes packs de 3"
+              onCreateGeneral={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?{close:true}:undefined)}
               onSelect={pack=>{
                 setProject(p=>({...p,closeIconId:pack.iconId,closeIconHoverId:pack.hoverIconId,closeIconPressedId:pack.pressedIconId}));
                 setStatus('Pack « '+pack.name+' » appliqué à la croix : Normal, Survol et Pressé. Sauvegarde avec la disquette.');

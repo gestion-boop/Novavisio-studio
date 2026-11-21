@@ -1,8 +1,16 @@
 .nv-general-icons{display:grid;gap:12px;padding:10px 0}
+.nv-general-bar-theme-banner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:9px 11px;border-radius:10px;border:1px solid #35707f;background:linear-gradient(155deg,#153c49,#102b36)}
+.nv-general-bar-theme-banner .toggle-row{margin:0;flex:1;min-width:180px;font-weight:700;color:#d8f8f6}
 .nv-general-icon-filters,.nv-general-icon-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.nv-general-icon-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:6px;max-height:240px;overflow:auto;padding:4px}
-.nv-general-icon-catalog button{display:grid;justify-items:center;align-content:center;gap:5px;min-height:65px;padding:5px;border:1px solid #27485b;border-radius:8px;background:#142a37;color:#e4f1f4;cursor:pointer;overflow-wrap:anywhere;font-size:.76rem}
-.nv-general-icon-catalog button[aria-pressed=true]{border-color:#6ddbd7;background:#1c4954}
+.nv-general-icon-catalog{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px;max-height:255px;overflow:auto;padding:4px}
+.nv-general-icon-catalog button{display:grid;justify-items:center;align-content:center;gap:5px;min-height:70px;padding:6px 5px;border:1px solid #27485b;border-radius:9px;background:#142a37;color:#e4f1f4;cursor:pointer;overflow-wrap:anywhere;font-size:.76rem;transition:transform .14s ease,border-color .14s ease,background .14s ease}
+.nv-general-icon-catalog button:hover{border-color:#4bebde;background:#193949;transform:translateY(-1px)}
+.nv-general-icon-catalog button[aria-pressed=true]{border-color:#4bebde;background:#1c4954;box-shadow:0 0 0 2px rgba(75,235,222,.35)}
+.nv-general-catalog-badge{width:34px;height:34px;display:grid;place-items:center;border:1.5px solid;position:relative;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.nv-general-catalog-badge.round{border-radius:50%}
+.nv-general-catalog-badge.rounded{border-radius:20%}
+.nv-general-catalog-badge.square{border-radius:4px}
+.nv-general-catalog-badge.glossy{background-image:radial-gradient(ellipse at 37% 2%,#fff8,transparent 58%),linear-gradient(145deg,#fff2,transparent 48%,#0006)}
 .nv-general-icon-editor{display:grid;grid-template-columns:minmax(95px,1fr) minmax(0,2fr);align-items:start;gap:12px}
 .nv-general-icon-sample{display:grid;justify-items:center;gap:8px;padding:5px}
 .nv-general-icon-swatch{width:min(85px,100%);aspect-ratio:1;display:grid;place-items:center;border:2px solid;position:relative;overflow:hidden}
@@ -15,4 +23,8 @@
 .nv-general-icon-swatch.pressed{filter:brightness(.78)}
 .nv-general-icon-swatch.pressed svg{scale:.94;translate:0 2px}
 .nv-general-icon-actions{display:flex;flex-wrap:wrap;gap:8px}
+.nv-general-tab-bar{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.nv-general-tab-bar button{flex:1;min-height:36px;padding:6px 10px;border-radius:9px;border:1px solid #35606f;background:#143543;color:#e6f6f8;font:700 12px system-ui,sans-serif;cursor:pointer;transition:background .15s,border-color .15s}
+.nv-general-tab-bar button[aria-pressed=true],.nv-general-tab-bar button.is-on{background:#1f8aa8;border-color:#4bebde;color:#fff;box-shadow:0 0 0 1px rgba(75,235,222,.4)}
 @media(max-width:440px){.nv-general-icon-editor{grid-template-columns:1fr}.nv-general-icon-sample{display:flex;justify-content:center;align-items:center;gap:12px}}
+
