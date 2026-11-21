@@ -18,9 +18,9 @@ export type Hotspot = {
   targetSpaceId?:string;
   /** Vue d'arrivée réglée à la main sur cette flèche : seule cette vue passe avant « Vue d’arrivée » du panorama. */
   arrivalCustom?:boolean;
-  translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
+  translations?: Partial<Record<'en'|'es'|'de'|'nl'|'it',string>>;
   /** Titre dans les autres langues. */
-  titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
+  titleTranslations?: Partial<Record<'en'|'es'|'de'|'nl'|'it',string>>;
   /** Style d'ouverture propre à ce point (sinon : réglage général des Paramètres). */
   openAnimation?: WindowAnimation;
   iconId?:string;hoverIconId?:string;pressedIconId?:string;iconSize?:number;/** Flèche « Sphère » : boule 3D qui tourne et montre le panorama de destination (diamètre = iconSize). */sphere?:boolean;/** Contour de la sphère : couleur (#rrggbb) et intensité 0-100. */sphereRimColor?:string;sphereRimIntensity?:number;/** Photo hébergée ailleurs (https) : affichée en fenêtre. */imageUrl?:string;/** Vidéo à lire dans un lecteur intégré (ex. Google Drive). */videoEmbed?:string;url?:string;
@@ -107,7 +107,7 @@ export type BottomBarItem = {
   target: string;
   text: string;
   url: string;
-  translations?: Partial<Record<'en'|'es'|'de'|'nl',string>>;
+  translations?: Partial<Record<'en'|'es'|'de'|'nl'|'it',string>>;
   iconId?: string;
   hoverIconId?: string;
   pressedIconId?: string;
@@ -184,10 +184,10 @@ export const isSafeMediaLinkItem=(m:MediaLinkItem):boolean=>!!m&&typeof m.id==='
   (m.provider==='local'?(m.kind==='photo'?isSafeFrameImage(m.data)&&m.data.length<=12_000_000:isSafeVideoData(m.data)&&m.data.length<=Math.ceil(VIDEO_MAX_BYTES/3)*4+64):isSafeMediaUrl(m.url));
 export const isSafeMediaUrl = (s:unknown):s is string =>
   typeof s==='string' && s.length<=2048 && /^https:\/\/[^\s]+$/i.test(s);
-export type ClientProfile = {novagenId:string;name:string;category:string;address:string;city:string;phone:string;email:string;website:string;facebook:string;instagram:string;otherLinks:string;description:string; bookingUrl?:string; openingHours?:string; services?:string; logoUrl?:string; photoUrls?:string[]; sourceNotes?:string[];preferredSkinId?:string};
+export type ClientProfile = {novagenId:string;name:string;category:string;address:string;city:string;phone:string;email:string;website:string;facebook:string;instagram:string;otherLinks:string;description:string; bookingUrl?:string; openingHours?:string; services?:string; logoUrl?:string; photoUrls?:string[]; sourceNotes?:string[];preferredSkinId?:string;activityCategory?:string;stylePreference?:string;visitType?:'classic'|'premium'|'vr'|'hybrid';brandLibraryId?:string};
 export const emptyClientProfile=():ClientProfile=>({novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''});
-export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl';
-export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'en',flag:'🇬🇧',name:'English'},{code:'nl',flag:'🇳🇱',name:'Nederlands'}];
+export type StudioLanguage = 'fr'|'es'|'de'|'en'|'nl'|'it';
+export const STUDIO_LANGUAGES:ReadonlyArray<{code:StudioLanguage;flag:string;name:string}>=[{code:'fr',flag:'🇫🇷',name:'Français'},{code:'en',flag:'🇬🇧',name:'English'},{code:'es',flag:'🇪🇸',name:'Español'},{code:'de',flag:'🇩🇪',name:'Deutsch'},{code:'nl',flag:'🇳🇱',name:'Nederlands'},{code:'it',flag:'🇮🇹',name:'Italiano'}];
 export type DefaultNavigationIcon = {iconId:string;hoverIconId?:string;pressedIconId?:string;iconSize:number};
 export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 /** Commentaire d'équipe accroché à un endroit d'un panorama (jamais publié dans la visite). */
@@ -358,7 +358,7 @@ export function validateProject(value:unknown):StudioProject {
   }
   if(p.clientProfile){
     const client=p.clientProfile as ClientProfile;
-    for(const field of ['bookingUrl','openingHours','services','logoUrl','preferredSkinId'] as const){
+    for(const field of ['bookingUrl','openingHours','services','logoUrl','preferredSkinId','activityCategory','stylePreference','visitType','brandLibraryId'] as const){
       if(client[field]!==undefined&&(typeof client[field]!=='string'||client[field].length>4000))
         throw new Error('Informations NovaGen invalides : '+field);
     }
@@ -503,7 +503,7 @@ export function validateProject(value:unknown):StudioProject {
   for(const plan of allPlans)if(plan.spaceId!==undefined&&!spaceIds.has(plan.spaceId))
     throw new Error('Le plan appartient à un espace inexistant');
   const languages=p.languages===undefined?STUDIO_LANGUAGES.map(l=>l.code):p.languages;
-  if(!Array.isArray(languages)||!languages.length||languages.length>5||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
+  if(!Array.isArray(languages)||!languages.length||languages.length>STUDIO_LANGUAGES.length||new Set(languages).size!==languages.length||languages.some(code=>!STUDIO_LANGUAGES.some(l=>l.code===code)))throw new Error('Langues du projet invalides');
   if(p.preparationComplete!==undefined && typeof p.preparationComplete!=='boolean')throw new Error('Préparation de projet invalide');
   if(p.vrEnabled!==undefined&&typeof p.vrEnabled!=='boolean')throw new Error('Option VR du projet invalide');
   if(p.defaultMusicTrackId!==undefined&&!audioTracks.some(t=>t.id===p.defaultMusicTrackId))throw new Error('Musique par défaut introuvable');

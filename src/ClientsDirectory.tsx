@@ -1,7 +1,7 @@
 import {confirmAsk} from './confirmDialog';
 import {useEffect,useMemo,useState} from 'react';
 import {overlayClose} from './overlayClose';
-import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Globe,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Trash2,Users,X} from 'lucide-react';
+import {Building2,Check,ChevronRight,Cloud,Database,FolderOpen,FolderPlus,Globe,Image as ImageIcon,LoaderCircle,Plus,RefreshCw,Search,Sparkles,Trash2,Users,X} from 'lucide-react';
 import {deleteCloudProject,listCloudProjects,loadFromCloud,readCloudClientProfile,saveToCloud,type CloudProject} from './cloud';
 import {mergeProfiles} from './aspirateMerge';
 import {loadClientDirectory,requestDirectory,type RemoteClient} from './clientDirectory';
@@ -24,12 +24,13 @@ const safeRemoteUrl=(s:string)=>{
 };
 const blankProfile:ClientProfile={novagenId:'',name:'',category:'',address:'',city:'',phone:'',email:'',website:'',facebook:'',instagram:'',otherLinks:'',description:''};
 
-export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit,currentStyle,onUpdateCurrent}:{
+export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAssociate,onOpenCloud,canPlaceVideo,onPlaceVideo,onSaveDiscovered,onCreateVisit,currentStyle,onUpdateCurrent,onLaunchAiAssistant}:{
  currentStyle?:Palette;onUpdateCurrent?:(profile:ClientProfile|undefined,style?:Palette)=>void;
  currentHasProject?:boolean;onSaveDiscovered:(profile:ClientProfile,style?:Partial<BarStyle>)=>void;onCreateVisit:(profile:ClientProfile,style?:Partial<BarStyle>,visitName?:string)=>void;
  currentProjectName:string;currentProfile?:ClientProfile;
  canPlaceVideo:boolean;onPlaceVideo:(video:ImportedClientVideo)=>void;
- onClose:()=>void;onAssociate:(profile:ClientProfile)=>void;onOpenCloud:()=>void
+ onClose:()=>void;onAssociate:(profile:ClientProfile)=>void;onOpenCloud:()=>void;
+ onLaunchAiAssistant?:()=>void;
 }){
  const [studio,setStudio]=useState<CloudProject[]>([]);
  const [remote,setRemote]=useState<RemoteClient[]>([]);
@@ -218,8 +219,15 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
       </div>
       <div className="nv-directory-head-actions">
         <button type="button" className="nv-directory-add-client" onClick={()=>{
+          if(onLaunchAiAssistant){
+            onLaunchAiAssistant();
+          }else{
+            setManualOpen(true);setSavedNotice('');setSearch('');discovery.close();
+          }
+        }} title="Créer un client avec l’assistant intelligent NovaStudio AI"><Sparkles size={16}/> Nouveau client (IA)</button>
+        <button type="button" className="nv-directory-add-client" style={{background:'rgba(255,255,255,0.08)'}} onClick={()=>{
           setManualOpen(true);setSavedNotice('');setSearch('');discovery.close();
-        }}><Plus size={17}/> Nouveau client</button>
+        }} title="Formulaire classique"><Plus size={16}/> Saisie manuelle</button>
         <button type="button" onClick={()=>setRefresh(v=>v+1)} title="Actualiser les clients"><RefreshCw size={16}/> Actualiser</button>
         <button type="button" onClick={onClose} title="Fermer le répertoire" aria-label="Fermer"><X size={20}/></button>
       </div>

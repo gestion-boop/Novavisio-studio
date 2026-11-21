@@ -30,6 +30,7 @@ import {createRoot} from 'react-dom/client';
 import {ErrorBoundary,installErrorLog} from './ErrorBoundary';
 import {glyphs} from './glyphSet';
 import {BrandKitDialog} from './BrandKitDialog';
+import {NovaStudioAIAssistant} from './NovaStudioAIAssistant';
 import {NativeIntro} from './nativeIntro';
 import {InterestDialog} from './InterestDialog';
 import {ProjectSummaryDialog} from './ProjectSummaryDialog';
@@ -240,6 +241,7 @@ function App(){
   const resetProject=useCallback((p:StudioProject)=>{histRef.current={past:[],future:[],last:0,ops:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
   const [ready,setReady]=useState(false);
   const [preparationOpen,setPreparationOpen]=useState(false);
+  const [aiAssistantOpen,setAiAssistantOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
   const [vrMenuOpen,setVrMenuOpen]=useState(false);
   const [informationEdit,setInformationEdit]=useState<{sceneId:string;pointId:string}|null>(null);
@@ -3637,6 +3639,7 @@ function App(){
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setVrMenuOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Eye size={17}/> Vue casque</span></button>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setAiAssistantOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}} title="NovaStudio AI — Création intelligente"><span className="nv-drawer-item-label"><Sparkles size={17} color="#38bdf8"/> NovaStudio AI</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setPreparationOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Sparkles size={17}/> Préparer le projet</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
             <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
@@ -3649,8 +3652,11 @@ function App(){
               <span className="nv-drawer-item-label"><Plus size={17}/> Fichier</span><ChevronDown size={15}/>
             </button>
             {openTopMenu==='file'&&<div className="nv-menu-popover" role="menu" aria-label="Fichier">
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setAiAssistantOpen(true);}}>
+                <Sparkles size={16} color="#38bdf8"/><strong>Nouveau projet (NovaStudio AI)</strong>
+              </button>
               <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
-                <Plus size={16}/><span>Nouveau projet</span>
+                <Plus size={16}/><span>Nouveau projet vierge</span>
               </button>
               <button type="button" role="menuitem" onClick={()=>{setNavigationDrawerOpen(false);setOpenTopMenu(null);setSummaryOpen(true);}}>
                 <Sparkles size={16}/><span>Synthèse avant publication (NovaStudio AI)</span>
@@ -5786,6 +5792,7 @@ function App(){
       canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
       onClose={()=>{setClientOpen(false);backFrom();}}
       onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
+      onLaunchAiAssistant={()=>{setClientOpen(false);setAiAssistantOpen(true);}}
       currentStyle={project.barStyle}
       onUpdateCurrent={(profile,style)=>setProject(p=>({...p,...(profile?{clientProfile:profile}:{}),...(style?{barStyle:{...p.barStyle,...style}}:{})}))}
       onSaveDiscovered={(clientProfile,style)=>{
@@ -5853,6 +5860,11 @@ function App(){
       iconCount={project.icons.length}
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
+    {aiAssistantOpen&&<NovaStudioAIAssistant project={project} onClose={()=>setAiAssistantOpen(false)}
+      onApply={(updated,clientProfile,brandKit)=>{
+        setProject(p=>({...p,...updated,clientProfile,brandKit}));
+        setStatus('NovaStudio AI : Client « '+clientProfile.name+' » et charte graphique configurés · Enregistre avec la disquette.');
+      }}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
       <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
     </div>}

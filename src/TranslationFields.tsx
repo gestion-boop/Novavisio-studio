@@ -4,8 +4,9 @@ export const TRANSLATED_LANGS = [
   {code:'es',label:'Espagnol',flag:'🇪🇸'},
   {code:'de',label:'Allemand',flag:'🇩🇪'},
   {code:'nl',label:'Néerlandais',flag:'🇳🇱'},
+  {code:'it',label:'Italien',flag:'🇮🇹'},
 ] as const;
-export type TranslationMap = Partial<Record<'en'|'es'|'de'|'nl',string>>;
+export type TranslationMap = Partial<Record<'en'|'es'|'de'|'nl'|'it',string>>;
 
 export function TranslationInputs({values,onChange,multiline=false,maxLength=200,label='Traductions'}:{
   values:TranslationMap|undefined;onChange:(next:TranslationMap)=>void;multiline?:boolean;maxLength?:number;label?:string;
