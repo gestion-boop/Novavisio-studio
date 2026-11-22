@@ -169,6 +169,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const alignToHead=(yaw:number)=>{const h=headForward();root.position.set(h.x,h.y+eyeOffset(),h.z);root.rotation.y=yaw+h.phi;};
 
   const getIconUrl=(id?:string)=>id?project().icons?.find(i=>i.id===id)?.dataUrl:undefined;
+  const pictoGold=():string=>{
+    const bar=project().barStyle;
+    if(vrMenuOf(project()).themed&&bar?.icon&&/^#[0-9a-f]{6}$/i.test(bar.icon))return bar.icon;
+    return '#f3bb37';
+  };
   // Les logos Cloud peuvent arriver après le chargement des panoramas.
   const currentIconSignature=()=>[...(project().icons??[]).map(i=>i.id+':'+(i.dataUrl??'')),...(project().bottomBar??[]).map(i=>i.id+':'+(i.iconId??''))].join('|');
   let iconSignature=currentIconSignature();
@@ -232,19 +237,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
       const radius=k*Math.max(.14,Math.min(.24,(h.iconSize??48)/90*.21));
-      // Couleur du contour (réglage de l'éditeur) : teinte la sphère avant le chargement du panorama et son halo lumineux.
-      const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
+      const gold=pictoGold();
       const hitRadius=Math.max(.18,radius*1.44);
       const mesh=new Mesh(new SphereGeometry(hitRadius,16,12),new MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
-      // Shader 3D "bulle / goutte d'eau opaque" : forte courbure sphérique, anneau interne TIR, ménisque Fresnel et reflets vitreux.
+      // Shader 3D "bulle / goutte d'eau opaque" : rotation interne douce, courbure sphérique, anneau TIR, ménisque Fresnel et reflets vitreux.
       const dropMat=new ShaderMaterial({
         transparent:true,depthTest:false,depthWrite:false,
         uniforms:{
           panorama:{value:null as Texture|null},
           hasPanorama:{value:false},
-          rimColor:{value:new Color(rimColor)},
+          rimColor:{value:new Color(gold)},
+          spin:{value:0},
           hover:{value:0},
           pressed:{value:0},
           opacity:{value:1.0},
@@ -264,6 +269,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           uniform sampler2D panorama;
           uniform bool hasPanorama;
           uniform vec3 rimColor;
+          uniform float spin;
           uniform float hover;
           uniform float pressed;
           uniform float opacity;
@@ -274,19 +280,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
             vec3 n=normalize(vViewNormal);
             vec3 v=normalize(vViewDir);
             float facing=clamp(dot(n,v),0.0,1.0);
-            vec2 lensUv=vec2(1.0-vUv.x,vUv.y)+n.xy*vec2(-0.055,0.055)*(1.0-facing);
+            vec2 lensUv=vec2(1.0-vUv.x+spin,vUv.y)+n.xy*vec2(-0.055,0.055)*(1.0-facing);
             lensUv.y=clamp(lensUv.y,0.002,0.998);
             vec3 innerColor=hasPanorama
               ?texture2D(panorama,lensUv).rgb
               :mix(rimColor*0.20+vec3(0.05,0.12,0.19),rimColor*0.88,pow(facing,0.62));
-            // Courbure 3D prononcée + anneau de réflexion interne totale (donne l'effet rond / goutte d'eau opaque).
+            // Courbure 3D prononcée + anneau de réflexion interne totale (effet rond / goutte d'eau opaque).
             float sphereDepth=0.36+0.68*pow(facing,0.54);
             float tirRing=exp(-pow((facing-0.28)/0.14,2.0));
             vec3 color=innerColor*sphereDepth*(1.0-0.34*tirRing);
-            // Ménisque Fresnel brillant de bulle d'eau sur le contour extérieur
+            // Ménisque Fresnel léger de goutte d'eau teinté par le jaune des pictos
             float fresnel=pow(1.0-facing,2.7);
-            vec3 meniscus=mix(vec3(0.88,0.98,1.0),rimColor*0.85+vec3(0.28),0.45);
-            color=mix(color,meniscus,clamp(fresnel*(0.72+0.24*hover),0.0,0.92));
+            vec3 meniscus=mix(vec3(0.92,0.96,1.0),rimColor,0.65);
+            color=mix(color,meniscus,clamp(fresnel*(0.65+0.25*hover),0.0,0.88));
             // Reflets spéculaires vitreux (croissant haut gauche + point brillant + caustique interne bas droite)
             vec3 light1=normalize(vec3(-0.38,0.56,0.73));
             float h1=max(dot(n,light1),0.0);
@@ -294,7 +300,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
             float crispSpot=smoothstep(0.84,0.96,h1)*0.34+pow(h1,100.0)*0.94;
             float bounce=pow(max(dot(n,normalize(vec3(0.45,-0.66,0.60))),0.0),12.0);
             color=mix(color,vec3(1.0),min(0.95,softDome+crispSpot));
-            color+=(vec3(0.55,0.85,1.0)*0.24+rimColor*0.26)*bounce;
+            color+=(vec3(0.55,0.85,1.0)*0.18+rimColor*0.28)*bounce;
             color*=(1.0+0.12*hover-0.28*pressed);
             gl_FragColor=vec4(color,opacity);
             #include <tonemapping_fragment>
@@ -303,11 +309,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       });
       const visual=new Mesh(new SphereGeometry(radius,96,64),dropMat);
       visual.renderOrder=2;mesh.add(visual);
-      // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
-      const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
-      const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
+      // Liseré jaune fin et net autour de la sphère, strictement de la même couleur que les pictos et le cadre du libellé.
+      const rimOpacity=.92;
+      const outline=new Mesh(new SphereGeometry(radius*1.055,64,40),new MeshBasicMaterial({color:new Color(gold),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;visual.add(outline);
-      // Libellé horizontal sous la sphère (PlaneGeometry, pas Sprite) : reste toujours horizontal même si on penche la tête.
+      // Libellé horizontal sous la sphère (PlaneGeometry) : bordure jaune identique au liseré de la sphère.
       const destination=sceneOf(h.target);
       const destinationName=destination?pick(destination.name,destination.nameTranslations,vlang()):'';
       let labelMesh:Mesh|null=null;
@@ -318,8 +324,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           const textW=ctx.measureText(text).width;
           const boxW=Math.min(996,Math.max(380,Math.ceil(textW+136)));
           const x0=(1024-boxW)/2;
-          roundRect(ctx,x0,14,boxW,212,102);ctx.fillStyle='rgba(8,12,18,.94)';ctx.fill();
-          ctx.lineWidth=9;ctx.strokeStyle=rimColor;ctx.stroke();
+          roundRect(ctx,x0,14,boxW,212,102);ctx.fillStyle='rgba(17,19,23,.95)';ctx.fill();
+          ctx.lineWidth=10;ctx.strokeStyle=gold;ctx.stroke();
           ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(text,512,124);
         });
@@ -585,27 +591,45 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(room&&!roomNameVisible(project(),room,'vr'))return;
     const name=room?pick(room.name,room.nameTranslations,vlang()):project().name;
     const area=room?.surfaceM2!==undefined?room.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})+' m²':'';
-    const tex=canvasTexture(1400,180,ctx=>{
-      // Pastille crème à bordure dorée, comme la barre du bas : nom et superficie en noir.
-      roundRect(ctx,8,8,1384,164,82);ctx.fillStyle='#f7f5ef';ctx.fill();
-      ctx.lineWidth=12;ctx.strokeStyle='#dcc38f';ctx.stroke();
-      ctx.textBaseline='middle';
-      const surfaceWidth=area?Math.min(250,Math.max(145,area.length*30)):0;
-      ctx.fillStyle='#111';ctx.textAlign='left';
-      const title=fitCanvasLabel(ctx,name,1260-surfaceWidth-(area?36:0),78,40);
-      ctx.fillText(title,62,93);
+    const gold=pictoGold();
+    const measure=document.createElement('canvas').getContext('2d');
+    let title=name,areaText=area,titleW=340,areaW=0;
+    if(measure){
+      title=fitCanvasLabel(measure,name,800,66,38);
+      titleW=measure.measureText(title).width;
       if(area){
-        // séparateur fin puis superficie
-        ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(1330-surfaceWidth-22,38,2,110);
-        ctx.fillStyle='#111';ctx.textAlign='right';
-        const surface=fitCanvasLabel(ctx,area,surfaceWidth,59,37);
-        ctx.fillText(surface,1330,93);
+        areaText=fitCanvasLabel(measure,area,240,54,34);
+        areaW=measure.measureText(areaText).width;
+      }
+    }
+    const gap=area?56:0;
+    const contentW=titleW+(area?gap+areaW:0);
+    const canvasW=Math.min(1160,Math.max(420,Math.ceil(contentW+140)));
+    const canvasH=160;
+    const tex=canvasTexture(canvasW,canvasH,ctx=>{
+      // Barre compacte noire avec liseré et écriture jaune (charte Immosphera / VR), texte centré.
+      roundRect(ctx,6,6,canvasW-12,canvasH-12,74);
+      ctx.fillStyle='#111317';ctx.fill();
+      ctx.lineWidth=8;ctx.strokeStyle=gold;ctx.stroke();
+      ctx.textBaseline='middle';
+      const cy=canvasH/2+2;
+      if(!area){
+        ctx.fillStyle=gold;ctx.textAlign='center';
+        ctx.fillText(fitCanvasLabel(ctx,name,canvasW-110,66,38),canvasW/2,cy);
+      }else{
+        const startX=(canvasW-contentW)/2;
+        ctx.fillStyle=gold;ctx.textAlign='left';
+        fitCanvasLabel(ctx,title,titleW+8,66,38);
+        ctx.fillText(title,startX,cy);
+        ctx.fillStyle='rgba(243,187,55,.45)';
+        ctx.fillRect(Math.round(startX+titleW+gap/2-1.5),36,3,canvasH-72);
+        ctx.fillStyle='#ffe3a1';ctx.textAlign='left';
+        fitCanvasLabel(ctx,areaText,areaW+8,54,34);
+        ctx.fillText(areaText,startX+titleW+gap,cy);
       }
     });
-    // Libellé compact sur une ligne ; même distance et même suivi du regard.
-    addPlane(headerGroup,1.1,.14,tex,6,0,0);
-    // Le titre reste indépendamment du monobloc, très loin et très haut.
-    // La position sera mise à jour progressivement avec le regard dans tick().
+    // Largeur réduite adaptée au texte (distance inchangée à 2 m en haut).
+    addPlane(headerGroup,canvasW/1400*1.04,.122,tex,6,0,0);
     syncRoomHeaderPose(true);
   };
   const buildBar=async()=>{
@@ -897,15 +921,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
   const closeButtonTexture=()=>canvasTexture(240,110,c=>{
     roundRect(c,6,6,228,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-    c.fillStyle=iconColor;c.font='bold 46px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(tt('close'),120,58);
+    c.fillStyle=iconColor;c.textAlign='center';c.textBaseline='middle';
+    c.fillText(fitCanvasLabel(c,tt('close'),196,44,24),120,57);
   });
 
   let noticeTimer=0;
   const setNotice=(text:string)=>{
     clearGroup(noticeGroup);
     const tex=canvasTexture(900,160,c=>{
-      roundRect(c,6,6,888,148,40);c.fillStyle='rgba(20,20,24,.85)';c.fill();
-      c.fillStyle='#fff';c.font='bold 44px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(text,450,82);
+      roundRect(c,6,6,888,148,40);c.fillStyle='rgba(20,20,24,.90)';c.fill();
+      c.lineWidth=5;c.strokeStyle=pictoGold();c.stroke();
+      c.fillStyle='#fff';c.textAlign='center';c.textBaseline='middle';
+      c.fillText(fitCanvasLabel(c,text,830,42,24),450,82);
     });
     addPlane(noticeGroup,.62,.11,tex,7,0,0);
     placeInFront(noticeGroup,2.1,-.4);
@@ -915,7 +942,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   /** Texte en pages : chaque page tient dans le panneau, avec ◀ ▶ quand le contenu est long (plus de coupure à 10 lignes). */
   const navTexture=(label:string,w=200)=>canvasTexture(w,110,c=>{
     roundRect(c,6,6,w-12,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-    c.fillStyle=iconColor;c.font='bold 52px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,w/2,58);
+    c.fillStyle=iconColor;c.textAlign='center';c.textBaseline='middle';
+    c.fillText(fitCanvasLabel(c,label,w-38,48,26),w/2,57);
   });
   /** Cadre commun des galeries : titre en haut à gauche, compteur, bouton ✕ rond en haut à droite, flèches ◀ ▶ au milieu des côtés (hors des vignettes). */
   const closeIconTexture=()=>canvasTexture(110,110,c=>{
@@ -1061,11 +1089,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const tex=canvasTexture(1240,800,c=>{
       roundRect(c,8,8,1224,784,52);c.fillStyle=panelBg;c.fill();
       c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-      c.fillStyle='#17232b';c.textAlign='left';c.textBaseline='top';
-      c.font='bold 54px sans-serif';c.fillText(title||tt('webLinkTitle'),65,54,1110);
+      c.fillStyle=referenceMode?'#ffffff':'#17232b';c.textAlign='left';c.textBaseline='top';
+      c.fillText(fitCanvasLabel(c,title||tt('webLinkTitle'),1110,54,32),65,54);
+      c.fillStyle=referenceMode?'#f1ede4':'#17232b';
       c.font='37px sans-serif';
       const caption=description.trim()||tt('openInBrowser');
       wrapText(c,caption,1100).slice(0,5).forEach((line,i)=>c.fillText(line,65,155+i*58));
+      c.fillStyle=referenceMode?pictoGold():'#17232b';
       c.font='31px sans-serif';
       if(valid)c.fillText(new URL(valid).hostname,65,535,1100);
       else c.fillText(tt('badUrl'),65,535);
@@ -1195,8 +1225,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           if(thumb)c.drawImage(thumb,12,12,tw-24,imgH);else{c.fillStyle='#222';c.fillRect(12,12,tw-24,imgH);if(e.m.kind!=='photo'){c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',tw/2,12+imgH/2);}}
           c.restore();
           if(e.m.name){
-            c.fillStyle=referenceMode?'#ffe3a1':iconColor;c.textAlign='center';c.textBaseline='alphabetic';
-            c.fillText(fitCanvasLabel(c,e.m.name,tw-44,referenceMode?30:26,20),tw/2,th-20);
+            c.fillStyle=referenceMode?pictoGold():iconColor;c.textAlign='center';c.textBaseline='middle';
+            c.fillText(fitCanvasLabel(c,e.m.name,tw-44,referenceMode?30:26,20),tw/2,12+imgH+(th-17-imgH)/2);
           }
         },cw,ch,x,y,()=>{void open(page*perPageP+k);});
       }
@@ -1296,14 +1326,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         const tw=referenceMode?680:620,th=referenceMode?360:340;
         const imgW=tw-20,imgH=th-72;
         thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,tw,th,(c,thumb)=>{
-          roundRect(c,5,5,tw-10,th-10,24);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=6;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
+          const activeTile=e.sceneId===currentId;
+          roundRect(c,5,5,tw-10,th-10,24);
+          c.fillStyle=activeTile?(referenceMode?'#2b2210':btnLine):btnBg;c.fill();
+          c.lineWidth=activeTile?9:6;c.strokeStyle=activeTile?pictoGold():btnLine;c.stroke();
           c.save();roundRect(c,10,10,imgW,imgH,18);c.clip();
           if(thumb)c.drawImage(thumb,10,10,imgW,imgH);else{c.fillStyle='#333';c.fillRect(10,10,imgW,imgH);}
           c.restore();
-          c.fillStyle=referenceMode?'#ffe3a1':iconColor;
-          c.textAlign='center';c.textBaseline='alphabetic';
+          c.fillStyle=activeTile?(referenceMode?'#fff4c7':iconColor):(referenceMode?pictoGold():iconColor);
+          c.textAlign='center';c.textBaseline='middle';
           const label=fitCanvasLabel(c,e.label,tw-44,32,22);
-          c.fillText(label,tw/2,th-20);
+          c.fillText(label,tw/2,imgH+10+(th-15-imgH)/2);
         },cw,ch,x,y,()=>{void goTo(e.sceneId);},()=>sceneOf(e.sceneId)?.dataUrl||undefined);
       }
       placePanel(PANEL_DIST,-.0);
@@ -1943,11 +1976,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           vm.uniforms.hover.value=curH+(goalH-curH)*.22;
           const curP=(vm.uniforms.pressed.value as number|undefined)??0;
           vm.uniforms.pressed.value=curP+((isPressed?1:0)-curP)*.3;
+          const curS=(vm.uniforms.spin.value as number|undefined)??0;
+          vm.uniforms.spin.value=(curS+dt*(isHovered?.10:.055))%1;
         }else if(vm instanceof MeshBasicMaterial){
           vm.color.setScalar(isPressed?.7:isHovered?1.25:1);
         }
         if(rim&&rim.material instanceof MeshBasicMaterial){
-          rim.material.opacity=isHovered?Math.max(baseRim,.9):baseRim;
+          rim.material.opacity=isHovered?1.0:baseRim;
         }
         continue;
       }
