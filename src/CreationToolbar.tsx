@@ -1,18 +1,40 @@
-import {Settings} from 'lucide-react';
-const definitions={navigation:{label:'Navigation',symbol:'➜'},information:{label:'Information',symbol:'ⓘ'},lien:{label:'Lien web',symbol:'↗'},image:{label:'Photo',symbol:'▣'},video:{label:'Vidéo',symbol:'▶'},bar:{label:'Barre du bas',symbol:'☷'}};
+import {Image as ImageIcon, Info, Link2, Navigation, PanelBottom, SlidersHorizontal, Sparkles, Video, type LucideIcon} from 'lucide-react';
+
+/** Outils de création : même identifiants qu'avant (le reste de l'éditeur ne change pas). */
+const definitions:Record<'navigation'|'information'|'lien'|'image'|'video'|'bar',{label:string;Icon:LucideIcon}>={
+  navigation:{label:'Naviguer',Icon:Navigation},
+  information:{label:'Info',Icon:Info},
+  lien:{label:'Lien',Icon:Link2},
+  image:{label:'Photo',Icon:ImageIcon},
+  video:{label:'Vidéo',Icon:Video},
+  bar:{label:'Barre',Icon:PanelBottom},
+};
 export type CreationTool=keyof typeof definitions;
 const defaults:CreationTool[]=['navigation','information','lien','image','video','bar'];
-export function CreationToolbar({selected,auto,onTool,onAuto,onSettings}:{selected:CreationTool|null;auto:boolean;onTool:(tool:CreationTool)=>void;onAuto:()=>void;onSettings:(tool:CreationTool)=>void}){
-  const order=defaults;
-  const render=(key:CreationTool)=><div key={key} className="nv-creation-tool">
-    <button type="button" className={'tool '+(selected===key?'selected':'')} aria-pressed={selected===key} onClick={()=>onTool(key)}>{definitions[key].symbol} {definitions[key].label}</button>
-    <button type="button" className="nv-tool-gear" onClick={()=>onSettings(key)} aria-label={'Réglages : '+definitions[key].label} title={'Réglages : '+definitions[key].label}><Settings size={14}/></button>
-  </div>;
-  return <div className="toolbar nv-compact-actions nv-sortable-toolbar" role="toolbar" aria-label="Outils de création">
-    <div className="nv-toolbar-center"><div className="nv-toolbar-group nv-toolbar-left">{order.slice(0,3).map(render)}</div>
-      <button type="button" className={'tool nv-auto-navigation nv-auto-toolbar'+(auto?' is-active selected':'')} aria-pressed={auto} title="Auto reste au centre" onClick={onAuto}>{auto?'Terminer Auto':'Auto'}</button>
-      <button type="button" className="nv-tool-gear" onClick={()=>onSettings('navigation')} aria-label="Réglages : Auto et flèches" title="Réglages : Auto et flèches"><Settings size={14}/></button>
-      <div className="nv-toolbar-group nv-toolbar-right">{order.slice(3).map(render)}</div>
+
+/**
+ * Barre du bas de l'éditeur : pastilles à icône colorée (Naviguer, Info, Lien, Auto, Photo, Vidéo, Barre) et un seul
+ * bouton « Réglages » à droite, qui ouvre les réglages de l'outil choisi.
+ */
+export function CreationToolbar({selected,auto,onTool,onAuto,onPanoramaSettings,settingsOpen}:{selected:CreationTool|null;auto:boolean;onTool:(tool:CreationTool)=>void;onAuto:()=>void;onPanoramaSettings:()=>void;settingsOpen:boolean}){
+  const render=(key:CreationTool)=>{
+    const {label,Icon}=definitions[key];
+    const on=selected===key;
+    return <button key={key} type="button" className={'nv-dock-btn nv-dock-'+key+(on?' is-active':'')} aria-pressed={on} onClick={()=>onTool(key)}>
+      <span className="nv-dock-icon"><Icon size={17} strokeWidth={2.2}/></span><span className="nv-dock-label">{label}</span>
+    </button>;
+  };
+  const [first,second,third,...rest]=defaults;
+  return <div className="toolbar nv-dock" role="toolbar" aria-label="Outils de création">
+    <div className="nv-dock-row">
+      {render(first)}{render(second)}{render(third)}
+      <button type="button" className={'nv-dock-btn nv-dock-auto'+(auto?' is-active':'')} aria-pressed={auto} title="Création automatique panorama par panorama" onClick={onAuto}>
+        <span className="nv-dock-icon"><Sparkles size={17} strokeWidth={2.2}/></span><span className="nv-dock-label">{auto?'Terminer':'Auto'}</span>
+      </button>
+      {rest.map(render)}
+      <button type="button" className={'nv-dock-btn nv-dock-settings'+(settingsOpen?' is-active':'')} aria-expanded={settingsOpen} aria-controls="nv-panorama-inspector" onClick={onPanoramaSettings} title="Réglages du panorama : vue d’arrivée, nom, jour/nuit et musique">
+        <span className="nv-dock-icon"><SlidersHorizontal size={17} strokeWidth={2.2}/></span><span className="nv-dock-label">Réglages</span>
+      </button>
     </div>
   </div>;
 }

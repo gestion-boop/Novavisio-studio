@@ -572,7 +572,7 @@ function App(){
     if(!toolsMenuOpen)return;
     const fit=()=>{
       const top=document.querySelector('.topbar')?.getBoundingClientRect().bottom??0;
-      const bar=document.querySelector('.nv-sortable-toolbar');
+      const bar=document.querySelector('.nv-sortable-toolbar,.nv-dock');
       const barTop=bar&&bar.getClientRects().length?bar.getBoundingClientRect().top:null;
       const limit=barTop??document.querySelector('.nv-app-footer')?.getBoundingClientRect().top??window.innerHeight;
       document.documentElement.style.setProperty('--nv-curtain-max',Math.max(160,Math.floor(limit-top))+'px');
@@ -583,7 +583,7 @@ function App(){
   const [hubOpen,setHubOpen]=useState<Record<string,string|null>>({});
   const [panelBack,setPanelBack]=useState<{panel:PanelTab;hub:Record<string,string|null>;barId:string;pointId:string}|null>(null);
   const prevPanelRef=useRef<PanelTab>('points');
-  const [toolSettings,setToolSettings]=useState<'navigation'|'information'|'lien'|'image'|'video'>('navigation');
+  const [toolSettings]=useState<'navigation'|'information'|'lien'|'image'|'video'>('navigation');
   // Sélection multiple d'espaces : partager avec des membres, envoyer vers un autre projet
   const [spaceSelectMode,setSpaceSelectMode]=useState(false);
   const [spaceSelection,setSpaceSelection]=useState<Set<string>>(new Set());
@@ -4300,7 +4300,7 @@ function App(){
             <button type="button" className="nv-fs-exit" onClick={()=>void toggleCreationFullscreen()} aria-label="Quitter le plein écran" title="Revenir à l’écran classique"><Minimize2 size={20}/></button>
             {toolsCurtain(true)}
           </div>}
-          {active&&!preview&&!splitAuto&&<button type="button"
+          {active&&!preview&&!splitAuto&&creationFullscreen&&<button type="button"
             className={'nv-panorama-settings-toggle'+(creationFullscreen?' is-fullscreen':'')}
             aria-label="Réglages du panorama" title="Réglages du panorama : vue d’arrivée, nom, jour/nuit et musique"
             aria-expanded={creationFullscreen?fullscreenToolsOpen&&fullscreenToolsTab==='scene':!rightHidden&&panel==='points'&&!selectedId}
@@ -4862,10 +4862,7 @@ function App(){
         </div>
         );})()}
         {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation}
-          onSettings={tool=>{
-            if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);return;}
-            setToolSettings(tool);setPanel('tool');setSelectedId('');setRightHidden(false);
-          }}
+          onPanoramaSettings={togglePanoramaSettings} settingsOpen={!rightHidden&&panel==='points'&&!selectedId}
           onTool={tool=>{
             if(autoNavigation)stopAutoNavigation();
             if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);}

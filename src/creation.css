@@ -109,3 +109,26 @@
 
 /* Barre d'action du double affichage Auto : pas de pastille sombre superposée à la barre du bas. */
 .nv-split-bar{background:transparent;border:0;box-shadow:none;padding:4px 0;gap:10px;margin:0 auto;position:relative}
+
+/* ===== Barre du bas de l'éditeur : pastilles à icône colorée ===== */
+.nv-studio-pro .toolbar.nv-dock,.toolbar.nv-dock{display:flex;align-items:center;justify-content:center;gap:0;padding:8px 12px;min-height:64px;background:#0b1c27;border-top:1px solid #1c3b4b}
+.nv-dock-row{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.nv-dock-btn{--dock:#4bd3c0;display:inline-flex;align-items:center;gap:9px;height:44px;padding:0 16px 0 8px;border:1px solid color-mix(in srgb,var(--dock) 38%,#16303d);border-radius:13px;background:color-mix(in srgb,var(--dock) 9%,#0d2230);color:#e9f6f8;font:700 14px system-ui;cursor:pointer;transition:background .15s,border-color .15s,transform .1s}
+.nv-dock-btn:hover{background:color-mix(in srgb,var(--dock) 18%,#0d2230);border-color:color-mix(in srgb,var(--dock) 60%,#16303d)}
+.nv-dock-btn:active{transform:translateY(1px)}
+.nv-dock-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;border:1px solid color-mix(in srgb,var(--dock) 60%,transparent);background:color-mix(in srgb,var(--dock) 16%,#0d2230);color:var(--dock)}
+.nv-dock-btn.is-active{background:color-mix(in srgb,var(--dock) 26%,#0d2230);border-color:var(--dock);box-shadow:0 0 0 1px color-mix(in srgb,var(--dock) 40%,transparent)}
+.nv-dock-btn.is-active .nv-dock-icon{background:var(--dock);color:#08202a}
+.nv-dock-navigation{--dock:#3ed1bd}
+.nv-dock-information{--dock:#4fb4f0}
+.nv-dock-lien{--dock:#7f8cff}
+.nv-dock-auto{--dock:#f2c14b}
+.nv-dock-image{--dock:#f59b32}
+.nv-dock-video{--dock:#f2679a}
+.nv-dock-bar{--dock:#a78bfa}
+.nv-dock-settings{--dock:#9db4c0;padding-left:12px}
+.nv-dock-settings .nv-dock-icon{border:0;background:transparent}
+/* Auto actif : « Terminer » en rouge. */
+.nv-dock-auto.is-active{--dock:#f2c14b;background:#8c2438;border-color:#e0586f;box-shadow:0 0 0 1px #e0586f66}
+.nv-dock-auto.is-active .nv-dock-icon{background:#f2c14b;color:#3b1b00}
+@media(max-width:780px){.nv-dock-btn{height:40px;padding:0 10px 0 6px;font-size:13px}.nv-dock-icon{width:28px;height:28px}}
