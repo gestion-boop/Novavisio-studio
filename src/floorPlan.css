@@ -23,8 +23,8 @@
 .nv-plan-drop-ripple{position:absolute;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;border:2px solid #4bebde;background:rgba(75,235,222,.25);pointer-events:none;z-index:20;animation:nv-drop-ripple .6s cubic-bezier(.1,.8,.2,1) forwards}
 @keyframes nv-drop-ripple{0%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-50%) scale(6);opacity:0}}
 
-.nv-plan-image>button.nv-plan-point{position:absolute;transform:translate(-50%,-50%);width:36px;height:36px;min-width:36px;min-height:36px;display:grid;place-items:center;padding:0!important;border:2px solid #fff;border-radius:50%;background:#153f59;color:white;box-shadow:0 2px 8px #000b;font:700 13px system-ui;cursor:pointer;z-index:1;transition:transform .14s cubic-bezier(.2,0,0,1),background-color .15s,border-color .15s,box-shadow .15s}
-.nv-plan-image>button.nv-plan-point.is-current{background:#f6bf56;color:#102330;border-color:#102330;z-index:2}
+.nv-plan-image>button.nv-plan-point{position:absolute;transform:translate(-50%,-50%);width:36px;height:36px;min-width:36px;min-height:36px;display:grid;place-items:center;padding:0!important;border:2px solid #fff;border-radius:50%;background:rgba(9,28,39,.55);color:white;box-shadow:0 2px 8px #000b;font:700 13px system-ui;cursor:pointer;z-index:1;transition:transform .14s cubic-bezier(.2,0,0,1),background-color .15s,border-color .15s,box-shadow .15s}
+.nv-plan-image>button.nv-plan-point.is-current{background:rgba(9,28,39,.55);color:white;border-color:#f6bf56;box-shadow:0 0 0 3px rgba(246,191,86,.45),0 2px 8px #000b;z-index:2}
 .nv-plan-image>button.nv-plan-point:hover{transform:translate(-50%,-50%) scale(1.15);background:#167e8f;color:white;z-index:5;box-shadow:0 0 0 3px rgba(75,235,222,.4),0 6px 18px #000c}
 .nv-plan-image>button.nv-plan-point.is-moving{transform:translate(-50%,-50%) scale(1.26)!important;background:#1da7ba!important;box-shadow:0 0 0 4px rgba(75,235,222,.65),0 14px 30px #000e!important;z-index:20!important;cursor:grabbing!important}
 
@@ -227,7 +227,7 @@
   flex:0 1 auto;overflow:visible;line-height:0;
 }
 .nv-plan-immersive-stage .nv-plan-image>img{
-  width:auto;max-width:100%;max-height:calc(100dvh - 88px);
+  width:auto;max-width:100%;max-height:calc(100dvh - 64px);
   height:auto;object-fit:contain;
 }
 .nv-plan-immersive-empty{
