@@ -1159,7 +1159,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
         (m.material as MeshBasicMaterial).opacity=0;
         const targetId=sceneId;
-        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;void goTo(targetId);}});
+        // Chaque pièce est un quad plein plan : on garde son masque pour ne la viser que sur ses pixels.
+        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;void goTo(targetId);}});
         clickables.push(m as unknown as Clickable);
         roomIds.add(sceneId);
       }
@@ -1256,7 +1257,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const buttons=clickables.filter(item=>item.parent&&shown(item)&&!!item.userData.onSelect);
     // La plaque commune ne doit pas laisser le laser sélectionner un hotspot derrière elle.
     const blockers=[...panelGroup.children,...barGroup.children,...vrShellGroup.children].filter(item=>shown(item)&&!item.userData.onSelect);
-    const intersections=laserRaycaster.intersectObjects([...buttons,...blockers],false);
+    // Une pièce compte comme touchée seulement si le laser passe sur un pixel de son masque coloré.
+    const intersections=laserRaycaster.intersectObjects([...buttons,...blockers],false).filter(hit=>{
+      const mask=hit.object.userData.roomMask as HTMLCanvasElement|undefined;
+      if(!mask||!hit.uv)return true;
+      const x=Math.min(mask.width-1,Math.max(0,Math.floor(hit.uv.x*mask.width)));
+      const y=Math.min(mask.height-1,Math.max(0,Math.floor((1-hit.uv.y)*mask.height)));
+      return (mask.getContext('2d')?.getImageData(x,y,1,1).data[3]??0)>0;
+    });
     if(!intersections.length)return {target:null,point:null};
     // Surface interactive la plus proche ; le laser ne traverse pas les panneaux.
     const hit=intersections[0];
