@@ -58,9 +58,9 @@ import {MediaLibraryPanel} from './MediaLibraryPanel';
 import {PhotoGallery} from './PhotoGallery';
 import {resolveLink} from './mediaLinks';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
+import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {ui,pick} from './i18n';
-import {TranslationInputs} from './TranslationFields';
 import {SunFlareEditor} from './SunFlareEditor';
 const SunGlyph=({size=24}:{size?:number})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
 import {panoramaArrivalZoom} from './panoramaLens';
@@ -1900,6 +1900,9 @@ function App(){
   const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const liveBarSort=useHorizontalSort(project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const spaceSort=useHorizontalSort((project.spaces??[]).map(sp=>sp.id),(from,to)=>setProject(p=>({...p,spaces:reorderItems(p.spaces??[],from,to,sp=>sp.id)})));
+  // Couleurs réellement visibles de la barre (pack d'images compris) : bouton Paramètres, son panneau et croix de fermeture.
+  const barTheme=useEffectiveBarTheme(project,project.barStyle);
+  const popupCss=popupThemeVars(barTheme);
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-close-icon-hover-image':project.closeIconHoverId?`url("${project.icons.find(i=>i.id===project.closeIconHoverId)?.dataUrl??''}")`:'none',
@@ -3162,7 +3165,7 @@ function App(){
   }
   function closeColorControls(){
     const eyedropper=typeof window!=='undefined'&&'EyeDropper' in window;
-    const barColor=/^#[0-9a-f]{6}$/i.test(project.barStyle.button)?project.barStyle.button:undefined;
+    const barColor=/^#[0-9a-f]{6}$/i.test(barTheme.button)?barTheme.button:undefined;
     return <div className="nv-close-config">
       <p className="hint">Une seule couleur pour les croix des photos, vidéos, informations, galeries et pages intégrées de tout le projet. Au survol, la croix s’éclaircit.</p>
       <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={()=>{setCloseColor(barColor);setStatus('Croix de fermeture : couleur des boutons de la barre appliquée. Enregistre avec la disquette.');}}>
@@ -4117,7 +4120,7 @@ function App(){
           </div>
         </section>}
       <main className="editor">
-        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
+        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={{...barCss,...popupCss}}>
           {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
@@ -4586,7 +4589,6 @@ function App(){
                   </label>
                   </div>
                   <SceneRoomNameOptions scene={active} onChange={v=>patchScene(sc=>({...sc,...v}))}/>
-                  <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
                     <Eye size={15}/> Définir cette vue comme arrivée
@@ -4703,7 +4705,7 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} animation={videoZoom.openAnimation??project.windowAnimation} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" style={settingsButtonBarStyle(project,project.barStyle??defaultBarStyle())} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label={ui('settings',visitorLang)} aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
+            <button type="button" style={settingsButtonBarStyle(project,barTheme)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label={ui('settings',visitorLang)} aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
             {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
               <strong>{ui('sound',visitorLang)}</strong>
               <div className="nv-vs-row">
@@ -5141,7 +5143,6 @@ function App(){
                   </label>
               </div>
               <SceneRoomNameOptions scene={active} onChange={v=>patchScene(sc=>({...sc,...v}))}/>
-                  <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
@@ -5879,7 +5880,7 @@ function App(){
       const scene=project.scenes.find(sc=>sc.id===panoModalId);
       if(!scene)return null;
       return <PanoramaPreviewEditor key={scene.id} scene={scene} onDelete={()=>deleteScene(scene.id)} onClose={()=>setPanoModalId(null)}
-        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));return cloud.signedIn||readLink()?manualSave():persist(projectRef.current);}}>
+        onSave={async (name,surfaceM2)=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name,surfaceM2}:sc)})));return cloud.signedIn||readLink()?manualSave():persist(projectRef.current);}}>
         <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
       </PanoramaPreviewEditor>;
     })()}

@@ -93,7 +93,7 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
           onClick={e=>{e.stopPropagation();if(suppressClick.current){suppressClick.current=false;return;}onPick(point.sceneId);}}><span>{index+1}</span></button>
         {onRemove&&<button type="button" className="nv-plan-remove nv-no-fx" style={{left:`calc(${point.x}% + 16px)`,top:`calc(${point.y}% - 16px)`}}
           aria-label={'Retirer le point : '+scene.name} title={'Retirer le point : '+scene.name} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onRemove(point.sceneId);}}><X size={13}/></button>}
-        {isHovered&&<div className="nv-plan-point-tooltip" style={{left:point.x+'%',top:point.y+'%'}}>
+        {isHovered&&<div className={'nv-plan-point-tooltip'+(point.y<22?' is-below':'')} style={{left:point.x+'%',top:point.y+'%'}}>
           {thumbs?.[point.sceneId]&&<img src={thumbs[point.sceneId]} alt="" draggable={false}/>}
           <strong>{pick(scene.name,scene.nameTranslations,lang)}</strong>
         </div>}

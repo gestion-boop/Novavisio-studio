@@ -26,6 +26,7 @@ import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
+import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
@@ -335,6 +336,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     };
   },[mobileExpanded]);
   const theme=project?.barStyle??defaultBarStyle();
+  const viewTheme=useEffectiveBarTheme(project,theme);
   const popupCloseIcon=project?.icons?.find(icon=>icon.id===project?.closeIconId);
   const popupCloseHoverIcon=project?.icons?.find(icon=>icon.id===project?.closeIconHoverId);
   const popupClosePressedIcon=project?.icons?.find(icon=>icon.id===project?.closeIconPressedId);
@@ -457,7 +459,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }
     setMobileExpanded(true);
   };
-  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
+  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={{...cssVars,...popupThemeVars(viewTheme)}} data-scene={vrSceneId||current.id}>
     {!showIntro&&firstPanoramaReady&&roomNameVisible(project,current,'visit')&&<div className="nv-tour-room-heading" aria-label="Pièce actuellement visitée">
       <strong title={pick(current.name,current.nameTranslations,lang)}>{pick(current.name,current.nameTranslations,lang)}</strong>
       {current.surfaceM2!==undefined&&<span>{current.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})} m²</span>}
@@ -494,7 +496,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       })}
     </nav>}
     {!showIntro&&firstPanoramaReady&&<div className="nv-visitor-settings">
-      <button type="button" style={settingsButtonBarStyle(project,theme)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label={ui('settings',lang)} aria-expanded={settingsOpen} title={ui('settingsTitle',lang)} onClick={()=>setSettingsOpen(o=>!o)}>
+      <button type="button" style={settingsButtonBarStyle(project,viewTheme)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label={ui('settings',lang)} aria-expanded={settingsOpen} title={ui('settingsTitle',lang)} onClick={()=>setSettingsOpen(o=>!o)}>
         {hasSettingsIcon?<IconStateVisual icons={project.icons??[]} normal={settingsIcon} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<Settings size={Math.round(settingsSize(project)*0.42)}/>}
       </button>
       {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label={ui('settings',lang)}>

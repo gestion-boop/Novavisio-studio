@@ -51,14 +51,16 @@
 :root:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.nv-pg-close,.nv-gallery header>button,.nv-photo-gallery>header button,.tour-dialog header button,.info-in-view .modal>.close,.embed-shell .embed-actions button,.nv-plan-dialog button[aria-label^="Fermer"],.nv-plan-dialog header>button:last-child,.nv-gallery-overlay button[aria-label^="Fermer"],.tour-overlay button[aria-label^="Fermer"]):active{scale:.94}
 :root:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.nv-pg-close,.nv-gallery header>button,.nv-photo-gallery>header button,.tour-dialog header button,.info-in-view .modal>.close,.embed-shell .embed-actions button,.nv-plan-dialog button[aria-label^="Fermer"],.nv-plan-dialog header>button:last-child,.nv-gallery-overlay button[aria-label^="Fermer"],.tour-overlay button[aria-label^="Fermer"]):hover{scale:1.06}
 
-/* Panneau « Son / Langue / Plein écran » de la visite : couleurs du projet (barre du bas) au lieu du bleu NovaVisio */
-.nv-visitor-settings-panel:not(#nv-x){background:color-mix(in srgb,var(--nv-bar-bg,#0b1826) 95%,transparent);border-color:var(--nv-bar-outline,#9accd9);color:var(--nv-icon-color,#eaf7fa)}
-.nv-visitor-settings-panel:not(#nv-x) strong{color:var(--nv-icon-color,#eaf7fa)}
+/* Panneau « Son / Langue / Plein écran » de la visite : couleurs RÉELLES de la barre du bas (pack d'images compris).
+   Fond = fond de la barre · boutons = disque des boutons + pictogramme · bouton actif = couleurs inversées · titres lisibles (--nv-panel-ink). */
+.nv-visitor-settings-panel:not(#nv-x){background:color-mix(in srgb,var(--nv-bar-bg,#0b1826) 95%,transparent);border-color:var(--nv-bar-outline,#9accd9);color:var(--nv-panel-ink,#eaf7fa)}
+.nv-visitor-settings-panel:not(#nv-x) strong{color:var(--nv-panel-ink,#eaf7fa)}
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button,.nv-vs-fullscreen,.nv-open-floor-plan){
-  background:color-mix(in srgb,var(--nv-button-bg,#143543) 22%,var(--nv-bar-bg,#0b1826));
-  border:1px solid color-mix(in srgb,var(--nv-button-outline,#35606f) 60%,transparent);color:var(--nv-icon-color,#e6f6f8);transition:background .2s,transform .2s,border-color .2s}
-.nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button.is-on,.nv-vs-row button:hover,.nv-vs-fullscreen:hover,.nv-open-floor-plan:hover){
-  background:var(--nv-button-bg,#1f8aa8)!important;background-color:var(--nv-button-bg,#1f8aa8)!important;border-color:var(--nv-button-outline,#7ad6ee)!important;color:var(--nv-icon-color,#fff)}
+  background:var(--nv-button-bg,#143543);background-color:var(--nv-button-bg,#143543);
+  border:1px solid color-mix(in srgb,var(--nv-icon-color,#35606f) 45%,transparent);color:var(--nv-icon-color,#e6f6f8);transition:background .2s,transform .2s,border-color .2s,filter .2s}
+.nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button.is-on){
+  background:var(--nv-icon-color,#1f8aa8)!important;background-color:var(--nv-icon-color,#1f8aa8)!important;border-color:var(--nv-button-bg,#7ad6ee)!important;color:var(--nv-button-bg,#fff)}
+.nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button:not(.is-on):hover,.nv-vs-fullscreen:hover,.nv-open-floor-plan:hover){filter:brightness(1.25)}
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button,.nv-vs-fullscreen):hover{transform:translateY(-2px)}
 
 /* Fenêtre « Espaces » / galeries : fond plus soigné, aux couleurs du projet */
