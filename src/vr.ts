@@ -358,6 +358,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     busy=true;closePanels();
     fadeTarget=0;await wait(180);
     const ok=await showScene(id,via);
+    // Arrivée sur le nouveau panorama : l'interface jaune (galerie, plan) se ferme.
+    closePanels();
     fadeTarget=1;
     busy=false;
     if(!ok)setNotice(tt('unavailable'));
@@ -1351,6 +1353,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   });
   // ---- boucle de rendu --------------------------------------------------------------------------------------
   let hoveredRightLast:Clickable|null=null;
+  let laserCandidate:Clickable|null=null,laserCandidateSince=0;
   let lastRefreshCheck=0;
   let turnArmed=true;
   // Clic sur le joystick : masque toute l'interface (barre, fenêtres, repères) ; un second clic la fait réapparaître.
@@ -1477,18 +1480,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(right){
       if(rightLaserLine.parent!==right)right.add(rightLaserLine);
       const impact=pointable(right);
-      hoveredRight=impact.target;
-      if(hoveredRight!==hoveredRightLast){
-        if(hoveredRight&&!uiHidden)pulse(right,.18,22);
-        hoveredRightLast=hoveredRight;
+      // Une cible n'est adoptée qu'après 90 ms de stabilité : le tremblement de la main
+      // au bord d'une pièce ne provoque plus une succession de changements et de vibrations.
+      if(impact.target!==laserCandidate){laserCandidate=impact.target;laserCandidateSince=now;}
+      if(laserCandidate!==hoveredRightLast&&now-laserCandidateSince>=90){
+        hoveredRightLast=laserCandidate;
+        // Une seule impulsion par nouvelle cible.
+        if(hoveredRightLast&&!uiHidden)pulse(right,.12,18);
       }
+      hoveredRight=hoveredRightLast;
       const tip=impact.point?right.worldToLocal(impact.point.clone()):new Vector3(0,0,-2.3);
       const attr=rightLaserGeometry.getAttribute('position') as Float32BufferAttribute;
       attr.setXYZ(1,tip.x,tip.y,tip.z);attr.needsUpdate=true;rightLaserGeometry.computeBoundingSphere();
       rightLaserLine.visible=!uiHidden;
       rightLaserDot.visible=!uiHidden&&!!impact.point;
       if(impact.point)rightLaserDot.position.copy(impact.point);
-    }else{rightLaserLine.visible=false;rightLaserDot.visible=false;hoveredRightLast=null;}
+    }else{rightLaserLine.visible=false;rightLaserDot.visible=false;hoveredRightLast=null;laserCandidate=null;}
     // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
     const choices=remoteCandidates();
     if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
