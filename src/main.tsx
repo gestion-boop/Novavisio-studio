@@ -2250,7 +2250,7 @@ function App(){
     const prevId=active.id;
     const alreadyBack=next.hotspots.some(h=>h.type==='navigation'&&h.target===prevId);
     // Vue d'arrivée = la vue réellement visée dans l'aperçu de destination (cible + inclinaison), sinon le cap de la flèche.
-    const aim=!destinationId?undefined:aimMode==='auto'?(autoAimRef.current?.id===destinationId?autoAimRef.current.touched??undefined:undefined):galleryOrientationRef.current[destinationId];
+    const aim=!destinationId?undefined:aimMode==='auto'?(autoAimRef.current?.id===destinationId?(autoAimRef.current.touched??autoAimRef.current.base):undefined):galleryOrientationRef.current[destinationId];
     const arrival=aim?{yaw:aim.yaw,pitch:aim.pitch,zoom:aim.zoom??panoramaArrivalZoom(next)}:{yaw:existing?.yaw??yaw,pitch:0,zoom:panoramaArrivalZoom(next)};
     confirmNavigationDirection({
       sourceId:active.id,targetId:next.id,sourceYaw:existing?.yaw??yaw,sourcePitch:existing?.pitch??pitch,
@@ -2274,7 +2274,9 @@ function App(){
       id:uid(),type:'navigation',title:'Retour vers '+origin.name,text:'',target:origin.id,
       yaw:camera.yaw,pitch:camera.pitch,
       // En revenant, on regarde à l'opposé de l'aller : on remonte l'allée.
-      arrivalYaw:(guide.fwdYaw+Math.PI)%(2*Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(origin),arrivalZoomModel:'wide',
+      // Vue d'arrivée = celle affichée dans l'aperçu du panorama de retour (par défaut : on remonte l'allée, à l'opposé de l'aller).
+      ...(()=>{const a=autoAimRef.current;return a&&a.id===origin.id?(()=>{const v=a.touched??a.base;return {arrivalYaw:v.yaw,arrivalPitch:v.pitch,arrivalZoom:v.zoom,arrivalZoomModel:'wide' as const};})()
+        :{arrivalYaw:(guide.fwdYaw+Math.PI)%(2*Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(origin),arrivalZoomModel:'wide' as const};})(),
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
     };
     patchScene(sc=>({...sc,hotspots:[...sc.hotspots,point]}));
@@ -4293,9 +4295,13 @@ function App(){
           {autoNavigation&&!preview&&guide?.phase==='back'&&(()=>{const origin=project.scenes.find(sc=>sc.id===guide.prevId);return origin?<aside className="nv-auto-dest" aria-label="Panorama de retour">
             <header><span>Retour vers</span><strong className="nv-auto-dest-name">{origin.name}</strong></header>
             <div className="nv-auto-dest-view" key={'back-'+origin.id}>
-              <FullscreenGalleryHoverPreview scene={origin} thumb={sceneThumbs[origin.id]}/>
+              <FullscreenGalleryHoverPreview scene={{...origin,arrivalYaw:(guide.fwdYaw+Math.PI)%(2*Math.PI),arrivalPitch:0}} thumb={sceneThumbs[origin.id]} onOrientation={view=>{
+                const cur=autoAimRef.current;
+                if(!cur||cur.id!==origin.id){autoAimRef.current={id:origin.id,base:view,touched:null};return;}
+                if(Math.abs(view.yaw-cur.base.yaw)>1e-3||Math.abs(view.pitch-cur.base.pitch)>1e-3||Math.abs(view.zoom-cur.base.zoom)>1e-3)cur.touched=view;
+              }}/>
             </div>
-            <small>Place la flèche de retour vers ce panorama : fais demi-tour puis valide.</small>
+            <small>Place la flèche de retour vers ce panorama. La vue affichée ici sera la vue d’arrivée (glisse pour la changer).</small>
           </aside>:null;})()}
           {autoNavigation&&!preview&&guide?.phase==='forward'&&autoTarget&&<aside className="nv-auto-dest" aria-label="Panorama de destination">
             <header>
@@ -4312,7 +4318,7 @@ function App(){
               }}/>
               <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
             </div>
-            <small>Glisse pour regarder à 360° : la vue visée sera l’arrivée.</small>
+            <small>La vue affichée ici sera enregistrée comme vue d’arrivée (glisse pour la changer).</small>
           </aside>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
