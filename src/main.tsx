@@ -5315,7 +5315,16 @@ function App(){
               </label>
               <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une musique</button>
               <button type="button" className="style-reset" onClick={()=>setPanel('music')}>Gérer la bibliothèque musicale</button>
-                  </>}
+                  </>},
+                  // Raccourcis : un bouton par icône de la barre du bas, pour ouvrir ses réglages sans changer de menu.
+                  ...project.bottomBar.map(item=>{
+                    const img=project.icons.find(i=>i.id===item.iconId)?.dataUrl;
+                    const kind=item.type==='plan'?'Plan':item.type==='photos'?'Photos':item.type==='navigation'?'Panorama':item.type==='information'?'Information':item.type==='gallery'?'Galerie':'Lien';
+                    const tone=item.type==='plan'?'#e1a525':item.type==='photos'?'#e0645c':item.type==='gallery'?'#4f7cff':item.type==='information'?'#2bb3d6':item.type==='navigation'?'#2fbf8f':'#a468f0';
+                    return {key:'sc:'+item.id,title:item.title||kind,hint:'Raccourci · '+kind,tone,
+                      icon:img?<img className="nv-hub-tile-img" src={img} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>,
+                      onClick:()=>{setPanel('bar');setSelectedBarId(item.id);setHubOpen(h=>({...h,bar:'btn:'+item.id}));setSelectedId('');setRightHidden(false);}};
+                  })
                 ]}/>
             </div>
           )}
