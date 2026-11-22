@@ -1,4 +1,8 @@
 import type {StudioProject, VrMenuConfig} from './storage';
+import {barKind} from './barKind';
+
+/** Boutons de la barre exclus de l'interface jaune (ex. « Appeler » : retiré du casque). */
+const excludedFromVr = (project: Pick<StudioProject, 'bottomBar'>) => new Set(project.bottomBar.filter((b) => barKind(b) === 'phone').map((b) => b.id));
 
 /**
  * Interface jaune du casque : catalogue des actions, configuration par défaut et mise en page.
@@ -39,9 +43,10 @@ export const DEFAULT_VR_MENU: VrMenuConfig = {
 
 /** Actions disponibles pour ce projet : intégrées + une par bouton de la barre du bas. */
 export function availableVrActions(project: Pick<StudioProject, 'bottomBar'>): VrAction[] {
+  const excluded = excludedFromVr(project);
   return [
     ...VR_BUILTIN_ACTIONS,
-    ...project.bottomBar.map((item) => ({id: 'bar:' + item.id, label: 'Bouton « ' + (item.title || 'sans titre') + ' »'})),
+    ...project.bottomBar.filter((item) => !excluded.has(item.id)).map((item) => ({id: 'bar:' + item.id, label: 'Bouton « ' + (item.title || 'sans titre') + ' »'})),
   ];
 }
 
@@ -60,7 +65,8 @@ const firstUsed = (list: string[]) => list.findIndex(Boolean);
 export function vrMenuOf(project: Pick<StudioProject, 'vrMenu' | 'bottomBar'>): VrMenuConfig {
   const cfg = project.vrMenu;
   if (!cfg) return DEFAULT_VR_MENU;
-  const barIds = new Set(project.bottomBar.map((b) => b.id));
+  const excluded = excludedFromVr(project);
+  const barIds = new Set(project.bottomBar.map((b) => b.id).filter((id) => !excluded.has(id)));
   const valid = (id: string) => VR_BUILTIN_ACTIONS.some((a) => a.id === id) || (id.startsWith('bar:') && barIds.has(id.slice(4)));
   const seen = new Set<string>();
   const clean = (list: string[]) => {
