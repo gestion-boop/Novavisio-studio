@@ -781,7 +781,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       c.fillText(name,64,92);
     }),5,0,0).userData.blocker=true;
     addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
-    if(pages>1){
+    if(referenceMode){
+      // Pagination de la maquette, en bas uniquement : Précédent / Suivant encadrent le compteur « n / N ».
+      const yBottom=-H/2+.1;
+      if(pages>1){
+        addPanelButton(.26,.08,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
+        addPanelButton(.26,.08,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
+        const counterTexture=canvasTexture(400,140,c=>{c.fillStyle='#ffffff';c.font='bold 56px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,200,70);});
+        addPlane(panelGroup,.2,.07,counterTexture,6,0,yBottom);
+      }
+    }else if(pages>1){
       addPanelButton(.1,.21,sideArrowTexture('◀'),-(W/2-.075),-.04,onPrev);
       addPanelButton(.1,.21,sideArrowTexture('▶'),W/2-.075,-.04,onNext);
     }
@@ -1079,15 +1088,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
     // Deux colonnes plus larges : dans le casque les vignettes restent lisibles
     // et ne se chevauchent pas avec les flèches de navigation.
-    const cols=referenceMode?4:2,rows=referenceMode?2:3,perPage=cols*rows;
+    // Maquette casque : grille 3×3 (9 panoramas par page) avec pagination en haut et en bas.
+    const cols=referenceMode?3:2,rows=3,perPage=cols*rows;
     let page=0;
     const render=async()=>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=referenceMode?.31:.62,ch=referenceMode?.28:.34,gx=referenceMode?.025:.06,gy=.05;
+      const cw=referenceMode?.36:.62,ch=referenceMode?.22:.34,gx=referenceMode?.03:.06,gy=referenceMode?.03:.05;
       const photoItem=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
       const W=cols*cw+(cols-1)*gx+.32;
-      const H=.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
+      const H=referenceMode?.17+rows*ch+(rows-1)*gy+.16+(photoItem?.19:0):.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
         ()=>{page=(page-1+pages)%pages;void render();},()=>{page=(page+1)%pages;void render();});
