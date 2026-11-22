@@ -12,8 +12,7 @@ Objectif : ne plus refaire les réglages à chaque bien, surtout le mode casque 
 - Icônes : une seule famille de pictogrammes par bien, couleurs de la barre.
 
 ## Mode casque (VR) — points validés
-- Plan jaune (interface casque) : **pas de pastilles numérotées**. Seule la pièce change de couleur au survol.
-- Couleur de pièce : **uniquement au survol** (pas de couleur permanente sur la pièce courante).
+- Plan (casque, visite, éditeur) : **numéros affichés**, **aucune couleur dans les pièces**. La pièce où l'on se trouve a un petit halo qui scintille autour de son numéro (décision du 22/11, remplace « pas de pastilles + pièce colorée »).
 - Plan immersif : plus grand (hauteur limitée par l'écran, sans réduire le conteneur).
 - Surbrillance des pièces alignée sur le plan (le conteneur suit la taille de l'image).
 - Aperçu du panorama : au-dessus du point, décalé vers le haut.

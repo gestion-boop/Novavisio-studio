@@ -296,24 +296,19 @@
 .nv-plan-image>img.nv-plan-room.is-current{opacity:1}
 
 /* Visite : pièces allumées au survol, clic = aller au panorama. */
-.nv-plan-image.is-visitor>img.nv-plan-room{mix-blend-mode:normal;opacity:.35;transition:opacity .15s ease}
+.nv-plan-image>img.nv-plan-room{display:none}
 .nv-plan-image.is-visitor>img.nv-plan-room.is-hover{opacity:1}
 .nv-plan-image.is-visitor.is-room-hover{cursor:pointer}
 
-/* Vue casque (plan immersif) : pas de pastilles numérotées. Les zones restent cliquables, sans rendu visuel ;
-   au survol, seul un léger contour apparaît. */
-.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point,
-.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point.is-current{background:transparent;border-color:transparent;box-shadow:none;color:transparent;font-size:0}
-.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point:hover,
-.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point:focus-visible{background:rgba(75,235,222,.22);border-color:#54e9d6;color:transparent;box-shadow:0 0 0 3px rgba(75,235,222,.35)}
-
-/* ===== Plan (éditeur) : points aux couleurs de la barre du bas ; le panorama choisi à droite s'éclaire avec une auréole ===== */
-.nv-plan-image:not(.is-visitor)>button.nv-plan-point{background:var(--nv-button-bg,rgba(9,28,39,.55));border-color:var(--nv-button-outline,#f6bf56);color:var(--nv-icon-color,#fff)}
-.nv-plan-image:not(.is-visitor)>button.nv-plan-point:hover{background:color-mix(in srgb,var(--nv-button-bg,#0b1c27) 78%,#fff);transform:translate(-50%,-50%) scale(1.08)}
-.nv-plan-image:not(.is-visitor)>button.nv-plan-point:active{background:color-mix(in srgb,var(--nv-button-bg,#0b1c27) 70%,#000);transform:translate(-50%,-50%) scale(.96)}
-.nv-plan-image:not(.is-visitor)>button.nv-plan-point.is-current{z-index:6;background:var(--nv-icon-color,#f6bf56);color:var(--nv-button-bg,#0b1c27);border-color:var(--nv-button-outline,#fff);transform:translate(-50%,-50%) scale(1.2);animation:nvPlanHalo 1.5s ease-in-out infinite}
+/* ===== Plan : numéros aux couleurs de la barre du bas ; la pièce où l'on se trouve a un halo qui scintille ===== */
+.nv-plan-image>button.nv-plan-point{background:var(--nv-button-bg,rgba(9,28,39,.75));border-color:var(--nv-button-outline,#f6bf56);color:var(--nv-icon-color,#fff);font-size:14px}
+.nv-plan-image>button.nv-plan-point:hover{background:color-mix(in srgb,var(--nv-button-bg,#0b1c27) 78%,#fff);transform:translate(-50%,-50%) scale(1.08)}
+.nv-plan-image>button.nv-plan-point:active{background:color-mix(in srgb,var(--nv-button-bg,#0b1c27) 70%,#000);transform:translate(-50%,-50%) scale(.96)}
+.nv-plan-image>button.nv-plan-point.is-current{z-index:6;animation:nvPlanHalo 1.6s ease-in-out infinite}
 @keyframes nvPlanHalo{
-  0%,100%{box-shadow:0 0 0 4px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 55%,transparent),0 0 14px 4px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 55%,transparent)}
-  50%{box-shadow:0 0 0 9px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 25%,transparent),0 0 30px 12px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 70%,transparent)}
+  0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 45%,transparent),0 0 10px 3px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 45%,transparent)}
+  30%{box-shadow:0 0 0 5px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 25%,transparent),0 0 20px 8px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 70%,transparent)}
+  55%{box-shadow:0 0 0 3px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 40%,transparent),0 0 12px 4px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 50%,transparent)}
+  75%{box-shadow:0 0 0 6px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 22%,transparent),0 0 24px 9px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 75%,transparent)}
 }
-@media(prefers-reduced-motion:reduce){.nv-plan-image:not(.is-visitor)>button.nv-plan-point.is-current{animation:none;box-shadow:0 0 0 6px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 55%,transparent)}}
+@media(prefers-reduced-motion:reduce){.nv-plan-image>button.nv-plan-point.is-current{animation:none;box-shadow:0 0 0 5px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 55%,transparent)}}

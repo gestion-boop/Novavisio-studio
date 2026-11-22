@@ -1,5 +1,4 @@
 import {BackSide, CanvasTexture, Color, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, ShaderMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
-import {roomHighlights} from './planRooms';
 import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
@@ -1400,28 +1399,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }),7,-W/2+Math.min(.9,W/2-.25)/2+.08,H/2-.085);
     }
     addPanelButton(.12,.12,closeIconTexture(),0,H/2-.10,closePlan,10);
-    // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
-    // closePanels() a déjà fait avancer panelGen : on compare à la valeur actuelle, sinon la surbrillance serait toujours écartée.
-    const panelNow=panelGen;
-    const roomIds=new Set<string>();
-    try{
-      const found=await roomHighlights(plan,plan.points.filter(point=>{const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;}),/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f5b324');
-      if(ended||req!==floorPlanRequest||panelNow!==panelGen)return;
-      for(const [sceneId,canvas] of Object.entries(found)){
-        const tex=new CanvasTexture(canvas);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
-        const m=addPlane(panelGroup,imageW,imageH,tex,6.5,imgX,imgY);
-        // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
-        (m.material as MeshBasicMaterial).opacity=0;
-        const targetId=sceneId;
-        const pt=plan.points.find(p=>p.sceneId===sceneId);
-        const remotePos=pt?new Vector3(imgX+(pt.x/100-.5)*imageW,imgY+(.5-pt.y/100)*imageH,0):new Vector3(imgX,imgY,0);
-        const maskData=canvas.getContext('2d')?.getImageData(0,0,canvas.width,canvas.height).data;
-        // Chaque pièce est un quad plein plan : on garde son masque pour ne la viser que sur ses pixels.
-        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,roomMaskData:maskData,roomMaskW:canvas.width,roomMaskH:canvas.height,remotePos,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;closePanels();void goTo(targetId);}});
-        clickables.push(m as unknown as Clickable);
-        roomIds.add(sceneId);
-      }
-    }catch{/* sans surbrillance, le plan reste utilisable */}
     const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,ctx=>{
       ctx.beginPath();ctx.arc(90,90,76,0,Math.PI*2);
       ctx.fillStyle=current?iconColor:btnBg;ctx.fill();
@@ -1433,14 +1410,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const visible=plan.points.filter(point=>{
       const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;
     });
-    visible.forEach((point)=>{
-      // Pas de pastille quand la pièce est en surbrillance (vue classique). Secours seulement si elle n'a pas été détectée.
-      if(roomIds.has(point.sceneId))return;
+    // Numéros sur le plan ; la pièce où l'on se trouve a un halo qui scintille doucement.
+    const haloTexture=canvasTexture(256,256,ctx=>{
+      const g=ctx.createRadialGradient(128,128,40,128,128,124);
+      g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.55,iconColor+'cc');g.addColorStop(1,iconColor+'00');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(128,128,124,0,Math.PI*2);ctx.fill();
+    });
+    visible.forEach((point,pointIndex)=>{
       const target=sceneOf(point.sceneId)!;
       const x=imgX+(point.x/100-.5)*imageW,y=imgY+(.5-point.y/100)*imageH;
-      // Pas de numéro : la zone reste cliquable mais invisible (plan jaune sans pastilles, comme la visite classique).
-      addPanelButton(.12,.12,canvasTexture(64,64,()=>{}),
-        x,y,()=>{void goTo(target.id);},9);
+      const here=target.id===currentId;
+      const dot=addPanelButton(.12,.12,pointTexture(String(pointIndex+1),here),x,y,()=>{void goTo(target.id);},9);
+      if(here){
+        const halo=new Mesh(new PlaneGeometry(.3,.3),new MeshBasicMaterial({map:haloTexture,transparent:true,opacity:.7,depthTest:false,depthWrite:false}));
+        halo.renderOrder=8;halo.position.z=-.001;dot.add(halo);
+        dot.userData={...dot.userData,haloMesh:halo};
+      }
     });
     // Plusieurs plans / étages : colonne à gauche (escalier + numéros 1, 2, 3...), le plan affiché est en surbrillance.
     if(plans.length>1){
@@ -1937,6 +1922,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
     }else remoteFocus.visible=false;
     for(const m of clickables){
+      const haloMesh=m.userData.haloMesh as Mesh|undefined;
+      if(haloMesh&&haloMesh.material instanceof MeshBasicMaterial){
+        // Petit scintillement du halo (la pièce où l'on se trouve).
+        haloMesh.material.opacity=.55+.3*Math.sin(now/230)+.1*Math.sin(now/97);
+        haloMesh.scale.setScalar(1+.08*Math.sin(now/310));
+      }
       const isPressed=(m.userData.pressedUntil??0)>now;
       const isHovered=hovered.has(m);
       const base=m.userData.baseScale??1,wanted=isPressed?.9:isHovered?(m.userData.hoverScale??1):base;

@@ -1,7 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties, type Dispatch, type DragEvent, type ReactNode, type SetStateAction} from 'react';
 import {createPortal} from 'react-dom';
 import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, Layers, LayoutGrid, Map as MapIcon, Pencil, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
-import {roomHighlights} from './planRooms';
 import {getFloorPlans, plansByLevel, planLevelLabel, type BottomBarItem, type StudioProject} from './storage';
 import {DEFAULT_VR_MENU, VR_BTN, VR_GAP, VR_MAX_PER_COLUMN, VR_SHELL, availableVrActions, layoutColumns, resolveVrPhotosItem, vrMenuOf, type VrSlot} from './vrMenu';
 import {resolveLink} from './mediaLinks';
@@ -144,21 +143,6 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const plans = plansByLevel(getFloorPlans(project).filter((p) => !!p.imageDataUrl));
   const [planIdx, setPlanIdx] = useState(0);
   const plan = plans[Math.min(planIdx, Math.max(0, plans.length - 1))];
-  // Simulation : les pièces où l'on peut aller sont en jaune léger, comme dans le casque.
-  const [simRooms, setSimRooms] = useState<{key: string; urls: Record<string, string>}>({key: '', urls: {}});
-  const simKey = plan ? (plan.id ?? '') + plan.imageDataUrl.length + plan.points.map((q) => q.sceneId + q.x + q.y).join() : '';
-  useEffect(() => {
-    if (!plan) return;
-    let alive = true;
-    void roomHighlights(plan, plan.points.filter((q) => project.scenes.some((sc) => sc.id === q.sceneId && !sc.excluded)), '#f5b324').then((found) => {
-      if (!alive) return;
-      const urls: Record<string, string> = {};
-      for (const [id, canvas] of Object.entries(found)) urls[id] = canvas.toDataURL('image/png');
-      setSimRooms({key: simKey, urls});
-    }).catch(() => undefined);
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [simKey]);
   const isPlanPanel = (p: Panel) => !!p && (p.kind === 'plan' || (p.kind === 'bar' && p.item.type === 'plan'));
   const openPlanPanel = (next: Panel) => {
     setPanel((cur) => {
@@ -240,7 +224,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
             {plans.map((p, i) => [p, i] as const).reverse().map(([p, i]) => <button type="button" key={p.id ?? i} className={plans[Math.min(planIdx, plans.length - 1)] === p ? 'is-on' : ''} title={p.name} onClick={() => setPlanIdx(i)}>{planLevelLabel(p, i)}</button>)}
           </div>}
           <div className="nv-vrx-plan-stage"><span className="nv-vrx-plan-wrap"><img className="nv-vrx-plan" src={plan.imageDataUrl} alt="Plan"/>
-            {simRooms.key === simKey && Object.entries(simRooms.urls).map(([id, url]) => <img key={id} className="nv-vrx-plan-room" src={url} alt="" aria-hidden="true"/>)}</span></div></div> : <p>Aucun plan dans cette visite.</p>}</div>;
+            {plan.points.filter((q) => project.scenes.some((sc) => sc.id === q.sceneId && !sc.excluded)).map((q, i) => <span key={q.sceneId} className={'nv-vrx-plan-dot' + (q.sceneId === current?.id ? ' is-current' : '')} style={{left: q.x + '%', top: q.y + '%'}}>{i + 1}</span>)}</span></div></div> : <p>Aucun plan dans cette visite.</p>}</div>;
     }
     if (panel.kind === 'help') {
       return <div className="nv-vrx-panel"><strong>Navigation VR</strong>

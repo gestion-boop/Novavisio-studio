@@ -14,7 +14,7 @@ Ces règles s'appliquent à toutes les sessions et à toutes les visites virtuel
 - Référence : `docs/immosphera-skin.md`. Lire ce fichier avant tout réglage Immosphera et y noter chaque nouvelle décision validée. Ne pas refaire les réglages déjà validés (surtout le mode casque).
 
 ## Casque VR (`src/vr.ts`)
-- Plan jaune : pas de pastilles numérotées ; seule la pièce change de couleur au survol, sans vibration continue.
+- Plans (casque, visite, éditeur) : AUCUNE couleur dans les pièces. Numéros affichés sur chaque panorama placé ; la pièce où l'on se trouve a un petit halo qui scintille autour de son numéro (décision du 22/11, remplace l'ancienne règle « pastilles masquées + pièce colorée »).
 - Sphères de destination : contour identique au mode édition (couleur et intensité de la sphère), panorama en 1024 px.
 - Une arrivée sur un panorama ferme l'interface jaune.
 

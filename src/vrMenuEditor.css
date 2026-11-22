@@ -131,3 +131,8 @@
 
 .nv-vrx-plan-wrap{position:relative;display:inline-block;line-height:0}
 .nv-vrx-plan-room{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;mix-blend-mode:multiply;opacity:.85}
+
+/* Simulation du plan : numéros ; la pièce où l'on se trouve a un halo qui scintille. */
+.nv-vrx-plan-dot{position:absolute;transform:translate(-50%,-50%);display:grid;place-items:center;min-width:22px;height:22px;border-radius:50%;background:#1c1d20;border:2px solid #f6bb34;color:#f6bb34;font:700 12px system-ui;pointer-events:none}
+.nv-vrx-plan-dot.is-current{animation:nvVrxHalo 1.6s ease-in-out infinite}
+@keyframes nvVrxHalo{0%,100%{box-shadow:0 0 0 3px #f6bb3466,0 0 8px 2px #f6bb3466}50%{box-shadow:0 0 0 6px #f6bb3433,0 0 18px 7px #f6bb34aa}}

@@ -1,4 +1,3 @@
-import {roomHighlights} from './planRooms';
 import {proposePlanLayout} from './planAutoPlace';
 import {readPlanImage,matchScenesToRooms,type PlanRoom} from './planRead';
 import {confirmAsk} from './confirmDialog';
@@ -55,11 +54,10 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
   const [ripple,setRipple]=useState<{x:number;y:number;id:number}|null>(null);
   const [movingPointId,setMovingPointId]=useState<string|null>(null);
   const [hoveredSceneId,setHoveredSceneId]=useState<string|null>(null);
-  // Pièces en surbrillance (jaune léger) autour de chaque panorama placé : on voit d'un coup d'œil où l'on peut aller.
-  const [rooms,setRooms]=useState<Record<string,string>>({});
-  const [roomsReady,setRoomsReady]=useState(false);
+  // Plus de pièces colorées : seuls les numéros sont affichés ; la pièce où l'on se trouve a un halo qui scintille.
+  const rooms:Record<string,string>={};
   const roomCanvases=useRef<Record<string,HTMLCanvasElement>>({});
-  // Visite : plus de numéros. On survole une pièce, elle s'allume en jaune, un clic y emmène. (Éditeur : repères conservés.)
+  // Visite : on clique sur le numéro d'une pièce pour y aller.
   const visitor=!onPlace&&!onMove;
   const roomAt=(clientX:number,clientY:number,rect:DOMRect):string|null=>{
     const nx=(clientX-rect.left)/rect.width,ny=(clientY-rect.top)/rect.height;
@@ -72,20 +70,6 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
     }
     return null;
   };
-  const roomsKey=visiblePoints(plan,scenes).map(p=>p.sceneId+':'+p.x.toFixed(1)+','+p.y.toFixed(1)).join('|')+'#'+plan.imageDataUrl.length;
-  useEffect(()=>{
-    let alive=true;
-    const timer=window.setTimeout(()=>{
-      void roomHighlights(plan,visiblePoints(plan,scenes)).then(found=>{
-        if(!alive)return;
-        const urls:Record<string,string>={};
-        for(const [id,canvas] of Object.entries(found))urls[id]=canvas.toDataURL('image/png');
-        roomCanvases.current=found;setRooms(urls);setRoomsReady(true);
-      }).catch(()=>{if(alive){roomCanvases.current={};setRooms({});setRoomsReady(true);}});
-    },250);
-    return ()=>{alive=false;window.clearTimeout(timer);};
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[roomsKey]);
   const position=(clientX:number,clientY:number,rect:DOMRect)=>({x:Math.max(0,Math.min(100,(clientX-rect.left)/rect.width*100)),y:Math.max(0,Math.min(100,(clientY-rect.top)/rect.height*100))});
   return <div className={'nv-plan-image'+(onPlace?' is-editing':'')+(dragOverPos?' is-drag-over':'')+(visitor?' is-visitor':'')+(visitor&&hoveredSceneId&&rooms[hoveredSceneId]?' is-room-hover':'')}
     onPointerMove={visitor?e=>{const id=roomAt(e.clientX,e.clientY,e.currentTarget.getBoundingClientRect());setHoveredSceneId(cur=>cur===id?cur:id);}:undefined}
@@ -123,7 +107,7 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
       const current=scene.id===currentId;
       const isMoving=movingPointId===point.sceneId;
       const isHovered=hoveredSceneId===point.sceneId&&!movingPointId;
-      const showMarker=!visitor||(roomsReady&&!rooms[point.sceneId]);
+      const showMarker=true;
       return <Fragment key={point.sceneId}>
         {showMarker&&<button type="button" className={'nv-plan-point nv-no-fx'+(current?' is-current':'')+(isMoving?' is-moving':'')} style={{left:point.x+'%',top:point.y+'%'}}
           aria-label={(onPlace?ui('select',lang):ui('goTo',lang))+pick(scene.name,scene.nameTranslations,lang)} aria-current={current?'location':undefined} title={pick(scene.name,scene.nameTranslations,lang)}
