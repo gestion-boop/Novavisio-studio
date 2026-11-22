@@ -19,6 +19,8 @@ import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
 import {cloudHasDefaultSkin,cloudListSkins,cloudNewProjectFromDefault} from './cloudSkins';
 import {applySkin} from './skins';
+import {applyImmospheraDefaults,isImmospheraProject} from './immospheraDefaults';
+import {resolveVrGalleryItem,resolveVrPhotosItem} from './vrMenu';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
 import {PhotoFramePicker} from './photoFrame';
@@ -4827,11 +4829,13 @@ function App(){
           {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
-            return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
+            const items=item?.photos?.length?item.photos:(resolveVrPhotosItem(project)?.photos??[]);
+            return item?<PhotoGallery title={item.title||'Photos'} items={items} onClose={()=>setPhotoGalleryId(null)}/>:null;
           })()}
           {preview&&galleryOpen&&(()=>{
-            const item=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
-            if(!item)return null;
+            const raw=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
+            if(!raw)return null;
+            const item=resolveVrGalleryItem({...project,bottomBar:[raw,...project.bottomBar.filter(b=>b.id!==raw.id)]});
             return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces,sceneThumbs)}
               entries={galleryEntries(item,preview?visibleScenes.filter(sc=>!sc.excluded):visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
               onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} onClose={()=>setGalleryOpen(null)}/>;
@@ -5867,38 +5871,73 @@ function App(){
       currentStyle={project.barStyle}
       onUpdateCurrent={(profile,style)=>setProject(p=>({...p,...(profile?{clientProfile:profile}:{}),...(style?{barStyle:{...p.barStyle,...style}}:{})}))}
       onSaveDiscovered={(clientProfile,style)=>{
+        const cur=projectRef.current;
+        if(isImmospheraProject(cur,clientProfile)){
+          void (async()=>{
+            const base:StudioProject={...cur,clientProfile};
+            const styled=await applyImmospheraDefaults(base,undefined,{replaceEmptyBar:cur.scenes.length===0}).catch(()=>({...base,vrEnabled:true}));
+            const next:StudioProject={...styled,...(style?{barStyle:{...styled.barStyle,...style}}:{}),clientProfile,vrEnabled:true};
+            setProject(next);setPanel('client');pendingClientSaveRef.current=true;
+            setStatus('Client « '+clientProfile.name+' » enregistré · skin Immosphera et casque VR activés.');
+          })();
+          return;
+        }
         setProject(p=>({...p,clientProfile,...(style?{barStyle:{...p.barStyle,...style}}:{})}));
         setPanel('client');pendingClientSaveRef.current=true;
         setStatus('Client « '+clientProfile.name+' » enregistré dans la visite…');
       }}
       onCreateVisit={async (clientProfile,style,visitName)=>{
         if((project.scenes.length||projectRef.current!==savedRef.current)&&!await confirmAsk('Créer une nouvelle visite pour « '+clientProfile.name+' » ? Pense à enregistrer ou exporter le projet actuel avant.'))return;
-        // Le skin préféré de ce client est appliqué avant d'ouvrir la nouvelle
-        // visite ; si le Cloud ne l'a plus, aucune visite vide ne remplace
-        // silencieusement le projet actuel.
+        // Le skin préféré de ce client (ou le skin Immosphera par défaut + VR activé) est appliqué avant d'ouvrir la nouvelle visite.
         void (async()=>{
           try{
             let fresh=newProject();
+            let chosenSkin:Awaited<ReturnType<typeof cloudListSkins>>[number]|undefined;
             if(clientProfile.preferredSkinId){
-              const skin=(await cloudListSkins()).find(item=>item.id===clientProfile.preferredSkinId);
-              if(!skin)throw Error('Skin du client introuvable dans ce compte Cloud.');
-              fresh=applySkin({...fresh,bottomBar:[]},skin);
+              chosenSkin=(await cloudListSkins()).find(item=>item.id===clientProfile.preferredSkinId);
+              if(!chosenSkin)throw Error('Skin du client introuvable dans ce compte Cloud.');
             }
             const name=visitName?.trim()||clientProfile.name||'Nouvelle visite';
+            fresh={...fresh,name,clientProfile};
+            const immo=isImmospheraProject(fresh,clientProfile);
+            if(immo){
+              fresh=await applyImmospheraDefaults(fresh,chosenSkin,{replaceEmptyBar:true});
+            }else if(chosenSkin){
+              fresh=applySkin({...fresh,bottomBar:[]},chosenSkin);
+            }
             fresh={...fresh,name,clientProfile,
-              ...(style?{barStyle:{...fresh.barStyle,...style}}:{})};
+              ...(style?{barStyle:{...fresh.barStyle,...style}}:{}),
+              ...(immo?{vrEnabled:true}:{})};
             setActiveSpaceId(null);setSpaceManagerOpen(false);
             setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
             cloud.unlink();
-            setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' »'+(clientProfile.preferredSkinId?' avec son skin':'')+'. Ajoute les panoramas puis enregistre avec la disquette.');
+            setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' »'+(immo?' (skin Immosphera et casque VR activés)':clientProfile.preferredSkinId?' avec son skin':'')+'. Ajoute les panoramas puis enregistre avec la disquette.');
           }catch(e){
             setStatus('Impossible de préparer ce bien avec le skin choisi : '+(e instanceof Error?e.message:String(e)));
           }
         })();
       }}
       onAssociate={clientProfile=>{
-        setProject(p=>({...p,clientProfile}));
+        const cur=projectRef.current;
+        const immo=isImmospheraProject(cur,clientProfile);
+        setProject(p=>({...p,clientProfile,...(immo?{vrEnabled:true}:{})}));
         setPanel('client');
+        if(immo||clientProfile.preferredSkinId){
+          void (async()=>{
+            try{
+              const chosen=clientProfile.preferredSkinId?(await cloudListSkins()).find(item=>item.id===clientProfile.preferredSkinId):undefined;
+              const base:StudioProject={...projectRef.current,clientProfile};
+              const styled=immo
+                ?await applyImmospheraDefaults(base,chosen,{replaceEmptyBar:base.scenes.length===0})
+                :chosen?applySkin(base,chosen):base;
+              setProject({...styled,clientProfile,...(immo?{vrEnabled:true}:{})});
+              setStatus('Client « '+clientProfile.name+' » associé'+(immo?' · skin Immosphera et casque VR activés':' · skin du client appliqué')+'. Clique sur Enregistrer pour conserver.');
+            }catch{
+              setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
+            }
+          })();
+          return;
+        }
         setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
       }}
     />}
@@ -5933,6 +5972,7 @@ function App(){
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
     {aiAssistantOpen&&<NovaStudioAIAssistant project={project} onClose={()=>setAiAssistantOpen(false)}
       onApply={(updated,clientProfile,brandKit,mode)=>{
+        const immo=isImmospheraProject({name:updated.name||clientProfile.name,clientProfile},clientProfile);
         if(mode==='new'){
           const fresh=newProject();
           const created:StudioProject={
@@ -5941,6 +5981,7 @@ function App(){
             name:updated.name||clientProfile.name||'Nouvelle visite 360°',
             clientProfile,
             brandKit,
+            ...(immo?{vrEnabled:true}:{}),
             scenes:[],
             spaces:[],
             updatedAt:new Date().toISOString(),
@@ -5953,10 +5994,24 @@ function App(){
           setMode(null);
           setPreview(false);
           cloud.unlink();
-          setStatus('✨ Nouvelle visite « '+clientProfile.name+' » créée avec succès ! Tu peux maintenant ajouter tes panoramas 360°.');
+          if(immo){
+            void applyImmospheraDefaults(created,undefined,{replaceEmptyBar:true}).then(styled=>{
+              resetProject({...styled,name:created.name,clientProfile,brandKit,vrEnabled:true});
+              setStatus('✨ Nouvelle visite « '+clientProfile.name+' » créée · skin Immosphera et casque VR activés.');
+            }).catch(()=>undefined);
+          }else{
+            setStatus('✨ Nouvelle visite « '+clientProfile.name+' » créée avec succès ! Tu peux maintenant ajouter tes panoramas 360°.');
+          }
         }else{
-          setProject(p=>({...p,...updated,clientProfile,brandKit}));
-          setStatus('NovaStudio AI : Visite « '+(updated.name||clientProfile.name)+' » mise à jour avec la charte.');
+          setProject(p=>({...p,...updated,clientProfile,brandKit,...(immo?{vrEnabled:true}:{})}));
+          if(immo){
+            void applyImmospheraDefaults({...projectRef.current,...updated,clientProfile,brandKit}).then(styled=>{
+              setProject({...styled,clientProfile,brandKit,vrEnabled:true});
+              setStatus('NovaStudio AI : Visite « '+(updated.name||clientProfile.name)+' » mise à jour · skin Immosphera et casque VR activés.');
+            }).catch(()=>undefined);
+          }else{
+            setStatus('NovaStudio AI : Visite « '+(updated.name||clientProfile.name)+' » mise à jour avec la charte.');
+          }
         }
       }}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
@@ -6005,7 +6060,21 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
+      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{
+        if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});
+        const applyOpened=(opened:StudioProject)=>{
+          resetProject(opened);setPreparationOpen(false);
+          const openSpace=spaceId?(opened.spaces??[]).find(sp=>sp.id===spaceId):undefined;
+          setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(opened,openSpace)[0]?.id??''):(startSceneId(opened.scenes)));
+          setSelectedId('');setMode(null);setPreview(false);savedRef.current=opened;setLock(null);cloud.markSynced(opened,link);
+        };
+        const up0=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);
+        if(isImmospheraProject(up0)&&!up0.glossyStyle&&!up0.vrMenu&&up0.barStyle.button.toLowerCase()==='#5d131a'){
+          void applyImmospheraDefaults(up0).then(styled=>applyOpened(ensureFrameReferences(styled,viewAreaRef.current?.clientHeight||550))).catch(()=>applyOpened({...up0,vrEnabled:true}));
+          return;
+        }
+        applyOpened(isImmospheraProject(up0)&&!up0.vrEnabled?{...up0,vrEnabled:true}:up0);
+      }}/>}
     {saveWarning&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSaveWarning(null);}}>
       <section className="modal" role="alertdialog" aria-modal="true" aria-label="Sauvegarde impossible" onClick={e=>e.stopPropagation()}>
         <h2>⚠ Sauvegarde impossible</h2>

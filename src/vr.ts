@@ -1,4 +1,4 @@
-import {BackSide, CanvasTexture, Color, Sprite, SpriteMaterial, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
+import {BackSide, CanvasTexture, Color, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, ShaderMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -8,7 +8,7 @@ import {frameWorldCorners} from './sphericalFrame';
 import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
-import {layoutColumns,vrMenuOf,VR_SHELL} from './vrMenu';
+import {layoutColumns,resolveVrGalleryItem,resolveVrPhotosItem,vrMenuOf,VR_SHELL} from './vrMenu';
 import {isReturnLink,displayPitch} from './returnLink';
 import {setVrMusicPlaying} from './vrAudioBridge';
 import {barKind} from './barKind';
@@ -169,6 +169,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const alignToHead=(yaw:number)=>{const h=headForward();root.position.set(h.x,h.y+eyeOffset(),h.z);root.rotation.y=yaw+h.phi;};
 
   const getIconUrl=(id?:string)=>id?project().icons?.find(i=>i.id===id)?.dataUrl:undefined;
+  const pictoGold=():string=>{
+    const bar=project().barStyle;
+    if(vrMenuOf(project()).themed&&bar?.icon&&/^#[0-9a-f]{6}$/i.test(bar.icon))return bar.icon;
+    return '#f3bb37';
+  };
   // Les logos Cloud peuvent arriver après le chargement des panoramas.
   const currentIconSignature=()=>[...(project().icons??[]).map(i=>i.id+':'+(i.dataUrl??'')),...(project().bottomBar??[]).map(i=>i.id+':'+(i.iconId??''))].join('|');
   let iconSignature=currentIconSignature();
@@ -231,36 +236,112 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const iconUrl=getIconUrl(h.iconId);
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
-      const radius=k*Math.max(.13,Math.min(.22,(h.iconSize??48)/90*.2));
-      // Couleur du contour (réglage de l'éditeur) : teinte la sphère avant le chargement du panorama.
-      const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
-      const hitRadius=Math.max(.15,radius*1.38);
+      const radius=k*Math.max(.14,Math.min(.24,(h.iconSize??48)/90*.21));
+      const gold=pictoGold();
+      const hitRadius=Math.max(.18,radius*1.44);
       const mesh=new Mesh(new SphereGeometry(hitRadius,16,12),new MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
-      const visual=new Mesh(new SphereGeometry(radius,128,80),new MeshBasicMaterial({color:new Color(rimColor),transparent:true,opacity:1,depthTest:false,depthWrite:false}));
+      // Shader 3D "bulle / goutte d'eau opaque" : rotation interne douce, courbure sphérique, anneau TIR, ménisque Fresnel et reflets vitreux.
+      const dropMat=new ShaderMaterial({
+        transparent:true,depthTest:false,depthWrite:false,
+        uniforms:{
+          panorama:{value:null as Texture|null},
+          hasPanorama:{value:false},
+          rimColor:{value:new Color(gold)},
+          spin:{value:0},
+          hover:{value:0},
+          pressed:{value:0},
+          opacity:{value:1.0},
+        },
+        vertexShader:`
+          varying vec2 vUv;
+          varying vec3 vViewNormal;
+          varying vec3 vViewDir;
+          void main(){
+            vUv=uv;
+            vec4 mvPos=modelViewMatrix*vec4(position,1.0);
+            vViewNormal=normalize(normalMatrix*normal);
+            vViewDir=normalize(-mvPos.xyz);
+            gl_Position=projectionMatrix*mvPos;
+          }`,
+        fragmentShader:`
+          uniform sampler2D panorama;
+          uniform bool hasPanorama;
+          uniform vec3 rimColor;
+          uniform float spin;
+          uniform float hover;
+          uniform float pressed;
+          uniform float opacity;
+          varying vec2 vUv;
+          varying vec3 vViewNormal;
+          varying vec3 vViewDir;
+          void main(){
+            vec3 n=normalize(vViewNormal);
+            vec3 v=normalize(vViewDir);
+            float facing=clamp(dot(n,v),0.0,1.0);
+            vec2 lensUv=vec2(1.0-vUv.x+spin,vUv.y)+n.xy*vec2(-0.055,0.055)*(1.0-facing);
+            lensUv.y=clamp(lensUv.y,0.002,0.998);
+            vec3 innerColor=hasPanorama
+              ?texture2D(panorama,lensUv).rgb
+              :mix(rimColor*0.20+vec3(0.05,0.12,0.19),rimColor*0.88,pow(facing,0.62));
+            // Courbure 3D prononcée + anneau de réflexion interne totale (effet rond / goutte d'eau opaque).
+            float sphereDepth=0.36+0.68*pow(facing,0.54);
+            float tirRing=exp(-pow((facing-0.28)/0.14,2.0));
+            vec3 color=innerColor*sphereDepth*(1.0-0.34*tirRing);
+            // Ménisque Fresnel léger de goutte d'eau teinté par le jaune des pictos
+            float fresnel=pow(1.0-facing,2.7);
+            vec3 meniscus=mix(vec3(0.92,0.96,1.0),rimColor,0.65);
+            color=mix(color,meniscus,clamp(fresnel*(0.65+0.25*hover),0.0,0.88));
+            // Reflets spéculaires vitreux (croissant haut gauche + point brillant + caustique interne bas droite)
+            vec3 light1=normalize(vec3(-0.38,0.56,0.73));
+            float h1=max(dot(n,light1),0.0);
+            float softDome=pow(h1,8.0)*0.26;
+            float crispSpot=smoothstep(0.84,0.96,h1)*0.34+pow(h1,100.0)*0.94;
+            float bounce=pow(max(dot(n,normalize(vec3(0.45,-0.66,0.60))),0.0),12.0);
+            color=mix(color,vec3(1.0),min(0.95,softDome+crispSpot));
+            color+=(vec3(0.55,0.85,1.0)*0.18+rimColor*0.28)*bounce;
+            color*=(1.0+0.12*hover-0.28*pressed);
+            gl_FragColor=vec4(color,opacity);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }`,
+      });
+      const visual=new Mesh(new SphereGeometry(radius,96,64),dropMat);
       visual.renderOrder=2;mesh.add(visual);
-      // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
-      const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
-      const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
+      // Liseré jaune fin et net autour de la sphère, strictement de la même couleur que les cercles et le contour des cases pièces.
+      const rimOpacity=1.0;
+      const outline=new Mesh(new SphereGeometry(radius*1.055,64,40),new MeshBasicMaterial({color:new Color(gold),side:BackSide,transparent:true,opacity:rimOpacity,toneMapped:false,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;visual.add(outline);
-      // Nom de la pièce juste sous la sphère : on sait où l'on va sans viser.
+      // Libellé horizontal sous la sphère (PlaneGeometry) : bordure jaune identique au liseré de la sphère.
       const destination=sceneOf(h.target);
       const destinationName=destination?pick(destination.name,destination.nameTranslations,vlang()):'';
+      let labelMesh:Mesh|null=null;
+      const baseLabelW=.56,baseLabelH=.132;
       if(destinationName){
-        const labelTexture=canvasTexture(640,120,ctx=>{
-          roundRect(ctx,6,6,628,108,50);ctx.fillStyle='rgba(10,14,18,.92)';ctx.fill();
-          ctx.lineWidth=6;ctx.strokeStyle=rimColor;ctx.stroke();
+        const labelTexture=canvasTexture(1024,240,ctx=>{
+          const text=fitCanvasLabel(ctx,destinationName,876,94,46);
+          const textW=ctx.measureText(text).width;
+          const boxW=Math.min(996,Math.max(380,Math.ceil(textW+136)));
+          const x0=(1024-boxW)/2;
+          roundRect(ctx,x0,14,boxW,212,102);ctx.fillStyle='rgba(17,19,23,.95)';ctx.fill();
+          ctx.lineWidth=10;ctx.strokeStyle=gold;ctx.stroke();
           ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
-          ctx.font='bold 60px sans-serif';
-          ctx.fillText(fitCanvasLabel(ctx,destinationName,580,60,28),320,62);
+          ctx.fillText(text,512,124);
         });
-        const label=new Sprite(new SpriteMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false}));
-        label.scale.set(.3,.056,1);label.position.set(0,-radius*1.7-.06,0);label.renderOrder=3;
-        visual.add(label);
+        labelMesh=new Mesh(
+          new PlaneGeometry(1,1),
+          new MeshBasicMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false,side:DoubleSide}),
+        );
+        labelMesh.scale.set(baseLabelW,baseLabelH,1);
+        labelMesh.position.set(0,-(radius+.075+baseLabelH*.5),radius*.12);
+        labelMesh.renderOrder=3;
+        mesh.add(labelMesh);
       }
-      // Le collider reste strictement fixe à 6 m (aucun saut radial sous le rayon) : la sphère visuelle grossit sur place autour de son centre.
-      mesh.userData={baseScale:1,hoverScale:1,spin:true,visualSphere:visual,rimOutline:outline,rimOpacity,toViewer:pos.clone().normalize().multiplyScalar(-1),onSelect:()=>void goTo(h.target,h)};
+      // Le collider reste fixe à 6 m ; la bulle et son libellé avancent strictement dans l'axe (+Z) vers les yeux au survol.
+      mesh.userData={baseScale:1,hoverScale:1,spin:true,visualSphere:visual,rimOutline:outline,rimOpacity,
+        labelMesh,baseLabelW,baseLabelH,sphereRadius:radius,
+        onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
         for(let attempt=0;attempt<30&&!ended;attempt++){
@@ -269,13 +350,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
             try{
               const pano=await loadReduced(url,2048);
               if(ended||!mesh.parent)return;
-              // Couleurs plus vives : la sphère reste lisible sur les murs blancs.
+              // Couleurs riches dans la bulle de verre pour rester nettes face aux murs clairs.
               const vivid=document.createElement('canvas');vivid.width=pano.width;vivid.height=pano.height;
               const vividCtx=vivid.getContext('2d');
-              if(vividCtx){vividCtx.filter='saturate(1.8) contrast(1.12)';vividCtx.drawImage(pano,0,0);}
+              if(vividCtx){vividCtx.filter='saturate(1.65) contrast(1.10)';vividCtx.drawImage(pano,0,0);}
               const texture=new CanvasTexture(vividCtx?vivid:pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
-              const material=visual.material as MeshBasicMaterial;
-              material.map=texture;material.color.set(0xffffff);material.opacity=1;material.needsUpdate=true;
+              dropMat.uniforms.panorama.value=texture;
+              dropMat.uniforms.hasPanorama.value=true;
+              dropMat.needsUpdate=true;
               return;
             }catch{}
           }
@@ -336,10 +418,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const disposeNode=(node:Object3D)=>{
     for(const sub of [...node.children])disposeNode(sub);
     const m=node as Mesh;
-    const mat=m.material as MeshBasicMaterial|undefined;
+    const mat=m.material as (MeshBasicMaterial|ShaderMaterial|undefined);
+    if(mat&&'uniforms' in mat&&mat.uniforms?.panorama?.value)(mat.uniforms.panorama.value as Texture).dispose();
+    const basic=mat as MeshBasicMaterial|undefined;
     const states=m.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null}|undefined;
-    for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==mat?.map)texture.dispose();
-    mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
+    for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==basic?.map)texture.dispose();
+    basic?.map?.dispose();mat?.dispose();m.geometry?.dispose();
     const vid=m.userData.video as HTMLVideoElement|null|undefined;
     if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
   };
@@ -414,11 +498,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     btnLine=theme?.buttonOutline??'#4a1518',
     iconColor=theme?.icon??'#f4d69a';
   const updateVrPalette=()=>{
+    const gold=pictoGold();
     panelBg=referenceMode?'rgba(37,38,42,.87)':theme?.background??'#c2c5c6';
-    panelLine=referenceMode?'#e1a525':theme?.outline??'#987974';
+    panelLine=referenceMode?gold:theme?.outline??'#987974';
     btnBg=referenceMode?'#1c1d20':theme?.button??'#5d131a';
-    btnLine=referenceMode?'#daa025':theme?.buttonOutline??'#4a1518';
-    iconColor=referenceMode?'#f6bb34':theme?.icon??'#f4d69a';
+    btnLine=referenceMode?gold:theme?.buttonOutline??'#4a1518';
+    iconColor=referenceMode?gold:theme?.icon??'#f4d69a';
   };
   // Les commandes gauche/droite et le contenu central sont dans LE MÊME
   // repère spatial. Déplacer le groupe parent déplace l'ensemble sans décalage.
@@ -507,27 +592,45 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(room&&!roomNameVisible(project(),room,'vr'))return;
     const name=room?pick(room.name,room.nameTranslations,vlang()):project().name;
     const area=room?.surfaceM2!==undefined?room.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})+' m²':'';
-    const tex=canvasTexture(1400,180,ctx=>{
-      // Pastille crème à bordure dorée, comme la barre du bas : nom et superficie en noir.
-      roundRect(ctx,8,8,1384,164,82);ctx.fillStyle='#f7f5ef';ctx.fill();
-      ctx.lineWidth=12;ctx.strokeStyle='#dcc38f';ctx.stroke();
-      ctx.textBaseline='middle';
-      const surfaceWidth=area?Math.min(250,Math.max(145,area.length*30)):0;
-      ctx.fillStyle='#111';ctx.textAlign='left';
-      const title=fitCanvasLabel(ctx,name,1260-surfaceWidth-(area?36:0),78,40);
-      ctx.fillText(title,62,93);
+    const gold=pictoGold();
+    const measure=document.createElement('canvas').getContext('2d');
+    let title=name,areaText=area,titleW=340,areaW=0;
+    if(measure){
+      title=fitCanvasLabel(measure,name,800,66,38);
+      titleW=measure.measureText(title).width;
       if(area){
-        // séparateur fin puis superficie
-        ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(1330-surfaceWidth-22,38,2,110);
-        ctx.fillStyle='#111';ctx.textAlign='right';
-        const surface=fitCanvasLabel(ctx,area,surfaceWidth,59,37);
-        ctx.fillText(surface,1330,93);
+        areaText=fitCanvasLabel(measure,area,240,54,34);
+        areaW=measure.measureText(areaText).width;
+      }
+    }
+    const gap=area?56:0;
+    const contentW=titleW+(area?gap+areaW:0);
+    const canvasW=Math.min(1160,Math.max(420,Math.ceil(contentW+140)));
+    const canvasH=160;
+    const tex=canvasTexture(canvasW,canvasH,ctx=>{
+      // Barre compacte noire avec liseré et écriture jaune (charte Immosphera / VR), texte centré.
+      roundRect(ctx,6,6,canvasW-12,canvasH-12,74);
+      ctx.fillStyle='#111317';ctx.fill();
+      ctx.lineWidth=8;ctx.strokeStyle=gold;ctx.stroke();
+      ctx.textBaseline='middle';
+      const cy=canvasH/2+2;
+      if(!area){
+        ctx.fillStyle=gold;ctx.textAlign='center';
+        ctx.fillText(fitCanvasLabel(ctx,name,canvasW-110,66,38),canvasW/2,cy);
+      }else{
+        const startX=(canvasW-contentW)/2;
+        ctx.fillStyle=gold;ctx.textAlign='left';
+        fitCanvasLabel(ctx,title,titleW+8,66,38);
+        ctx.fillText(title,startX,cy);
+        ctx.fillStyle='rgba(243,187,55,.45)';
+        ctx.fillRect(Math.round(startX+titleW+gap/2-1.5),36,3,canvasH-72);
+        ctx.fillStyle='#ffe3a1';ctx.textAlign='left';
+        fitCanvasLabel(ctx,areaText,areaW+8,54,34);
+        ctx.fillText(areaText,startX+titleW+gap,cy);
       }
     });
-    // Libellé compact sur une ligne ; même distance et même suivi du regard.
-    addPlane(headerGroup,1.1,.14,tex,6,0,0);
-    // Le titre reste indépendamment du monobloc, très loin et très haut.
-    // La position sera mise à jour progressivement avec le regard dans tick().
+    // Largeur réduite adaptée au texte (distance inchangée à 2 m en haut).
+    addPlane(headerGroup,canvasW/1400*1.04,.122,tex,6,0,0);
     syncRoomHeaderPose(true);
   };
   const buildBar=async()=>{
@@ -546,10 +649,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
     const hexOk=(c?:string)=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
     const themed=!!menu.themed&&hexOk(theme?.button)&&hexOk(theme?.icon);
+    const gold=pictoGold();
     const ctrlColors=themed?{button:theme.button,icon:theme.icon}:undefined;
     const shellFill=themed&&hexOk(theme.background)?theme.background+'e6':'rgba(30,31,35,.79)';
-    const shellLine=themed&&hexOk(theme.outline)?theme.outline:'rgba(238,180,52,.72)';
-    const labelBg=themed?theme.button:'#25262a',labelLine=themed?theme.icon:'#d6a13d',labelInk=themed?theme.icon:'#ffffff';
+    const shellLine=themed&&hexOk(theme.outline)?theme.outline:gold;
+    const labelBg=themed?theme.button:'#1c1d20',labelLine=themed?theme.icon:gold,labelInk=themed?theme.icon:'#ffffff';
     // Une plaque commune (fond + bord fin) soude les trois colonnes,
     // au lieu de les laisser flotter à des profondeurs indépendantes.
     addPlane(vrShellGroup,VR_SHELL.w,VR_SHELL.h,canvasTexture(1200,650,ctx=>{
@@ -574,16 +678,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
     const scenes=project().scenes.filter(scene=>!scene.excluded);
     const sceneIndex=Math.max(0,scenes.findIndex(scene=>scene.id===currentId));
-    const gallery=project().bottomBar.find(item=>item.type==='gallery');
-    const galleryDefault={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
-      gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
+    const galleryAction=resolveVrGalleryItem(project());
+    const photosAction=resolveVrPhotosItem(project());
     const plan=project().bottomBar.find(item=>item.type==='plan');
     const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
     // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
     // Pictogramme d'après le rôle du bouton (photo, carte, téléphone…), comme dans l'éditeur.
     const iconOfItem=(item:BottomBarItem):VrControlIcon=>{
       const kind=barKind(item);
-      if(kind==='photos')return 'photos';
+      if(kind==='photos'||item.type==='photos')return 'photos';
       if(kind==='map'||item.type==='plan')return 'plan';
       if(kind==='phone'||kind==='web'||item.type==='lien')return 'link';
       if(kind==='info'||kind==='menu'||item.type==='information')return 'info';
@@ -622,6 +725,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const labelForId=(id:string):string=>{
       switch(id){
         case 'gallery':return 'Panoramas';
+        case 'photos':return 'Photos';
         case 'up':return 'Précédent';
         case 'down':return 'Suivant';
         case 'home':return 'Accueil';
@@ -643,7 +747,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     };
     const actionOf=(id:string):{icon:VrControlIcon;run:()=>void} | null=>{
       switch(id){
-        case 'gallery':return {icon:'gallery',run:()=>togglePanel('gallery',()=>{void showGallery(gallery??galleryDefault);})};
+        case 'gallery':return {icon:'gallery',run:()=>togglePanel('gallery',()=>{void showGallery(galleryAction);})};
+        case 'photos':return {icon:'photos',run:()=>togglePanel('photos',()=>{
+          const resolved=resolveVrPhotosItem(project());
+          if(resolved?.url&&!(resolved.photos?.length))void showWebContent(pick(resolved.title,resolved.titleTranslations,vlang())||'Photos',resolved.url,'');
+          else void showPhotoGallery(resolved??photosAction??{id:'vr-photos',title:'Photos',type:'photos',photos:[],target:'',text:'',url:''});
+        })};
         case 'up':return {icon:'up',run:()=>{const target=scenes[Math.max(0,sceneIndex-1)];if(target)void goTo(target.id);}};
         case 'down':return {icon:'down',run:()=>{const target=scenes[Math.min(scenes.length-1,sceneIndex+1)];if(target)void goTo(target.id);}};
         case 'home':return {icon:'home',run:()=>{if(scenes[0])void goTo(scenes[0].id);}};
@@ -814,15 +923,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
   const closeButtonTexture=()=>canvasTexture(240,110,c=>{
     roundRect(c,6,6,228,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-    c.fillStyle=iconColor;c.font='bold 46px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(tt('close'),120,58);
+    c.fillStyle=iconColor;c.textAlign='center';c.textBaseline='middle';
+    c.fillText(fitCanvasLabel(c,tt('close'),196,44,24),120,57);
   });
 
   let noticeTimer=0;
   const setNotice=(text:string)=>{
     clearGroup(noticeGroup);
     const tex=canvasTexture(900,160,c=>{
-      roundRect(c,6,6,888,148,40);c.fillStyle='rgba(20,20,24,.85)';c.fill();
-      c.fillStyle='#fff';c.font='bold 44px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(text,450,82);
+      roundRect(c,6,6,888,148,40);c.fillStyle='rgba(20,20,24,.90)';c.fill();
+      c.lineWidth=5;c.strokeStyle=pictoGold();c.stroke();
+      c.fillStyle='#fff';c.textAlign='center';c.textBaseline='middle';
+      c.fillText(fitCanvasLabel(c,text,830,42,24),450,82);
     });
     addPlane(noticeGroup,.62,.11,tex,7,0,0);
     placeInFront(noticeGroup,2.1,-.4);
@@ -832,7 +944,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   /** Texte en pages : chaque page tient dans le panneau, avec ◀ ▶ quand le contenu est long (plus de coupure à 10 lignes). */
   const navTexture=(label:string,w=200)=>canvasTexture(w,110,c=>{
     roundRect(c,6,6,w-12,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-    c.fillStyle=iconColor;c.font='bold 52px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,w/2,58);
+    c.fillStyle=iconColor;c.textAlign='center';c.textBaseline='middle';
+    c.fillText(fitCanvasLabel(c,label,w-38,48,26),w/2,57);
   });
   /** Cadre commun des galeries : titre en haut à gauche, compteur, bouton ✕ rond en haut à droite, flèches ◀ ▶ au milieu des côtés (hors des vignettes). */
   const closeIconTexture=()=>canvasTexture(110,110,c=>{
@@ -978,11 +1091,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const tex=canvasTexture(1240,800,c=>{
       roundRect(c,8,8,1224,784,52);c.fillStyle=panelBg;c.fill();
       c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-      c.fillStyle='#17232b';c.textAlign='left';c.textBaseline='top';
-      c.font='bold 54px sans-serif';c.fillText(title||tt('webLinkTitle'),65,54,1110);
+      c.fillStyle=referenceMode?'#ffffff':'#17232b';c.textAlign='left';c.textBaseline='top';
+      c.fillText(fitCanvasLabel(c,title||tt('webLinkTitle'),1110,54,32),65,54);
+      c.fillStyle=referenceMode?'#f1ede4':'#17232b';
       c.font='37px sans-serif';
       const caption=description.trim()||tt('openInBrowser');
       wrapText(c,caption,1100).slice(0,5).forEach((line,i)=>c.fillText(line,65,155+i*58));
+      c.fillStyle=referenceMode?pictoGold():'#17232b';
       c.font='31px sans-serif';
       if(valid)c.fillText(new URL(valid).hostname,65,535,1100);
       else c.fillText(tt('badUrl'),65,535);
@@ -1112,8 +1227,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           if(thumb)c.drawImage(thumb,12,12,tw-24,imgH);else{c.fillStyle='#222';c.fillRect(12,12,tw-24,imgH);if(e.m.kind!=='photo'){c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',tw/2,12+imgH/2);}}
           c.restore();
           if(e.m.name){
-            c.fillStyle=referenceMode?'#ffe3a1':iconColor;c.textAlign='center';c.textBaseline='alphabetic';
-            c.fillText(fitCanvasLabel(c,e.m.name,tw-44,referenceMode?30:26,20),tw/2,th-20);
+            c.fillStyle=referenceMode?pictoGold():iconColor;c.textAlign='center';c.textBaseline='middle';
+            c.fillText(fitCanvasLabel(c,e.m.name,tw-44,referenceMode?30:26,20),tw/2,12+imgH+(th-17-imgH)/2);
           }
         },cw,ch,x,y,()=>{void open(page*perPageP+k);});
       }
@@ -1144,9 +1259,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Colonnes latérales : mêmes actions que l'interface classique (galerie, haut, libellé, bas, accueil ; plan à droite).
     const scenesNow=project().scenes.filter(scene=>!scene.excluded);
     const idx=Math.max(0,scenesNow.findIndex(scene=>scene.id===currentId));
-    const galleryItem=project().bottomBar.find(item=>item.type==='gallery');
-    const galleryFallback={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
-      gallery:scenesNow.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
     const sideButton=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
       const tex2=makeVrControlTexture(icon,'normal');
       addButton(panelGroup,.114,.114,tex2,x,y,onSelect,9);
@@ -1157,13 +1269,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const cols=layoutColumns(['gallery','up','counter','down','home'],planItem?['plan']:[],{w:W,h:H});
     const counterTex=canvasTexture(280,180,ctx=>{
       roundRect(ctx,8,8,264,164,36);ctx.fillStyle='#25262a';ctx.fill();
-      ctx.strokeStyle='#d6a13d';ctx.lineWidth=7;ctx.stroke();
+      ctx.strokeStyle=pictoGold();ctx.lineWidth=7;ctx.stroke();
       ctx.fillStyle='#ffffff';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText((idx+1)+' / '+scenesNow.length,140,90);
     });
     for(const slot of [...cols.left,...cols.right]){
       if(slot.id==='counter'){addPlane(panelGroup,.13,.076,counterTex,8,slot.x,slot.y);continue;}
-      if(slot.id==='gallery')sideButton(slot.x,slot.y,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
+      if(slot.id==='gallery')sideButton(slot.x,slot.y,'gallery',()=>{void showGallery(resolveVrGalleryItem(project()));});
+      if(slot.id==='photos'){const pItem=resolveVrPhotosItem(project());sideButton(slot.x,slot.y,'photos',()=>{void showPhotoGallery(pItem??{id:'vr-photos',title:'Photos',type:'photos',photos:[],target:'',text:'',url:''});});}
       if(slot.id==='up')sideButton(slot.x,slot.y,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
       if(slot.id==='down')sideButton(slot.x,slot.y,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
       if(slot.id==='home')sideButton(slot.x,slot.y,'home',()=>{if(scenesNow[0])void goTo(scenesNow[0].id);});
@@ -1198,9 +1311,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const cw=referenceMode?.68:.62,ch=referenceMode?.355:.34,gx=referenceMode?.024:.06,gy=referenceMode?.022:.05;
       const menuNow=vrMenuOf(project());
       const placedIds=new Set([...menuNow.left,...menuNow.right]);
-      const photoCandidate=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
+      const photoCandidate=referenceMode?resolveVrPhotosItem(project()):null;
       // Pas de deuxième bouton Photos si Photos est déjà présent sur une colonne du menu VR.
-      const photoItem=photoCandidate&&!placedIds.has('bar:'+photoCandidate.id)?photoCandidate:undefined;
+      const photoItem=photoCandidate&&(photoCandidate.photos?.length??0)>0&&!placedIds.has('photos')&&!placedIds.has('bar:'+photoCandidate.id)?photoCandidate:undefined;
       const W=referenceMode?2.22:cols*cw+(cols-1)*gx+.32;
       const H=referenceMode?1.34:.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
@@ -1215,14 +1328,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         const tw=referenceMode?680:620,th=referenceMode?360:340;
         const imgW=tw-20,imgH=th-72;
         thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,tw,th,(c,thumb)=>{
-          roundRect(c,5,5,tw-10,th-10,24);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=6;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
+          const activeTile=e.sceneId===currentId;
+          roundRect(c,5,5,tw-10,th-10,24);
+          c.fillStyle=activeTile?(referenceMode?'#2b2210':btnLine):btnBg;c.fill();
+          c.lineWidth=activeTile?9:6;c.strokeStyle=activeTile?pictoGold():btnLine;c.stroke();
           c.save();roundRect(c,10,10,imgW,imgH,18);c.clip();
           if(thumb)c.drawImage(thumb,10,10,imgW,imgH);else{c.fillStyle='#333';c.fillRect(10,10,imgW,imgH);}
           c.restore();
-          c.fillStyle=referenceMode?'#ffe3a1':iconColor;
-          c.textAlign='center';c.textBaseline='alphabetic';
+          c.fillStyle=activeTile?(referenceMode?'#fff4c7':iconColor):(referenceMode?pictoGold():iconColor);
+          c.textAlign='center';c.textBaseline='middle';
           const label=fitCanvasLabel(c,e.label,tw-44,32,22);
-          c.fillText(label,tw/2,th-20);
+          c.fillText(label,tw/2,imgH+10+(th-15-imgH)/2);
         },cw,ch,x,y,()=>{void goTo(e.sceneId);},()=>sceneOf(e.sceneId)?.dataUrl||undefined);
       }
       placePanel(PANEL_DIST,-.0);
@@ -1351,13 +1467,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   function onBarItem(item:BottomBarItem){
     if(item.type==='plan'){void showFloorPlan(item);return;}
-    if(item.type==='gallery'){void showGallery(item);return;}
+    if(item.type==='gallery'){void showGallery(resolveVrGalleryItem({...project(),bottomBar:[item,...project().bottomBar.filter(b=>b.id!==item.id)]}));return;}
     if(item.type==='navigation'){
       if(item.target){void goTo(item.target);return;}
       // Bouton Espaces sans cible : affiche la liste des panoramas et espaces.
       void showGallery({...item,type:'gallery',galleryTitle:pick(item.title,item.titleTranslations,vlang())||tt('spaces'),gallery:project().scenes.map(scene=>({sceneId:scene.id,label:pick(scene.name,scene.nameTranslations,vlang())})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
-    if(item.type==='photos'){void showPhotoGallery(item);return;}
+    if(item.type==='photos'){void showPhotoGallery(item.photos?.length?item:(resolveVrPhotosItem(project())??item));return;}
     if(item.type==='information'){
       const body=infoText(item);
       const url=item.url||((body.match(/https?:\/\/[^\s]+/i)||[])[0]);
@@ -1413,6 +1529,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   hoverTooltip.renderOrder=15;hoverTooltip.visible=false;
   vrInterfaceGroup.add(hoverTooltip);
   let lastTooltipText='';
+  let remoteTooltipUntil=0;
   disposables.push(hoverTooltipGeo,hoverTooltipMat);
   const controllerOfHand=(hand:'left'|'right')=>
     controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
@@ -1654,11 +1771,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       uiHidden=false;
       void buildBar().then(()=>{
         if(referenceMode&&!ended){
-          const scenes=project().scenes.filter(scene=>!scene.excluded);
-          const gallery=project().bottomBar.find(b=>b.type==='gallery');
-          const fallback={id:'vr-ab-gallery',title:'Panoramas',type:'gallery',
-            gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
-          void showGallery(gallery??fallback);
+          void showGallery(resolveVrGalleryItem(project()));
         }
       }).finally(()=>{switchingReference=false;});
     }
@@ -1687,6 +1800,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
               const before=remoteTarget;
               navigateRemote(horizontal,vertical);
               if(remoteTarget!==before){
+                remoteTooltipUntil=tnow+2200;
                 const c=controllerOfHand(remoteHand);
                 if(c)pulse(c,.2,25);
               }
@@ -1766,7 +1880,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           L.lastHapticTarget=null;
         }
         if(L.hoveredLast){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
-        const dist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.6:HOTSPOT_R);
+        const rawDist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.6:HOTSPOT_R);
+        const hTarget=impact.target;
+        const spherePull=hTarget?.userData.spin
+          ?((hTarget.userData.pushOut as number|undefined)??0)+((hTarget.userData.sphereRadius as number|undefined)??.18)*((hTarget.userData.visualSphere as Mesh|undefined)?.scale?.x??1)
+          :0;
+        const dist=Math.max(.35,rawDist-spherePull);
         L.line.scale.set(1,1,dist);
         L.dot.position.set(0,0,-dist);
         L.dot.scale.setScalar(Math.max(.75,Math.min(2.2,dist/2.2)));
@@ -1774,21 +1893,23 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         L.dot.visible=!uiHidden;
       }else{hideLaser(hand);}
     }
-    const tipTarget=activeLaserHover??remoteTarget;
+    if(activeLaserHover)remoteTooltipUntil=0;
+    const tipTarget=activeLaserHover??(remoteTarget&&now<remoteTooltipUntil?remoteTarget:null);
     const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan&&!fullscreenMedia?(tipTarget.userData.vrTooltip as string|undefined):undefined;
     if(tipTarget&&tipLabel&&tipTarget.parent===barGroup){
       if(hoverTooltip.parent!==vrInterfaceGroup)vrInterfaceGroup.add(hoverTooltip);
       if(lastTooltipText!==tipLabel){
         lastTooltipText=tipLabel;
-        let tex=tooltipTextures.get(tipLabel);
+        const gold=pictoGold();
+        let tex=tooltipTextures.get(tipLabel+':'+gold);
         if(!tex){
           tex=canvasTexture(380,96,c=>{
-            roundRect(c,4,4,372,88,44);c.fillStyle='rgba(12,24,33,.94)';c.fill();
-            c.lineWidth=5;c.strokeStyle='#f5b324';c.stroke();
-            c.fillStyle='#ffeab5';c.textAlign='center';c.textBaseline='middle';
+            roundRect(c,4,4,372,88,44);c.fillStyle='rgba(17,19,23,.95)';c.fill();
+            c.lineWidth=6;c.strokeStyle=gold;c.stroke();
+            c.fillStyle='#ffffff';c.textAlign='center';c.textBaseline='middle';
             c.fillText(fitCanvasLabel(c,tipLabel,330,36,24),190,50);
           });
-          tooltipTextures.set(tipLabel,tex);
+          tooltipTextures.set(tipLabel+':'+gold,tex);
         }
         hoverTooltipMat.map=tex;hoverTooltipMat.needsUpdate=true;
       }
@@ -1806,7 +1927,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }
     if(remoteTarget){
       hovered.add(remoteTarget);
-      if(remoteTarget.userData.roomHighlight){
+      if(remoteTarget.userData.roomHighlight||remoteTarget.userData.spin){
         remoteFocus.visible=false;
       }else{
         const mesh=remoteTarget as Mesh;
@@ -1824,33 +1945,57 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }else remoteFocus.visible=false;
     for(const m of clickables){
       const isPressed=(m.userData.pressedUntil??0)>now;
-      const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
-      // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
+      const isHovered=hovered.has(m);
+      const base=m.userData.baseScale??1,wanted=isPressed?.9:isHovered?(m.userData.hoverScale??1):base;
       // Surbrillance de pièce : fondu progressif (pas de saut entre 0 et 0,8) pour éviter le scintillement au survol.
-      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:hovered.has(m)?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
+      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:isHovered?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
       if(m.userData.spin){
         const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
-        // Va-et-vient : la sphère visuelle avance et recule vers le spectateur (le collider reste à 6 m).
-        const toViewer=m.userData.toViewer as Vector3|undefined;
-        // Léger va-et-vient au repos ; au pointeur, la sphère s'avance vers nous (sans saut).
-        const pushTarget=(isPressed?.7:hovered.has(m)?.45:0)+(1+Math.sin(now/520))*.05;
-        m.userData.pushOut=((m.userData.pushOut as number|undefined)??0)+(pushTarget-((m.userData.pushOut as number|undefined)??0))*.18;
-        if(toViewer)visual.position.copy(toViewer).multiplyScalar(m.userData.pushOut as number);
+        // `m.lookAt(camPos)` oriente le +Z local exactement vers les yeux du client (axe pur, zéro dérive gauche/droite).
+        const pushTarget=isPressed?1.35:isHovered?1.65:0;
+        const prevPush=(m.userData.pushOut as number|undefined)??0;
+        const nextPush=prevPush+(pushTarget-prevPush)*.16;
+        m.userData.pushOut=Math.abs(pushTarget-nextPush)<.002?pushTarget:nextPush;
+        visual.position.set(0,0,m.userData.pushOut as number);
         const rim=m.userData.rimOutline as Mesh|undefined;
         const baseRim=(m.userData.rimOpacity as number|undefined)??.15;
-        const vs=isPressed?.92:hovered.has(m)?1.22:1;
-        visual.scale.setScalar(visual.scale.x+(vs-visual.scale.x)*.28);
+        const vs=isPressed?.96:isHovered?1.34:1;
+        const curVS=visual.scale.x+(vs-visual.scale.x)*.20;
+        visual.scale.setScalar(curVS);
+        // Libellé horizontal fixe (PlaneGeometry sous `m` avec up = (0,1,0)) : ne bascule jamais avec l'inclinaison de la tête, réduit au repos et très gros au survol.
+        const label=m.userData.labelMesh as Mesh|undefined;
+        if(label){
+          const baseW=(m.userData.baseLabelW as number|undefined)??.56;
+          const baseH=(m.userData.baseLabelH as number|undefined)??.132;
+          const r=(m.userData.sphereRadius as number|undefined)??.18;
+          const goalLF=isPressed?1.0:isHovered?2.05:1;
+          const prevLF=(m.userData.labelFactor as number|undefined)??1;
+          const nextLF=prevLF+(goalLF-prevLF)*.20;
+          m.userData.labelFactor=nextLF;
+          label.scale.set(baseW*nextLF,baseH*nextLF,1);
+          label.position.set(0,-(r*curVS+.075+baseH*nextLF*.5),(m.userData.pushOut as number)+r*curVS*.12);
+        }
         const vm=visual.material;
-        if(vm instanceof MeshBasicMaterial)vm.color.setScalar(isPressed?.7:hovered.has(m)?1.25:1);
+        if(vm instanceof ShaderMaterial){
+          const curH=(vm.uniforms.hover.value as number|undefined)??0;
+          const goalH=isHovered||isPressed?1:0;
+          vm.uniforms.hover.value=curH+(goalH-curH)*.22;
+          const curP=(vm.uniforms.pressed.value as number|undefined)??0;
+          vm.uniforms.pressed.value=curP+((isPressed?1:0)-curP)*.3;
+          const curS=(vm.uniforms.spin.value as number|undefined)??0;
+          vm.uniforms.spin.value=(curS+dt*(isHovered?.10:.055))%1;
+        }else if(vm instanceof MeshBasicMaterial){
+          vm.color.setScalar(isPressed?.7:isHovered?1.25:1);
+        }
         if(rim&&rim.material instanceof MeshBasicMaterial){
-          rim.material.opacity=hovered.has(m)?Math.max(baseRim,.85):baseRim;
+          rim.material.opacity=isHovered?1.0:baseRim;
         }
         continue;
       }
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
         const mm=(m as Mesh).material as MeshBasicMaterial;
-        const tint=isPressed?.55:hovered.has(m)?1.5:1;
+        const tint=isPressed?.55:isHovered?1.5:1;
         if(!m.userData.spin)mm.color.setScalar(tint);
       }
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
@@ -1891,9 +2036,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     referenceMode=true;remoteTarget=null;panelAnchor=null;
     updateVrPalette();closePanels();uiHidden=false;
     await buildBar();
-    const sceneList=project().scenes.filter(sc=>!sc.excluded);
-    const galleryItem=project().bottomBar.find(b=>b.type==='gallery');
-    void showGallery(galleryItem??({id:'vr-ab-gallery',title:'Panoramas',type:'gallery',gallery:sceneList.map(sc=>({sceneId:sc.id,label:sc.name}))} as BottomBarItem));
+    void showGallery(resolveVrGalleryItem(project()));
   }
   return ()=>{if(!ended)void session.end();};
 }

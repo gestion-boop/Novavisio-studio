@@ -18,6 +18,7 @@ import {syncMarkers,resetMarkers,crossfadeMarkers} from './markerSync';
 import {attachSphereLayer} from './sphereLayer';
 import {startPosterBounce} from './posterBounce';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
+import {resolveVrGalleryItem,resolveVrPhotosItem} from './vrMenu';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import {Maximize,Minimize,X,ArrowRight,Globe,Home,Phone,CalendarDays,Info,Images,LayoutGrid,Utensils,MapPin,Menu,Star,Settings} from 'lucide-react';
@@ -525,11 +526,13 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     {floorPlanOpen&&<FloorPlanDialog lang={lang} shortcuts={project.planShortcuts!==false?(project.bottomBar??[]).filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,lang),icon:project.icons?.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar?.find(b=>b.id===id);if(item){setFloorPlanOpen(false);act(item);}}} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
     {photosId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===photosId&&b.type==='photos');
-      return item?<PhotoGallery title={pick(item.title,item.titleTranslations,lang)||ui('photos',lang)} items={item.photos??[]} onClose={()=>setPhotosId(null)}/>:null;
+      const items=item?.photos?.length?item.photos:(resolveVrPhotosItem(project)?.photos??[]);
+      return item?<PhotoGallery title={pick(item.title,item.titleTranslations,lang)||ui('photos',lang)} items={items} onClose={()=>setPhotosId(null)}/>:null;
     })()}
     {galleryId&&(()=>{
-      const item=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
-      if(!item)return null;
+      const raw=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
+      if(!raw)return null;
+      const item=resolveVrGalleryItem({...project,bottomBar:[raw,...(project.bottomBar??[]).filter(b=>b.id!==raw.id)]});
       return <PanoramaGallery title={item.galleryTitle||pick(item.title,item.titleTranslations,lang)||ui('panoramas',lang)} currentId={current.id} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
         entries={galleryEntries(item,project.scenes,project.spaces).map(e=>{const sc=project.scenes.find(x=>x.id===e.sceneId);return {sceneId:e.sceneId,spaceId:e.spaceId,label:sc&&sc.name===e.label?pick(sc.name,sc.nameTranslations,lang):e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)};})}
         onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;

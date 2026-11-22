@@ -139,7 +139,7 @@ export const withBarSize = <T extends {bottomBar:BottomBarItem[];barStyle:BarSty
 export const barIconSize = (item:{iconSize?:number}) => Math.max(20, Math.min(72, item.iconSize ?? BAR_ICON_DEFAULT));
 export const defaultBar = ():BottomBarItem[] => [
   {id:crypto.randomUUID(),title:'Carte',type:'information',target:'',text:'',url:'',builtinIcon:'utensils'},
-  {id:crypto.randomUUID(),title:'Photos',type:'information',target:'',text:'',url:'',builtinIcon:'images'},
+  {id:crypto.randomUUID(),title:'Photos',type:'photos',photos:[],target:'',text:'',url:'',builtinIcon:'images'},
   {id:crypto.randomUUID(),title:'Espaces',type:'navigation',target:'',text:'',url:'',builtinIcon:'grid'},
   {id:crypto.randomUUID(),title:'Appeler',type:'lien',target:'',text:'',url:'',builtinIcon:'phone'},
   {id:crypto.randomUUID(),title:'Informations',type:'information',target:'',text:'',url:'',builtinIcon:'info'},

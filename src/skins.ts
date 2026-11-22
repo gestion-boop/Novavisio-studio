@@ -1,10 +1,11 @@
 import {newProject,validateProject,type StudioProject,type BottomBarItem} from './storage';
+import {DEFAULT_VR_MENU} from './vrMenu';
 
 const globalIcons=['closeIconId','closeIconHoverId','closeIconPressedId','soundOnIconId','soundOnHoverIconId','soundOnPressedIconId','soundOffIconId','soundOffHoverIconId','soundOffPressedIconId','settingsIconId','settingsHoverIconId','settingsPressedIconId'] as const;
 export type Skin={version:1;id:string;name:string;updatedAt:string;appearance:StudioProject};
 
 export function captureSkin(project:StudioProject,name:string,id:string=crypto.randomUUID()):Skin {
-  const appearances=project.bottomBar.map(item=>({id:item.id,title:item.title,type:item.type,...(item.type==='gallery'?{gallery:[]}:{}),text:'',url:'',target:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize}));
+  const appearances=project.bottomBar.map(item=>({id:item.id,title:item.title,type:item.type,...(item.type==='gallery'?{gallery:[]}:{}),...(item.type==='photos'?{photos:[]}:{}),text:'',url:'',target:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize}));
   const nav=project.defaultNavigationIcon??(project.iconPackId==='classic'?undefined:inferNavigation(project));
   const appearance:StudioProject={...newProject(),name:'Skin',vrEnabled:project.vrEnabled,defaultPhotoIcon:project.defaultPhotoIcon,defaultVideoIcon:project.defaultVideoIcon,barStyle:{...project.barStyle},bottomBar:appearances,
     icons:project.icons,buttonSets:project.buttonSets,languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId,
@@ -33,7 +34,7 @@ export function validateSkin(value:unknown):Skin {
   if(!source||!Array.isArray(source.icons)||!Array.isArray(source.bottomBar))throw Error('Présentation du skin invalide');
   const appearance=validateProject({...newProject(),name:'Skin',icons:source.icons,barStyle:source.barStyle,
     vrEnabled:source.vrEnabled,
-    bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery','plan'] as const).find(t=>t===item.type)??'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
+    bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery','plan','photos'] as const).find(t=>t===item.type)??'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
     defaultPhotoIcon:source.defaultPhotoIcon,defaultVideoIcon:source.defaultVideoIcon,languages:source.languages,buttonSets:source.buttonSets,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
     barIconTrim:source.barIconTrim,settingsIconSize:source.settingsIconSize,settingsIconZoom:source.settingsIconZoom,
     settingsColor:source.settingsColor,settingsIconColor:source.settingsIconColor,closeButtonColor:source.closeButtonColor,closeButtonInk:source.closeButtonInk,glossyStyle:source.glossyStyle,vrMenu:source.vrMenu,
@@ -50,16 +51,24 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
     ids.set(icon.id,id);if(!same)icons.push({...icon,id});
   }
   const remap=(id?:string)=>id?ids.get(id):undefined;
+  const barIdMap=new Map<string,string>();
   // Projet sans boutons (nouveau projet) : le skin apporte ses boutons avec leur signification (accueil, galerie, appel…).
-  const slots=project.bottomBar.length===0?source.bottomBar.map(v=>({
-    id:crypto.randomUUID(),title:v.title,type:v.type,target:'',text:'',url:'',builtinIcon:v.builtinIcon,
-    ...(v.type==='gallery'?{gallery:[]}:{}),
-    iconId:remap(v.iconId),hoverIconId:remap(v.hoverIconId),pressedIconId:remap(v.pressedIconId),iconSize:v.iconSize
-  } as BottomBarItem)):null;
+  const slots=project.bottomBar.length===0?source.bottomBar.map(v=>{
+    const id=crypto.randomUUID();
+    barIdMap.set(v.id,id);
+    return {
+      id,title:v.title,type:v.type,target:'',text:'',url:'',builtinIcon:v.builtinIcon,
+      ...(v.type==='gallery'?{gallery:[]}:{}),
+      ...(v.type==='photos'?{photos:[]}:{}),
+      iconId:remap(v.iconId),hoverIconId:remap(v.hoverIconId),pressedIconId:remap(v.pressedIconId),iconSize:v.iconSize
+    } as BottomBarItem;
+  }):null;
   const bottomBar=slots??project.bottomBar.map((item,index)=>{
     const visual=source.bottomBar.find(b=>b.title===item.title)??source.bottomBar.find(b=>b.builtinIcon&&b.builtinIcon===item.builtinIcon)??source.bottomBar[index];
     if(!visual)return item;
-    return {...item,...Object.fromEntries(['iconId','hoverIconId','pressedIconId'].map(key=>[key,remap(visual[key as keyof BottomBarItem] as string|undefined)])),iconSize:visual.iconSize,builtinIcon:visual.builtinIcon};
+    barIdMap.set(visual.id,item.id);
+    const fixPhotosType=visual.type==='photos'&&item.type==='information'&&!item.text.trim()&&!item.url.trim();
+    return {...item,...(fixPhotosType?{type:'photos' as const,photos:item.photos??[]}:{}),...Object.fromEntries(['iconId','hoverIconId','pressedIconId'].map(key=>[key,remap(visual[key as keyof BottomBarItem] as string|undefined)])),iconSize:visual.iconSize,builtinIcon:visual.builtinIcon};
   });
   const buttonSets=[...(project.buttonSets??[])];
   for(const set of source.buttonSets??[]){
@@ -69,12 +78,21 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
   }
   const mediaDefaults=Object.fromEntries((['defaultPhotoIcon','defaultVideoIcon'] as const).map(key=>{const value=source[key];return [key,value?{...value,iconId:remap(value.iconId)!,hoverIconId:remap(value.hoverIconId),pressedIconId:remap(value.pressedIconId)}:undefined]}));
   const nav=source.defaultNavigationIcon;
-  const next={...project,...mediaDefaults,icons,bottomBar,buttonSets,barStyle:{...source.barStyle},languages:source.languages,vrEnabled:source.vrEnabled,iconPackId:source.iconPackId,
+  const remapVrCol=(col?:string[])=>col?.map(id=>{
+    if(!id.startsWith('bar:'))return id;
+    const mapped=barIdMap.get(id.slice(4));
+    return mapped?'bar:'+mapped:'';
+  });
+  const mappedVrMenu=source.vrMenu?{...source.vrMenu,left:remapVrCol(source.vrMenu.left)??[],right:remapVrCol(source.vrMenu.right)??[]}:project.vrMenu;
+  const isImmo=/immosphera/i.test(skin.name.normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+  const isLegacyMenu=!mappedVrMenu||(mappedVrMenu.left.join(',')==='gallery,up,counter,down,home'&&mappedVrMenu.right.join(',')==='sound,plan,help,exit');
+  const finalVrMenu=isImmo&&isLegacyMenu?{...DEFAULT_VR_MENU,themed:mappedVrMenu?.themed??false,autoOpen:true}:mappedVrMenu;
+  const next={...project,...mediaDefaults,icons,bottomBar,buttonSets,barStyle:{...source.barStyle},languages:source.languages,vrEnabled:isImmo?true:source.vrEnabled,iconPackId:source.iconPackId,
     barIconTrim:source.barIconTrim,settingsIconSize:source.settingsIconSize,settingsIconZoom:source.settingsIconZoom,
     settingsColor:source.settingsColor,settingsIconColor:source.settingsIconColor,
     closeButtonColor:source.closeButtonColor,closeButtonInk:source.closeButtonInk,
     glossyStyle:source.glossyStyle??project.glossyStyle,
-    vrMenu:source.vrMenu??project.vrMenu,
+    vrMenu:finalVrMenu,
     defaultNavigationIcon:nav?{...nav,iconId:remap(nav.iconId)!,hoverIconId:remap(nav.hoverIconId),pressedIconId:remap(nav.pressedIconId)}:undefined,
     favoriteNavigationIconSet:undefined};
   for(const key of globalIcons)next[key]=remap(source[key]);

@@ -3,7 +3,7 @@ import {createPortal} from 'react-dom';
 import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, Layers, LayoutGrid, Map as MapIcon, Pencil, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans, plansByLevel, planLevelLabel, type BottomBarItem, type StudioProject} from './storage';
-import {DEFAULT_VR_MENU, VR_BTN, VR_GAP, VR_MAX_PER_COLUMN, VR_SHELL, availableVrActions, layoutColumns, vrMenuOf, type VrSlot} from './vrMenu';
+import {DEFAULT_VR_MENU, VR_BTN, VR_GAP, VR_MAX_PER_COLUMN, VR_SHELL, availableVrActions, layoutColumns, resolveVrPhotosItem, vrMenuOf, type VrSlot} from './vrMenu';
 import {resolveLink} from './mediaLinks';
 import './vrMenuEditor.css';
 
@@ -26,6 +26,7 @@ function ActionIcon({id, project, sound = true, size = 22}: {id: string; project
   }
   switch (id) {
     case 'gallery': return <LayoutGrid size={size} strokeWidth={2.2}/>;
+    case 'photos': return <Images size={size} strokeWidth={2.2}/>;
     case 'up': return <ChevronUp size={size + 4} strokeWidth={2.6}/>;
     case 'down': return <ChevronDown size={size + 4} strokeWidth={2.6}/>;
     case 'home': return <Home size={size} strokeWidth={2.2}/>;
@@ -51,7 +52,8 @@ function actionHint(id: string, project: StudioProject): string {
     }
   }
   switch (id) {
-    case 'gallery': return 'Affiche tous les panoramas au centre pour en choisir un.';
+    case 'gallery': return 'Affiche tous les panoramas du projet au centre pour en choisir un.';
+    case 'photos': return 'Affiche les photos du projet au centre (bouton Photos, bibliothèque ou panoramas).';
     case 'up': return 'Passe au panorama précédent.';
     case 'counter': return 'Indique la position : panorama n sur N.';
     case 'down': return 'Passe au panorama suivant.';
@@ -173,6 +175,12 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     setPhotoIdx(null);
     switch (id) {
       case 'gallery': setGalleryPage(0); setPanel((p) => (p?.kind === 'gallery' ? null : {kind: 'gallery'})); return;
+      case 'photos': {
+        const photosItem = resolveVrPhotosItem(project) ?? {id: 'vr-photos', title: 'Photos', type: 'photos' as const, photos: [], target: '', text: '', url: ''};
+        setGalleryPage(0);
+        setPanel((p) => (p?.kind === 'bar' && p.item.type === 'photos' && p.item.id === photosItem.id ? null : {kind: 'bar', item: photosItem}));
+        return;
+      }
       case 'up': setSceneIdx((i) => Math.max(0, i - 1)); setPanel(null); return;
       case 'down': setSceneIdx((i) => Math.min(scenes.length - 1, i + 1)); setPanel(null); return;
       case 'home': setSceneIdx(0); setPanel(null); return;
@@ -185,8 +193,9 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
       const item = project.bottomBar.find((b) => b.id === id.slice(4));
       if (item) {
         if (item.type === 'plan') { openPlanPanel({kind: 'bar', item}); return; }
+        const resolved = item.type === 'photos' && !(item.photos?.length) ? (resolveVrPhotosItem(project) ?? item) : item;
         setGalleryPage(0);
-        setPanel((p) => (p?.kind === 'bar' && p.item.id === item.id ? null : {kind: 'bar', item}));
+        setPanel((p) => (p?.kind === 'bar' && p.item.id === resolved.id ? null : {kind: 'bar', item: resolved}));
       }
     }
   };
