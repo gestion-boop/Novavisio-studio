@@ -16,8 +16,8 @@ import {setVrMusicPlaying} from './vrAudioBridge';
  * Dans le casque : points d'information (texte en pages, ou pages d'un mini-site via /vr.json), photos, vidéos MP4/WebM, galerie de photos de la barre.
  * Les cadres photo/vidéo en perspective dans le panorama ne sont pas encore affichés ; la musique continue de jouer via la page.
  */
-// 6144 px = définition maximale des panoramas importés ; un casque dont la limite GPU est plus basse retombe automatiquement dessous (voir maxTex).
-export const VR_MAX_TEXTURE=6144;
+// 8192 px = définition maximale des panoramas importés ; un casque dont la limite GPU est plus basse retombe automatiquement dessous (voir maxTex).
+export const VR_MAX_TEXTURE=8192;
 const SPHERE_R=10,HOTSPOT_R=6;
 
 export async function vrSupported():Promise<boolean>{

@@ -1,4 +1,4 @@
-import {useEffect,type CSSProperties,type ReactNode} from 'react';
+import {Fragment,useEffect,type CSSProperties,type ReactNode} from 'react';
 import {ChevronLeft} from 'lucide-react';
 
 /**
@@ -9,6 +9,7 @@ export type HubSection={
   disabled?:boolean;key:string;title:string;hint?:string;icon:ReactNode;tone:string;badge?:string|number;
   content?:ReactNode;          // contenu affiché quand on ouvre la tuile
   onClick?:()=>void;           // ou action directe (ex. ouvrir une fenêtre)
+  groupStart?:boolean;         // trace une barre horizontale avant cette tuile : nouveau groupe
 };
 export function SectionHub({sections,intro,forceOpen,open,onOpenChange}:{id:string;sections:HubSection[];intro?:ReactNode;forceOpen?:string|null;open:string|null;onOpenChange:(key:string|null)=>void}){
   const setOpen=onOpenChange;
@@ -26,13 +27,13 @@ export function SectionHub({sections,intro,forceOpen,open,onOpenChange}:{id:stri
   return <>
     {intro}
     <div className="nv-hub-tiles">
-      {sections.map(section=><button type="button" disabled={section.disabled} key={section.key} className="nv-app-tile nv-hub-tile" style={{'--tile-tone':section.tone} as CSSProperties}
+      {sections.map(section=><Fragment key={section.key}>{section.groupStart&&<div className="nv-hub-sep" role="separator"/>}<button type="button" disabled={section.disabled} className="nv-app-tile nv-hub-tile" style={{'--tile-tone':section.tone} as CSSProperties}
         onClick={()=>section.onClick?section.onClick():setOpen(section.key)}>
         <span className="nv-app-tile-icon">{section.icon}</span>
         <span className="nv-app-tile-label">{section.title}</span>
         {section.hint&&<small className="nv-hub-hint">{section.hint}</small>}
         {section.badge!==undefined&&<small className="nv-app-tile-badge">{section.badge}</small>}
-      </button>)}
+      </button></Fragment>)}
     </div>
   </>;
 }
