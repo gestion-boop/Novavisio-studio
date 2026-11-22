@@ -1242,17 +1242,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // l'autre manette sert automatiquement de télécommande à l'agent immobilier (sans laser).
   let activeLaserHand:'left'|'right'='right';
   const laserRaycaster=new Raycaster();
-  const makeLaser=(color:number)=>{
+  const makeLaser=()=>{
     const geo=new BufferGeometry();
     geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-2.3],3));
-    const line=new Line(geo,new LineBasicMaterial({color,transparent:true,opacity:.75,depthTest:false,depthWrite:false}));
+    const line=new Line(geo,new LineBasicMaterial({color:0xffd23f,transparent:true,opacity:.92,depthTest:false,depthWrite:false}));
     line.renderOrder=9;
-    const dot=new Mesh(new SphereGeometry(.005,12,8),new MeshBasicMaterial({color:0x66e3ff,depthTest:false,depthWrite:false}));
+    const dot=new Mesh(new SphereGeometry(.0085,14,10),new MeshBasicMaterial({color:0x1fa8ff,depthTest:false,depthWrite:false}));
     dot.visible=false;dot.renderOrder=11;scene.add(dot);
     disposables.push(geo,line.material as LineBasicMaterial,dot.geometry,dot.material as MeshBasicMaterial);
     return {geo,line,dot,hoveredLast:null as Clickable|null,candidate:null as Clickable|null,candidateSince:0};
   };
-  const handLasers={left:makeLaser(0x9bdcff),right:makeLaser(0xbad9e9)};
+  const handLasers={left:makeLaser(),right:makeLaser()};
   const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null}=>{
     const pos=new Vector3(),dir=new Vector3(0,0,-1);
     controller.updateMatrixWorld(true);
