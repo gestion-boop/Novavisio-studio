@@ -179,3 +179,13 @@
   .nv-pg-lux .nv-pg-strip button{width:64px;height:44px}
 }
 @media (prefers-reduced-motion:reduce){.nv-pg-lux .nv-pg-tile,.nv-pg-lux .nv-pg-viewer figure{animation:none!important}}
+
+/* ===== Croix de fermeture : TOUJOURS en haut, au milieu de la fenêtre (jamais en haut à droite). =====
+   Couleurs : celles des boutons de la barre du bas (règles « Croix de fermeture » ci-dessus). */
+:root:not(#nv-x) :is(.nv-gallery,.nv-photo-gallery,.tour-dialog,.nv-plan-dialog,.nv-preparation-dialog)>header,
+:root:not(#nv-x) :is(.nv-gallery,.nv-photo-gallery,.tour-dialog,.nv-plan-dialog,.nv-preparation-dialog) header:first-child{position:relative;padding-top:max(var(--nv-close-pad,0px),0px)}
+:root:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.nv-pg-close,.nv-pg-exit,.info-in-view .modal>.close,.modal>.close,.nv-gallery>header>button:last-child,.nv-photo-gallery>header>button:last-child,.tour-dialog>header>button:last-child,.nv-plan-dialog>header>button:last-child,.nv-preparation-dialog>header>button:last-child){
+  position:absolute!important;top:10px!important;left:50%!important;right:auto!important;bottom:auto!important;translate:-50% 0!important;z-index:20}
+/* Les en-têtes ne réservent plus la place de la croix à droite : le titre garde toute la largeur. */
+:root:not(#nv-x) :is(.nv-plan-dialog,.nv-preparation-dialog,.tour-dialog)>header{justify-content:flex-start;min-height:56px}
+:root:not(#nv-x) :is(.nv-plan-dialog,.nv-preparation-dialog,.tour-dialog)>header h2{max-width:calc(50% - 40px)}

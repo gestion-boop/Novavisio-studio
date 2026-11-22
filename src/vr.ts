@@ -921,11 +921,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       old?.dispose();
     })();
   };
-  const closeButtonTexture=()=>canvasTexture(240,110,c=>{
-    roundRect(c,6,6,228,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-    c.fillStyle=iconColor;c.textAlign='center';c.textBaseline='middle';
-    c.fillText(fitCanvasLabel(c,tt('close'),196,44,24),120,57);
-  });
 
   let noticeTimer=0;
   const setNotice=(text:string)=>{
@@ -977,8 +972,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const name=fitCanvasLabel(c,title,titleWidth,referenceMode?44:56,28);
       c.fillText(name,50,headY);
     }),5,0,0).userData.blocker=true;
-    // Dans l'interface jaune unifiée, la croix est déjà sur la colonne droite : pas de 2e croix redondante.
-    if(!referenceMode)addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
+    // Croix de fermeture : toujours en haut, au milieu (jamais en haut à droite).
+    addPanelButton(.1,.1,closeIconTexture(),0,H/2-.095,closePanels);
     if(referenceMode){
       // Pagination tout en bas : Précédent / Suivant bien lisibles encadrant « n / N ».
       const yBottom=-H/2+.046;
@@ -1033,9 +1028,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         addPanelButton(.2,.11,navTexture('▶'),.5,-H/2+.1,()=>{page=(page+1)%chunks.length;render();});
       }
       if(extra){
-        addPanelButton(.24,.11,closeButtonTexture(),-.14,-H/2+.1,closePanels);
-        addPanelButton(.38,.11,navTexture(extra.label,380),.2,-H/2+.1,extra.onSelect);
-      }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.1,closePanels);
+        addPanelButton(.38,.11,navTexture(extra.label,380),0,-H/2+.1,extra.onSelect);
+      }
+      addPanelButton(.1,.1,closeIconTexture(),0,H/2-.095,closePanels);
     };
     render();
     placePanel(PANEL_DIST,-.0);
@@ -1119,7 +1114,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           .catch(()=>opts.onOpenEmbedded?.(title||tt('webPage'),valid));
       });
     }
-    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.055,closePanels);
+    addPanelButton(.1,.1,closeIconTexture(),0,H/2-.095,closePanels);
     placePanel(PANEL_DIST,0);
   };
 
@@ -1174,14 +1169,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         c.fillText((nav.index+1)+' / '+nav.count,180,60);
       });
       addPlane(panelGroup,.18,.062,countTex,7,.13,yBottom);
-      pillBtn('✕ Fermer',.22,W/2-.145,closePanels);
+      addPanelButton(.1,.1,closeIconTexture(),0,H/2-.095,closePanels,10);
     }else{
       const labelTex=canvasTexture(900,110,c=>{
         c.fillStyle='#ffeab5';c.textAlign='left';c.textBaseline='middle';
         c.fillText(fitCanvasLabel(c,title,860,40,26),16,56);
       });
       if(title)addPlane(panelGroup,.76,.058,labelTex,7,-W/2+.42,yBottom);
-      pillBtn('✕ Fermer',.26,title?.trim()?W/2-.17:0,closePanels);
+      addPanelButton(.1,.1,closeIconTexture(),0,H/2-.095,closePanels,10);
     }
     placePanel(PANEL_DIST,0);
   };
@@ -1255,7 +1250,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const vy=.02;
     addPlane(panelGroup,videoW,Hv,tex,6,0,vy);
     addPanelButton(.28,.072,navTexture('❚❚ / ▶',280),-.17,-H/2+.048,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
-    addPanelButton(.24,.072,navTexture('✕ Fermer',260),.17,-H/2+.048,closePanels);
     // Colonnes latérales : mêmes actions que l'interface classique (galerie, haut, libellé, bas, accueil ; plan à droite).
     const scenesNow=project().scenes.filter(scene=>!scene.excluded);
     const idx=Math.max(0,scenesNow.findIndex(scene=>scene.id===currentId));
@@ -1398,14 +1392,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     imageTex.colorSpace=SRGBColorSpace;
     addPlane(panelGroup,imageW,imageH,imageTex,6,imgX,imgY);
     if(!referenceMode){
-      addPlane(panelGroup,Math.min(1.8,W-.35),.11,canvasTexture(1200,115,ctx=>{
+      addPlane(panelGroup,Math.min(.9,W/2-.25),.11,canvasTexture(1200,115,ctx=>{
         ctx.fillStyle=iconColor;
         ctx.textAlign='center';ctx.textBaseline='middle';
         const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),1100,46,28);
         ctx.fillText(title,600,57);
-      }),7,0,H/2-.085);
+      }),7,-W/2+Math.min(.9,W/2-.25)/2+.08,H/2-.085);
     }
-    if(referenceMode)addPanelButton(.13,.13,closeIconTexture(),W/2-.10,H/2-.10,closePlan,10);
+    addPanelButton(.12,.12,closeIconTexture(),0,H/2-.10,closePlan,10);
     // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
     // closePanels() a déjà fait avancer panelGen : on compare à la valeur actuelle, sinon la surbrillance serait toujours écartée.
     const panelNow=panelGen;
@@ -1461,7 +1455,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         addPanelButton(.14,.14,pointTexture(planLevelLabel(other,i),i===index),x,top-.10-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
       });
     }
-    if(!referenceMode)addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
     placePanel(PANEL_DIST,0);
   };
 
