@@ -4290,6 +4290,13 @@ function App(){
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
             <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
           </div>}
+          {autoNavigation&&!preview&&guide?.phase==='back'&&(()=>{const origin=project.scenes.find(sc=>sc.id===guide.prevId);return origin?<aside className="nv-auto-dest" aria-label="Panorama de retour">
+            <header><span>Retour vers</span><strong className="nv-auto-dest-name">{origin.name}</strong></header>
+            <div className="nv-auto-dest-view" key={'back-'+origin.id}>
+              <FullscreenGalleryHoverPreview scene={origin} thumb={sceneThumbs[origin.id]}/>
+            </div>
+            <small>Place la flèche de retour vers ce panorama : fais demi-tour puis valide.</small>
+          </aside>:null;})()}
           {autoNavigation&&!preview&&guide?.phase==='forward'&&autoTarget&&<aside className="nv-auto-dest" aria-label="Panorama de destination">
             <header>
               <span>Destination</span>
