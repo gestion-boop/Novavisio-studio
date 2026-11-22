@@ -309,9 +309,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       });
       const visual=new Mesh(new SphereGeometry(radius,96,64),dropMat);
       visual.renderOrder=2;mesh.add(visual);
-      // Liseré jaune fin et net autour de la sphère, strictement de la même couleur que les pictos et le cadre du libellé.
-      const rimOpacity=.92;
-      const outline=new Mesh(new SphereGeometry(radius*1.055,64,40),new MeshBasicMaterial({color:new Color(gold),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
+      // Liseré jaune fin et net autour de la sphère, strictement de la même couleur que les cercles et le contour des cases pièces.
+      const rimOpacity=1.0;
+      const outline=new Mesh(new SphereGeometry(radius*1.055,64,40),new MeshBasicMaterial({color:new Color(gold),side:BackSide,transparent:true,opacity:rimOpacity,toneMapped:false,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;visual.add(outline);
       // Libellé horizontal sous la sphère (PlaneGeometry) : bordure jaune identique au liseré de la sphère.
       const destination=sceneOf(h.target);
@@ -498,11 +498,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     btnLine=theme?.buttonOutline??'#4a1518',
     iconColor=theme?.icon??'#f4d69a';
   const updateVrPalette=()=>{
+    const gold=pictoGold();
     panelBg=referenceMode?'rgba(37,38,42,.87)':theme?.background??'#c2c5c6';
-    panelLine=referenceMode?'#e1a525':theme?.outline??'#987974';
+    panelLine=referenceMode?gold:theme?.outline??'#987974';
     btnBg=referenceMode?'#1c1d20':theme?.button??'#5d131a';
-    btnLine=referenceMode?'#daa025':theme?.buttonOutline??'#4a1518';
-    iconColor=referenceMode?'#f6bb34':theme?.icon??'#f4d69a';
+    btnLine=referenceMode?gold:theme?.buttonOutline??'#4a1518';
+    iconColor=referenceMode?gold:theme?.icon??'#f4d69a';
   };
   // Les commandes gauche/droite et le contenu central sont dans LE MÊME
   // repère spatial. Déplacer le groupe parent déplace l'ensemble sans décalage.
@@ -648,10 +649,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
     const hexOk=(c?:string)=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
     const themed=!!menu.themed&&hexOk(theme?.button)&&hexOk(theme?.icon);
+    const gold=pictoGold();
     const ctrlColors=themed?{button:theme.button,icon:theme.icon}:undefined;
     const shellFill=themed&&hexOk(theme.background)?theme.background+'e6':'rgba(30,31,35,.79)';
-    const shellLine=themed&&hexOk(theme.outline)?theme.outline:'rgba(238,180,52,.72)';
-    const labelBg=themed?theme.button:'#25262a',labelLine=themed?theme.icon:'#d6a13d',labelInk=themed?theme.icon:'#ffffff';
+    const shellLine=themed&&hexOk(theme.outline)?theme.outline:gold;
+    const labelBg=themed?theme.button:'#1c1d20',labelLine=themed?theme.icon:gold,labelInk=themed?theme.icon:'#ffffff';
     // Une plaque commune (fond + bord fin) soude les trois colonnes,
     // au lieu de les laisser flotter à des profondeurs indépendantes.
     addPlane(vrShellGroup,VR_SHELL.w,VR_SHELL.h,canvasTexture(1200,650,ctx=>{
@@ -1267,7 +1269,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const cols=layoutColumns(['gallery','up','counter','down','home'],planItem?['plan']:[],{w:W,h:H});
     const counterTex=canvasTexture(280,180,ctx=>{
       roundRect(ctx,8,8,264,164,36);ctx.fillStyle='#25262a';ctx.fill();
-      ctx.strokeStyle='#d6a13d';ctx.lineWidth=7;ctx.stroke();
+      ctx.strokeStyle=pictoGold();ctx.lineWidth=7;ctx.stroke();
       ctx.fillStyle='#ffffff';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText((idx+1)+' / '+scenesNow.length,140,90);
     });
@@ -1527,6 +1529,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   hoverTooltip.renderOrder=15;hoverTooltip.visible=false;
   vrInterfaceGroup.add(hoverTooltip);
   let lastTooltipText='';
+  let remoteTooltipUntil=0;
   disposables.push(hoverTooltipGeo,hoverTooltipMat);
   const controllerOfHand=(hand:'left'|'right')=>
     controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
@@ -1797,6 +1800,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
               const before=remoteTarget;
               navigateRemote(horizontal,vertical);
               if(remoteTarget!==before){
+                remoteTooltipUntil=tnow+2200;
                 const c=controllerOfHand(remoteHand);
                 if(c)pulse(c,.2,25);
               }
@@ -1889,21 +1893,23 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         L.dot.visible=!uiHidden;
       }else{hideLaser(hand);}
     }
-    const tipTarget=activeLaserHover??remoteTarget;
+    if(activeLaserHover)remoteTooltipUntil=0;
+    const tipTarget=activeLaserHover??(remoteTarget&&now<remoteTooltipUntil?remoteTarget:null);
     const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan&&!fullscreenMedia?(tipTarget.userData.vrTooltip as string|undefined):undefined;
     if(tipTarget&&tipLabel&&tipTarget.parent===barGroup){
       if(hoverTooltip.parent!==vrInterfaceGroup)vrInterfaceGroup.add(hoverTooltip);
       if(lastTooltipText!==tipLabel){
         lastTooltipText=tipLabel;
-        let tex=tooltipTextures.get(tipLabel);
+        const gold=pictoGold();
+        let tex=tooltipTextures.get(tipLabel+':'+gold);
         if(!tex){
           tex=canvasTexture(380,96,c=>{
-            roundRect(c,4,4,372,88,44);c.fillStyle='rgba(12,24,33,.94)';c.fill();
-            c.lineWidth=5;c.strokeStyle='#f5b324';c.stroke();
-            c.fillStyle='#ffeab5';c.textAlign='center';c.textBaseline='middle';
+            roundRect(c,4,4,372,88,44);c.fillStyle='rgba(17,19,23,.95)';c.fill();
+            c.lineWidth=6;c.strokeStyle=gold;c.stroke();
+            c.fillStyle='#ffffff';c.textAlign='center';c.textBaseline='middle';
             c.fillText(fitCanvasLabel(c,tipLabel,330,36,24),190,50);
           });
-          tooltipTextures.set(tipLabel,tex);
+          tooltipTextures.set(tipLabel+':'+gold,tex);
         }
         hoverTooltipMat.map=tex;hoverTooltipMat.needsUpdate=true;
       }
