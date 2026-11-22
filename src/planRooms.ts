@@ -5,7 +5,7 @@ import type {FloorPlan,FloorPlanPoint} from './storage';
  *  aux pièces colorées et aux murs sombres ; si la zone fuit (portes ouvertes, plan noir et blanc) on ne met rien en surbrillance. */
 const MAX_SIDE=900;
 const WALL_LUMA=90;
-const COLOR_TOLERANCE=34;
+const COLOR_TOLERANCE=55;
 const MAX_AREA=0.3;
 const MIN_AREA=60;
 const luma=(d:Uint8ClampedArray,i:number)=>0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
@@ -44,7 +44,7 @@ export function floodRoom(d:Uint8ClampedArray,w:number,h:number,sx:number,sy:num
     if(x>0)tryPush(p-1);if(x<w-1)tryPush(p+1);if(y>0)tryPush(p-w);if(y<h-1)tryPush(p+w);
   }
   if(count<MIN_AREA)return null;
-  return closeMask(mask,w,h,3);
+  return closeMask(mask,w,h,4);
 }
 
 /** Fermeture morphologique : bouche les trous laissés par les textes (nom de la pièce, m²) à l'intérieur de la zone. */
