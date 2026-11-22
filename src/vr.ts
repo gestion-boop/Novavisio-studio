@@ -1,4 +1,4 @@
-import {BackSide, CanvasTexture, Color, Sprite, SpriteMaterial, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, ShaderMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
+import {BackSide, CanvasTexture, Color, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, ShaderMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -238,7 +238,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const mesh=new Mesh(new SphereGeometry(hitRadius,16,12),new MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
-      // Shader 3D "bulle / goutte d'eau opaque" : courbure sphérique, réfraction convexe, ménisque Fresnel et reflets vitreux.
+      // Shader 3D "bulle / goutte d'eau opaque" : forte courbure sphérique, anneau interne TIR, ménisque Fresnel et reflets vitreux.
       const dropMat=new ShaderMaterial({
         transparent:true,depthTest:false,depthWrite:false,
         uniforms:{
@@ -247,7 +247,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           rimColor:{value:new Color(rimColor)},
           hover:{value:0},
           pressed:{value:0},
-          opacity:{value:0.99},
+          opacity:{value:1.0},
         },
         vertexShader:`
           varying vec2 vUv;
@@ -274,26 +274,27 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
             vec3 n=normalize(vViewNormal);
             vec3 v=normalize(vViewDir);
             float facing=clamp(dot(n,v),0.0,1.0);
-            vec2 lensUv=vec2(1.0-vUv.x,vUv.y)+n.xy*vec2(-0.045,0.045)*(1.0-facing);
+            vec2 lensUv=vec2(1.0-vUv.x,vUv.y)+n.xy*vec2(-0.055,0.055)*(1.0-facing);
             lensUv.y=clamp(lensUv.y,0.002,0.998);
             vec3 innerColor=hasPanorama
               ?texture2D(panorama,lensUv).rgb
-              :mix(rimColor*0.24+vec3(0.06,0.13,0.20),rimColor*0.86,pow(facing,0.62));
-            // Volume sphérique marqué : centre net, courbure assombrie sur les bords (supprime l'aspect plat).
-            float sphereDepth=0.46+0.58*pow(facing,0.56);
-            vec3 color=innerColor*sphereDepth;
-            // Ménisque Fresnel dense tout autour de la bulle
-            float fresnel=pow(1.0-facing,2.5);
-            vec3 meniscus=mix(vec3(0.86,0.97,1.0),rimColor*0.82+vec3(0.28),0.45);
-            color=mix(color,meniscus,clamp(fresnel*(0.64+0.26*hover),0.0,0.90));
-            // Reflets spéculaires de goutte d'eau (dôme haut gauche + éclat brillant + caustique interne bas droite)
+              :mix(rimColor*0.20+vec3(0.05,0.12,0.19),rimColor*0.88,pow(facing,0.62));
+            // Courbure 3D prononcée + anneau de réflexion interne totale (donne l'effet rond / goutte d'eau opaque).
+            float sphereDepth=0.36+0.68*pow(facing,0.54);
+            float tirRing=exp(-pow((facing-0.28)/0.14,2.0));
+            vec3 color=innerColor*sphereDepth*(1.0-0.34*tirRing);
+            // Ménisque Fresnel brillant de bulle d'eau sur le contour extérieur
+            float fresnel=pow(1.0-facing,2.7);
+            vec3 meniscus=mix(vec3(0.88,0.98,1.0),rimColor*0.85+vec3(0.28),0.45);
+            color=mix(color,meniscus,clamp(fresnel*(0.72+0.24*hover),0.0,0.92));
+            // Reflets spéculaires vitreux (croissant haut gauche + point brillant + caustique interne bas droite)
             vec3 light1=normalize(vec3(-0.38,0.56,0.73));
             float h1=max(dot(n,light1),0.0);
-            float softDome=pow(h1,10.0)*0.24;
-            float crispSpot=smoothstep(0.85,0.96,h1)*0.30+pow(h1,105.0)*0.90;
-            float bounce=pow(max(dot(n,normalize(vec3(0.45,-0.66,0.60))),0.0),14.0);
-            color=mix(color,vec3(1.0),min(0.94,softDome+crispSpot));
-            color+=(vec3(0.55,0.85,1.0)*0.22+rimColor*0.24)*bounce;
+            float softDome=pow(h1,8.0)*0.26;
+            float crispSpot=smoothstep(0.84,0.96,h1)*0.34+pow(h1,100.0)*0.94;
+            float bounce=pow(max(dot(n,normalize(vec3(0.45,-0.66,0.60))),0.0),12.0);
+            color=mix(color,vec3(1.0),min(0.95,softDome+crispSpot));
+            color+=(vec3(0.55,0.85,1.0)*0.24+rimColor*0.26)*bounce;
             color*=(1.0+0.12*hover-0.28*pressed);
             gl_FragColor=vec4(color,opacity);
             #include <tonemapping_fragment>
@@ -306,11 +307,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
       const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;visual.add(outline);
-      // Nom de la pièce bien lisible juste sous la sphère : immobile au repos, grossit fortement au survol vers le client.
+      // Libellé horizontal sous la sphère (PlaneGeometry, pas Sprite) : reste toujours horizontal même si on penche la tête.
       const destination=sceneOf(h.target);
       const destinationName=destination?pick(destination.name,destination.nameTranslations,vlang()):'';
-      let labelSprite:Sprite|null=null;
-      const baseLabelW=1.04,baseLabelH=.245;
+      let labelMesh:Mesh|null=null;
+      const baseLabelW=.56,baseLabelH=.132;
       if(destinationName){
         const labelTexture=canvasTexture(1024,240,ctx=>{
           const text=fitCanvasLabel(ctx,destinationName,876,94,46);
@@ -322,15 +323,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(text,512,124);
         });
-        labelSprite=new Sprite(new SpriteMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false}));
-        labelSprite.scale.set(baseLabelW,baseLabelH,1);
-        labelSprite.position.set(0,-(radius*1.12+baseLabelH*.52),0);
-        labelSprite.renderOrder=3;
-        visual.add(labelSprite);
+        labelMesh=new Mesh(
+          new PlaneGeometry(1,1),
+          new MeshBasicMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false,side:DoubleSide}),
+        );
+        labelMesh.scale.set(baseLabelW,baseLabelH,1);
+        labelMesh.position.set(0,-(radius+.075+baseLabelH*.5),radius*.12);
+        labelMesh.renderOrder=3;
+        mesh.add(labelMesh);
       }
-      // Le collider reste strictement fixe à 6 m : la goutte 3D reste immobile au repos puis s'avance vers les yeux au survol.
+      // Le collider reste fixe à 6 m ; la bulle et son libellé avancent strictement dans l'axe (+Z) vers les yeux au survol.
       mesh.userData={baseScale:1,hoverScale:1,spin:true,visualSphere:visual,rimOutline:outline,rimOpacity,
-        labelSprite,baseLabelW,baseLabelH,sphereRadius:radius,toViewer:pos.clone().normalize().multiplyScalar(-1),
+        labelMesh,baseLabelW,baseLabelH,sphereRadius:radius,
         onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
@@ -1839,7 +1843,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           L.lastHapticTarget=null;
         }
         if(L.hoveredLast){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
-        const dist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.6:HOTSPOT_R);
+        const rawDist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.6:HOTSPOT_R);
+        const hTarget=impact.target;
+        const spherePull=hTarget?.userData.spin
+          ?((hTarget.userData.pushOut as number|undefined)??0)+((hTarget.userData.sphereRadius as number|undefined)??.18)*((hTarget.userData.visualSphere as Mesh|undefined)?.scale?.x??1)
+          :0;
+        const dist=Math.max(.35,rawDist-spherePull);
         L.line.scale.set(1,1,dist);
         L.dot.position.set(0,0,-dist);
         L.dot.scale.setScalar(Math.max(.75,Math.min(2.2,dist/2.2)));
@@ -1903,29 +1912,29 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:isHovered?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
       if(m.userData.spin){
         const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
-        // Au repos : strictement immobile (pushOut = 0). Au survol : s'avance franchement vers les yeux du client.
-        const toViewer=m.userData.toViewer as Vector3|undefined;
-        const pushTarget=isPressed?1.35:isHovered?1.70:0;
+        // `m.lookAt(camPos)` oriente le +Z local exactement vers les yeux du client (axe pur, zéro dérive gauche/droite).
+        const pushTarget=isPressed?1.35:isHovered?1.65:0;
         const prevPush=(m.userData.pushOut as number|undefined)??0;
         const nextPush=prevPush+(pushTarget-prevPush)*.16;
         m.userData.pushOut=Math.abs(pushTarget-nextPush)<.002?pushTarget:nextPush;
-        if(toViewer)visual.position.copy(toViewer).multiplyScalar(m.userData.pushOut as number);
+        visual.position.set(0,0,m.userData.pushOut as number);
         const rim=m.userData.rimOutline as Mesh|undefined;
         const baseRim=(m.userData.rimOpacity as number|undefined)??.15;
-        const vs=isPressed?.95:isHovered?1.25:1;
-        visual.scale.setScalar(visual.scale.x+(vs-visual.scale.x)*.20);
-        // Libellé sous la sphère : s'agrandit généreusement au survol pour une lecture très confortable face aux yeux.
-        const label=m.userData.labelSprite as Sprite|undefined;
+        const vs=isPressed?.96:isHovered?1.34:1;
+        const curVS=visual.scale.x+(vs-visual.scale.x)*.20;
+        visual.scale.setScalar(curVS);
+        // Libellé horizontal fixe (PlaneGeometry sous `m` avec up = (0,1,0)) : ne bascule jamais avec l'inclinaison de la tête, réduit au repos et très gros au survol.
+        const label=m.userData.labelMesh as Mesh|undefined;
         if(label){
-          const baseW=(m.userData.baseLabelW as number|undefined)??.96;
-          const baseH=(m.userData.baseLabelH as number|undefined)??.21;
+          const baseW=(m.userData.baseLabelW as number|undefined)??.56;
+          const baseH=(m.userData.baseLabelH as number|undefined)??.132;
           const r=(m.userData.sphereRadius as number|undefined)??.18;
-          const goalLF=isPressed?.96:isHovered?1.36:1;
+          const goalLF=isPressed?1.0:isHovered?2.05:1;
           const prevLF=(m.userData.labelFactor as number|undefined)??1;
           const nextLF=prevLF+(goalLF-prevLF)*.20;
           m.userData.labelFactor=nextLF;
           label.scale.set(baseW*nextLF,baseH*nextLF,1);
-          label.position.set(0,-(r*1.12+baseH*nextLF*.52),0);
+          label.position.set(0,-(r*curVS+.075+baseH*nextLF*.5),(m.userData.pushOut as number)+r*curVS*.12);
         }
         const vm=visual.material;
         if(vm instanceof ShaderMaterial){
