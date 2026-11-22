@@ -12,12 +12,12 @@ const excludedFromVr = (project: Pick<StudioProject, 'bottomBar'>) => new Set(pr
 
 /** Cadre de l'interface jaune, en mètres. */
 export const VR_SHELL = {w: 2.6, h: 1.4};
-/** Côté d'un bouton rond. */
-export const VR_BTN = 0.15;
+/** Côté d'un bouton rond (compact pour laisser le maximum d'espace aux visuels et photos). */
+export const VR_BTN = 0.118;
 /** Distance entre le bord extérieur d'un bouton et le bord du cadre : identique à gauche, à droite, en haut et en bas. */
-export const VR_MARGIN = 0.07;
+export const VR_MARGIN = 0.045;
 /** Écart maximal entre deux boutons (centre à centre) : évite des boutons trop espacés dans une colonne courte. */
-export const VR_MAX_PITCH = 0.24;
+export const VR_MAX_PITCH = 0.21;
 export const VR_MAX_PER_COLUMN = 6;
 
 export type VrAction = {id: string; label: string};

@@ -231,18 +231,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const iconUrl=getIconUrl(h.iconId);
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
-      const radius=k*Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
-      const mesh=new Mesh(new SphereGeometry(radius,64,40),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
+      const radius=k*Math.max(.105,Math.min(.19,(h.iconSize??48)/90*.16));
+      const hitRadius=Math.max(.15,radius*1.38);
+      const mesh=new Mesh(new SphereGeometry(hitRadius,16,12),new MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
+      const visual=new Mesh(new SphereGeometry(radius,64,40),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
+      visual.renderOrder=2;mesh.add(visual);
       // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
       const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
       const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
       const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
-      outline.renderOrder=1;mesh.add(outline);
-      // Dans un casque, un changement d'échelle sous le rayon de la manette
-      // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
-      mesh.userData={baseScale:1,hoverScale:1,spin:true,dir:pos.clone().normalize(),dist:HOTSPOT_R,onSelect:()=>void goTo(h.target,h)};
+      outline.renderOrder=1;visual.add(outline);
+      // Le collider reste strictement fixe à 6 m (aucun saut radial sous le rayon) : la sphère visuelle grossit sur place autour de son centre.
+      mesh.userData={baseScale:1,hoverScale:1,spin:true,visualSphere:visual,rimOutline:outline,rimOpacity,onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
         for(let attempt=0;attempt<30&&!ended;attempt++){
@@ -252,7 +254,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
               const pano=await loadReduced(url,1024);
               if(ended||!mesh.parent)return;
               const texture=new CanvasTexture(pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
-              const material=mesh.material as MeshBasicMaterial;
+              const material=visual.material as MeshBasicMaterial;
               material.map=texture;material.color.set(0xffffff);material.opacity=1;material.needsUpdate=true;
               return;
             }catch{}
@@ -272,7 +274,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       else if(h.type==='navigation'){c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();}
       else {c.font='bold 144px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(h.type==='information'?'i':h.type==='lien'?'↗':h.type==='video'?'▶':'▣',128,130);}
     });
-    const size=k*Math.min(.30,Math.max(.12,(h.iconSize??28)/48*.20));
+    const size=k*Math.min(.32,Math.max(.14,(h.iconSize??28)/48*.20));
     const mesh=new Mesh(new PlaneGeometry(size,size),new MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false,side:DoubleSide}));
     mesh.renderOrder=1;
     const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
@@ -311,16 +313,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     return mesh;
   };
 
+  const disposeNode=(node:Object3D)=>{
+    for(const sub of [...node.children])disposeNode(sub);
+    const m=node as Mesh;
+    const mat=m.material as MeshBasicMaterial|undefined;
+    const states=m.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null}|undefined;
+    for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==mat?.map)texture.dispose();
+    mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
+    const vid=m.userData.video as HTMLVideoElement|null|undefined;
+    if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
+  };
   const clearGroup=(g:Group)=>{
     for(const child of [...g.children]){
       g.remove(child);
-      const m=child as Mesh;
-      const mat=m.material as MeshBasicMaterial|undefined;
-      const states=m.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null}|undefined;
-      for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==mat?.map)texture.dispose();
-      mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
-      const vid=m.userData.video as HTMLVideoElement|null|undefined;
-      if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
+      disposeNode(child);
       const idx=clickables.indexOf(child as Clickable);if(idx>=0)clickables.splice(idx,1);
     }
   };
@@ -535,7 +541,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const normal=makeVrControlTexture(icon,'normal',ctrlColors);
       const hover=makeVrControlTexture(icon,'hover',ctrlColors);
       const pressed=makeVrControlTexture(icon,'pressed',ctrlColors);
-      const mesh=addButton(barGroup,.124,.124,normal,x,y,onSelect,9);
+      const mesh=addButton(barGroup,.114,.114,normal,x,y,onSelect,9);
       mesh.userData.vrIconStates={normal,hover,pressed,pressedUntil:0};
       mesh.userData.referenceUi=true;
       return mesh;
@@ -635,7 +641,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       return null;
     };
     for(const slot of [...grid.left,...grid.right]){
-      if(slot.id==='counter'){addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,slot.x,slot.y);continue;}
+      if(slot.id==='counter'){addPlane(barGroup,.13,.076,floorLabel((sceneIndex+1)+' / '+scenes.length),8,slot.x,slot.y);continue;}
       const action=actionOf(slot.id);
       if(!action)continue;
       const mesh=button(slot.x,slot.y,action.icon,action.run);
@@ -735,11 +741,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let panelGen=0; // change à chaque fermeture / remplacement de fenêtre : un chargement en cours ne peut plus rien ajouter après coup
   let activePanelKey='';
   let fullscreenPlan=false;
+  let fullscreenMedia=false;
   let lastGalleryItem:BottomBarItem|null=null;
   let planReturnGallery:BottomBarItem|null=null;
   function closePanels(){
     activePanelKey='';
     fullscreenPlan=false;
+    fullscreenMedia=false;
     panelGen++;
     panelReplace=panelGroup.children.length>0;
     stopVideo();
@@ -817,33 +825,35 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     c.fillStyle=iconColor;c.font='bold 62px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,55,120);
   });
   const galleryChrome=(W:number,H:number,title:string,count:string,pages:number,page:number,onPrev:()=>void,onNext:()=>void)=>{
-    addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
-      roundRect(c,6,6,W*1000-12,H*1000-12,48);
+    const cw=Math.round(W*1000),ch=Math.round(H*1000);
+    const headY=referenceMode?54:92;
+    addPlane(panelGroup,W,H,canvasTexture(cw,ch,c=>{
+      roundRect(c,6,6,cw-12,ch-12,48);
       c.fillStyle=referenceMode?'rgba(12,15,20,.74)':panelBg;c.fill();
       c.lineWidth=referenceMode?3:8;c.strokeStyle=referenceMode?'rgba(225,165,37,.35)':panelLine;c.stroke();
-      const rightEdge=referenceMode?(W*1000-64):(W*1000-180);
+      const rightEdge=referenceMode?(cw-50):(cw-180);
       const metadata=count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:'');
-      const metaWidth=Math.min(440,Math.max(250,W*1000*.31));
+      const metaWidth=Math.min(440,Math.max(250,cw*.31));
       c.fillStyle=referenceMode?'#e8bf65':'#4a4a52';
       c.textAlign='right';c.textBaseline='middle';
-      const meta=fitCanvasLabel(c,metadata,metaWidth,34,25);
-      c.fillText(meta,rightEdge,92);
+      const meta=fitCanvasLabel(c,metadata,metaWidth,referenceMode?28:34,22);
+      c.fillText(meta,rightEdge,headY);
       c.fillStyle=referenceMode?'#ffffff':'#1b1b1f';
       c.textAlign='left';
-      const titleWidth=Math.max(160,rightEdge-metaWidth-90);
-      const name=fitCanvasLabel(c,title,titleWidth,56,34);
-      c.fillText(name,64,92);
+      const titleWidth=Math.max(160,rightEdge-metaWidth-70);
+      const name=fitCanvasLabel(c,title,titleWidth,referenceMode?44:56,28);
+      c.fillText(name,50,headY);
     }),5,0,0).userData.blocker=true;
     // Dans l'interface jaune unifiée, la croix est déjà sur la colonne droite : pas de 2e croix redondante.
     if(!referenceMode)addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
     if(referenceMode){
-      // Pagination de la maquette, en bas uniquement : Précédent / Suivant encadrent le compteur « n / N ».
-      const yBottom=-H/2+.1;
+      // Pagination tout en bas : Précédent / Suivant bien lisibles encadrant « n / N ».
+      const yBottom=-H/2+.046;
       if(pages>1){
-        addPanelButton(.26,.08,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
-        addPanelButton(.26,.08,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
-        const counterTexture=canvasTexture(400,140,c=>{c.fillStyle='#ffffff';c.font='bold 56px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,200,70);});
-        addPlane(panelGroup,.2,.07,counterTexture,6,0,yBottom);
+        addPanelButton(.27,.066,navTexture('‹ Précédent',280),-(W/2-.17),yBottom,onPrev);
+        addPanelButton(.27,.066,navTexture('Suivant ›',280),W/2-.17,yBottom,onNext);
+        const counterTexture=canvasTexture(360,120,c=>{c.fillStyle='#ffffff';c.font='bold 48px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,180,60);});
+        addPlane(panelGroup,.18,.06,counterTexture,6,0,yBottom);
       }
     }else if(pages>1){
       addPanelButton(.1,.21,sideArrowTexture('◀'),-(W/2-.075),-.04,onPrev);
@@ -998,46 +1008,55 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     try{bitmap=await loadReduced(src,2048);}
     catch{setNotice(tt('photoFail'));return;}
     if(ended||shownFor!==currentId||gen!==panelGen||req!==imageReq)return;
+    const prevKey=activePanelKey;
     closePanels();
+    activePanelKey=prevKey;
+    fullscreenMedia=referenceMode;
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const maxW=1.42,maxH=.92;
+    const W=referenceMode?VR_SHELL.w:Math.max(1.2,Math.min(1.86,1.12*ratio)+.08);
+    const H=referenceMode?VR_SHELL.h:Math.min(1.12,1.86/ratio)+.16;
+    const maxW=referenceMode?(W-.06):1.82;
+    const maxH=referenceMode?(H-.145):1.06;
     const w=Math.min(maxW,maxH*ratio);
     const hgt=Math.min(maxH,maxW/ratio);
-    const W=Math.max(.95,w+.1),H=hgt+.24;
-    const frame=canvasTexture(1024,1024,c=>{
-      roundRect(c,8,8,1008,1008,56);c.fillStyle=panelBg;c.fill();
-      c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-    });
-    addPlane(panelGroup,W,H,frame,5,0,0);
+    const imgY=referenceMode?.052:.045;
+    addPlane(panelGroup,W,H,backdrop(W,H),5,0,0).userData.blocker=true;
     const photoTex=new CanvasTexture(bitmap);photoTex.colorSpace=SRGBColorSpace;
     photoTex.generateMipmaps=true;photoTex.minFilter=LinearMipmapLinearFilter;photoTex.anisotropy=16;
-    addPlane(panelGroup,w,hgt,photoTex,6,0,.055);
-    const titleTex=canvasTexture(960,120,c=>{
-      c.fillStyle='#17232b';c.font='bold 36px sans-serif';c.textAlign='center';c.textBaseline='middle';
-      const label=nav?title+'  ·  '+(nav.index+1)+'/'+nav.count:title;
-      let t=label;while(c.measureText(t).width>900&&t.length>3)t=t.slice(0,-2);
-      c.fillText(t===label?t:t+'…',480,60);
-    });
-    addPlane(panelGroup,Math.min(W-.10,1.0),.07,titleTex,7,0,H/2-.06);
+    addPlane(panelGroup,w,hgt,photoTex,6,0,imgY);
+    const yBottom=-H/2+.048;
+    const pillBtn=(text:string,bw:number,x:number,onSelect:()=>void)=>{
+      addPanelButton(bw,.068,navTexture(text,Math.round(bw*1150)),x,yBottom,onSelect,9);
+    };
     if(nav){
-      // Flèches près de l'image (de part et d'autre), « Retour » à la galerie en bas.
       if(nav.count>1){
-        addPanelButton(.13,.2,navTexture('◀',130),-(w/2+.1),0,nav.prev);
-        addPanelButton(.13,.2,navTexture('▶',130),(w/2+.1),0,nav.next);
+        pillBtn('‹ Précédent',.29,-(W/2-.185),nav.prev);
+        pillBtn('Suivant ›',.29,W/2-.43,nav.next);
       }
-      addPanelButton(.34,.11,canvasTexture(340,110,c=>{
-        roundRect(c,6,6,328,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-        c.fillStyle=iconColor;c.font='bold 42px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('Galerie',170,58);
-      }),-.2,-H/2+.08,nav.back);
-      addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.08,closePanels);
-    }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
+      pillBtn('Galerie',.22,-.14,nav.back);
+      const countTex=canvasTexture(360,120,c=>{
+        c.fillStyle='#ffffff';c.font='bold 48px sans-serif';c.textAlign='center';c.textBaseline='middle';
+        c.fillText((nav.index+1)+' / '+nav.count,180,60);
+      });
+      addPlane(panelGroup,.18,.062,countTex,7,.13,yBottom);
+      pillBtn('✕ Fermer',.22,W/2-.145,closePanels);
+    }else{
+      const labelTex=canvasTexture(900,110,c=>{
+        c.fillStyle='#ffeab5';c.textAlign='left';c.textBaseline='middle';
+        c.fillText(fitCanvasLabel(c,title,860,40,26),16,56);
+      });
+      if(title)addPlane(panelGroup,.76,.058,labelTex,7,-W/2+.42,yBottom);
+      pillBtn('✕ Fermer',.26,title?.trim()?W/2-.17:0,closePanels);
+    }
     placePanel(PANEL_DIST,0);
   };
   const showPhoto=(h:Hotspot)=>showImagePanel(h.imageDataUrl||h.imageUrl,pick(h.title,h.titleTranslations,vlang())||'Photo');
 
-  // Galerie de photos / vidéos d'un bouton de la barre (type « photos ») : vignettes puis image en grand.
+  // Galerie de photos / vidéos d'un bouton de la barre (type « photos ») : vignettes grand format puis image plein écran.
   const showPhotoGallery=async(item:BottomBarItem)=>{
+    const keepKey='bar:'+item.id;
     closePanels();
+    activePanelKey=keepKey;
     const entries=(item.photos??[]).map(m=>({m,r:resolveLink(m)})).filter(e=>e.r.image||e.r.video||e.r.embed);
     if(!entries.length){showText(pick(item.title,item.titleTranslations,vlang())||tt('photos'),tt('noPhoto'));return;}
     let page=0;
@@ -1051,25 +1070,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     };
     const renderGrid=async()=>{
       closePanels();
-      const cols=4,rows=2,cw=.34,ch=.30,gx=.04,gy=.05;
+      activePanelKey=keepKey;
+      const cols=referenceMode?3:4,rows=2;
+      const cw=referenceMode?.68:.34,ch=referenceMode?.52:.30,gx=referenceMode?.024:.04,gy=referenceMode?.024:.05;
       const perPageP=cols*rows;
       const slice=entries.slice(page*perPageP,page*perPageP+perPageP);
-      const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
       const pages=Math.max(1,Math.ceil(entries.length/perPageP));
+      const W=referenceMode?2.22:cols*cw+(cols-1)*gx+.32;
+      const H=referenceMode?1.34:.17+rows*ch+(rows-1)*gy+.1;
       galleryChrome(W,H,pick(item.title,item.titleTranslations,vlang())||tt('photos'),entries.length+' '+tt('items'),pages,page,
         ()=>{page=(page-1+pages)%pages;void renderGrid();},()=>{page=(page+1)%pages;void renderGrid();});
       for(let k=0;k<slice.length;k++){
         const e=slice[k];
         const col=k%cols,row=Math.floor(k/cols);
-        const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
-        thumbTile('media:'+e.m.id,e.m.kind==='photo'?(e.r.thumb??e.r.image):undefined,340,300,(c,thumb)=>{
-          roundRect(c,5,5,330,290,28);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-          c.save();roundRect(c,16,16,308,196,20);c.clip();
-          if(thumb)c.drawImage(thumb,16,16,308,196);else{c.fillStyle='#222';c.fillRect(16,16,308,196);if(e.m.kind!=='photo'){c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',170,116);}}
+        const x=(col-(cols-1)/2)*(cw+gx),y=(referenceMode?H/2-.102:H/2-.17)-ch/2-row*(ch+gy);
+        const tw=referenceMode?680:340,th=referenceMode?520:300;
+        thumbTile('media:'+e.m.id,e.m.kind==='photo'?(e.r.thumb??e.r.image):undefined,tw,th,(c,thumb)=>{
+          roundRect(c,5,5,tw-10,th-10,24);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
+          const imgH=e.m.name?th-68:th-24;
+          c.save();roundRect(c,12,12,tw-24,imgH,18);c.clip();
+          if(thumb)c.drawImage(thumb,12,12,tw-24,imgH);else{c.fillStyle='#222';c.fillRect(12,12,tw-24,imgH);if(e.m.kind!=='photo'){c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',tw/2,12+imgH/2);}}
           c.restore();
-          c.fillStyle=iconColor;c.font='bold 30px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
-          let t=e.m.name;while(c.measureText(t).width>300&&t.length>2)t=t.slice(0,-2);
-          c.fillText(t===e.m.name?t:t.trimEnd()+'…',170,258);
+          if(e.m.name){
+            c.fillStyle=referenceMode?'#ffe3a1':iconColor;c.textAlign='center';c.textBaseline='alphabetic';
+            c.fillText(fitCanvasLabel(c,e.m.name,tw-44,referenceMode?30:26,20),tw/2,th-20);
+          }
         },cw,ch,x,y,()=>{void open(page*perPageP+k);});
       }
       placePanel(PANEL_DIST,-.0);
@@ -1089,14 +1114,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     el.preload='auto';el.muted=true;
     const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=16;
     activeVideo={el,tex};
-    // Panneau jaune centré : vidéo au milieu, colonnes d'icônes à gauche et à droite (même présentation que l'interface classique).
-    const videoW=referenceMode?2.2:1.6,Hv=videoW*9/16;
-    const W=videoW+.9;
-    const H=Math.max(1.2,Hv+.5);
+    const W=VR_SHELL.w,H=VR_SHELL.h;
+    const videoW=2.12,Hv=videoW*9/16;
     galleryChrome(W,H,title,'',1,0,()=>{},()=>{});
-    const vy=H/2-.17-Hv/2-.05;
+    const vy=.02;
     addPlane(panelGroup,videoW,Hv,tex,6,0,vy);
-    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),0,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    addPanelButton(.28,.072,navTexture('❚❚ / ▶',280),-.17,-H/2+.048,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    addPanelButton(.24,.072,navTexture('✕ Fermer',260),.17,-H/2+.048,closePanels);
     // Colonnes latérales : mêmes actions que l'interface classique (galerie, haut, libellé, bas, accueil ; plan à droite).
     const scenesNow=project().scenes.filter(scene=>!scene.excluded);
     const idx=Math.max(0,scenesNow.findIndex(scene=>scene.id===currentId));
@@ -1105,7 +1129,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       gallery:scenesNow.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
     const sideButton=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
       const tex2=makeVrControlTexture(icon,'normal');
-      addButton(panelGroup,.124,.124,tex2,x,y,onSelect,9);
+      addButton(panelGroup,.114,.114,tex2,x,y,onSelect,9);
     };
     // Mêmes colonnes que l'interface jaune : mêmes marges au cadre du panneau, lignes alignées.
     const planFirst=getFloorPlans(project())[0];
@@ -1118,7 +1142,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       ctx.fillText((idx+1)+' / '+scenesNow.length,140,90);
     });
     for(const slot of [...cols.left,...cols.right]){
-      if(slot.id==='counter'){addPlane(panelGroup,.15,.09,counterTex,8,slot.x,slot.y);continue;}
+      if(slot.id==='counter'){addPlane(panelGroup,.13,.076,counterTex,8,slot.x,slot.y);continue;}
       if(slot.id==='gallery')sideButton(slot.x,slot.y,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
       if(slot.id==='up')sideButton(slot.x,slot.y,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
       if(slot.id==='down')sideButton(slot.x,slot.y,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
@@ -1151,32 +1175,34 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       closePanels();
       activePanelKey='gallery';
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=referenceMode?.46:.62,ch=referenceMode?.29:.34,gx=referenceMode?.04:.06,gy=referenceMode?.04:.05;
+      const cw=referenceMode?.68:.62,ch=referenceMode?.355:.34,gx=referenceMode?.024:.06,gy=referenceMode?.022:.05;
       const menuNow=vrMenuOf(project());
       const placedIds=new Set([...menuNow.left,...menuNow.right]);
       const photoCandidate=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
       // Pas de deuxième bouton Photos si Photos est déjà présent sur une colonne du menu VR.
       const photoItem=photoCandidate&&!placedIds.has('bar:'+photoCandidate.id)?photoCandidate:undefined;
-      const W=cols*cw+(cols-1)*gx+.32;
-      const H=referenceMode?.17+rows*ch+(rows-1)*gy+.16+(photoItem?.19:0):.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
+      const W=referenceMode?2.22:cols*cw+(cols-1)*gx+.32;
+      const H=referenceMode?1.34:.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
         ()=>{page=(page-1+pages)%pages;void render();},()=>{page=(page+1)%pages;void render();});
-      if(photoItem)addPanelButton(.28,.085,navTexture('Photos',280),0,-H/2+.068,()=>{void showPhotoGallery(photoItem);});
+      if(photoItem)addPanelButton(.24,.064,navTexture('Photos',260),pages>1?-W/2+.56:0,-H/2+.046,()=>{void showPhotoGallery(photoItem);});
       for(let i=0;i<slice.length;i++){
         const e=slice[i];
         const col=i%cols,row=Math.floor(i/cols);
-        const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
+        const x=(col-(cols-1)/2)*(cw+gx),y=(referenceMode?H/2-.10:H/2-.17)-ch/2-row*(ch+gy);
         opts.ensureScene?.(e.sceneId);
-        thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,620,340,(c,thumb)=>{
-          roundRect(c,6,6,608,328,30);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=7;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
-          c.save();roundRect(c,18,18,584,218,20);c.clip();
-          if(thumb)c.drawImage(thumb,18,18,584,218);else{c.fillStyle='#333';c.fillRect(18,18,584,218);}
+        const tw=referenceMode?680:620,th=referenceMode?360:340;
+        const imgW=tw-20,imgH=th-72;
+        thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,tw,th,(c,thumb)=>{
+          roundRect(c,5,5,tw-10,th-10,24);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=6;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
+          c.save();roundRect(c,10,10,imgW,imgH,18);c.clip();
+          if(thumb)c.drawImage(thumb,10,10,imgW,imgH);else{c.fillStyle='#333';c.fillRect(10,10,imgW,imgH);}
           c.restore();
           c.fillStyle=referenceMode?'#ffe3a1':iconColor;
           c.textAlign='center';c.textBaseline='alphabetic';
-          const label=fitCanvasLabel(c,e.label,548,32,23);
-          c.fillText(label,310,303);
+          const label=fitCanvasLabel(c,e.label,tw-44,32,22);
+          c.fillText(label,tw/2,th-20);
         },cw,ch,x,y,()=>{void goTo(e.sceneId);},()=>sceneOf(e.sceneId)?.dataUrl||undefined);
       }
       placePanel(PANEL_DIST,-.0);
@@ -1406,6 +1432,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       return {target:btnHits[0].object as Clickable,point:btnHits[0].point,distance:btnHits[0].distance};
     }
     if(blkHits.length)return {target:null,point:blkHits[0].point,distance:blkHits[0].distance};
+    if(!referenceMode){
+      const oc=pos.clone().sub(root.position);
+      const b=oc.dot(dir);
+      const c=oc.dot(oc)-HOTSPOT_R*HOTSPOT_R;
+      const disc=b*b-c;
+      if(disc>=0){
+        const t=Math.max(.5,-b+Math.sqrt(disc));
+        return {target:null,point:pos.clone().addScaledVector(dir,t),distance:t};
+      }
+    }
     return {target:null,point:null,distance:null};
   };
   let remoteTarget:Clickable|null=null;
@@ -1605,10 +1641,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }).finally(()=>{switchingReference=false;});
     }
     faceButtonDown=facesPressed;
-    barGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
-    vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
+    const shellHidden=fullscreenPlan||fullscreenMedia;
+    barGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!shellHidden;
+    vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!shellHidden;
     panelGroup.visible=!uiHidden;
-    headerGroup.visible=!uiHidden&&!fullscreenPlan;
+    headerGroup.visible=!uiHidden&&!shellHidden;
     noticeGroup.visible=!uiHidden;
     const remoteHand: 'left'|'right'=activeLaserHand==='right'?'left':'right';
     const remoteList=remoteCandidates();
@@ -1681,7 +1718,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const m of hotspotGroup.children)if(!m.userData.isFrame)m.lookAt(camPos);
     // Sphères : la texture (le panorama) défile en continu, la sphère tourne sur elle-même sans bouger de place.
     for(const m of hotspotGroup.children){
-      const mat=(m as Mesh).material as MeshBasicMaterial|undefined;
+      const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
+      const mat=visual.material as MeshBasicMaterial|undefined;
       if(m.userData.spin&&mat?.map)mat.map.offset.x=(mat.map.offset.x+dt*.05)%1;
     }
     // Le monobloc reste ancré dans l'espace : il ne suit pas chaque mouvement de tête.
@@ -1706,7 +1744,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           L.lastHapticTarget=null;
         }
         if(L.hoveredLast){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
-        const dist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.8:4.8);
+        const dist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.6:HOTSPOT_R);
         L.line.scale.set(1,1,dist);
         L.dot.position.set(0,0,-dist);
         L.dot.scale.setScalar(Math.max(.75,Math.min(2.2,dist/2.2)));
@@ -1715,7 +1753,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }else{hideLaser(hand);}
     }
     const tipTarget=activeLaserHover??remoteTarget;
-    const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan?(tipTarget.userData.vrTooltip as string|undefined):undefined;
+    const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan&&!fullscreenMedia?(tipTarget.userData.vrTooltip as string|undefined):undefined;
     if(tipTarget&&tipLabel&&tipTarget.parent===barGroup){
       if(hoverTooltip.parent!==vrInterfaceGroup)vrInterfaceGroup.add(hoverTooltip);
       if(lastTooltipText!==tipLabel){
@@ -1768,7 +1806,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
       // Surbrillance de pièce : fondu progressif (pas de saut entre 0 et 0,8) pour éviter le scintillement au survol.
       if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:hovered.has(m)?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
-      if(m.userData.spin&&m.userData.dir){const want=isPressed?HOTSPOT_R-4.2:hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
+      if(m.userData.spin){
+        const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
+        const rim=m.userData.rimOutline as Mesh|undefined;
+        const baseRim=(m.userData.rimOpacity as number|undefined)??.15;
+        const vs=isPressed?.92:hovered.has(m)?1.22:1;
+        visual.scale.setScalar(visual.scale.x+(vs-visual.scale.x)*.28);
+        const vm=visual.material;
+        if(vm instanceof MeshBasicMaterial)vm.color.setScalar(isPressed?.7:hovered.has(m)?1.25:1);
+        if(rim&&rim.material instanceof MeshBasicMaterial){
+          rim.material.opacity=hovered.has(m)?Math.max(baseRim,.85):baseRim;
+        }
+        continue;
+      }
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
         const mm=(m as Mesh).material as MeshBasicMaterial;

@@ -125,7 +125,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const W = VR_SHELL.w, H = VR_SHELL.h;
   const editGrid = layoutColumns(Array(VR_MAX_PER_COLUMN).fill('x'), Array(VR_MAX_PER_COLUMN).fill('x'));
   const posStyle = (s: Pick<VrSlot, 'x' | 'y'>, wide = false) => {
-    const bw = wide ? 0.15 : VR_BTN, bh = wide ? 0.09 : VR_BTN;
+    const bw = wide ? 0.135 : VR_BTN, bh = wide ? 0.08 : VR_BTN;
     return {left: pct(W / 2 + s.x - bw / 2, W), top: pct(H / 2 - s.y - bh / 2, H), width: pct(bw, W), height: pct(bh, H)};
   };
 
@@ -133,6 +133,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const scenes = project.scenes.filter((s) => !s.excluded);
   const [sceneIdx, setSceneIdx] = useState(0);
   const [galleryPage, setGalleryPage] = useState(0);
+  const [photoIdx, setPhotoIdx] = useState<number | null>(null);
   const [panel, setPanel] = useState<Panel>({kind: 'gallery'});
   const [planBack, setPlanBack] = useState<Panel>(null);
   const [soundOn, setSoundOn] = useState(true);
@@ -169,6 +170,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   };
   const runSim = (id: string) => {
     setFlash(id); window.setTimeout(() => setFlash((f) => (f === id ? '' : f)), 260);
+    setPhotoIdx(null);
     switch (id) {
       case 'gallery': setGalleryPage(0); setPanel((p) => (p?.kind === 'gallery' ? null : {kind: 'gallery'})); return;
       case 'up': setSceneIdx((i) => Math.max(0, i - 1)); setPanel(null); return;
@@ -191,6 +193,8 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const simGrid = layoutColumns(menu.left, menu.right);
   const current = scenes[Math.min(sceneIdx, Math.max(0, scenes.length - 1))];
   const planFullscreen = mode === 'sim' && isPlanPanel(panel);
+  const photoFullscreen = mode === 'sim' && photoIdx !== null && panel?.kind === 'bar' && panel.item.type === 'photos';
+  const shellFullscreen = planFullscreen || photoFullscreen;
 
   const centerContent = (): ReactNode => {
     if (!panel) return null;
@@ -231,15 +235,58 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     }
     if (panel.kind === 'help') {
       return <div className="nv-vrx-panel"><strong>Navigation VR</strong>
-        <p>Gauche et droite : laser et gâchette. Joystick gauche : navigation. A/B ou X/Y : ouvrir / fermer le menu. Clic joystick : tout masquer.</p></div>;
+        <p>1re gâchette utilisée : manette laser prioritaire (jaune + embout bleu). L’autre manette devient télécommande agent immobilier (joystick + gâchette sans prendre le contrôle). A/B ou X/Y : ouvrir / fermer.</p></div>;
     }
     if (panel.kind !== 'bar') return null;
     const item = panel.item;
     if (item.type === 'photos') {
       const photos = (item.photos ?? []).map((m) => ({m, r: resolveLink(m)}));
-      return <div className="nv-vrx-panel"><strong>{item.title || 'Photos'}</strong>
-        {photos.length ? <div className="nv-vrx-thumbs">{photos.map(({m, r}) => <span key={m.id} className="nv-vrx-photo">{r.thumb ?? r.image ? <img src={r.thumb ?? r.image} alt="" referrerPolicy="no-referrer"/> : '▶'}</span>)}</div>
-          : <p>Aucune photo dans ce bouton.</p>}</div>;
+      if (photoIdx !== null && photos.length) {
+        const cur = ((photoIdx % photos.length) + photos.length) % photos.length;
+        const entry = photos[cur];
+        const src = entry.r.image ?? entry.r.thumb;
+        return <div className="nv-vrx-panel is-photo-full">
+          <div className="nv-vrx-photo-stage">
+            {src ? <img className="nv-vrx-photo-hero" src={src} alt={entry.m.name} referrerPolicy="no-referrer"/> : <p>{entry.m.name}</p>}
+          </div>
+          <div className="nv-vrx-photo-bar">
+            {photos.length > 1 ? <button type="button" onClick={() => setPhotoIdx((cur - 1 + photos.length) % photos.length)}>‹ Précédent</button> : <span/>}
+            <div className="nv-vrx-photo-bar-mid">
+              <button type="button" onClick={() => setPhotoIdx(null)}>Galerie</button>
+              <span>{cur + 1} / {photos.length}</span>
+            </div>
+            <div className="nv-vrx-photo-bar-mid">
+              {photos.length > 1 && <button type="button" onClick={() => setPhotoIdx((cur + 1) % photos.length)}>Suivant ›</button>}
+              <button type="button" onClick={() => {setPhotoIdx(null); setPanel(null);}} aria-label="Fermer la photo"><X size={16}/> Fermer</button>
+            </div>
+          </div>
+        </div>;
+      }
+      const perPageP = 6;
+      const pagesP = Math.max(1, Math.ceil(photos.length / perPageP));
+      const pageP = Math.min(galleryPage, pagesP - 1);
+      const sliceP = photos.slice(pageP * perPageP, pageP * perPageP + perPageP);
+      return <div className="nv-vrx-panel">
+        <div className="nv-vrx-panel-head">
+          <strong>{item.title || 'Photos'}</strong>
+          <span>{photos.length} photo{photos.length > 1 ? 's' : ''}</span>
+        </div>
+        {photos.length ? <>
+          <div className="nv-vrx-thumbs nv-vrx-thumbs-3x2">
+            {sliceP.map(({m, r}, idx) => {
+              const globalIdx = pageP * perPageP + idx;
+              return <button type="button" key={m.id} className="nv-vrx-photo" onClick={() => setPhotoIdx(globalIdx)}>
+                {r.thumb ?? r.image ? <img src={r.thumb ?? r.image} alt={m.name} referrerPolicy="no-referrer"/> : '▶'}
+                {m.name && <span>{m.name}</span>}
+              </button>;
+            })}
+          </div>
+          {pagesP > 1 && <div className="nv-vrx-pager is-bottom">
+            <button type="button" onClick={() => setGalleryPage((pageP - 1 + pagesP) % pagesP)}>‹ Précédent</button>
+            <span>{pageP + 1} / {pagesP}</span>
+            <button type="button" onClick={() => setGalleryPage((pageP + 1) % pagesP)}>Suivant ›</button>
+          </div>}
+        </> : <p>Aucune photo dans ce bouton.</p>}</div>;
     }
     if (item.type === 'information') return <div className="nv-vrx-panel"><strong>{item.title || 'Information'}</strong><p>{item.text || 'Aucun texte.'}</p></div>;
     if (item.type === 'lien') return <div className="nv-vrx-panel"><strong>{item.title || 'Lien'}</strong><p>Page ouverte dans le casque :<br/><code>{item.url || '—'}</code></p></div>;
@@ -269,9 +316,9 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
         }))}
       </div>
     : <div className="nv-vrx-sim" style={current ? {backgroundImage: `url("${current.dataUrl}")`} : undefined}>
-        {menuOpen ? <div className={'nv-vrx-shell is-sim' + (planFullscreen ? ' is-plan-shell' : '')} role="group" aria-label="Simulation de l’interface du casque">
-          <div className={'nv-vrx-center' + (planFullscreen ? ' is-plan-center' : '')}>{centerContent() ?? <div className="nv-vrx-center-hint is-sim">{current?.name ?? 'Aucun panorama'}<br/><small>Clique sur les boutons comme avec la manette</small></div>}</div>
-          {!planFullscreen && [...simGrid.left, ...simGrid.right].map((slot) => {
+        {menuOpen ? <div className={'nv-vrx-shell is-sim' + (shellFullscreen ? ' is-plan-shell' : '')} role="group" aria-label="Simulation de l’interface du casque">
+          <div className={'nv-vrx-center' + (shellFullscreen ? ' is-plan-center' : '')}>{centerContent() ?? <div className="nv-vrx-center-hint is-sim">{current?.name ?? 'Aucun panorama'}<br/><small>Clique sur les boutons comme avec la manette</small></div>}</div>
+          {!shellFullscreen && [...simGrid.left, ...simGrid.right].map((slot) => {
             const side = slot.x < 0 ? 'left' : 'right';
             return slot.id === 'counter'
             ? <div key={slot.id} className="nv-vrx-slot is-full is-counter is-sim" style={posStyle(slot, true)}><span className="nv-vrx-btn">{(scenes.length ? sceneIdx + 1 : 0) + ' / ' + scenes.length}</span></div>
