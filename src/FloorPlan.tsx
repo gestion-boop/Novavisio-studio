@@ -391,6 +391,15 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
         <input type="text" maxLength={200} value={plan.name}
           onChange={event=>updatePlan(item=>({...item,name:event.target.value}))}/>
       </label>
+      <label>Étage de ce plan <small>(affiché à gauche dans le casque)</small>
+        <select value={plan.level===undefined?'':String(plan.level)}
+          onChange={event=>updatePlan(item=>{const {level:_old,...rest}=item;return event.target.value===''?rest:{...rest,level:Number(event.target.value)};})}>
+          <option value="">Non précisé</option>
+          <option value="-1">Sous-sol</option>
+          <option value="0">Rez-de-chaussée</option>
+          {[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n===1?'1er étage':n+'e étage'}</option>)}
+        </select>
+      </label>
       <div className="nv-plans-editor-actions">
         <button type="button" onClick={()=>reorder(-1)} disabled={index===0}>↑ Monter le plan</button>
         <button type="button" onClick={()=>reorder(1)} disabled={index===plans.length-1}>↓ Descendre le plan</button>

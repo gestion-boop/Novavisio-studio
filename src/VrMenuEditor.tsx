@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState, type CSSProperties, type Dispatch, type DragEvent, type ReactNode, type SetStateAction} from 'react';
 import {createPortal} from 'react-dom';
 import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, LayoutGrid, Map as MapIcon, Pencil, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
-import {getFloorPlans, type BottomBarItem, type StudioProject} from './storage';
+import {getFloorPlans, plansByLevel, planLevelLabel, type BottomBarItem, type StudioProject} from './storage';
 import {DEFAULT_VR_MENU, VR_BTN, VR_GAP, VR_MAX_PER_COLUMN, VR_SHELL, availableVrActions, layoutColumns, vrMenuOf, type VrSlot} from './vrMenu';
 import {resolveLink} from './mediaLinks';
 import './vrMenuEditor.css';
@@ -134,7 +134,9 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const [soundOn, setSoundOn] = useState(true);
   const [menuOpen, setMenuOpen] = useState(true);
   const [flash, setFlash] = useState('');
-  const plan = getFloorPlans(project)[0];
+  const plans = plansByLevel(getFloorPlans(project).filter((p) => !!p.imageDataUrl));
+  const [planIdx, setPlanIdx] = useState(0);
+  const plan = plans[Math.min(planIdx, Math.max(0, plans.length - 1))];
   const runSim = (id: string) => {
     setFlash(id); window.setTimeout(() => setFlash((f) => (f === id ? '' : f)), 260);
     switch (id) {
@@ -165,7 +167,12 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     }
     if (panel.kind === 'plan' || (panel.kind === 'bar' && panel.item.type === 'plan')) {
       return <div className="nv-vrx-panel"><strong>{plan?.name || 'Plan'}</strong>
-        {plan ? <img className="nv-vrx-plan" src={plan.imageDataUrl} alt="Plan"/> : <p>Aucun plan dans cette visite.</p>}</div>;
+        {plan ? <div className="nv-vrx-plan-row">
+          {plans.length > 1 && <div className="nv-vrx-levels" aria-label="Étages">
+            <span className="nv-vrx-stairs" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20v-4h4v-4h4V8h4V4h6"/></svg></span>
+            {plans.map((p, i) => <button type="button" key={p.id ?? i} className={plans[Math.min(planIdx, plans.length - 1)] === p ? 'is-on' : ''} title={p.name} onClick={() => setPlanIdx(i)}>{planLevelLabel(p, i)}</button>)}
+          </div>}
+          <img className="nv-vrx-plan" src={plan.imageDataUrl} alt="Plan"/></div> : <p>Aucun plan dans cette visite.</p>}</div>;
     }
     if (panel.kind === 'help') {
       return <div className="nv-vrx-panel"><strong>Navigation VR</strong>

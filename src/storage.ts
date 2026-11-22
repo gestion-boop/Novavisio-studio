@@ -194,7 +194,16 @@ export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
 /** Positions in percentages of the plan image, independent of screen size. */
 export type FloorPlanPoint = {sceneId:string;x:number;y:number};
-export type FloorPlan = {id?:string;imageDataUrl:string;name:string;points:FloorPlanPoint[];/** Espace auquel appartient le plan, absent pour un plan du projet principal (anciens plans inclus). */spaceId?:string};
+export type FloorPlan = {id?:string;imageDataUrl:string;name:string;points:FloorPlanPoint[];/** Espace auquel appartient le plan, absent pour un plan du projet principal (anciens plans inclus). */spaceId?:string;/** Étage du plan : 0 = rez-de-chaussée, 1 = 1er étage, -1 = sous-sol. Absent = non précisé. */level?:number};
+/** Libellé court d'un étage : RDC, 1, 2… ; sans étage précisé, le numéro d'ordre du plan. */
+export const planLevelLabel=(plan:Pick<FloorPlan,'level'>,index:number):string=>plan.level===undefined?String(index+1):plan.level===0?'RDC':plan.level<0?'S'+Math.abs(plan.level):String(plan.level);
+/** Plans triés du plus bas au plus haut ; ceux sans étage gardent leur ordre, après les autres. */
+export const plansByLevel=<T extends Pick<FloorPlan,'level'>>(plans:T[]):T[]=>plans.map((plan,i)=>({plan,i})).sort((a,b)=>{
+  const la=a.plan.level,lb=b.plan.level;
+  if(la===undefined&&lb===undefined)return a.i-b.i;
+  if(la===undefined)return 1;if(lb===undefined)return -1;
+  return la-lb||a.i-b.i;
+}).map(x=>x.plan);
 /** Compatibilité : les anciennes visites n'ont qu'un floorPlan.
  * Le tableau floorPlans devient la source de vérité dès sa création. */
 export function getFloorPlans(project:Pick<StudioProject,'floorPlan'|'floorPlans'>):FloorPlan[]{
@@ -291,6 +300,7 @@ export function validateProject(value:unknown):StudioProject {
     if(!plan||typeof plan!=='object'||!isSafeFrameImage(plan.imageDataUrl)||plan.imageDataUrl.length>6_000_000||
       typeof plan.name!=='string'||plan.name.length>200||!Array.isArray(plan.points)||plan.points.length>500||
       (plan.spaceId!==undefined&&(typeof plan.spaceId!=='string'||plan.spaceId.length>100||!plan.spaceId.trim()))||
+      (plan.level!==undefined&&(!Number.isInteger(plan.level)||plan.level<-5||plan.level>60))||
       (plan.id!==undefined&&(typeof plan.id!=='string'||plan.id.length>120||!plan.id.trim())))
       throw new Error('Plan de la visite invalide');
     if(plan.id){

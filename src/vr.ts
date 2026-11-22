@@ -1,5 +1,5 @@
 import {CanvasTexture, Color, LinearFilter, DoubleSide, Group, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
-import {getFloorPlans,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
+import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
 import {resolveLink} from './mediaLinks';
@@ -1113,7 +1113,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // ne doit jamais laisser revenir un ancien étage au-dessus du nouveau.
   let floorPlanRequest=0;
   const showFloorPlan=async(item:BottomBarItem,requestedIndex?:number)=>{
-    const plans=getFloorPlans(project()).filter(plan=>!!plan.imageDataUrl);
+    const plans=plansByLevel(getFloorPlans(project()).filter(plan=>!!plan.imageDataUrl));
     if(!plans.length){
       showText(pick(item.title,item.titleTranslations,vlang())||tt('plan'),tt('planUnset'));
       return;
@@ -1139,7 +1139,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
     addPlane(panelGroup,Math.min(1.4,W-.12),.11,canvasTexture(1000,115,ctx=>{
       ctx.fillStyle=iconColor;ctx.textAlign='center';ctx.textBaseline='middle';
-      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+'  ·  '+(index+1)+' / '+plans.length,920,43,27);
+      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),920,43,27);
       ctx.fillText(title,500,57);
     }),7,0,H/2-.068);
     const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,ctx=>{
@@ -1159,13 +1159,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       addPanelButton(.095,.095,pointTexture(String(pointIndex+1),target.id===currentId),
         x,y,()=>{void goTo(target.id);},9);
     });
-    // Même logique galerie que sur écran : précédent / suivant.
+    // Plusieurs plans / étages : colonne à gauche (escalier + un bouton par étage), le plan affiché est en surbrillance.
     if(plans.length>1){
-      const previous=(index-1+plans.length)%plans.length,next=(index+1)%plans.length;
-      addPanelButton(.10,.17,sideArrowTexture('◀'),-W/2+.075,-.025,
-        ()=>{void showFloorPlan(item,previous);},8);
-      addPanelButton(.10,.17,sideArrowTexture('▶'),W/2-.075,-.025,
-        ()=>{void showFloorPlan(item,next);},8);
+      const step=.105,top=((plans.length-1)*step)/2+.07;
+      const x=-W/2+.08;
+      addPlane(panelGroup,.095,.095,canvasTexture(180,180,ctx=>{
+        ctx.strokeStyle=iconColor;ctx.lineWidth=14;ctx.lineJoin='round';ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(26,148);ctx.lineTo(26,118);ctx.lineTo(62,118);ctx.lineTo(62,88);ctx.lineTo(98,88);ctx.lineTo(98,58);ctx.lineTo(134,58);ctx.lineTo(134,28);ctx.lineTo(160,28);ctx.stroke();
+      }),8,x,top-.0);
+      plans.forEach((other,i)=>{
+        addPanelButton(.095,.095,pointTexture(planLevelLabel(other,i),i===index),x,top-.105-i*step,()=>{void showFloorPlan(item,i);},8);
+      });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
     placePanel(PANEL_DIST,0);
