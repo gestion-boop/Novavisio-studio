@@ -3318,7 +3318,7 @@ function App(){
     setFullscreenToolsOpen(true);setMode(null);
     setStatus('Retour créé dans '+destination.name+' : déplace la flèche si nécessaire puis enregistre.');
   }
-  async function addImages(list:FileList|null,targetSpaceId?:string|null){
+  async function addImages(list:FileList|null,targetSpaceId?:string|null,onProgress?:(done:number,total:number)=>void){
     if(!list?.length)return;
     const next:Scene[]=[];
     const errors:string[]=[];
@@ -3334,6 +3334,7 @@ function App(){
       try {
         next.push({id:uid(),name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:await readPanorama(file),hotspots:[]});
       } catch(e) { errors.push(file.name+' : '+(e instanceof Error?e.message:'lecture impossible')); }
+      onProgress?.(imported,list.length);
     }
     if(next.length){
       const spaceId=targetSpaceId===undefined?activeSpaceId:targetSpaceId;

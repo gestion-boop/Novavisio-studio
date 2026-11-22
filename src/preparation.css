@@ -143,3 +143,8 @@
   .nv-setup-color-grid{grid-template-columns:1fr}
   .nv-setup-review>div{flex-direction:column;gap:4px}.nv-setup-review dt{flex:auto}
 }
+
+/* Barre de progression pendant un import ou un téléchargement dans la préparation. */
+.nv-setup-busy{padding:12px 26px 0;flex:none}
+.nv-setup-busy progress{width:100%;height:5px;border:0;border-radius:10px;overflow:hidden;background:#1c3d4d;accent-color:#5cd4c0}
+.nv-setup-busy progress::-webkit-progress-bar{background:#1c3d4d}.nv-setup-busy progress::-webkit-progress-value{background:#5cd4c0}

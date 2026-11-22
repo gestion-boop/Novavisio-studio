@@ -20,8 +20,8 @@ const palettes=[
   {name:'Océan profond',background:'#153f59',outline:'#2ad8cf',button:'#153f59',buttonOutline:'#2ad8cf',icon:'#f7f5ef'},
   {name:'Coucher de soleil',background:'#0b1826',outline:'#e8734a',button:'#e8734a',buttonOutline:'#e6c17c',icon:'#f7f5ef'},
 ];
-export function ProjectPreparation({project,setProject,onClose,onFinish,onImportPanoramas}:{project:StudioProject;setProject:Dispatch<SetStateAction<StudioProject>>;onClose:()=>void;onFinish:()=>void;onImportPanoramas:(files:FileList|null)=>Promise<void>}){
-  const [step,setStep]=useState(0),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[saveSkin,setSaveSkin]=useState(false);
+export function ProjectPreparation({project,setProject,onClose,onFinish,onImportPanoramas}:{project:StudioProject;setProject:Dispatch<SetStateAction<StudioProject>>;onClose:()=>void;onFinish:()=>void;onImportPanoramas:(files:FileList|null,targetSpaceId?:string|null,onProgress?:(done:number,total:number)=>void)=>Promise<void>}){
+  const [step,setStep]=useState(0),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[saveSkin,setSaveSkin]=useState(false),[progress,setProgress]=useState<{value:number;max:number}|null>(null);
   const content=useRef<HTMLDivElement>(null);
   // Visite créée à partir d'un client : étapes supplémentaires (fiche, boutons proposés).
   const clientMode=!!project.clientProfile?.name?.trim();
@@ -30,9 +30,9 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
   const key=keys[Math.min(step,keys.length-1)];
   function move(index:number){setStep(index);setMessage('');content.current?.scrollTo({top:0});}
   const patchStyle=(value:Partial<BarStyle>)=>setProject(p=>({...p,barStyle:updateBarStyle(p.barStyle,value)}));
-  async function choosePack(id:string){setBusy(true);setMessage('Préparation des icônes…');try{const apply=await prepareIconPack(id,project);const next=apply(project);setProject(next);setMessage('Collection appliquée à la barre et aux prochaines flèches.');}catch(e){setMessage(String(e));}finally{setBusy(false);}}
+  async function choosePack(id:string){setBusy(true);setProgress(null);setMessage('Préparation des icônes…');try{const apply=await prepareIconPack(id,project);const next=apply(project);setProject(next);setMessage('Collection appliquée à la barre et aux prochaines flèches.');}catch(e){setMessage(String(e));}finally{setBusy(false);}}
   async function importMusic(file?:File){
-    if(!file)return;setBusy(true);setMessage('Import de la musique…');
+    if(!file)return;setBusy(true);setProgress(null);setMessage('Import de la musique…');
     try{
       if(file.size>14*1024*1024||!['audio/mpeg','audio/mp3','audio/ogg','audio/wav','audio/x-wav','audio/webm','audio/mp4'].includes(file.type))throw Error('Choisis un fichier audio MP3, WAV, OGG ou WebM de 14 Mo maximum.');
       if((project.audioTracks?.length??0)>=60)throw Error('La bibliothèque contient déjà 60 pistes.');
@@ -40,7 +40,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
       const id=crypto.randomUUID();
       setProject(p=>({...p,audioTracks:[...(p.audioTracks??[]),{id,name:file.name.slice(0,120),dataUrl,volume:50,loop:true}],defaultMusicTrackId:id}));
       setMessage('Musique importée. Elle sera utilisée pour les nouveaux panoramas.');
-    }catch(e){setMessage(e instanceof Error?e.message:String(e));}finally{setBusy(false);}
+    }catch(e){setMessage(e instanceof Error?e.message:String(e));}finally{setBusy(false);setProgress(null);}
   }
   const track=project.audioTracks?.find(t=>t.id===project.defaultMusicTrackId);
   return <PreparationDialog title="Préparer mon projet" onClose={()=>{if(!busy)onClose();}}>
@@ -71,7 +71,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
           </>}
           {key==='languages'&&<><p>Choisis les langues proposées dans tes points Information. Le contenu traduit se renseigne ensuite sur chaque point.</p><div className="nv-setup-languages">{STUDIO_LANGUAGES.map(lang=><label key={lang.code}><input type="checkbox" checked={(project.languages??['fr']).includes(lang.code)} onChange={e=>{const checked=e.target.checked;setProject(p=>{const current=p.languages??['fr'];const languages=checked?[...new Set([...current,lang.code])]:current.filter(code=>code!==lang.code);return languages.length?{...p,languages}:p;});}}/><span>{lang.flag}</span>{lang.name}</label>)}</div></>}
           {key==='panoramas'&&<><p>Importe tes photos panoramiques 360° (JPG, PNG ou WebP, rapport 2:1 recommandé). Tu pourras placer les points une fois la préparation terminée.</p>
-            <label className="nv-setup-upload">＋ Importer des panoramas<input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={e=>{const files=e.target.files;if(!files?.length)return;setBusy(true);setMessage('Import des panoramas…');void onImportPanoramas(files).then(()=>setMessage('Import terminé. Vérifie la liste des panoramas ci-dessous.')).catch(err=>setMessage(String(err))).finally(()=>setBusy(false));e.target.value='';}}/></label>
+            <label className="nv-setup-upload">＋ Importer des panoramas<input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={e=>{const files=e.target.files;if(!files?.length)return;setBusy(true);setProgress({value:0,max:files.length});setMessage('Import des panoramas…');void onImportPanoramas(files,undefined,(done,total)=>setProgress({value:done,max:total})).then(()=>setMessage('Import terminé. Vérifie la liste des panoramas ci-dessous.')).catch(err=>setMessage(String(err))).finally(()=>{setBusy(false);setProgress(null);});e.target.value='';}}/></label>
             <p>{project.scenes.length} panorama(s) dans le projet</p>
           </>}
           {key==='plans'&&<><p>Étape facultative : importe le plan d'étage (image JPG, PNG ou WebP). Clique ensuite sur « ✨ Placer automatiquement » : le premier panorama (l'entrée) est posé en premier, puis les suivants selon les liens. « 🔎 Lire le plan » reprend les noms de pièces et les superficies écrits sur le plan pour renommer tes panoramas. Tout reste à valider et à ajuster à la souris.</p>
@@ -106,6 +106,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
             {saveSkin&&<SkinChoices project={project} setProject={setProject}/>}
             <p className="nv-setup-note">Clique ensuite sur « Enregistrer » dans la barre du haut pour sauvegarder le projet dans ton compte Cloud. Les skins se sauvegardent séparément dans leur bibliothèque.</p>
           </>}
+          {busy&&<div className="nv-setup-busy" role="progressbar" aria-label={message||'Chargement en cours'} aria-valuemin={0} aria-valuemax={progress?.max}{...(progress?{'aria-valuenow':progress.value}:{})}><progress value={progress?.value} max={progress?.max}/></div>}
           <p role="status" className="nv-setup-message">{message}</p>
         </div>
         <footer><button type="button" disabled={busy} onClick={onClose}>Plus tard</button><div><button type="button" disabled={busy||step===0} onClick={()=>move(step-1)}>Précédent</button>{step<steps.length-1?<button type="button" disabled={busy} className="nv-setup-next" onClick={()=>move(step+1)}>Suivant →</button>:<button type="button" disabled={busy} className="nv-setup-next" onClick={onFinish}>Commencer la création</button>}</div></footer>
