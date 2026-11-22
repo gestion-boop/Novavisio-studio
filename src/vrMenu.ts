@@ -25,6 +25,7 @@ export type VrAction = {id: string; label: string};
 /** Actions intégrées. Les boutons de la barre du bas s'ajoutent sous la forme `bar:<identifiant>`. */
 export const VR_BUILTIN_ACTIONS: ReadonlyArray<VrAction> = [
   {id: 'gallery', label: 'Galerie des panoramas'},
+  {id: 'photos', label: 'Photos'},
   {id: 'up', label: 'Panorama précédent'},
   {id: 'counter', label: 'Compteur « n / N »'},
   {id: 'down', label: 'Panorama suivant'},
@@ -35,11 +36,18 @@ export const VR_BUILTIN_ACTIONS: ReadonlyArray<VrAction> = [
   {id: 'exit', label: 'Fermer le menu'},
 ];
 
-/** Interface actuelle : colonne de gauche (navigation) et colonne de droite (commandes). */
+/** Case vide d'une colonne : garde l'alignement des lignes entre les deux colonnes. */
+export const VR_GAP = '';
+
+/** Interface par défaut (conforme à la disposition ImmoSphera / VR standard). */
 export const DEFAULT_VR_MENU: VrMenuConfig = {
-  left: ['gallery', 'up', 'counter', 'down', 'home'],
-  right: ['sound', 'plan', 'help', 'exit'],
+  left: ['gallery', 'plan', 'photos', VR_GAP, VR_GAP, 'home'],
+  right: ['sound', VR_GAP, VR_GAP, VR_GAP, 'help', 'exit'],
+  autoOpen: true,
 };
+
+const isBuiltinPhotosBar = (item: Pick<StudioProject['bottomBar'][number], 'type' | 'title' | 'builtinIcon' | 'url' | 'text'>) =>
+  item.type === 'photos' || (barKind(item) === 'photos' && !item.url && item.type !== 'gallery' && item.type !== 'plan');
 
 /** Actions disponibles pour ce projet : intégrées + boutons de la barre du bas sans doublons. */
 export function availableVrActions(project: Pick<StudioProject, 'bottomBar'>): VrAction[] {
@@ -49,6 +57,7 @@ export function availableVrActions(project: Pick<StudioProject, 'bottomBar'>): V
   for (const item of project.bottomBar) {
     if (excluded.has(item.id)) continue;
     if (item.type === 'plan') continue;
+    if (isBuiltinPhotosBar(item)) continue;
     if (item.type === 'gallery' && !item.gallerySpaceIds?.length) continue;
     if (item.type === 'navigation' && !item.target) continue;
     const label = item.title?.trim() || (item.type === 'gallery' ? 'Espaces' : 'Sans titre');
@@ -60,9 +69,6 @@ export function availableVrActions(project: Pick<StudioProject, 'bottomBar'>): V
   return [...VR_BUILTIN_ACTIONS, ...extra];
 }
 
-/** Case vide d'une colonne : garde l'alignement des lignes entre les deux colonnes. */
-export const VR_GAP = '';
-
 /** Dernier index occupé d'une colonne (-1 si vide). */
 const lastUsed = (list: string[]) => {for (let i = list.length - 1; i >= 0; i--) if (list[i]) return i; return -1;};
 const firstUsed = (list: string[]) => list.findIndex(Boolean);
@@ -73,6 +79,7 @@ function canonicalVrAction(id: string, project: Pick<StudioProject, 'bottomBar'>
   const item = project.bottomBar.find((b) => b.id === id.slice(4));
   if (!item) return id;
   if (item.type === 'plan') return 'plan';
+  if (isBuiltinPhotosBar(item)) return 'photos';
   if (item.type === 'gallery' && !item.gallerySpaceIds?.length) return 'gallery';
   if (item.type === 'navigation' && !item.target) return 'home';
   return id;
@@ -135,10 +142,108 @@ export function layoutColumns(left: string[], right: string[], options: VrLayout
   return {left: place(L, -1), right: place(R, 1), pitch, x, btn, rows};
 }
 
+/** Résout dynamiquement la galerie des panoramas pour le projet courant (même après changement de skin). */
+export function resolveVrGalleryItem(project: Pick<StudioProject, 'scenes' | 'spaces' | 'bottomBar'>): StudioProject['bottomBar'][number] {
+  const visible = project.scenes.filter((s) => !s.excluded);
+  const visibleIds = new Set(visible.map((s) => s.id));
+  const spaceIds = new Set((project.spaces ?? []).filter((sp) => sp.sceneIds.some((id) => visibleIds.has(id))).map((sp) => sp.id));
+  const found = project.bottomBar.find((b) => b.type === 'gallery' && !b.gallerySpaceIds?.length)
+    ?? project.bottomBar.find((b) => b.type === 'gallery');
+  const cleanGallery = (found?.gallery ?? []).filter((g) => visibleIds.has(g.sceneId));
+  const cleanSpaces = (found?.gallerySpaceIds ?? []).filter((id) => spaceIds.has(id));
+  const fallbackGallery = visible.map((s) => ({sceneId: s.id, label: ''}));
+  if (found) {
+    return {
+      ...found,
+      gallery: cleanGallery.length ? cleanGallery : fallbackGallery,
+      gallerySpaceIds: cleanSpaces.length ? cleanSpaces : (found.gallerySpaceIds?.length && spaceIds.size ? [...spaceIds] : undefined),
+    };
+  }
+  return {
+    id: 'vr-gallery',
+    title: 'Panoramas',
+    type: 'gallery',
+    gallery: fallbackGallery,
+    gallerySpaceIds: spaceIds.size ? [...spaceIds] : undefined,
+    target: '',
+    text: '',
+    url: '',
+  };
+}
+
+/** Résout dynamiquement les photos du projet courant : bouton Photos, puis Bibliothèque Photos & Vidéos, puis photos posées dans les scènes. */
+export function resolveVrPhotosItem(project: Pick<StudioProject, 'bottomBar' | 'mediaLibrary' | 'scenes' | 'clientProfile'>): StudioProject['bottomBar'][number] | null {
+  const chosen = project.bottomBar.find((b) => b.type === 'photos' && (b.photos?.length ?? 0) > 0)
+    ?? project.bottomBar.find((b) => isBuiltinPhotosBar(b) && ((b.photos?.length ?? 0) > 0 || !!b.url))
+    ?? project.bottomBar.find((b) => b.type === 'photos' || isBuiltinPhotosBar(b));
+  if (chosen && (chosen.photos?.length ?? 0) > 0) return chosen;
+  const lib = project.mediaLibrary ?? [];
+  const libPhotos = lib.filter((m) => m.kind === 'photo');
+  const picked = libPhotos.length ? libPhotos : lib;
+  if (picked.length) {
+    return {
+      id: chosen?.id ?? 'vr-photos',
+      title: chosen?.title || 'Photos',
+      titleTranslations: chosen?.titleTranslations,
+      type: 'photos',
+      photos: picked,
+      target: '',
+      text: '',
+      url: '',
+    };
+  }
+  const scenePhotos: NonNullable<StudioProject['mediaLibrary']> = [];
+  const seenSrc = new Set<string>();
+  for (const sc of project.scenes) {
+    if (sc.excluded) continue;
+    for (const h of sc.hotspots) {
+      if (h.type !== 'image') continue;
+      const src = h.imageDataUrl || h.imageUrl || '';
+      if (!src || seenSrc.has(src)) continue;
+      seenSrc.add(src);
+      scenePhotos.push({
+        id: 'hs-' + h.id,
+        kind: 'photo',
+        name: h.title || sc.name || 'Photo',
+        provider: h.imageDataUrl ? 'local' : 'web',
+        url: h.imageUrl || '',
+        ...(h.imageDataUrl ? {data: h.imageDataUrl} : {}),
+      });
+    }
+  }
+  if (scenePhotos.length) {
+    return {
+      id: chosen?.id ?? 'vr-photos',
+      title: chosen?.title || 'Photos',
+      titleTranslations: chosen?.titleTranslations,
+      type: 'photos',
+      photos: scenePhotos,
+      target: '',
+      text: '',
+      url: '',
+    };
+  }
+  const clientUrls = (project.clientProfile?.photoUrls ?? []).filter((u) => /^https?:\/\//i.test(u));
+  if (clientUrls.length) {
+    return {
+      id: chosen?.id ?? 'vr-photos',
+      title: chosen?.title || 'Photos',
+      titleTranslations: chosen?.titleTranslations,
+      type: 'photos',
+      photos: clientUrls.map((u, i) => ({id: 'client-photo-' + i, kind: 'photo' as const, name: 'Photo ' + (i + 1), provider: 'web' as const, url: u})),
+      target: '',
+      text: '',
+      url: '',
+    };
+  }
+  return chosen ? {...chosen, type: 'photos', photos: chosen.photos ?? []} : null;
+}
+
 /** Libellé du bouton pour l'éditeur (aperçu) : symbole simple par action. */
 export function vrActionSymbol(id: string): string {
   switch (id) {
     case 'gallery': return '▣';
+    case 'photos': return '🖼';
     case 'up': return '▲';
     case 'counter': return '1/9';
     case 'down': return '▼';

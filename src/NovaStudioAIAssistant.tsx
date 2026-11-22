@@ -639,7 +639,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
       bottomBar: newBottomBar.length > 0 ? newBottomBar : project.bottomBar,
       barStyle: appliedBarStyle,
       languages: selectedLanguages,
-      vrEnabled: visitType === 'vr' || visitType === 'hybrid',
+      vrEnabled: visitType === 'vr' || visitType === 'hybrid' || /immosphera/i.test((clientName + ' ' + projectName).normalize('NFD').replace(/[\u0300-\u036f]/g, '')),
       icons: iconsToAdd,
       buttonSets: buttonSetsToAdd,
     };

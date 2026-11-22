@@ -8,7 +8,7 @@ import {frameWorldCorners} from './sphericalFrame';
 import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
-import {layoutColumns,vrMenuOf,VR_SHELL} from './vrMenu';
+import {layoutColumns,resolveVrGalleryItem,resolveVrPhotosItem,vrMenuOf,VR_SHELL} from './vrMenu';
 import {isReturnLink,displayPitch} from './returnLink';
 import {setVrMusicPlaying} from './vrAudioBridge';
 import {barKind} from './barKind';
@@ -574,16 +574,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
     const scenes=project().scenes.filter(scene=>!scene.excluded);
     const sceneIndex=Math.max(0,scenes.findIndex(scene=>scene.id===currentId));
-    const gallery=project().bottomBar.find(item=>item.type==='gallery');
-    const galleryDefault={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
-      gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
+    const galleryAction=resolveVrGalleryItem(project());
+    const photosAction=resolveVrPhotosItem(project());
     const plan=project().bottomBar.find(item=>item.type==='plan');
     const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
     // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
     // Pictogramme d'après le rôle du bouton (photo, carte, téléphone…), comme dans l'éditeur.
     const iconOfItem=(item:BottomBarItem):VrControlIcon=>{
       const kind=barKind(item);
-      if(kind==='photos')return 'photos';
+      if(kind==='photos'||item.type==='photos')return 'photos';
       if(kind==='map'||item.type==='plan')return 'plan';
       if(kind==='phone'||kind==='web'||item.type==='lien')return 'link';
       if(kind==='info'||kind==='menu'||item.type==='information')return 'info';
@@ -622,6 +621,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const labelForId=(id:string):string=>{
       switch(id){
         case 'gallery':return 'Panoramas';
+        case 'photos':return 'Photos';
         case 'up':return 'Précédent';
         case 'down':return 'Suivant';
         case 'home':return 'Accueil';
@@ -643,7 +643,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     };
     const actionOf=(id:string):{icon:VrControlIcon;run:()=>void} | null=>{
       switch(id){
-        case 'gallery':return {icon:'gallery',run:()=>togglePanel('gallery',()=>{void showGallery(gallery??galleryDefault);})};
+        case 'gallery':return {icon:'gallery',run:()=>togglePanel('gallery',()=>{void showGallery(galleryAction);})};
+        case 'photos':return {icon:'photos',run:()=>togglePanel('photos',()=>{
+          const resolved=resolveVrPhotosItem(project());
+          if(resolved?.url&&!(resolved.photos?.length))void showWebContent(pick(resolved.title,resolved.titleTranslations,vlang())||'Photos',resolved.url,'');
+          else void showPhotoGallery(resolved??photosAction??{id:'vr-photos',title:'Photos',type:'photos',photos:[],target:'',text:'',url:''});
+        })};
         case 'up':return {icon:'up',run:()=>{const target=scenes[Math.max(0,sceneIndex-1)];if(target)void goTo(target.id);}};
         case 'down':return {icon:'down',run:()=>{const target=scenes[Math.min(scenes.length-1,sceneIndex+1)];if(target)void goTo(target.id);}};
         case 'home':return {icon:'home',run:()=>{if(scenes[0])void goTo(scenes[0].id);}};
@@ -1144,9 +1149,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Colonnes latérales : mêmes actions que l'interface classique (galerie, haut, libellé, bas, accueil ; plan à droite).
     const scenesNow=project().scenes.filter(scene=>!scene.excluded);
     const idx=Math.max(0,scenesNow.findIndex(scene=>scene.id===currentId));
-    const galleryItem=project().bottomBar.find(item=>item.type==='gallery');
-    const galleryFallback={id:'vr-menu-gallery',title:'Panoramas',type:'gallery',
-      gallery:scenesNow.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
     const sideButton=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
       const tex2=makeVrControlTexture(icon,'normal');
       addButton(panelGroup,.114,.114,tex2,x,y,onSelect,9);
@@ -1163,7 +1165,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
     for(const slot of [...cols.left,...cols.right]){
       if(slot.id==='counter'){addPlane(panelGroup,.13,.076,counterTex,8,slot.x,slot.y);continue;}
-      if(slot.id==='gallery')sideButton(slot.x,slot.y,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
+      if(slot.id==='gallery')sideButton(slot.x,slot.y,'gallery',()=>{void showGallery(resolveVrGalleryItem(project()));});
+      if(slot.id==='photos'){const pItem=resolveVrPhotosItem(project());sideButton(slot.x,slot.y,'photos',()=>{void showPhotoGallery(pItem??{id:'vr-photos',title:'Photos',type:'photos',photos:[],target:'',text:'',url:''});});}
       if(slot.id==='up')sideButton(slot.x,slot.y,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
       if(slot.id==='down')sideButton(slot.x,slot.y,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
       if(slot.id==='home')sideButton(slot.x,slot.y,'home',()=>{if(scenesNow[0])void goTo(scenesNow[0].id);});
@@ -1198,9 +1201,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const cw=referenceMode?.68:.62,ch=referenceMode?.355:.34,gx=referenceMode?.024:.06,gy=referenceMode?.022:.05;
       const menuNow=vrMenuOf(project());
       const placedIds=new Set([...menuNow.left,...menuNow.right]);
-      const photoCandidate=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
+      const photoCandidate=referenceMode?resolveVrPhotosItem(project()):null;
       // Pas de deuxième bouton Photos si Photos est déjà présent sur une colonne du menu VR.
-      const photoItem=photoCandidate&&!placedIds.has('bar:'+photoCandidate.id)?photoCandidate:undefined;
+      const photoItem=photoCandidate&&(photoCandidate.photos?.length??0)>0&&!placedIds.has('photos')&&!placedIds.has('bar:'+photoCandidate.id)?photoCandidate:undefined;
       const W=referenceMode?2.22:cols*cw+(cols-1)*gx+.32;
       const H=referenceMode?1.34:.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
@@ -1351,13 +1354,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
 
   function onBarItem(item:BottomBarItem){
     if(item.type==='plan'){void showFloorPlan(item);return;}
-    if(item.type==='gallery'){void showGallery(item);return;}
+    if(item.type==='gallery'){void showGallery(resolveVrGalleryItem({...project(),bottomBar:[item,...project().bottomBar.filter(b=>b.id!==item.id)]}));return;}
     if(item.type==='navigation'){
       if(item.target){void goTo(item.target);return;}
       // Bouton Espaces sans cible : affiche la liste des panoramas et espaces.
       void showGallery({...item,type:'gallery',galleryTitle:pick(item.title,item.titleTranslations,vlang())||tt('spaces'),gallery:project().scenes.map(scene=>({sceneId:scene.id,label:pick(scene.name,scene.nameTranslations,vlang())})),gallerySpaceIds:project().spaces?.map(space=>space.id)});return;
     }
-    if(item.type==='photos'){void showPhotoGallery(item);return;}
+    if(item.type==='photos'){void showPhotoGallery(item.photos?.length?item:(resolveVrPhotosItem(project())??item));return;}
     if(item.type==='information'){
       const body=infoText(item);
       const url=item.url||((body.match(/https?:\/\/[^\s]+/i)||[])[0]);
@@ -1654,11 +1657,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       uiHidden=false;
       void buildBar().then(()=>{
         if(referenceMode&&!ended){
-          const scenes=project().scenes.filter(scene=>!scene.excluded);
-          const gallery=project().bottomBar.find(b=>b.type==='gallery');
-          const fallback={id:'vr-ab-gallery',title:'Panoramas',type:'gallery',
-            gallery:scenes.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
-          void showGallery(gallery??fallback);
+          void showGallery(resolveVrGalleryItem(project()));
         }
       }).finally(()=>{switchingReference=false;});
     }
@@ -1891,9 +1890,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     referenceMode=true;remoteTarget=null;panelAnchor=null;
     updateVrPalette();closePanels();uiHidden=false;
     await buildBar();
-    const sceneList=project().scenes.filter(sc=>!sc.excluded);
-    const galleryItem=project().bottomBar.find(b=>b.type==='gallery');
-    void showGallery(galleryItem??({id:'vr-ab-gallery',title:'Panoramas',type:'gallery',gallery:sceneList.map(sc=>({sceneId:sc.id,label:sc.name}))} as BottomBarItem));
+    void showGallery(resolveVrGalleryItem(project()));
   }
   return ()=>{if(!ended)void session.end();};
 }
