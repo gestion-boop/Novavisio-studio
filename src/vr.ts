@@ -366,8 +366,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(!ok)setNotice(tt('unavailable'));
     else{
       renderRoomHeader();
+      remoteTarget=null;remoteEngagedInWorld=false;
       // Arrivée sur le nouveau panorama : l'interface jaune se ferme entièrement (A/B la rouvre).
-      if(referenceMode){referenceMode=false;remoteTarget=null;panelAnchor=null;updateVrPalette();}
+      if(referenceMode){
+        referenceMode=false;panelAnchor=null;updateVrPalette();
+        vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+        barGroup.position.set(0,0,0);barGroup.quaternion.identity();
+        panelGroup.position.set(0,0,0);panelGroup.quaternion.identity();
+      }
       clearGroup(barGroup);clearGroup(vrShellGroup);clearGroup(panelGroup);
     }
   }
@@ -440,7 +446,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const m=addPlane(parent,w,h,tex,order,x,y,0.002) as unknown as Clickable;
     // Les boutons restent géométriquement fixes : le rayon du contrôleur ne
     // peut plus les faire grossir/rétrécir et provoquer un scintillement.
-    m.userData={baseScale:1,hoverScale:1.14,onSelect};clickables.push(m);return m;
+    m.userData={baseScale:1,hoverScale:1,onSelect};clickables.push(m);return m;
   };
 
   const placeInFront=(g:Group,distance:number,drop:number)=>{
@@ -502,10 +508,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Le casque démarre sans barre. A/B ouvre ou ferme l'unique bloc VR.
     if(!referenceMode){
       clearGroup(barGroup);clearGroup(vrShellGroup);
+      vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+      barGroup.position.set(0,0,0);barGroup.quaternion.identity();
       return;
     }
     if(referenceMode){
     clearGroup(barGroup);clearGroup(vrShellGroup);
+    barGroup.position.set(0,0,0);barGroup.quaternion.identity();
     const menu=vrMenuOf(project());
     const grid=layoutColumns(menu.left,menu.right);
     // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
@@ -572,7 +581,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const closeMenu=()=>{
       referenceMode=false;
       remoteTarget=null;
+      remoteEngagedInWorld=false;
       panelAnchor=null;
+      vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+      barGroup.position.set(0,0,0);barGroup.quaternion.identity();
+      panelGroup.position.set(0,0,0);panelGroup.quaternion.identity();
       updateVrPalette();
       closePanels();
       clearGroup(barGroup);
@@ -612,7 +625,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
         case 'plan':return {icon:'plan',run:()=>togglePanel('plan',()=>{void showFloorPlan(plan??planAction);})};
         case 'help':return {icon:'help',run:()=>togglePanel('help',()=>showText('Navigation VR',
-          'Gauche et droite : laser jaune+bleu et gâchette. L’autre manette sert de télécommande agent immobilier. A/B ou X/Y : ouvrir/fermer.'))};
+          '1re gâchette utilisée : manette laser prioritaire (jaune + embout bleu). L’autre manette devient télécommande agent immobilier (joystick + gâchette sans prendre le contrôle). A/B ou X/Y : ouvrir/fermer.'))};
         case 'exit':return {icon:'exit',run:closeMenu};
       }
       if(id.startsWith('bar:')){
@@ -703,13 +716,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
       return;
     }
+    vrInterfaceGroup.position.set(0,0,0);
+    vrInterfaceGroup.quaternion.identity();
     if(panelReplace&&panelAnchor){
-      vrInterfaceGroup.position.copy(panelAnchor.pos);
-      vrInterfaceGroup.quaternion.copy(panelAnchor.quat);
+      panelGroup.position.copy(panelAnchor.pos);
+      panelGroup.quaternion.copy(panelAnchor.quat);
       return;
     }
-    placeInFront(vrInterfaceGroup,distance,drop);
-    panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
+    placeInFront(panelGroup,distance,drop);
+    panelAnchor={pos:panelGroup.position.clone(),quat:panelGroup.quaternion.clone()};
   };
   let activeVideo:{el:HTMLVideoElement;tex:VideoTexture}|null=null;
   const stopVideo=()=>{
@@ -732,7 +747,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
   }
   const addPanelButton=(w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void,order=6)=>{
-    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,order);m.userData={...m.userData,hoverScale:1.08};(m as Object3D).userData.panel=true;return m;
+    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,order);m.userData={...m.userData,hoverScale:1};(m as Object3D).userData.panel=true;return m;
   };
   // Vignettes : la tuile s'affiche tout de suite, l'image arrive ensuite (mise en cache, jamais rechargée).
   const thumbCache=new Map<string,Promise<HTMLCanvasElement|null>>();
@@ -1066,7 +1081,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const showVideoPanel=async(src:string|undefined,title:string)=>{
     if(!src){setNotice(tt('videoClassic'));return;}
     // Un seul clic sur la télé : on passe en interface jaune (sans appuyer sur A/B) et on affiche l'interface.
-    if(!referenceMode){referenceMode=true;updateVrPalette();void buildBar();}
+    if(!referenceMode){referenceMode=true;panelAnchor=null;remoteEngagedInWorld=false;updateVrPalette();void buildBar();}
     uiHidden=false;
     closePanels();
     const el=document.createElement('video');
@@ -1238,8 +1253,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
         (m.material as MeshBasicMaterial).opacity=0;
         const targetId=sceneId;
+        const pt=plan.points.find(p=>p.sceneId===sceneId);
+        const remotePos=pt?new Vector3(imgX+(pt.x/100-.5)*imageW,imgY+(.5-pt.y/100)*imageH,0):new Vector3(imgX,imgY,0);
+        const maskData=canvas.getContext('2d')?.getImageData(0,0,canvas.width,canvas.height).data;
         // Chaque pièce est un quad plein plan : on garde son masque pour ne la viser que sur ses pixels.
-        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;closePanels();void goTo(targetId);}});
+        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,roomMaskData:maskData,roomMaskW:canvas.width,roomMaskH:canvas.height,remotePos,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;closePanels();void goTo(targetId);}});
         clickables.push(m as unknown as Clickable);
         roomIds.add(sceneId);
       }
@@ -1307,34 +1325,35 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     setNotice(tt('buttonClassic'));
   }
 
-  // ---- télécommande gauche + laser de pointage droit --------------------------
-  // Joystick gauche : télécommande sans rayon. Laser précis seulement à droite.
+  // ---- manette prioritaire (1re gâchette) + télécommande agent immobilier --------
   const controllers=[0,1].map(i=>{
     const controller=renderer.xr.getController(i);
     scene.add(controller);
     return controller;
   });
-  // Une seule manette affiche le laser (par défaut la droite, ou celle dont on actionne la gâchette) ;
-  // l'autre manette sert automatiquement de télécommande à l'agent immobilier (sans laser).
+  // La 1re manette dont on actionne la gâchette devient prioritaire (laser jaune + embout bleu) ;
+  // l'autre manette devient automatiquement la télécommande agent immobilier (sans laser, sans jamais reprendre le contrôle).
   let activeLaserHand:'left'|'right'='right';
+  let priorityChosen=false;
+  let remoteEngagedInWorld=false;
   const laserRaycaster=new Raycaster();
   const makeLaser=()=>{
     // Cylindre fin bien visible en WebXR (contrairement à Line qui reste à 1 px sous WebGL2)
-    const geo=new CylinderGeometry(.0022,.003,1,10);
+    const geo=new CylinderGeometry(.0018,.0024,1,12);
     geo.rotateX(Math.PI/2);
     geo.translate(0,0,-.5);
-    const mat=new MeshBasicMaterial({color:0xffd43b,transparent:true,opacity:.95,depthTest:false,depthWrite:false});
+    const mat=new MeshBasicMaterial({color:0xffd43b,transparent:true,opacity:.96,depthTest:false,depthWrite:false});
     const line=new Mesh(geo,mat);
-    line.renderOrder=9;
+    line.renderOrder=25;
     // Embout bleu lumineux toujours visible au bout du rayon (coeur bleu vif + halo cyan)
     const dot=new Group();
-    const coreGeo=new SphereGeometry(.016,16,12),coreMat=new MeshBasicMaterial({color:0x009eff,depthTest:false,depthWrite:false});
-    const core=new Mesh(coreGeo,coreMat);core.renderOrder=12;
-    const haloGeo=new SphereGeometry(.028,16,12),haloMat=new MeshBasicMaterial({color:0x4ce3ff,transparent:true,opacity:.5,depthTest:false,depthWrite:false});
-    const halo=new Mesh(haloGeo,haloMat);halo.renderOrder=11;
+    const coreGeo=new SphereGeometry(.0075,16,12),coreMat=new MeshBasicMaterial({color:0x009eff,depthTest:false,depthWrite:false});
+    const core=new Mesh(coreGeo,coreMat);core.renderOrder=27;
+    const haloGeo=new SphereGeometry(.014,16,12),haloMat=new MeshBasicMaterial({color:0x4ce3ff,transparent:true,opacity:.55,depthTest:false,depthWrite:false});
+    const halo=new Mesh(haloGeo,haloMat);halo.renderOrder=26;
     dot.add(core,halo);dot.visible=false;
     disposables.push(geo,mat,coreGeo,coreMat,haloGeo,haloMat);
-    return {line,dot,hoveredLast:null as Clickable|null,candidate:null as Clickable|null,candidateSince:0};
+    return {line,dot,hoveredLast:null as Clickable|null,lastHapticTarget:null as Clickable|null,lastHapticAt:0};
   };
   const handLasers={left:makeLaser(),right:makeLaser()};
   const tooltipTextures=new Map<string,Texture>();
@@ -1345,17 +1364,33 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   vrInterfaceGroup.add(hoverTooltip);
   let lastTooltipText='';
   disposables.push(hoverTooltipGeo,hoverTooltipMat);
-  const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null}=>{
+  const controllerOfHand=(hand:'left'|'right')=>
+    controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
+  const hideLaser=(hand:'left'|'right')=>{
+    const L=handLasers[hand];
+    L.line.visible=false;L.dot.visible=false;L.hoveredLast=null;
+  };
+  const shownInScene=(item:Object3D)=>{let p:Object3D|null=item;while(p){if(!p.visible)return false;p=p.parent;}return true;};
+  const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null;distance:number|null}=>{
     const pos=new Vector3(),dir=new Vector3(0,0,-1);
     controller.updateMatrixWorld(true);
+    vrInterfaceGroup.updateMatrixWorld(true);
+    hotspotGroup.updateMatrixWorld(true);
     controller.getWorldPosition(pos);
-    dir.transformDirection(controller.matrixWorld);
+    dir.transformDirection(controller.matrixWorld).normalize();
     laserRaycaster.set(pos,dir);
-    const shown=(item:Object3D)=>{let p:Object3D|null=item;while(p){if(!p.visible)return false;p=p.parent;}return true;};
-    const buttons=clickables.filter(item=>item.parent&&shown(item)&&!!item.userData.onSelect);
+    const buttons=clickables.filter(item=>item.parent&&shownInScene(item)&&!!item.userData.onSelect);
     // La plaque commune ne doit pas laisser le laser sélectionner un hotspot derrière elle.
-    const blockers=[...panelGroup.children,...barGroup.children,...vrShellGroup.children].filter(item=>shown(item)&&!item.userData.onSelect);
+    const blockers=[...panelGroup.children,...barGroup.children,...vrShellGroup.children].filter(item=>shownInScene(item)&&!item.userData.onSelect);
     const maskFilter=(hit:{object:Object3D;uv?:{x:number;y:number}})=>{
+      const data=hit.object.userData.roomMaskData as Uint8ClampedArray|undefined;
+      const w=hit.object.userData.roomMaskW as number|undefined;
+      const h=hit.object.userData.roomMaskH as number|undefined;
+      if(data&&w&&h&&hit.uv){
+        const x=Math.min(w-1,Math.max(0,Math.floor(hit.uv.x*w)));
+        const y=Math.min(h-1,Math.max(0,Math.floor((1-hit.uv.y)*h)));
+        return data[(y*w+x)*4+3]>0;
+      }
       const mask=hit.object.userData.roomMask as HTMLCanvasElement|undefined;
       if(!mask||!hit.uv)return true;
       const x=Math.min(mask.width-1,Math.max(0,Math.floor(hit.uv.x*mask.width)));
@@ -1366,13 +1401,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const blkHits=laserRaycaster.intersectObjects(blockers,false);
     // Priorité stricte aux boutons : un fond coplanaire ne vole jamais le clic ; seul un panneau nettement devant (> 3 cm) bloque.
     if(btnHits.length&&(!blkHits.length||blkHits[0].distance>=btnHits[0].distance-.03)){
-      return {target:btnHits[0].object as Clickable,point:btnHits[0].point};
+      return {target:btnHits[0].object as Clickable,point:btnHits[0].point,distance:btnHits[0].distance};
     }
-    if(blkHits.length)return {target:null,point:blkHits[0].point};
-    return {target:null,point:null};
+    if(blkHits.length)return {target:null,point:blkHits[0].point,distance:blkHits[0].distance};
+    return {target:null,point:null,distance:null};
   };
   let remoteTarget:Clickable|null=null;
   let remoteAxisArmed=true;
+  let remoteAxisHeldSince=0;
+  let remoteAxisLastStep=0;
   // Cadre doré autour du contrôle sélectionné. La bordure suit la cible,
   // elle n'est pas un laser et ne dépend pas de l'orientation de la manette.
   const remoteFocus=new Mesh(new PlaneGeometry(1,1),new MeshBasicMaterial({
@@ -1381,19 +1418,44 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   remoteFocus.visible=false;ui.add(remoteFocus);
   disposables.push(remoteFocus.geometry,remoteFocus.material as MeshBasicMaterial);
   const remoteCandidates=():Clickable[]=>{
-    if(!referenceMode||uiHidden)return [];
-    const shown=(obj:Object3D)=>{let x:Object3D|null=obj;while(x){if(!x.visible)return false;x=x.parent;}return true;};
-    const panel=clickables.filter(m=>m.parent===panelGroup&&shown(m)&&!!m.userData.onSelect);
-    const sides=clickables.filter(m=>m.parent===barGroup&&shown(m)&&!!m.userData.onSelect);
-    return [...panel,...sides];
+    if(uiHidden)return [];
+    const panel=clickables.filter(m=>m.parent===panelGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    const sides=clickables.filter(m=>m.parent===barGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    if(referenceMode||panel.length)return [...panel,...sides];
+    const hotspots=clickables.filter(m=>m.parent===hotspotGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    return [...hotspots,...sides];
   };
   const remotePositions=(items:Clickable[])=>{
+    vrInterfaceGroup.updateMatrixWorld(true);
+    hotspotGroup.updateMatrixWorld(true);
+    const allUi=items.every(m=>m.parent===panelGroup||m.parent===barGroup);
+    if(allUi){
+      return items.map(mesh=>{
+        const p=new Vector3();
+        if(mesh.userData.remotePos instanceof Vector3&&mesh.parent){
+          p.copy(mesh.userData.remotePos);
+          mesh.parent.localToWorld(p);
+        }else mesh.getWorldPosition(p);
+        vrInterfaceGroup.worldToLocal(p);
+        return {mesh,x:p.x,y:p.y};
+      });
+    }
     const xrCamera=renderer.xr.getCamera();
-    const eye=xrCamera.cameras[0]??xrCamera;
-    eye.updateMatrixWorld();
+    const camPos=new Vector3(),camDir=new Vector3(),camUp=new Vector3(),camRight=new Vector3();
+    xrCamera.getWorldPosition(camPos);
+    xrCamera.getWorldDirection(camDir).normalize();
+    camUp.set(0,1,0).applyQuaternion(xrCamera.quaternion).normalize();
+    camRight.crossVectors(camDir,camUp).normalize();
     return items.map(mesh=>{
-      const point=new Vector3();mesh.getWorldPosition(point);point.project(eye);
-      return {mesh,x:point.x,y:point.y};
+      const p=new Vector3();
+      if(mesh.userData.remotePos instanceof Vector3&&mesh.parent){
+        p.copy(mesh.userData.remotePos);
+        mesh.parent.localToWorld(p);
+      }else mesh.getWorldPosition(p);
+      const v=p.sub(camPos).normalize();
+      const x=Math.atan2(v.dot(camRight),v.dot(camDir));
+      const y=Math.asin(Math.max(-1,Math.min(1,v.dot(camUp))));
+      return {mesh,x,y};
     });
   };
   const navigateRemote=(horizontal:number,vertical:number)=>{
@@ -1401,16 +1463,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(!items.length){remoteTarget=null;return;}
     const coords=remotePositions(items);
     let current=coords.find(p=>p.mesh===remoteTarget);
-    if(!current){current=[...coords].sort((a,b)=>b.y-a.y||a.x-b.x)[0];remoteTarget=current.mesh;return;}
+    if(!current){
+      // En vue libre (sans panneau), partir de l'élément le plus proche du centre du regard ; en interface, haut-gauche.
+      current=referenceMode||panelGroup.children.length
+        ?[...coords].sort((a,b)=>b.y-a.y||a.x-b.x)[0]
+        :[...coords].sort((a,b)=>Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y))[0];
+      remoteTarget=current.mesh;
+      return;
+    }
     const xdir=Math.abs(horizontal)>=Math.abs(vertical)?Math.sign(horizontal):0;
     const ydir=xdir?0:-Math.sign(vertical);
     const options=coords.filter(p=>p!==current).map(p=>{
       const dx=p.x-current.x,dy=p.y-current.y;
       const forward=dx*xdir+dy*ydir,side=Math.abs(dx*ydir-dy*xdir);
-      return {...p,forward,score:forward+side*2.5};
-    }).filter(p=>p.forward>.015&&p.forward>Math.abs(p.x*ydir-p.y*xdir-(current.x*ydir-current.y*xdir))*.18);
+      return {...p,forward,score:forward+side*2.2};
+    }).filter(p=>p.forward>.012&&p.forward>Math.abs(p.x*ydir-p.y*xdir-(current.x*ydir-current.y*xdir))*.05);
     const next=options.sort((a,b)=>a.score-b.score)[0];
     if(next)remoteTarget=next.mesh;
+  };
+  const readStick=(axes?:readonly number[]):[number,number]=>{
+    if(!axes||axes.length<2)return [0,0];
+    if(axes.length>=4){
+      const m2=Math.hypot(axes[2]??0,axes[3]??0),m0=Math.hypot(axes[0]??0,axes[1]??0);
+      return m2>=m0||m2>.05?[axes[2]??0,axes[3]??0]:[axes[0]??0,axes[1]??0];
+    }
+    return [axes[0]??0,axes[1]??0];
   };
   /** Vibration de la manette (impulsion courte). Ignorée si le casque ne la prend pas en charge. */
   const pulse=(c:Object3D,intensity:number,ms:number)=>{
@@ -1426,21 +1503,34 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     controller.addEventListener('connected',event=>{
       controller.userData.source=(event as unknown as {data?:unknown}).data;
     });
+    controller.addEventListener('disconnected',()=>{
+      controller.userData.source=undefined;
+    });
     controller.addEventListener('selectstart',()=>{
-      const source=controller.userData.source as {handedness?:string}|undefined;
       if(uiHidden)return;
-      // Si cette manette est la main laser active, elle clique sur le rayon.
-      // Sinon, elle sert de télécommande agent (joystick + gâchette), sauf si aucun bouton n'est sélectionné et qu'elle vise un bouton (elle prend alors le laser).
-      const hand=source?.handedness==='left'?'left':'right';
-      const remoteItem=referenceMode?remoteCandidates().find(item=>item===remoteTarget):undefined;
+      const source=controller.userData.source as {handedness?:string}|undefined;
+      const detectedHand=source?.handedness==='left'?'left':source?.handedness==='right'?'right':undefined;
+      const choices=remoteCandidates();
       let target:Clickable|null=null;
-      if(hand===activeLaserHand){
+      if(!priorityChosen&&detectedHand){
+        // Premier clic de gâchette : cette manette devient prioritaire (laser), l'autre devient télécommande.
+        activeLaserHand=detectedHand;
+        priorityChosen=true;
+        hideLaser(detectedHand==='left'?'right':'left');
         target=pointable(controller).target;
-      }else if(remoteItem){
-        target=remoteItem;
+        if(!target?.userData.onSelect){pulse(controller,.28,35);return;}
+      }else if(!detectedHand||detectedHand===activeLaserHand){
+        target=pointable(controller).target;
       }else{
-        const hit=pointable(controller).target;
-        if(hit){activeLaserHand=hand;target=hit;}
+        // Télécommande agent immobilier : la gâchette sélectionne un élément SANS jamais prendre le contrôle du laser.
+        const remoteItem=choices.find(item=>item===remoteTarget)??null;
+        if(remoteItem){
+          target=remoteItem;
+        }else{
+          const hit=pointable(controller).target;
+          if(hit)target=hit;
+          else if(choices.length)target=remotePositions(choices).sort((a,b)=>Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y))[0].mesh;
+        }
       }
       if(!target?.userData.onSelect)return;
       target.userData.pressedUntil=performance.now()+260;
@@ -1451,7 +1541,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
       pulse(controller,.75,60);
       target.userData.onSelect();
-      remoteTarget=null;
     });
     // Prise latérale : recentrer le panneau sans en modifier l'état.
     controller.addEventListener('squeezestart',()=>{
@@ -1469,9 +1558,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let lastTick=performance.now();
   const tick=()=>{
     const tnow=performance.now();const dt=Math.min(.1,(tnow-lastTick)/1000);lastTick=tnow;
-    // Rotation instantanée d'un quart de tour pour réduire le mal des yeux.
-    // Une nouvelle impulsion exige d'abord le retour du joystick au neutre.
-    const inputs=renderer.xr.getSession()?.inputSources??[];
+    const inputs=Array.from(renderer.xr.getSession()?.inputSources??[]);
+    if(!priorityChosen){
+      const hasRight=inputs.some(s=>s.handedness==='right');
+      const hasLeft=inputs.some(s=>s.handedness==='left');
+      if(!hasRight&&hasLeft)activeLaserHand='left';
+      else if(hasRight)activeLaserHand='right';
+    }
     for(const source of inputs){
       const pressed=!!source.gamepad?.buttons?.[3]?.pressed;
       const key=source.handedness||'x';
@@ -1482,14 +1575,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Les touches de façade occupent les mêmes indices WebXR (4 et 5).
     // Une seule détection globale évite deux inversions si les deux manettes
     // sont pressées simultanément. Il faut relâcher pour changer à nouveau.
-    const facesPressed=Array.from(inputs).some(source=>
+    const facesPressed=inputs.some(source=>
       (source.handedness==='right'||source.handedness==='left')&&
       (!!source.gamepad?.buttons?.[4]?.pressed||!!source.gamepad?.buttons?.[5]?.pressed));
     if(facesPressed&&!faceButtonDown&&!switchingReference){
       switchingReference=true;
       referenceMode=!referenceMode;
       remoteTarget=null;
+      remoteEngagedInWorld=false;
       panelAnchor=null;
+      if(!referenceMode){
+        vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+        barGroup.position.set(0,0,0);barGroup.quaternion.identity();
+        panelGroup.position.set(0,0,0);panelGroup.quaternion.identity();
+      }
       updateVrPalette();
       closePanels();
       uiHidden=false;
@@ -1509,28 +1608,36 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     panelGroup.visible=!uiHidden;
     headerGroup.visible=!uiHidden;
     noticeGroup.visible=!uiHidden;
+    const remoteHand: 'left'|'right'=activeLaserHand==='right'?'left':'right';
+    const remoteList=remoteCandidates();
     let turn=0;
     for(const source of inputs){
-      const axes=source.gamepad?.axes;
-      if(!axes||axes.length<2)continue;
-      const horizontal=axes.length>=4?axes[2]:axes[0];
-      const vertical=axes.length>=4?axes[3]:axes[1];
-      // L'autre manette (non-laser) sert de télécommande agent immobilier (navigation sans rayon).
-      // La manette laser garde la rotation du panorama au joystick.
-      const remoteHand=activeLaserHand==='right'?'left':'right';
-      if(source.handedness===remoteHand&&referenceMode&&!uiHidden){
-        const magnitude=Math.hypot(horizontal,vertical);
-        if(magnitude<.3)remoteAxisArmed=true;
-        else if(magnitude>.65&&remoteAxisArmed){
-          const before=remoteTarget;
-          navigateRemote(horizontal,vertical);
-          if(remoteTarget!==before){
-            const c=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness===remoteHand);
-            if(c)pulse(c,.2,25);
+      const [horizontal,vertical]=readStick(source.gamepad?.axes);
+      // Télécommande agent immobilier (manette non prioritaire) : joystick pour choisir un élément et gâchette pour le valider.
+      if(source.handedness===remoteHand){
+        if(remoteList.length&&!uiHidden){
+          const magnitude=Math.hypot(horizontal,vertical);
+          if(magnitude<.25){remoteAxisArmed=true;remoteAxisHeldSince=0;}
+          else if(magnitude>.48){
+            const firstStep=remoteAxisArmed;
+            const heldRepeat=!firstStep&&remoteAxisHeldSince>0&&tnow-remoteAxisHeldSince>360&&tnow-remoteAxisLastStep>=170;
+            if(firstStep||heldRepeat){
+              remoteEngagedInWorld=true;
+              const before=remoteTarget;
+              navigateRemote(horizontal,vertical);
+              if(remoteTarget!==before){
+                const c=controllerOfHand(remoteHand);
+                if(c)pulse(c,.2,25);
+              }
+              remoteAxisArmed=false;
+              if(firstStep)remoteAxisHeldSince=tnow;
+              remoteAxisLastStep=tnow;
+            }
           }
-          remoteAxisArmed=false;
+        }else if(Math.abs(horizontal)>Math.abs(turn)){
+          turn=horizontal;
         }
-      }else if(source.handedness===activeLaserHand&&typeof horizontal==='number'){
+      }else if(source.handedness===activeLaserHand){
         if(Math.abs(horizontal)>Math.abs(turn))turn=horizontal;
       }
     }
@@ -1579,28 +1686,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(!referenceMode&&Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
-    // Seule la main laser active affiche le rayon jaune + embout bleu ; l'autre sert de télécommande agent immobilier.
+    // Seule la manette prioritaire affiche le rayon jaune + embout bleu ; l'autre sert de télécommande sans rayon.
     const hovered=new Set<Clickable>();
     let activeLaserHover:Clickable|null=null;
     for(const hand of ['left','right'] as const){
-      const ctrl=controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
+      const ctrl=controllerOfHand(hand);
       const L=handLasers[hand];
       if(ctrl&&hand===activeLaserHand){
         if(L.line.parent!==ctrl)ctrl.add(L.line);
         if(L.dot.parent!==ctrl)ctrl.add(L.dot);
         const impact=pointable(ctrl);
-        if(impact.target!==L.candidate){L.candidate=impact.target;L.candidateSince=now;}
-        if(L.candidate!==L.hoveredLast&&now-L.candidateSince>=90){
-          L.hoveredLast=L.candidate;
-          if(L.hoveredLast&&!uiHidden)pulse(ctrl,.12,18);
+        L.hoveredLast=!uiHidden?impact.target:null;
+        if(L.hoveredLast&&L.hoveredLast!==L.lastHapticTarget&&now-L.lastHapticAt>=45){
+          L.lastHapticTarget=L.hoveredLast;L.lastHapticAt=now;
+          pulse(ctrl,.12,18);
+        }else if(!L.hoveredLast){
+          L.lastHapticTarget=null;
         }
-        if(L.hoveredLast&&!uiHidden){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
-        const dist=impact.point?Math.max(.08,ctrl.worldToLocal(impact.point.clone()).length()):2.3;
+        if(L.hoveredLast){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
+        const dist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.8:4.8);
         L.line.scale.set(1,1,dist);
         L.dot.position.set(0,0,-dist);
+        L.dot.scale.setScalar(Math.max(.75,Math.min(2.2,dist/2.2)));
         L.line.visible=!uiHidden;
         L.dot.visible=!uiHidden;
-      }else{L.line.visible=false;L.dot.visible=false;L.hoveredLast=null;L.candidate=null;}
+      }else{hideLaser(hand);}
     }
     const tipTarget=activeLaserHover??remoteTarget;
     const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan?(tipTarget.userData.vrTooltip as string|undefined):undefined;
@@ -1624,21 +1734,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       hoverTooltip.position.set(tipTarget.position.x+side*.26,tipTarget.position.y,.03);
       hoverTooltip.visible=true;
     }else hoverTooltip.visible=false;
-    // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
-    const choices=remoteCandidates();
+    // Le joystick de la télécommande choisit un élément : halo doré sur la cible, aucun laser.
+    const choices=remoteList;
     if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
-    if(!remoteTarget&&choices.length)remoteTarget=remotePositions(choices).sort((a,b)=>b.y-a.y||a.x-b.x)[0].mesh;
+    const panelHasControls=clickables.some(m=>m.parent===panelGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    if(!remoteTarget&&choices.length&&(referenceMode||panelHasControls||remoteEngagedInWorld)){
+      const sorted=remotePositions(choices).sort((a,b)=>(referenceMode||panelHasControls)?(b.y-a.y||a.x-b.x):(Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y)));
+      remoteTarget=sorted[0].mesh;
+    }
     if(remoteTarget){
       hovered.add(remoteTarget);
-      const mesh=remoteTarget as Mesh;
-      const geometry=mesh.geometry as PlaneGeometry;
-      const w=geometry.parameters.width,h=geometry.parameters.height;
-      mesh.getWorldPosition(remoteFocus.position);
-      mesh.getWorldQuaternion(remoteFocus.quaternion);
-      remoteFocus.translateZ(-.004);
-      remoteFocus.scale.set(w+.027,h+.027,1);
-      remoteFocus.renderOrder=mesh.renderOrder-.15;
-      remoteFocus.visible=!uiHidden&&referenceMode;
+      if(remoteTarget.userData.roomHighlight){
+        remoteFocus.visible=false;
+      }else{
+        const mesh=remoteTarget as Mesh;
+        const params=(mesh.geometry as {parameters?:{width?:number;height?:number;radius?:number}}).parameters;
+        const w=params?.width??((params?.radius??.14)*2.2);
+        const h=params?.height??((params?.radius??.14)*2.2);
+        const pad=remoteTarget.parent===hotspotGroup?.08:.028;
+        mesh.getWorldPosition(remoteFocus.position);
+        mesh.getWorldQuaternion(remoteFocus.quaternion);
+        remoteFocus.translateZ(-.004);
+        remoteFocus.scale.set(w+pad,h+pad,1);
+        remoteFocus.renderOrder=mesh.renderOrder-.15;
+        remoteFocus.visible=!uiHidden;
+      }
     }else remoteFocus.visible=false;
     for(const m of clickables){
       const isPressed=(m.userData.pressedUntil??0)>now;
