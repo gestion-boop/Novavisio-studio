@@ -77,12 +77,13 @@
 .nv-vrx-panel p{margin:0;font:500 13px/1.5 system-ui}
 .nv-vrx-panel code{word-break:break-all;color:#cfe7ec}
 .nv-vrx-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;flex-wrap:wrap}
-.nv-vrx-pager{display:flex;align-items:center;gap:8px}
+.nv-vrx-panel-head>span{font:600 12px system-ui;color:#e8bf65}
+.nv-vrx-pager{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
 .nv-vrx-pager button{padding:7px 14px;border-radius:999px;border:1.5px solid var(--vr-accent,#f5b324);background:#1b232a;color:#ffe6a8;font:700 12px system-ui;cursor:pointer}
 .nv-vrx-pager button:hover{background:var(--vr-accent,#f5b324);color:#111}
-.nv-vrx-pager span{font:700 12px system-ui;color:#f3eee2}
+.nv-vrx-pager span{font:700 13px system-ui;color:#f3eee2}
 .nv-vrx-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
-.nv-vrx-thumbs.nv-vrx-thumbs-3x2{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.nv-vrx-thumbs.nv-vrx-thumbs-3x3{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .nv-vrx-thumbs button{display:flex;flex-direction:column;gap:4px;padding:0;border:2px solid transparent;border-radius:10px;background:#000;color:#f3eee2;font:600 12px system-ui;cursor:pointer;overflow:hidden;text-align:left;transition:transform .15s,border-color .15s}
 .nv-vrx-thumbs button:hover{transform:scale(1.03);border-color:#66e3ff}
 .nv-vrx-thumbs button.is-on{border-color:#f6bb34}
@@ -103,6 +104,12 @@
 .nv-vrx-levels button{min-width:46px;height:46px;border-radius:50%;border:2px solid var(--vr-accent,#f5b324);background:transparent;color:var(--vr-accent,#f5b324);font-weight:700;font-size:14px;cursor:pointer;transition:transform .15s}
 .nv-vrx-levels button:hover{transform:scale(1.08)}
 .nv-vrx-levels button.is-on{background:var(--vr-accent,#f5b324);color:#111}
+
+.nv-vrx-slot-tag,.nv-vrx-slot-tip{position:absolute;top:50%;transform:translateY(-50%);padding:3px 9px;border-radius:999px;background:#0d1a22f2;border:1px solid var(--vr-accent,#f5b324);color:#ffeab5;font:700 11px system-ui;white-space:nowrap;pointer-events:none;z-index:5}
+.nv-vrx-slot-tag.is-left,.nv-vrx-slot-tip.is-left{left:calc(100% + 8px)}
+.nv-vrx-slot-tag.is-right,.nv-vrx-slot-tip.is-right{right:calc(100% + 8px)}
+.nv-vrx-slot-tip{opacity:0;transition:opacity .12s;font-size:12px;padding:4px 11px;box-shadow:0 4px 14px #0008}
+.nv-vrx-slot.is-sim:hover .nv-vrx-slot-tip{opacity:1}
 
 .nv-vrx-plan-wrap{position:relative;display:inline-block;line-height:0}
 .nv-vrx-plan-room{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;mix-blend-mode:multiply;opacity:.85}

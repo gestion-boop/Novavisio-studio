@@ -1,4 +1,4 @@
-import {BackSide, CanvasTexture, Color, LinearFilter, DoubleSide, Group, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
+import {BackSide, CanvasTexture, Color, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -11,7 +11,6 @@ import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
 import {layoutColumns,vrMenuOf,VR_SHELL} from './vrMenu';
 import {isReturnLink,displayPitch} from './returnLink';
 import {setVrMusicPlaying} from './vrAudioBridge';
-import {barKind} from './barKind';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
@@ -232,13 +231,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
       const radius=k*Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
-      const mesh=new Mesh(new SphereGeometry(radius,128,80),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:1,depthTest:false,depthWrite:false}));
+      const mesh=new Mesh(new SphereGeometry(radius,64,40),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
       // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
       const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
       const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
-      const outline=new Mesh(new SphereGeometry(radius*1.09,128,80),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
+      const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;mesh.add(outline);
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
@@ -249,7 +248,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           const url=sceneOf(h.target)?.dataUrl;
           if(url){
             try{
-              const pano=await loadReduced(url,2048);
+              const pano=await loadReduced(url,1024);
               if(ended||!mesh.parent)return;
               const texture=new CanvasTexture(pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
               const material=mesh.material as MeshBasicMaterial;
@@ -493,7 +492,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
     });
     // Libellé compact sur une ligne ; même distance et même suivi du regard.
-    addPlane(headerGroup,.98,.126,tex,6,0,0);
+    addPlane(headerGroup,1.1,.14,tex,6,0,0);
     // Le titre reste indépendamment du monobloc, très loin et très haut.
     // La position sera mise à jour progressivement avec le regard dans tick().
     syncRoomHeaderPose(true);
@@ -545,16 +544,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const plan=project().bottomBar.find(item=>item.type==='plan');
     const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
     // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
-    // Pictogramme d'après ce que fait le bouton (photo, téléphone, carte…), comme dans l'éditeur.
-    const iconOfItem=(item:BottomBarItem):VrControlIcon=>{
-      const kind=barKind(item);
-      if(kind==='photos')return 'photos';
-      if(kind==='map'||item.type==='plan')return 'plan';
-      if(kind==='phone'||kind==='web'||item.type==='lien')return 'link';
-      if(kind==='info'||kind==='menu'||item.type==='information')return 'info';
-      if(kind==='gallery')return 'gallery';
-      return 'gallery';
-    };
+    const iconOfItem=(item:BottomBarItem):VrControlIcon=>
+      item.type==='plan'?'plan':item.type==='photos'?'photos':item.type==='lien'?'link':item.type==='information'?'info':'gallery';
     const toggleSound=()=>{
       // "undecided" est traité comme éteint : le premier clic démarre la musique.
       // play() doit être appelé dans cet événement XR avant toute opération await.
@@ -581,22 +572,44 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       barGroup.visible=false;
       vrShellGroup.visible=false;
     };
-    const actionOf=(id:string):{icon:VrControlIcon;run:()=>void}|null=>{
+    const labelForId=(id:string):string=>{
       switch(id){
-        case 'gallery':return {icon:'gallery',run:()=>{void showGallery(gallery??galleryDefault);}};
+        case 'gallery':return 'Panoramas';
+        case 'up':return 'Précédent';
+        case 'down':return 'Suivant';
+        case 'home':return 'Accueil';
+        case 'sound':return getPrefs().sound==='on'?'Couper le son':'Activer le son';
+        case 'plan':return 'Plan';
+        case 'help':return 'Aide';
+        case 'exit':return 'Fermer';
+      }
+      if(id.startsWith('bar:')){
+        const item=project().bottomBar.find(b=>b.id===id.slice(4));
+        if(item)return pick(item.title,item.titleTranslations,vlang())||'Action';
+      }
+      return '';
+    };
+    const togglePanel=(key:string,open:()=>void)=>{
+      if(activePanelKey===key){closePanels();return;}
+      open();
+      activePanelKey=key;
+    };
+    const actionOf=(id:string):{icon:VrControlIcon;run:()=>void} | null=>{
+      switch(id){
+        case 'gallery':return {icon:'gallery',run:()=>togglePanel('gallery',()=>{void showGallery(gallery??galleryDefault);})};
         case 'up':return {icon:'up',run:()=>{const target=scenes[Math.max(0,sceneIndex-1)];if(target)void goTo(target.id);}};
         case 'down':return {icon:'down',run:()=>{const target=scenes[Math.min(scenes.length-1,sceneIndex+1)];if(target)void goTo(target.id);}};
         case 'home':return {icon:'home',run:()=>{if(scenes[0])void goTo(scenes[0].id);}};
         case 'sound':return {icon:getPrefs().sound==='on'?'sound':'mute',run:toggleSound};
         // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
-        case 'plan':return {icon:'plan',run:()=>{void showFloorPlan(plan??planAction);}};
-        case 'help':return {icon:'help',run:()=>showText('Navigation VR',
-          'Droite : laser et gâchette. Gauche : joystick et gâchette. A/B à droite ou X/Y à gauche : ouvrir/fermer le menu. Clic joystick : tout masquer.')};
+        case 'plan':return {icon:'plan',run:()=>togglePanel('plan',()=>{void showFloorPlan(plan??planAction);})};
+        case 'help':return {icon:'help',run:()=>togglePanel('help',()=>showText('Navigation VR',
+          'Gauche et droite : laser jaune+bleu et gâchette. L’autre manette sert de télécommande agent immobilier. A/B ou X/Y : ouvrir/fermer.'))};
         case 'exit':return {icon:'exit',run:closeMenu};
       }
       if(id.startsWith('bar:')){
         const item=project().bottomBar.find(b=>b.id===id.slice(4));
-        if(item)return {icon:iconOfItem(item),run:()=>onBarItem(item)};
+        if(item)return {icon:iconOfItem(item),run:()=>togglePanel('bar:'+item.id,()=>onBarItem(item))};
       }
       return null;
     };
@@ -605,6 +618,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const action=actionOf(slot.id);
       if(!action)continue;
       const mesh=button(slot.x,slot.y,action.icon,action.run);
+      mesh.userData.vrTooltip=labelForId(slot.id);
+      mesh.userData.vrSide=slot.x<0?'left':'right';
       // Seul le raccourci « Lien » avec une icône personnalisée (ex. logo Immosphera) affiche son image ;
       // tous les autres boutons restent plats, comme avant.
       const barItem=slot.id.startsWith('bar:')?project().bottomBar.find(b=>b.id===slot.id.slice(4)):undefined;
@@ -695,7 +710,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     activeVideo.tex.dispose();activeVideo=null;
   };
   let panelGen=0; // change à chaque fermeture / remplacement de fenêtre : un chargement en cours ne peut plus rien ajouter après coup
+  let activePanelKey='';
   function closePanels(){
+    activePanelKey='';
     panelGen++;
     panelReplace=panelGroup.children.length>0;
     stopVideo();
@@ -774,29 +791,30 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   });
   const galleryChrome=(W:number,H:number,title:string,count:string,pages:number,page:number,onPrev:()=>void,onNext:()=>void)=>{
     addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
-      roundRect(c,6,6,W*1000-12,H*1000-12,56);c.fillStyle=panelBg;c.fill();c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-      const rightEdge=W*1000-180;
+      roundRect(c,6,6,W*1000-12,H*1000-12,48);
+      c.fillStyle=referenceMode?'rgba(12,15,20,.74)':panelBg;c.fill();
+      c.lineWidth=referenceMode?3:8;c.strokeStyle=referenceMode?'rgba(225,165,37,.35)':panelLine;c.stroke();
+      const rightEdge=referenceMode?(W*1000-64):(W*1000-180);
       const metadata=count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:'');
       const metaWidth=Math.min(440,Math.max(250,W*1000*.31));
       c.fillStyle=referenceMode?'#e8bf65':'#4a4a52';
       c.textAlign='right';c.textBaseline='middle';
       const meta=fitCanvasLabel(c,metadata,metaWidth,34,25);
       c.fillText(meta,rightEdge,92);
-      // Une vraie réserve pour le compteur et le bouton fermer. Les deux
-      // libellés ne peuvent plus se recouvrir, même avec plusieurs pages.
       c.fillStyle=referenceMode?'#ffffff':'#1b1b1f';
       c.textAlign='left';
-      const titleWidth=Math.max(160,rightEdge-metaWidth-115);
-      const name=fitCanvasLabel(c,title,titleWidth,58,35);
+      const titleWidth=Math.max(160,rightEdge-metaWidth-90);
+      const name=fitCanvasLabel(c,title,titleWidth,56,34);
       c.fillText(name,64,92);
     }),5,0,0).userData.blocker=true;
-    addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
+    // Dans l'interface jaune unifiée, la croix est déjà sur la colonne droite : pas de 2e croix redondante.
+    if(!referenceMode)addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
     if(referenceMode){
       // Pagination de la maquette, en bas uniquement : Précédent / Suivant encadrent le compteur « n / N ».
-      const yBottom=-H/2+.09;
+      const yBottom=-H/2+.1;
       if(pages>1){
-        addPanelButton(.24,.07,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
-        addPanelButton(.24,.07,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
+        addPanelButton(.26,.08,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
+        addPanelButton(.26,.08,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
         const counterTexture=canvasTexture(400,140,c=>{c.fillStyle='#ffffff';c.font='bold 56px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,200,70);});
         addPlane(panelGroup,.2,.07,counterTexture,6,0,yBottom);
       }
@@ -1103,16 +1121,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     let page=0;
     const render=async()=>{
       closePanels();
+      activePanelKey='gallery';
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=referenceMode?.42:.62,ch=referenceMode?.25:.34,gx=referenceMode?.035:.06,gy=referenceMode?.03:.05;
-      const photoItem=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
+      const cw=referenceMode?.46:.62,ch=referenceMode?.29:.34,gx=referenceMode?.04:.06,gy=referenceMode?.04:.05;
+      const menuNow=vrMenuOf(project());
+      const placedIds=new Set([...menuNow.left,...menuNow.right]);
+      const photoCandidate=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
+      // Pas de deuxième bouton Photos si Photos est déjà présent sur une colonne du menu VR.
+      const photoItem=photoCandidate&&!placedIds.has('bar:'+photoCandidate.id)?photoCandidate:undefined;
       const W=cols*cw+(cols-1)*gx+.32;
       const H=referenceMode?.17+rows*ch+(rows-1)*gy+.16+(photoItem?.19:0):.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
         ()=>{page=(page-1+pages)%pages;void render();},()=>{page=(page+1)%pages;void render();});
-      // Une vraie entrée Photos, séparée de la galerie des panoramas.
-      // Elle réutilise les photos/vidéos déjà configurées dans NovaStudio.
       if(photoItem)addPanelButton(.28,.085,navTexture('Photos',280),0,-H/2+.068,()=>{void showPhotoGallery(photoItem);});
       for(let i=0;i<slice.length;i++){
         const e=slice[i];
@@ -1157,14 +1178,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     catch{if(req===floorPlanRequest)setNotice(tt('planFail'));return;}
     if(ended||req!==floorPlanRequest||gen!==panelGen)return;
     closePanels();
+    activePanelKey='plan';
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const maxW=referenceMode?2.3:1.72,maxH=referenceMode?1.35:1.2;
+    const maxW=referenceMode?1.95:1.72,maxH=referenceMode?1.08:1.2;
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
-    const W=imageW+.32,H=imageH+(referenceMode?.29:.33);
-    addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);
+    const W=imageW+.32,H=imageH+(referenceMode?.22:.33);
+    const planBg=referenceMode?canvasTexture(Math.round(W*600),Math.round(H*600),c=>{
+      roundRect(c,6,6,Math.round(W*600)-12,Math.round(H*600)-12,36);
+      c.fillStyle='rgba(12,15,20,.74)';c.fill();c.lineWidth=3;c.strokeStyle='rgba(225,165,37,.35)';c.stroke();
+    }):backdrop(W,H);
+    addPlane(panelGroup,W,H,planBg,5,0,0);
     const imageTex=new CanvasTexture(bitmap);imageTex.generateMipmaps=true;imageTex.minFilter=LinearMipmapLinearFilter;imageTex.anisotropy=16;
     imageTex.colorSpace=SRGBColorSpace;
-    addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
+    addPlane(panelGroup,imageW,imageH,imageTex,6,0,referenceMode?-.04:-.025);
     addPlane(panelGroup,Math.min(1.4,W-.12),.11,canvasTexture(1000,115,ctx=>{
       ctx.fillStyle=iconColor;ctx.textAlign='center';ctx.textBaseline='middle';
       const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),920,43,27);
@@ -1179,7 +1205,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(ended||req!==floorPlanRequest||panelNow!==panelGen)return;
       for(const [sceneId,canvas] of Object.entries(found)){
         const tex=new CanvasTexture(canvas);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
-        const m=addPlane(panelGroup,imageW,imageH,tex,6.5,0,-.025);
+        const m=addPlane(panelGroup,imageW,imageH,tex,6.5,0,referenceMode?-.04:-.025);
         // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
         (m.material as MeshBasicMaterial).opacity=0;
         const targetId=sceneId;
@@ -1204,7 +1230,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Pas de pastille quand la pièce est en surbrillance (vue classique). Secours seulement si elle n'a pas été détectée.
       if(roomIds.has(point.sceneId))return;
       const target=sceneOf(point.sceneId)!;
-      const x=(point.x/100-.5)*imageW,y=(.5-point.y/100)*imageH-.025;
+      const x=(point.x/100-.5)*imageW,y=(.5-point.y/100)*imageH+(referenceMode?-.04:-.025);
       addPanelButton(.12,.12,pointTexture(String(pointIndex+1),target.id===currentId),
         x,y,()=>{void goTo(target.id);},9);
     });
@@ -1221,7 +1247,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         addPanelButton(.125,.125,pointTexture(planLevelLabel(other,i),i===index),x,top-.125-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
       });
     }
-    addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
+    if(!referenceMode)addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
     placePanel(PANEL_DIST,0);
   };
 
@@ -1263,16 +1289,32 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let activeLaserHand:'left'|'right'='right';
   const laserRaycaster=new Raycaster();
   const makeLaser=()=>{
-    const geo=new BufferGeometry();
-    geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-2.3],3));
-    const line=new Line(geo,new LineBasicMaterial({color:0xffd23f,transparent:true,opacity:.92,depthTest:false,depthWrite:false}));
+    // Cylindre fin bien visible en WebXR (contrairement à Line qui reste à 1 px sous WebGL2)
+    const geo=new CylinderGeometry(.0022,.003,1,10);
+    geo.rotateX(Math.PI/2);
+    geo.translate(0,0,-.5);
+    const mat=new MeshBasicMaterial({color:0xffd43b,transparent:true,opacity:.95,depthTest:false,depthWrite:false});
+    const line=new Mesh(geo,mat);
     line.renderOrder=9;
-    const dot=new Mesh(new SphereGeometry(.0085,14,10),new MeshBasicMaterial({color:0x1fa8ff,depthTest:false,depthWrite:false}));
-    dot.visible=false;dot.renderOrder=11;scene.add(dot);
-    disposables.push(geo,line.material as LineBasicMaterial,dot.geometry,dot.material as MeshBasicMaterial);
-    return {geo,line,dot,hoveredLast:null as Clickable|null,candidate:null as Clickable|null,candidateSince:0};
+    // Embout bleu lumineux toujours visible au bout du rayon (coeur bleu vif + halo cyan)
+    const dot=new Group();
+    const coreGeo=new SphereGeometry(.016,16,12),coreMat=new MeshBasicMaterial({color:0x009eff,depthTest:false,depthWrite:false});
+    const core=new Mesh(coreGeo,coreMat);core.renderOrder=12;
+    const haloGeo=new SphereGeometry(.028,16,12),haloMat=new MeshBasicMaterial({color:0x4ce3ff,transparent:true,opacity:.5,depthTest:false,depthWrite:false});
+    const halo=new Mesh(haloGeo,haloMat);halo.renderOrder=11;
+    dot.add(core,halo);dot.visible=false;
+    disposables.push(geo,mat,coreGeo,coreMat,haloGeo,haloMat);
+    return {line,dot,hoveredLast:null as Clickable|null,candidate:null as Clickable|null,candidateSince:0};
   };
   const handLasers={left:makeLaser(),right:makeLaser()};
+  const tooltipTextures=new Map<string,Texture>();
+  const hoverTooltipGeo=new PlaneGeometry(.34,.09);
+  const hoverTooltipMat=new MeshBasicMaterial({transparent:true,depthTest:false,depthWrite:false,side:DoubleSide});
+  const hoverTooltip=new Mesh(hoverTooltipGeo,hoverTooltipMat);
+  hoverTooltip.renderOrder=15;hoverTooltip.visible=false;
+  vrInterfaceGroup.add(hoverTooltip);
+  let lastTooltipText='';
+  disposables.push(hoverTooltipGeo,hoverTooltipMat);
   const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null}=>{
     const pos=new Vector3(),dir=new Vector3(0,0,-1);
     controller.updateMatrixWorld(true);
@@ -1507,28 +1549,51 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(!referenceMode&&Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
-    // Seule la main laser active affiche un rayon ; l'autre reste libre (télécommande agent immobilier).
+    // Seule la main laser active affiche le rayon jaune + embout bleu ; l'autre sert de télécommande agent immobilier.
     const hovered=new Set<Clickable>();
+    let activeLaserHover:Clickable|null=null;
     for(const hand of ['left','right'] as const){
       const ctrl=controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
       const L=handLasers[hand];
       if(ctrl&&hand===activeLaserHand){
         if(L.line.parent!==ctrl)ctrl.add(L.line);
+        if(L.dot.parent!==ctrl)ctrl.add(L.dot);
         const impact=pointable(ctrl);
         if(impact.target!==L.candidate){L.candidate=impact.target;L.candidateSince=now;}
         if(L.candidate!==L.hoveredLast&&now-L.candidateSince>=90){
           L.hoveredLast=L.candidate;
           if(L.hoveredLast&&!uiHidden)pulse(ctrl,.12,18);
         }
-        if(L.hoveredLast&&!uiHidden)hovered.add(L.hoveredLast);
-        const tip=impact.point?ctrl.worldToLocal(impact.point.clone()):new Vector3(0,0,-2.3);
-        const attr=L.geo.getAttribute('position') as Float32BufferAttribute;
-        attr.setXYZ(1,tip.x,tip.y,tip.z);attr.needsUpdate=true;L.geo.computeBoundingSphere();
+        if(L.hoveredLast&&!uiHidden){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
+        const dist=impact.point?Math.max(.08,ctrl.worldToLocal(impact.point.clone()).length()):2.3;
+        L.line.scale.set(1,1,dist);
+        L.dot.position.set(0,0,-dist);
         L.line.visible=!uiHidden;
-        L.dot.visible=!uiHidden&&!!impact.point;
-        if(impact.point)L.dot.position.copy(impact.point);
+        L.dot.visible=!uiHidden;
       }else{L.line.visible=false;L.dot.visible=false;L.hoveredLast=null;L.candidate=null;}
     }
+    const tipTarget=activeLaserHover??remoteTarget;
+    const tipLabel=tipTarget&&referenceMode&&!uiHidden?(tipTarget.userData.vrTooltip as string|undefined):undefined;
+    if(tipTarget&&tipLabel&&tipTarget.parent===barGroup){
+      if(hoverTooltip.parent!==vrInterfaceGroup)vrInterfaceGroup.add(hoverTooltip);
+      if(lastTooltipText!==tipLabel){
+        lastTooltipText=tipLabel;
+        let tex=tooltipTextures.get(tipLabel);
+        if(!tex){
+          tex=canvasTexture(380,96,c=>{
+            roundRect(c,4,4,372,88,44);c.fillStyle='rgba(12,24,33,.94)';c.fill();
+            c.lineWidth=5;c.strokeStyle='#f5b324';c.stroke();
+            c.fillStyle='#ffeab5';c.textAlign='center';c.textBaseline='middle';
+            c.fillText(fitCanvasLabel(c,tipLabel,330,36,24),190,50);
+          });
+          tooltipTextures.set(tipLabel,tex);
+        }
+        hoverTooltipMat.map=tex;hoverTooltipMat.needsUpdate=true;
+      }
+      const side=tipTarget.userData.vrSide==='right'?-1:1;
+      hoverTooltip.position.set(tipTarget.position.x+side*.26,tipTarget.position.y,.03);
+      hoverTooltip.visible=true;
+    }else hoverTooltip.visible=false;
     // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
     const choices=remoteCandidates();
     if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
@@ -1578,6 +1643,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     renderer.setAnimationLoop(null);
     clearTimeout(noticeTimer);
     clearGroup(hotspotGroup);clearGroup(headerGroup);clearGroup(barGroup);clearGroup(panelGroup);clearGroup(vrShellGroup);clearGroup(noticeGroup);
+    tooltipTextures.forEach(t=>t.dispose());tooltipTextures.clear();
     panoTexture?.dispose();disposables.forEach(d=>d.dispose());
     renderer.dispose();
     opts.onEnd?.(currentId);

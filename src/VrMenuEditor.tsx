@@ -1,7 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties, type Dispatch, type DragEvent, type ReactNode, type SetStateAction} from 'react';
 import {createPortal} from 'react-dom';
-import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, LayoutGrid, Map as MapIcon, Pencil, Phone, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
-import {barKind} from './barKind';
+import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, Layers, LayoutGrid, Map as MapIcon, Pencil, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans, plansByLevel, planLevelLabel, type BottomBarItem, type StudioProject} from './storage';
 import {DEFAULT_VR_MENU, VR_BTN, VR_GAP, VR_MAX_PER_COLUMN, VR_SHELL, availableVrActions, layoutColumns, vrMenuOf, type VrSlot} from './vrMenu';
@@ -22,8 +21,7 @@ function ActionIcon({id, project, sound = true, size = 22}: {id: string; project
     const type = barItem?.type;
     const custom = project.icons?.find((i) => i.id === barItem?.iconId)?.dataUrl;
     if (custom && type === 'lien') return <img className="nv-vrx-icon-img" src={custom} alt="" style={{width: size + 8, height: size + 8}}/>;
-    const kind = barItem ? barKind(barItem) : 'other';
-    const I = kind === 'photos' ? Images : kind === 'phone' ? Phone : kind === 'map' || type === 'plan' ? MapIcon : kind === 'gallery' ? LayoutGrid : kind === 'web' || type === 'lien' ? ExternalLink : kind === 'info' || kind === 'menu' || type === 'information' ? Info : LayoutGrid;
+    const I = type === 'lien' ? ExternalLink : type === 'information' ? Info : type === 'photos' ? Images : type === 'plan' ? MapIcon : (barItem?.gallerySpaceIds?.length ? Layers : LayoutGrid);
     return <I size={size} strokeWidth={2.2}/>;
   }
   switch (id) {
@@ -66,12 +64,13 @@ function actionHint(id: string, project: StudioProject): string {
   }
 }
 
-/** Interface du casque : éditeur plein écran (glisser-déposer sur deux colonnes alignées) + simulation. */
+/** Interface du casque : aperçu direct fidèle + éditeur sans doublons. */
 export function VrMenuEditor({project, setProject, onClose}: {project: StudioProject; setProject: Dispatch<SetStateAction<StudioProject>>; onClose: () => void}) {
   const menu = vrMenuOf(project);
   const actions = availableVrActions(project);
   const labelOf = (id: string) => actions.find((a) => a.id === id)?.label ?? id;
-  const [mode, setMode] = useState<'edit' | 'sim'>('edit');
+  const shortLabel = (id: string) => labelOf(id).replace(/^Bouton « (.*) »$/, '$1').replace(/^Galerie des panoramas$/, 'Panoramas').replace(/^Premier panorama.*$/, 'Accueil').replace(/^Fermer le menu$/, 'Fermer').replace(/^Panorama /, '');
+  const [mode, setMode] = useState<'edit' | 'sim'>('sim');
   const [selected, setSelected] = useState<SlotRef | null>(null);
   const [dragOver, setDragOver] = useState<string>('');
 
@@ -134,7 +133,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const scenes = project.scenes.filter((s) => !s.excluded);
   const [sceneIdx, setSceneIdx] = useState(0);
   const [galleryPage, setGalleryPage] = useState(0);
-  const [panel, setPanel] = useState<Panel>(null);
+  const [panel, setPanel] = useState<Panel>({kind: 'gallery'});
   const [soundOn, setSoundOn] = useState(true);
   const [menuOpen, setMenuOpen] = useState(true);
   const [flash, setFlash] = useState('');
@@ -182,26 +181,27 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const centerContent = (): ReactNode => {
     if (!panel) return null;
     if (panel.kind === 'gallery' || (panel.kind === 'bar' && panel.item.type === 'gallery')) {
-      const perPage = 6;
+      const perPage = 9;
       const pages = Math.max(1, Math.ceil(scenes.length / perPage));
       const p = Math.min(galleryPage, pages - 1);
       const slice = scenes.slice(p * perPage, p * perPage + perPage);
       return <div className="nv-vrx-panel">
         <div className="nv-vrx-panel-head">
-          <strong>Panoramas ({scenes.length})</strong>
-          {pages > 1 && <div className="nv-vrx-pager">
-            <button type="button" onClick={() => setGalleryPage((p - 1 + pages) % pages)}>‹ Précédent</button>
-            <span>{p + 1} / {pages}</span>
-            <button type="button" onClick={() => setGalleryPage((p + 1) % pages)}>Suivant ›</button>
-          </div>}
+          <strong>Panoramas</strong>
+          <span>{scenes.length} panoramas</span>
         </div>
-        <div className="nv-vrx-thumbs nv-vrx-thumbs-3x2">
+        <div className="nv-vrx-thumbs nv-vrx-thumbs-3x3">
           {slice.map((sc, idx) => {
             const globalIdx = p * perPage + idx;
             return <button type="button" key={sc.id} className={globalIdx === sceneIdx ? 'is-on' : ''} onClick={() => {setSceneIdx(globalIdx); setPanel(null);}}>
               <img src={sc.dataUrl} alt=""/><span>{sc.name}</span></button>;
           })}
         </div>
+        {pages > 1 && <div className="nv-vrx-pager is-bottom">
+          <button type="button" onClick={() => setGalleryPage((p - 1 + pages) % pages)}>‹ Précédent</button>
+          <span>{p + 1} / {pages}</span>
+          <button type="button" onClick={() => setGalleryPage((p + 1) % pages)}>Suivant ›</button>
+        </div>}
       </div>;
     }
     if (panel.kind === 'plan' || (panel.kind === 'bar' && panel.item.type === 'plan')) {
@@ -247,6 +247,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
             onClick={() => setSelected(isSel ? null : ref)} title={id ? labelOf(id) : 'Case vide : glisse un bouton ici ou clique pour en choisir un'}>
             {id ? <span className="nv-vrx-btn" draggable onDragStart={(e) => onDragStart(e, id)}>
               {id === 'counter' ? '3 / 9' : <ActionIcon id={id} project={project}/>}</span> : <span className="nv-vrx-plus">+</span>}
+            {id && <span className={'nv-vrx-slot-tag is-' + side}>{shortLabel(id)}</span>}
             <span className="nv-vrx-row">{slot.row + 1}</span>
           </div>;
         }))}
@@ -254,10 +255,15 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     : <div className="nv-vrx-sim" style={current ? {backgroundImage: `url("${current.dataUrl}")`} : undefined}>
         {menuOpen ? <div className="nv-vrx-shell is-sim" role="group" aria-label="Simulation de l’interface du casque">
           <div className="nv-vrx-center">{centerContent() ?? <div className="nv-vrx-center-hint is-sim">{current?.name ?? 'Aucun panorama'}<br/><small>Clique sur les boutons comme avec la manette</small></div>}</div>
-          {[...simGrid.left, ...simGrid.right].map((slot) => slot.id === 'counter'
+          {[...simGrid.left, ...simGrid.right].map((slot) => {
+            const side = slot.x < 0 ? 'left' : 'right';
+            return slot.id === 'counter'
             ? <div key={slot.id} className="nv-vrx-slot is-full is-counter is-sim" style={posStyle(slot, true)}><span className="nv-vrx-btn">{(scenes.length ? sceneIdx + 1 : 0) + ' / ' + scenes.length}</span></div>
             : <button type="button" key={slot.id} className={'nv-vrx-slot is-full is-sim' + (flash === slot.id ? ' is-flash' : '')} style={posStyle(slot)} title={labelOf(slot.id)} onClick={() => runSim(slot.id)}>
-                <span className="nv-vrx-btn"><ActionIcon id={slot.id} project={project} sound={soundOn}/></span></button>)}
+                <span className="nv-vrx-btn"><ActionIcon id={slot.id} project={project} sound={soundOn}/></span>
+                <span className={'nv-vrx-slot-tip is-' + side}>{shortLabel(slot.id)}</span>
+              </button>;
+          })}
         </div> : <button type="button" className="nv-vrx-reopen" onClick={() => setMenuOpen(true)}>Menu fermé · clique ici (bouton A ou B dans le casque) pour le rouvrir</button>}
       </div>;
 
@@ -272,8 +278,8 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     <header className="nv-vrx-top">
       <div className="nv-vrx-title"><small>Casque VR</small><strong>Interface du casque</strong></div>
       <div className="nv-vrx-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={mode === 'edit'} className={mode === 'edit' ? 'is-on' : ''} onClick={() => setMode('edit')}><Pencil size={16}/> Modifier</button>
-        <button type="button" role="tab" aria-selected={mode === 'sim'} className={mode === 'sim' ? 'is-on' : ''} onClick={() => {setMode('sim'); setMenuOpen(true); setPanel(null); setSelected(null);}}><Play size={16}/> Simulation</button>
+        <button type="button" role="tab" aria-selected={mode === 'sim'} className={mode === 'sim' ? 'is-on' : ''} onClick={() => {setMode('sim'); setMenuOpen(true); setPanel({kind: 'gallery'}); setSelected(null);}}><Play size={16}/> Aperçu casque</button>
+        <button type="button" role="tab" aria-selected={mode === 'edit'} className={mode === 'edit' ? 'is-on' : ''} onClick={() => setMode('edit')}><Pencil size={16}/> Personnaliser les boutons</button>
       </div>
       <button type="button" className="nv-vrx-close" onClick={onClose} aria-label="Fermer"><X size={20}/></button>
     </header>
