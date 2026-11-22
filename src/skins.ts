@@ -9,7 +9,7 @@ export function captureSkin(project:StudioProject,name:string,id:string=crypto.r
   const appearance:StudioProject={...newProject(),name:'Skin',vrEnabled:project.vrEnabled,defaultPhotoIcon:project.defaultPhotoIcon,defaultVideoIcon:project.defaultVideoIcon,barStyle:{...project.barStyle},bottomBar:appearances,
     icons:project.icons,buttonSets:project.buttonSets,languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId,
     barIconTrim:project.barIconTrim,settingsIconSize:project.settingsIconSize,settingsIconZoom:project.settingsIconZoom,
-    settingsColor:project.settingsColor,settingsIconColor:project.settingsIconColor,glossyStyle:project.glossyStyle,vrMenu:project.vrMenu};
+    settingsColor:project.settingsColor,settingsIconColor:project.settingsIconColor,closeButtonColor:project.closeButtonColor,closeButtonInk:project.closeButtonInk,glossyStyle:project.glossyStyle,vrMenu:project.vrMenu};
   for(const key of globalIcons)appearance[key]=project[key];
   return validateSkin({version:1,id,name:name.trim(),updatedAt:new Date().toISOString(),appearance});
 }
@@ -36,7 +36,7 @@ export function validateSkin(value:unknown):Skin {
     bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery','plan'] as const).find(t=>t===item.type)??'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
     defaultPhotoIcon:source.defaultPhotoIcon,defaultVideoIcon:source.defaultVideoIcon,languages:source.languages,buttonSets:source.buttonSets,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
     barIconTrim:source.barIconTrim,settingsIconSize:source.settingsIconSize,settingsIconZoom:source.settingsIconZoom,
-    settingsColor:source.settingsColor,settingsIconColor:source.settingsIconColor,glossyStyle:source.glossyStyle,vrMenu:source.vrMenu,
+    settingsColor:source.settingsColor,settingsIconColor:source.settingsIconColor,closeButtonColor:source.closeButtonColor,closeButtonInk:source.closeButtonInk,glossyStyle:source.glossyStyle,vrMenu:source.vrMenu,
     ...Object.fromEntries(globalIcons.map(key=>[key,source[key]]))});
   return {version:1,id:skin.id,name:skin.name.trim(),updatedAt:typeof skin.updatedAt==='string'?skin.updatedAt:new Date().toISOString(),appearance};
 }
@@ -72,6 +72,7 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
   const next={...project,...mediaDefaults,icons,bottomBar,buttonSets,barStyle:{...source.barStyle},languages:source.languages,vrEnabled:source.vrEnabled,iconPackId:source.iconPackId,
     barIconTrim:source.barIconTrim,settingsIconSize:source.settingsIconSize,settingsIconZoom:source.settingsIconZoom,
     settingsColor:source.settingsColor,settingsIconColor:source.settingsIconColor,
+    closeButtonColor:source.closeButtonColor,closeButtonInk:source.closeButtonInk,
     glossyStyle:source.glossyStyle??project.glossyStyle,
     vrMenu:source.vrMenu??project.vrMenu,
     defaultNavigationIcon:nav?{...nav,iconId:remap(nav.iconId)!,hoverIconId:remap(nav.hoverIconId),pressedIconId:remap(nav.pressedIconId)}:undefined,

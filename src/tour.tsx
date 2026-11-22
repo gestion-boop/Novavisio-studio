@@ -356,7 +356,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     '--nv-bar-height':Math.max(theme.height??82,project?.bottomBar?.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
   // Animation d'ouverture des fenêtres : posée sur <html> pour toutes les fenêtres (info, photo, vidéo, galeries, plan).
-  useEffect(()=>{applyCloseColor(project?.closeIconId?undefined:project?.closeButtonColor);},[project?.closeButtonColor,project?.closeIconId]);
+  useEffect(()=>{applyCloseColor(project?.closeIconId?undefined:project?.closeButtonColor,project?.closeButtonInk);},[project?.closeButtonColor,project?.closeButtonInk,project?.closeIconId]);
   useEffect(()=>{setTransitionMs(project?.transitionMs);},[project?.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project?.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project?.windowAnimationMs??700)+'ms');},[project?.windowAnimation,project?.windowAnimationMs]);
   // Fluidité : on précharge en tâche de fond les panoramas atteignables depuis celui-ci (flèches, boutons de la barre, précédent / suivant).

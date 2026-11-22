@@ -2671,7 +2671,7 @@ function App(){
   const activeLanguages:StudioLanguage[]=project.languages??STUDIO_LANGUAGES.map(lang=>lang.code);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   const [windowDemo,setWindowDemo]=useState(false);
-  useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor);},[project.closeButtonColor,project.closeIconId]);
+  useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor,project.closeButtonInk);},[project.closeButtonColor,project.closeButtonInk,project.closeIconId]);
   useEffect(()=>{setTransitionMs(project.transitionMs);},[project.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
@@ -3159,6 +3159,67 @@ function App(){
     }
     return null;
   }
+  /** « Appliquer le thème » : bouton Paramètres et croix de fermeture aux couleurs réelles de la barre (fond = boutons, picto = icônes). */
+  function applyBarThemeEverywhere(){
+    const t=barTheme;
+    if(!/^#[0-9a-f]{6}$/i.test(t.button)||!/^#[0-9a-f]{6}$/i.test(t.icon))return;
+    setProject(p=>({...p,closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined,
+      settingsIconId:undefined,settingsHoverIconId:undefined,settingsPressedIconId:undefined,
+      closeButtonColor:t.button,closeButtonInk:t.icon,settingsColor:t.button,settingsIconColor:t.icon}));
+    setStatus('Thème de la barre appliqué au bouton Paramètres et aux croix. ↶ pour annuler · enregistre avec la disquette.');
+  }
+  /** Panneau Icônes : couleurs de la visite (barre, bouton Paramètres, croix) avec aperçu en direct et « Appliquer le thème » en un clic. */
+  function visitColorsCard(){
+    const t=barTheme;
+    const isHex=(c?:string):c is string=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
+    const palette=[...new Set([t.button,t.icon,t.background,t.outline,'#ffffff','#1c1c1c'].filter(isHex).map(c=>c.toLowerCase()))];
+    const lumi=(c:string)=>{const n=parseInt(c.slice(1),16);return (0.299*(n>>16&255)+0.587*(n>>8&255)+0.114*(n&255))/255;};
+    const closeBg=isHex(project.closeButtonColor)?project.closeButtonColor:t.button;
+    const closeInk=isHex(project.closeButtonInk)?project.closeButtonInk:(isHex(closeBg)&&lumi(closeBg)>0.55?'#1b1208':'#ffffff');
+    const setBg=project.settingsColor??t.button,setFg=project.settingsIconColor??t.icon;
+    const barItem=project.bottomBar.find(item=>item.iconId&&barUsesIconImage(project.barStyle,item));
+    const barImg=barItem?project.icons.find(i=>i.id===barItem.iconId)?.dataUrl:undefined;
+    const themed=!closeIcon&&!settingsIconSrc&&project.closeButtonColor?.toLowerCase()===t.button.toLowerCase()&&project.closeButtonInk?.toLowerCase()===t.icon.toLowerCase()
+      &&setBg.toLowerCase()===t.button.toLowerCase()&&setFg.toLowerCase()===t.icon.toLowerCase();
+    const noPng={closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined};
+    const noSettingsPng={settingsIconId:undefined,settingsHoverIconId:undefined,settingsPressedIconId:undefined};
+    const pick=(label:string,value:string,onPick:(c:string)=>void)=><div className="nv-vc-pick">
+      <span className="nv-vc-pick-label">{label}</span>
+      <div className="nv-vc-swatches">
+        {palette.map(c=><button type="button" key={c} className={value.toLowerCase()===c?'is-on':''} style={{background:c}} title={c} aria-label={label+' '+c} onClick={()=>onPick(c)}/>)}
+        <label className="nv-vc-custom" title="Autre couleur"><input type="color" aria-label={label+' : autre couleur'} value={isHex(value)?value:'#888888'} onChange={e=>onPick(e.target.value)}/><span>+</span></label>
+      </div>
+    </div>;
+    return <section className="nv-vc" aria-label="Couleurs de la visite">
+      <header className="nv-vc-head"><Palette size={18}/><div><strong>Couleurs de la visite</strong><small>Barre du bas, bouton Paramètres et croix de fermeture</small></div></header>
+      <div className="nv-vc-preview" aria-label="Aperçu">
+        <figure><span className="nv-vc-dot" style={{background:t.button,color:t.icon,borderColor:t.buttonOutline}}>{barImg?<img src={barImg} alt=""/>:<Home size={20}/>}</span><figcaption>Barre</figcaption></figure>
+        <figure><span className="nv-vc-dot" style={{background:setBg,color:setFg}}>{settingsIconSrc?<img src={settingsIconSrc} alt=""/>:<SettingsIcon size={20}/>}</span><figcaption>Paramètres</figcaption></figure>
+        <figure><span className="nv-vc-dot" style={{background:closeBg,color:closeInk}}>{closeIcon?<img src={closeIcon.dataUrl} alt=""/>:<X size={20}/>}</span><figcaption>Croix</figcaption></figure>
+      </div>
+      <button type="button" className={'nv-vc-apply'+(themed?' is-done':'')} onClick={applyBarThemeEverywhere} disabled={!isHex(t.button)||!isHex(t.icon)}>
+        <span className="nv-vc-apply-chips"><i style={{background:t.button}}/><i style={{background:t.icon}}/></span>
+        {themed?'✓ Thème de la barre appliqué':'Appliquer le thème de la barre partout'}
+      </button>
+      <small className="nv-vc-note">Met le bouton Paramètres et les croix aux couleurs de la barre{(closeIcon||settingsIconSrc)?' (les images personnalisées de croix / Paramètres sont remplacées par la version couleur)':''}.</small>
+      <details className="nv-vc-fine">
+        <summary>Régler chaque élément</summary>
+        <div className="nv-vc-group">
+          <strong><X size={15}/> Croix de fermeture</strong>
+          {pick('Fond',closeBg,c=>setProject(p=>({...p,...noPng,closeButtonColor:c})))}
+          {pick('Croix',closeInk,c=>setProject(p=>({...p,...noPng,closeButtonColor:p.closeButtonColor??t.button,closeButtonInk:c})))}
+          <button type="button" className="nv-vc-reset" disabled={!project.closeButtonColor&&!project.closeButtonInk} onClick={()=>setProject(p=>({...p,closeButtonColor:undefined,closeButtonInk:undefined}))}>Couleurs par défaut</button>
+        </div>
+        <div className="nv-vc-group">
+          <strong><SettingsIcon size={15}/> Bouton Paramètres</strong>
+          {settingsIconSrc&&<small className="nv-vc-note">Une image personnalisée est active : choisir une couleur la remplace par la roue crantée.</small>}
+          {pick('Fond',setBg,c=>setProject(p=>({...p,...noSettingsPng,settingsColor:c})))}
+          {pick('Roue',setFg,c=>setProject(p=>({...p,...noSettingsPng,settingsIconColor:c})))}
+          <button type="button" className="nv-vc-reset" disabled={!project.settingsColor&&!project.settingsIconColor} onClick={()=>setProject(p=>({...p,settingsColor:undefined,settingsIconColor:undefined}))}>Couleurs de la barre</button>
+        </div>
+      </details>
+    </section>;
+  }
   /** Couleur des croix de fermeture : couleurs de la barre, sélecteur libre, pipette. Choisir une couleur remplace une icône de croix personnalisée. */
   function setCloseColor(color?:string){
     setProject(p=>({...p,closeButtonColor:color,...(color?{closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined}:{})}));
@@ -3168,8 +3229,8 @@ function App(){
     const barColor=/^#[0-9a-f]{6}$/i.test(barTheme.button)?barTheme.button:undefined;
     return <div className="nv-close-config">
       <p className="hint">Une seule couleur pour les croix des photos, vidéos, informations, galeries et pages intégrées de tout le projet. Au survol, la croix s’éclaircit.</p>
-      <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={()=>{setCloseColor(barColor);setStatus('Croix de fermeture : couleur des boutons de la barre appliquée. Enregistre avec la disquette.');}}>
-        <i style={{background:barColor??'#888'}}/> Appliquer les couleurs de la barre du bas</button>
+      <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={applyBarThemeEverywhere}>
+        <i style={{background:barColor??'#888'}}/> Appliquer le thème de la barre (croix + bouton Paramètres)</button>
       <div className="nv-close-colors">
         {([['Jaune','#f5b324'],['Blanc','#ffffff'],['Orange','#e18533'],['Rouge','#d93b3b'],['Bleu','#2f9fd8'],['Noir','#1c1c1c']] as const).map(([name,c])=>
           <button type="button" key={c} className={project.closeButtonColor?.toLowerCase()===c?'is-on':''} title={name} aria-label={'Croix '+name} style={{background:c}} onClick={()=>setCloseColor(c)}/>)}
@@ -5694,37 +5755,14 @@ function App(){
             <div className="nv-tool-list">{list.map(h=><button type="button" key={h.id} onClick={()=>{setMode(null);setSelectedId(h.id);setPanel('points');}}>{h.title||names[t]}<small>Réglages ›</small></button>)}</div>
           </div>;
         })()}
-        {panel==='icons' && <div className="properties nv-icons-panel">
-          <details className="nv-icons-library" open>
-            <summary>Bibliothèque générale · créer des icônes personnalisées (thème de la barre)</summary>
-            <GeneralIconLibrary
-              barTheme={project.barStyle}
-              applyLabel={libraryFor?.startsWith('global-close')?'à la croix de fermeture':selectedBar?'au bouton sélectionné':active&&selected?'au point sélectionné':undefined}
-              onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?(
-                libraryFor?.startsWith('global-close')?{close:true}:selectedBar?{barId:selectedBar.id}:
-                active&&selected?{sceneId:active.id,pointId:selected.id}:undefined
-              ):undefined)}/>
-          </details>
-          <div className="nv-close-config-box">
-            <div className="section-title"><span>COULEUR DE LA CROIX DE FERMETURE</span></div>
-            <p className="hint">Harmonise les croix de fermeture avec la charte graphique de cette visite.</p>
-            {closeColorControls()}
-          </div>
-          <details className="nv-icons-library" open>
-            <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
-          <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
-            onCreateSet={createLibraryIconSet}
-            onDeleteSet={async (ids,name)=>{if(!await confirmAsk('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
-            applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
-            onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
-              const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
-              if(libraryFor?.startsWith('global-close')){setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId}));setStatus('Pack de croix appliqué : normal, survol et pressé.');}
-              else if(selectedBar){patchBar({...patch,useCustomIcon:true});setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
-              else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
-            }:undefined}/>
-          </details>
-          <InspectorSection title="Croix de fermeture">
-            <p className="hint">Une croix pour fermer toutes les fenêtres interactives : photos, vidéos, informations, galerie, plan et autres popups.</p>
+        {panel==='icons' && <div className="properties nv-icons-panel nv-icons-v2">
+          {visitColorsCard()}
+          <div className="nv-icons-sections">
+          <details className="nv-icons-card">
+            <summary><span className="nv-icons-card-thumb">{closeIcon?<img src={closeIcon.dataUrl} alt=""/>:<X size={18}/>}</span>
+              <span className="nv-icons-card-text"><strong>Croix de fermeture · image</strong><small>{closeIcon?'Image : '+closeIcon.name:project.closeButtonColor?'Version couleur (thème)':'Croix classique'}</small></span></summary>
+            <div className="nv-icons-card-body">
+              <p className="hint">Facultatif : remplace la croix couleur par un pack d’images (normal, survol, pressé). Choisir une couleur plus haut retire l’image.</p>
             <div className="nv-close-current">
               <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
               <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Croix classique par défaut'}</small></div>
@@ -5751,8 +5789,44 @@ function App(){
               {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
             </details>
             </details>
-            <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
-          </InspectorSection>
+            </div>
+          </details>
+          <button type="button" className="nv-icons-card nv-icons-card-link" onClick={editSettingsButton}>
+            <span className="nv-icons-card-thumb">{settingsIconSrc?<img src={settingsIconSrc} alt=""/>:<SettingsIcon size={18}/>}</span>
+            <span className="nv-icons-card-text"><strong>Bouton Paramètres · icône et taille</strong><small>{settingsIconSrc?'Image personnalisée':'Roue crantée · '+settingsSize(project)+' px'}</small></span>
+            <ChevronRight size={18} className="nv-icons-card-go"/>
+          </button>
+          <details className="nv-icons-card">
+            <summary><span className="nv-icons-card-thumb"><Sparkles size={18}/></span>
+              <span className="nv-icons-card-text"><strong>Créer des icônes</strong><small>Bibliothèque générale, aux couleurs de la barre</small></span></summary>
+            <div className="nv-icons-card-body">
+            <GeneralIconLibrary
+              barTheme={project.barStyle}
+              applyLabel={libraryFor?.startsWith('global-close')?'à la croix de fermeture':selectedBar?'au bouton sélectionné':active&&selected?'au point sélectionné':undefined}
+              onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?(
+                libraryFor?.startsWith('global-close')?{close:true}:selectedBar?{barId:selectedBar.id}:
+                active&&selected?{sceneId:active.id,pointId:selected.id}:undefined
+              ):undefined)}/>
+            </div>
+          </details>
+          <details className="nv-icons-card">
+            <summary><span className="nv-icons-card-thumb"><Images size={18}/></span>
+              <span className="nv-icons-card-text"><strong>Mes packs d’icônes</strong><small>{project.icons.length} image{project.icons.length>1?'s':''} · packs Normal / Survol / Pressé</small></span></summary>
+            <div className="nv-icons-card-body">
+          <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
+            onCreateSet={createLibraryIconSet}
+            onDeleteSet={async (ids,name)=>{if(!await confirmAsk('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
+            applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
+            onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
+              const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
+              if(libraryFor?.startsWith('global-close')){setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId}));setStatus('Pack de croix appliqué : normal, survol et pressé.');}
+              else if(selectedBar){patchBar({...patch,useCustomIcon:true});setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
+              else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
+            }:undefined}/>
+            </div>
+          </details>
+          </div>
+          <small className="hint-inline nv-icons-save">Pense à enregistrer avec la disquette pour conserver ces réglages.</small>
         </div>}
       </aside>
     </div>

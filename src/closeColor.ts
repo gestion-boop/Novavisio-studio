@@ -7,7 +7,7 @@ const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i +
 const mix = (hex: string, to: number, k: number) => '#' + channels(hex).map((v) => Math.round(v + (to - v) * k).toString(16).padStart(2, '0')).join('');
 const luminance = (hex: string) => { const [r, g, b] = channels(hex); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
 
-export function applyCloseColor(color?: string): void {
+export function applyCloseColor(color?: string, ink?: string): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
   if (!color || !HEX.test(color)) {
@@ -18,6 +18,6 @@ export function applyCloseColor(color?: string): void {
   root.dataset.closeColor = '1';
   root.style.setProperty('--nv-close-bg', color);
   root.style.setProperty('--nv-close-border', mix(color, 0, 0.35));
-  root.style.setProperty('--nv-close-ink', luminance(color) > 0.55 ? '#1b1208' : '#ffffff');
+  root.style.setProperty('--nv-close-ink', ink && HEX.test(ink) ? ink : luminance(color) > 0.55 ? '#1b1208' : '#ffffff');
   root.style.setProperty('--nv-close-hover', mix(color, 255, 0.28));
 }
