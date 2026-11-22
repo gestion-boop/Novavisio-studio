@@ -4185,7 +4185,7 @@ function App(){
             <button type="button" onClick={guidedSkipBack}>Passer</button>
           </div>}
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
-            <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
+            <span>➜ <b>Prochaine cible</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
           </div>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">

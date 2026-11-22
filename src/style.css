@@ -4548,7 +4548,7 @@ body.nv-is-sorting{cursor:grabbing;user-select:none}
 
 /* Parcours guidé (Auto) */
 .nv-guide-banner{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);z-index:60;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;max-width:min(94%,720px);padding:10px 14px;border-radius:14px;background:#0d2a33f2;color:#e7fff9;border:1px solid #4bebde;box-shadow:0 10px 34px #000a;font-size:13px;line-height:1.4}
-.nv-guide-banner.is-forward{bottom:auto;top:14px;padding:8px 14px}
+.nv-guide-banner.is-forward{bottom:auto;top:14px;left:14px;right:auto;transform:none;justify-content:flex-start;max-width:min(calc(100% - 28px),360px);padding:8px 14px}
 .nv-guide-banner button{border:1px solid #4bebde;border-radius:9px;background:transparent;color:#fff;padding:8px 14px;font-size:13px;cursor:pointer}
 .nv-guide-banner button.nv-guide-ok{background:#1a8f7e;font-weight:700}
 

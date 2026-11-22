@@ -18,6 +18,9 @@ Objectif : ne plus refaire les réglages à chaque bien, surtout le mode casque 
 - Surbrillance des pièces alignée sur le plan (le conteneur suit la taille de l'image).
 - Aperçu du panorama : au-dessus du point, décalé vers le haut.
 
+## Décisions globales (tous les projets du logiciel)
+- Panneau « Prochaine cible » : en haut à gauche de la vue 360°, sous la barre (et non au centre). Valable pour chaque visite, sans qu'il faille le redemander.
+
 ## Points ouverts (à traiter)
 - Panneau jaune à refermer après sélection d'un panorama.
 - Cercles de destination sans contour jaune.
