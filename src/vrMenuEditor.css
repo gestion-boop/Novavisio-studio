@@ -87,3 +87,5 @@
 .nv-vrx-reopen{position:relative;padding:16px 24px;border-radius:14px;border:2px solid #e8b33a;background:#141518e8;color:#f6bb34;font:800 15px system-ui;cursor:pointer}
 @media(max-width:1100px){.nv-vrx-body{grid-template-columns:200px minmax(0,1fr) 250px}}
 @media(max-width:820px){.nv-vrx-body{grid-template-columns:1fr;overflow:auto}.nv-vrx-palette,.nv-vrx-card{border:0}}
+
+.nv-vrx-icon-img{object-fit:contain;display:block;border-radius:50%}

@@ -16,7 +16,10 @@ const DND = 'application/x-nv-vr';
 /** Pictogramme d'une action : même famille de symboles que le casque. */
 function ActionIcon({id, project, sound = true, size = 22}: {id: string; project: StudioProject; sound?: boolean; size?: number}) {
   if (id.startsWith('bar:')) {
-    const type = project.bottomBar.find((b) => b.id === id.slice(4))?.type;
+    const barItem = project.bottomBar.find((b) => b.id === id.slice(4));
+    const type = barItem?.type;
+    const custom = project.icons?.find((i) => i.id === barItem?.iconId)?.dataUrl;
+    if (custom) return <img className="nv-vrx-icon-img" src={custom} alt="" style={{width: size + 8, height: size + 8}}/>;
     const I = type === 'lien' ? ExternalLink : type === 'information' ? Info : type === 'photos' ? Images : type === 'plan' ? MapIcon : LayoutGrid;
     return <I size={size} strokeWidth={2.2}/>;
   }

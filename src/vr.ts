@@ -581,7 +581,28 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const slot of [...grid.left,...grid.right]){
       if(slot.id==='counter'){addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,slot.x,slot.y);continue;}
       const action=actionOf(slot.id);
-      if(action)button(slot.x,slot.y,action.icon,action.run);
+      if(!action)continue;
+      const mesh=button(slot.x,slot.y,action.icon,action.run);
+      // Bouton de la barre avec une icône personnalisée (ex. logo Immosphera) : on dessine cette image
+      // dans le disque à la place du pictogramme.
+      const barItem=slot.id.startsWith('bar:')?project().bottomBar.find(b=>b.id===slot.id.slice(4)):undefined;
+      const iconOf=(id?:string)=>id?project().icons?.find(i=>i.id===id)?.dataUrl:undefined;
+      const normalSrc=iconOf(barItem?.iconId);
+      if(barItem&&normalSrc){
+        void (async()=>{
+          const glyph=GLYPH[barItem.builtinIcon??'info']??'i',zoom=barItem.iconZoom??100;
+          const normal=await barCircleTexture(normalSrc,glyph,zoom);
+          const hoverSrc=iconOf(barItem.hoverIconId),pressedSrc=iconOf(barItem.pressedIconId);
+          const hover=hoverSrc?await barCircleTexture(hoverSrc,glyph,zoom):null;
+          const pressed=pressedSrc?await barCircleTexture(pressedSrc,glyph,zoom):null;
+          const mat=(mesh as unknown as Mesh).material as MeshBasicMaterial;
+          if(ended||!mesh.parent){normal.dispose();hover?.dispose();pressed?.dispose();return;}
+          const old=mesh.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null};
+          for(const t of [old?.normal,old?.hover,old?.pressed])t?.dispose();
+          mesh.userData.vrIconStates={normal,hover,pressed,pressedUntil:0};
+          mat.map=normal;mat.needsUpdate=true;
+        })();
+      }
     }
     // Premier affichage : une seule pose pour le bloc complet.
     if(!panelAnchor){
