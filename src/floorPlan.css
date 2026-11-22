@@ -278,3 +278,15 @@
 .nv-plan-shortcuts img{width:24px;height:24px;object-fit:contain}
 
 .nv-plan-autoplace{font:700 12px system-ui;padding:6px 10px;border-radius:9px;border:1px solid var(--nv-accent,#2bb3d6);background:transparent;color:inherit;cursor:pointer}.nv-plan-autoplace:hover{background:rgba(43,179,214,.16)}
+
+.nv-plan-read{position:fixed;inset:0;z-index:2000;background:rgba(5,12,18,.66);display:grid;place-items:center;padding:16px}
+.nv-plan-read-card{width:min(860px,100%);max-height:92vh;overflow:auto;background:#0d2230;color:#eaf4f8;border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.nv-plan-read-card header{display:flex;justify-content:space-between;align-items:center}
+.nv-plan-read-card header button{background:transparent;border:0;color:inherit;cursor:pointer}
+.nv-plan-read-card p{margin:0;font-size:13px;opacity:.8}
+.nv-plan-read-rows{display:flex;flex-direction:column;gap:6px}
+.nv-plan-read-row{display:grid;grid-template-columns:22px minmax(80px,1fr) minmax(120px,1.1fr) minmax(100px,1.1fr) 70px;gap:6px;align-items:center}
+.nv-plan-read-scene{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;opacity:.85}
+.nv-plan-read-row input[type=text],.nv-plan-read-row select{min-width:0;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:13px}
+.nv-plan-read-place{font-size:13px;display:flex;gap:8px;align-items:center}
+.nv-plan-read-card footer{display:flex;justify-content:flex-end;gap:8px}

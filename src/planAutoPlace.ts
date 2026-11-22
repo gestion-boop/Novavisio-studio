@@ -14,7 +14,7 @@ const clamp = (v: number) => Math.max(6, Math.min(94, v));
  *  - Ceux qui ne sont reliés à rien sont alignés en bas du plan, dans l'ordre.
  * Aucun contrôle de la pièce réelle : c'est une base à corriger à la souris.
  */
-export function proposePlanLayout(scenes: Scene[]): FloorPlanPoint[] {
+export function proposePlanLayout(scenes: Scene[], entrance: {x: number; y: number} = PLAN_ENTRANCE): FloorPlanPoint[] {
   const list = scenes.filter((s) => !s.excluded)
     .map((s, i) => ({s, i}))
     .sort((a, b) => a.s.name.localeCompare(b.s.name, 'fr', {numeric: true}) || a.i - b.i)
@@ -30,7 +30,7 @@ export function proposePlanLayout(scenes: Scene[]): FloorPlanPoint[] {
     placed.set(id, {x: Math.round(px * 10) / 10, y: Math.round(py * 10) / 10});
   };
   const queue: string[] = [];
-  put(list[0].id, PLAN_ENTRANCE.x, PLAN_ENTRANCE.y);
+  put(list[0].id, entrance.x, entrance.y);
   queue.push(list[0].id);
   while (queue.length) {
     const from = byId.get(queue.shift()!)!;

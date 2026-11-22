@@ -1,4 +1,5 @@
 import {proposePlanLayout} from './planAutoPlace';
+import {readPlanImage,matchScenesToRooms,type PlanRoom} from './planRead';
 import {confirmAsk} from './confirmDialog';
 import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
@@ -182,6 +183,36 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
   const [expanded,setExpanded]=useState(false);
   const [previewId,setPreviewId]=useState<string|null>(null);
   const [draggingSceneId,setDraggingSceneId]=useState<string|null>(null);
+  type ReadRow={sceneId:string;room:number;apply:boolean;name:string;surface:string};
+  const [reading,setReading]=useState<{rooms:PlanRoom[];rows:ReadRow[];place:boolean}|null>(null);
+  const [readBusy,setReadBusy]=useState(false);
+  const readPlan=async()=>{
+    if(!plan||readBusy)return;
+    setReadBusy(true);setError('');
+    try{
+      const result=await readPlanImage(plan.imageDataUrl);
+      if(!result.rooms.length){setError('Aucune pièce lisible sur ce plan : essaie une image plus nette, avec les noms des pièces écrits.');return;}
+      const proposal=proposePlanLayout(available,result.entrance??undefined);
+      const points=available.map(sc=>plan.points.find(pt=>pt.sceneId===sc.id)??proposal.find(pt=>pt.sceneId===sc.id)).filter((pt):pt is NonNullable<typeof pt>=>!!pt);
+      const match=matchScenesToRooms(points,result.rooms);
+      const rows=available.map(sc=>{const room=match.get(sc.id)??-1,r=result.rooms[room];
+        return {sceneId:sc.id,room,apply:room>=0,name:r?.label??sc.name,surface:r?.surfaceM2!=null?String(r.surfaceM2).replace('.',','):''};});
+      setReading({rooms:result.rooms,rows,place:true});
+    }catch(e){setError(e instanceof Error?e.message:'Lecture du plan impossible.');}
+    finally{setReadBusy(false);}
+  };
+  const applyReading=()=>{
+    if(!reading)return;
+    const chosen=reading.rows.filter(r=>r.apply&&r.room>=0);
+    for(const r of chosen){
+      const n=Number(r.surface.replace(',','.'));
+      const surfaceM2=r.surface.trim()!==''&&Number.isFinite(n)&&n>0&&n<=100000?n:undefined;
+      onSceneChange?.(r.sceneId,{name:r.name.trim()||undefined,...(surfaceM2!==undefined?{surfaceM2}:{})});
+    }
+    if(reading.place)updatePlan(item=>({...item,points:[...item.points.filter(pt=>!chosen.some(r=>r.sceneId===pt.sceneId)),...chosen.map(r=>({sceneId:r.sceneId,x:reading.rooms[r.room].x,y:reading.rooms[r.room].y}))]}));
+    setError(chosen.length+' panorama'+(chosen.length>1?'s':'')+' mis à jour depuis le plan.');
+    setReading(null);
+  };
   const fileInput=useRef<HTMLInputElement>(null),importing=useRef(false);
   const importMode=useRef<'append'|'replace'>('append');
   const available=scenes.filter(scene=>!scene.excluded);
@@ -230,6 +261,9 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
               updatePlan(item=>({...item,points:proposePlanLayout(available)}));
               setError('Proposition appliquée : l’entrée est en bas du plan, ajuste chaque repère à la souris.');
             }}>✨ Placer automatiquement</button>}
+          {available.length>0&&onSceneChange&&<button type="button" className="nv-plan-autoplace" disabled={readBusy}
+            title="Lit les noms de pièces et les superficies écrits sur le plan (IA) et te propose de renommer et placer les panoramas."
+            onClick={()=>void readPlan()}>{readBusy?'Lecture du plan…':'🔎 Lire le plan (noms + m²)'}</button>}
         </div>
         <div className="nv-plan-edit-canvas">
           <div className="nv-plan-map-surface" style={{visibility:previewScene?'hidden':undefined}}>
@@ -247,6 +281,30 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
           </section>}
         </div>
       </div>
+      {reading&&<div className="nv-plan-read" role="dialog" aria-modal="true" aria-label="Lecture du plan">
+        <div className="nv-plan-read-card">
+          <header><strong>Pièces lues sur le plan ({reading.rooms.length})</strong>
+            <button type="button" aria-label="Fermer" onClick={()=>setReading(null)}><X size={18}/></button></header>
+          <p>Vérifie chaque panorama : choisis sa pièce, corrige le nom et la superficie si besoin. Rien n’est modifié avant « Appliquer ».</p>
+          <div className="nv-plan-read-rows">
+            {reading.rows.map((row,i)=>{const sc=available.find(x=>x.id===row.sceneId);if(!sc)return null;
+              const set=(patch:Partial<ReadRow>)=>setReading(r=>r&&({...r,rows:r.rows.map((x,k)=>k===i?{...x,...patch}:x)}));
+              return <div key={row.sceneId} className="nv-plan-read-row">
+                <input type="checkbox" checked={row.apply} aria-label={'Appliquer à '+sc.name} onChange={e=>set({apply:e.target.checked})}/>
+                <span className="nv-plan-read-scene" title={sc.name}>{sc.name}</span>
+                <select value={row.room} onChange={e=>{const room=Number(e.target.value),r=reading.rooms[room];set({room,apply:room>=0,name:r?.label??sc.name,surface:r?.surfaceM2!=null?String(r.surfaceM2).replace('.',','):''});}}>
+                  <option value={-1}>— aucune pièce —</option>
+                  {reading.rooms.map((r,k)=><option key={k} value={k}>{r.label}{r.surfaceM2!=null?' · '+r.surfaceM2+' m²':''}</option>)}
+                </select>
+                <input type="text" value={row.name} maxLength={150} aria-label="Nom" onChange={e=>set({name:e.target.value})}/>
+                <input type="text" inputMode="decimal" value={row.surface} placeholder="m²" aria-label="Superficie en m²" onChange={e=>set({surface:e.target.value})}/>
+              </div>;})}
+          </div>
+          <label className="nv-plan-read-place"><input type="checkbox" checked={reading.place} onChange={e=>setReading(r=>r&&({...r,place:e.target.checked}))}/> Placer aussi les panoramas cochés au centre de leur pièce</label>
+          <footer><button type="button" onClick={()=>setReading(null)}>Annuler</button>
+            <button type="button" className="primary" onClick={applyReading}>Appliquer</button></footer>
+        </div>
+      </div>}
       <aside className="nv-plan-panorama-pane" aria-label="Panoramas à placer">
         <strong>Panoramas ({available.length})</strong>
         {onSceneChange&&selected&&<div className="nv-plan-scene-edit" key={selected.id}>
