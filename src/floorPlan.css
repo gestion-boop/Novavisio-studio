@@ -299,3 +299,10 @@
 .nv-plan-image.is-visitor>img.nv-plan-room{mix-blend-mode:normal;opacity:.35;transition:opacity .15s ease}
 .nv-plan-image.is-visitor>img.nv-plan-room.is-hover{opacity:1}
 .nv-plan-image.is-visitor.is-room-hover{cursor:pointer}
+
+/* Vue casque (plan immersif) : pas de pastilles numérotées. Les zones restent cliquables, sans rendu visuel ;
+   au survol, seul un léger contour apparaît. */
+.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point,
+.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point.is-current{background:transparent;border-color:transparent;box-shadow:none;color:transparent;font-size:0}
+.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point:hover,
+.nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point:focus-visible{background:rgba(75,235,222,.22);border-color:#54e9d6;color:transparent;box-shadow:0 0 0 3px rgba(75,235,222,.35)}
