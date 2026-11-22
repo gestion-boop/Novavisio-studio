@@ -106,3 +106,6 @@
 .nv-split-quit:hover{background:#52222d}
 @media(max-width:900px){.view-area.nv-split-active{grid-template-columns:1fr;grid-template-rows:1fr 1fr auto}.nv-split-bar{flex-wrap:wrap;justify-content:center;border-radius:14px;width:calc(100% - 12px)}}
 
+
+/* Barre d'action du double affichage Auto : pas de pastille sombre superposée à la barre du bas. */
+.nv-split-bar{background:transparent;border:0;box-shadow:none;padding:4px 0;gap:10px;margin:0 auto;position:relative}
