@@ -235,7 +235,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
       // Contour jaune (couleur du thème) autour de la sphère : on repère d'un coup d'œil les destinations.
-      const outline=new Mesh(new SphereGeometry(radius*1.09,32,20),new MeshBasicMaterial({color:new Color(/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f6bb34'),side:BackSide,transparent:true,opacity:.95,depthTest:false,depthWrite:false}));
+      const outline=new Mesh(new SphereGeometry(radius*1.45,32,20),new MeshBasicMaterial({color:new Color(/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f6bb34'),side:BackSide,transparent:true,opacity:1,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;mesh.add(outline);
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
