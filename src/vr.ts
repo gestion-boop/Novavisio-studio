@@ -492,7 +492,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
     });
     // Libellé compact sur une ligne ; même distance et même suivi du regard.
-    addPlane(headerGroup,.72,.092,tex,6,0,0);
+    addPlane(headerGroup,.98,.126,tex,6,0,0);
     // Le titre reste indépendamment du monobloc, très loin et très haut.
     // La position sera mise à jour progressivement avec le regard dans tick().
     syncRoomHeaderPose(true);
@@ -784,10 +784,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
     if(referenceMode){
       // Pagination de la maquette, en bas uniquement : Précédent / Suivant encadrent le compteur « n / N ».
-      const yBottom=-H/2+.1;
+      const yBottom=-H/2+.09;
       if(pages>1){
-        addPanelButton(.26,.08,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
-        addPanelButton(.26,.08,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
+        addPanelButton(.24,.07,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
+        addPanelButton(.24,.07,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
         const counterTexture=canvasTexture(400,140,c=>{c.fillStyle='#ffffff';c.font='bold 56px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,200,70);});
         addPlane(panelGroup,.2,.07,counterTexture,6,0,yBottom);
       }
@@ -1095,7 +1095,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const render=async()=>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=referenceMode?.46:.62,ch=referenceMode?.29:.34,gx=referenceMode?.04:.06,gy=referenceMode?.04:.05;
+      const cw=referenceMode?.42:.62,ch=referenceMode?.25:.34,gx=referenceMode?.035:.06,gy=referenceMode?.03:.05;
       const photoItem=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
       const W=cols*cw+(cols-1)*gx+.32;
       const H=referenceMode?.17+rows*ch+(rows-1)*gy+.16+(photoItem?.19:0):.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
