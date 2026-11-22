@@ -1238,19 +1238,21 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     scene.add(controller);
     return controller;
   });
-  // Les deux contrôleurs (gauche et droit) peuvent pointer et sélectionner directement les boutons.
+  // Une seule manette affiche le laser (par défaut la droite, ou celle dont on actionne la gâchette) ;
+  // l'autre manette sert automatiquement de télécommande à l'agent immobilier (sans laser).
+  let activeLaserHand:'left'|'right'='right';
   const laserRaycaster=new Raycaster();
-  const makeLaser=(color:number)=>{
+  const makeLaser=()=>{
     const geo=new BufferGeometry();
     geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-2.3],3));
-    const line=new Line(geo,new LineBasicMaterial({color,transparent:true,opacity:.75,depthTest:false,depthWrite:false}));
+    const line=new Line(geo,new LineBasicMaterial({color:0xffd23f,transparent:true,opacity:.92,depthTest:false,depthWrite:false}));
     line.renderOrder=9;
-    const dot=new Mesh(new SphereGeometry(.005,12,8),new MeshBasicMaterial({color:0x66e3ff,depthTest:false,depthWrite:false}));
+    const dot=new Mesh(new SphereGeometry(.0085,14,10),new MeshBasicMaterial({color:0x1fa8ff,depthTest:false,depthWrite:false}));
     dot.visible=false;dot.renderOrder=11;scene.add(dot);
     disposables.push(geo,line.material as LineBasicMaterial,dot.geometry,dot.material as MeshBasicMaterial);
     return {geo,line,dot,hoveredLast:null as Clickable|null,candidate:null as Clickable|null,candidateSince:0};
   };
-  const handLasers={left:makeLaser(0x9bdcff),right:makeLaser(0xbad9e9)};
+  const handLasers={left:makeLaser(),right:makeLaser()};
   const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null}=>{
     const pos=new Vector3(),dir=new Vector3(0,0,-1);
     controller.updateMatrixWorld(true);
@@ -1335,9 +1337,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     controller.addEventListener('selectstart',()=>{
       const source=controller.userData.source as {handedness?:string}|undefined;
       if(uiHidden)return;
-      // Gâchette sur le rayon (gauche ou droite) ; sinon à gauche sélection au joystick.
-      const laserHit=pointable(controller).target;
-      const target=laserHit??(source?.handedness==='left'&&referenceMode?remoteCandidates().find(item=>item===remoteTarget):null);
+      // Si cette manette est la main laser active, elle clique sur le rayon.
+      // Sinon, elle sert de télécommande agent (joystick + gâchette), sauf si aucun bouton n'est sélectionné et qu'elle vise un bouton (elle prend alors le laser).
+      const hand=source?.handedness==='left'?'left':'right';
+      const remoteItem=referenceMode?remoteCandidates().find(item=>item===remoteTarget):undefined;
+      let target:Clickable|null=null;
+      if(hand===activeLaserHand){
+        target=pointable(controller).target;
+      }else if(remoteItem){
+        target=remoteItem;
+      }else{
+        const hit=pointable(controller).target;
+        if(hit){activeLaserHand=hand;target=hit;}
+      }
       if(!target?.userData.onSelect)return;
       target.userData.pressedUntil=performance.now()+260;
       const states=target.userData.vrIconStates as {pressed?:Texture|null;pressedUntil:number}|undefined;
@@ -1411,21 +1423,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(!axes||axes.length<2)continue;
       const horizontal=axes.length>=4?axes[2]:axes[0];
       const vertical=axes.length>=4?axes[3]:axes[1];
-      // Manette gauche : navigation du menu sans rayon. Joystick
-      // droit : rotation du panorama comme auparavant.
-      if(source.handedness==='left'&&referenceMode&&!uiHidden){
+      // L'autre manette (non-laser) sert de télécommande agent immobilier (navigation sans rayon).
+      // La manette laser garde la rotation du panorama au joystick.
+      const remoteHand=activeLaserHand==='right'?'left':'right';
+      if(source.handedness===remoteHand&&referenceMode&&!uiHidden){
         const magnitude=Math.hypot(horizontal,vertical);
         if(magnitude<.3)remoteAxisArmed=true;
         else if(magnitude>.65&&remoteAxisArmed){
           const before=remoteTarget;
           navigateRemote(horizontal,vertical);
           if(remoteTarget!==before){
-            const c=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness==='left');
+            const c=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness===remoteHand);
             if(c)pulse(c,.2,25);
           }
           remoteAxisArmed=false;
         }
-      }else if(source.handedness==='right'&&typeof horizontal==='number'){
+      }else if(source.handedness===activeLaserHand&&typeof horizontal==='number'){
         if(Math.abs(horizontal)>Math.abs(turn))turn=horizontal;
       }
     }
@@ -1474,12 +1487,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(!referenceMode&&Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
-    // Lasers actifs sur les deux manettes (gauche et droite), avec stabilisation 90 ms anti-tremblement.
+    // Seule la main laser active affiche un rayon ; l'autre reste libre (télécommande agent immobilier).
     const hovered=new Set<Clickable>();
     for(const hand of ['left','right'] as const){
       const ctrl=controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
       const L=handLasers[hand];
-      if(ctrl){
+      if(ctrl&&hand===activeLaserHand){
         if(L.line.parent!==ctrl)ctrl.add(L.line);
         const impact=pointable(ctrl);
         if(impact.target!==L.candidate){L.candidate=impact.target;L.candidateSince=now;}

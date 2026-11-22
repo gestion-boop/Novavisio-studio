@@ -4300,7 +4300,7 @@ function App(){
             <button type="button" className="nv-fs-exit" onClick={()=>void toggleCreationFullscreen()} aria-label="Quitter le plein écran" title="Revenir à l’écran classique"><Minimize2 size={20}/></button>
             {toolsCurtain(true)}
           </div>}
-          {active&&!preview&&<button type="button"
+          {active&&!preview&&!splitAuto&&<button type="button"
             className={'nv-panorama-settings-toggle'+(creationFullscreen?' is-fullscreen':'')}
             aria-label="Réglages du panorama" title="Réglages du panorama : vue d’arrivée, nom, jour/nuit et musique"
             aria-expanded={creationFullscreen?fullscreenToolsOpen&&fullscreenToolsTab==='scene':!rightHidden&&panel==='points'&&!selectedId}
