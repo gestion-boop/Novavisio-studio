@@ -4788,7 +4788,7 @@ function App(){
                   </div>
                 </div>)}
             </aside>}
-          {active && !preview && mode && (
+          {active && !preview && mode && !(splitAuto&&splitTarget) && (
             <div className="mode-active-pill">
               <span className="mode-active-dot" />
               <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Photo':clientVideoPlacement?.name??'Vidéo'}</strong></span>
