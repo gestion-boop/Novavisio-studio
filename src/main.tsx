@@ -17,7 +17,7 @@ import {isPopupMedia,MediaDisplayControl} from './mediaDisplay';
 import './creation.css';
 import {ProjectPreparation} from './ProjectPreparation';
 import {SkinLibrary} from './SkinLibrary';
-import {cloudListSkins} from './cloudSkins';
+import {cloudHasDefaultSkin,cloudListSkins,cloudNewProjectFromDefault} from './cloudSkins';
 import {applySkin} from './skins';
 import {BarDimensions,InspectorSection} from './PreparationControls';
 import './preparation.css';
@@ -58,9 +58,9 @@ import {MediaLibraryPanel} from './MediaLibraryPanel';
 import {PhotoGallery} from './PhotoGallery';
 import {resolveLink} from './mediaLinks';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
-import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {ui,pick} from './i18n';
+import {TranslationInputs} from './TranslationFields';
 import {SunFlareEditor} from './SunFlareEditor';
 const SunGlyph=({size=24}:{size?:number})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
 import {panoramaArrivalZoom} from './panoramaLens';
@@ -69,7 +69,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,openCloudProject,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -123,7 +123,6 @@ function App(){
   const topMenusRef=useRef<HTMLDivElement>(null);
   const [openTopMenu,setOpenTopMenu]=useState<HeaderMenu>(null);
   const [navigationDrawerOpen,setNavigationDrawerOpen]=useState(false);
-  const [aiFreshClient,setAiFreshClient]=useState(false);
   const [spacesDrawerOpen,setSpacesDrawerOpen]=useState(false);
   const [spaceDelete,setSpaceDelete]=useState<{id:string;target:string}|null>(null);  // fenêtre « supprimer un espace »
   const [spaceTransferTo,setSpaceTransferTo]=useState('');
@@ -1900,9 +1899,6 @@ function App(){
   const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const liveBarSort=useHorizontalSort(project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const spaceSort=useHorizontalSort((project.spaces??[]).map(sp=>sp.id),(from,to)=>setProject(p=>({...p,spaces:reorderItems(p.spaces??[],from,to,sp=>sp.id)})));
-  // Couleurs réellement visibles de la barre (pack d'images compris) : bouton Paramètres, son panneau et croix de fermeture.
-  const barTheme=useEffectiveBarTheme(project,project.barStyle);
-  const popupCss=popupThemeVars(barTheme);
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-close-icon-hover-image':project.closeIconHoverId?`url("${project.icons.find(i=>i.id===project.closeIconHoverId)?.dataUrl??''}")`:'none',
@@ -2222,15 +2218,6 @@ function App(){
   // Mode Auto : le clic sur la cible ouvre la galerie 360° pour choisir le panorama d'arrivée (suggestion par numéro de scan).
   const arrivalDraftRef=useRef<{id:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [autoPending,setAutoPending]=useState<{yaw:number;pitch:number}|null>(null);
-  // Destination choisie pour la prochaine flèche (par défaut : le panorama suivant dans l'ordre) + vue visée dans l'aperçu 360°.
-  const [autoDestId,setAutoDestId]=useState<string|null>(null);
-  const autoAimRef=useRef<{id:string;base:{yaw:number;pitch:number;zoom:number};touched:{yaw:number;pitch:number;zoom:number}|null}|null>(null);
-  useEffect(()=>{setAutoDestId(null);autoAimRef.current=null;},[active?.id,autoNavigation]);
-  const autoTarget=(()=>{
-    if(!autoNavigation||!active)return undefined;
-    const chosen=autoDestId?visibleScenes.find(sc=>sc.id===autoDestId&&sc.id!==active.id):undefined;
-    return chosen??visibleScenes[visibleScenes.findIndex(sc=>sc.id===active.id)+1];
-  })();
   function openAutoGallery(yaw:number,pitch:number){
     if(!active||!autoNavigation||preview)return;
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
@@ -2241,7 +2228,7 @@ function App(){
     setClassicDestinationPreviewId(suggestDestinations(active.id)[0]?.id??visibleScenes[index+1]?.id??visibleScenes.find(sc=>sc.id!==active.id)?.id??null);
     setClassicDestinationOpen(true);
   }
-  function guidedForward(yaw:number,pitch:number,destinationId?:string,aimMode:'gallery'|'auto'='gallery'){
+  function guidedForward(yaw:number,pitch:number,destinationId?:string){
     if(!active)return;
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
     const next=destinationId?visibleScenes.find(sc=>sc.id===destinationId):visibleScenes[index+1];
@@ -2250,7 +2237,7 @@ function App(){
     const prevId=active.id;
     const alreadyBack=next.hotspots.some(h=>h.type==='navigation'&&h.target===prevId);
     // Vue d'arrivée = la vue réellement visée dans l'aperçu de destination (cible + inclinaison), sinon le cap de la flèche.
-    const aim=!destinationId?undefined:aimMode==='auto'?(autoAimRef.current?.id===destinationId?(autoAimRef.current.touched??autoAimRef.current.base):undefined):galleryOrientationRef.current[destinationId];
+    const aim=destinationId?galleryOrientationRef.current[destinationId]:undefined;
     const arrival=aim?{yaw:aim.yaw,pitch:aim.pitch,zoom:aim.zoom??panoramaArrivalZoom(next)}:{yaw:existing?.yaw??yaw,pitch:0,zoom:panoramaArrivalZoom(next)};
     confirmNavigationDirection({
       sourceId:active.id,targetId:next.id,sourceYaw:existing?.yaw??yaw,sourcePitch:existing?.pitch??pitch,
@@ -2274,9 +2261,7 @@ function App(){
       id:uid(),type:'navigation',title:'Retour vers '+origin.name,text:'',target:origin.id,
       yaw:camera.yaw,pitch:camera.pitch,
       // En revenant, on regarde à l'opposé de l'aller : on remonte l'allée.
-      // Vue d'arrivée = celle affichée dans l'aperçu du panorama de retour (par défaut : on remonte l'allée, à l'opposé de l'aller).
-      ...(()=>{const a=autoAimRef.current;return a&&a.id===origin.id?(()=>{const v=a.touched??a.base;return {arrivalYaw:v.yaw,arrivalPitch:v.pitch,arrivalZoom:v.zoom,arrivalZoomModel:'wide' as const};})()
-        :{arrivalYaw:(guide.fwdYaw+Math.PI)%(2*Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(origin),arrivalZoomModel:'wide' as const};})(),
+      arrivalYaw:(guide.fwdYaw+Math.PI)%(2*Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(origin),arrivalZoomModel:'wide',
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
     };
     patchScene(sc=>({...sc,hotspots:[...sc.hotspots,point]}));
@@ -2682,7 +2667,7 @@ function App(){
   const activeLanguages:StudioLanguage[]=project.languages??STUDIO_LANGUAGES.map(lang=>lang.code);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   const [windowDemo,setWindowDemo]=useState(false);
-  useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor,project.closeButtonInk);},[project.closeButtonColor,project.closeButtonInk,project.closeIconId]);
+  useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor);},[project.closeButtonColor,project.closeIconId]);
   useEffect(()=>{setTransitionMs(project.transitionMs);},[project.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
@@ -2860,8 +2845,6 @@ function App(){
         onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?target:undefined)}/>
     </details>;
   }
-  /** Ouvre une visite cloud dans l'éditeur (panneau Cloud et fiche client). */
-  const openCloudVisit=(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);};
   function popupIconSettings(hotspot:Hotspot,kind:'image'|'video'){
     const target={sceneId:activeId,pointId:hotspot.id};
     return <>
@@ -3161,7 +3144,7 @@ function App(){
       return ()=>{setPanelBack(null);setLibraryFor(null);if(b){setPanel(b.panel);setHubOpen(b.hub);setSelectedBarId(b.barId);setSelectedId(b.pointId);}else setPanel('points');};
     }
     if(panel==='bar'){
-      if(selectedBarId)return ()=>{setSelectedBarId('');if(hubOpen.bar?.startsWith('btn:'))setHubOpen(h=>({...h,bar:null}));};
+      if(selectedBarId)return ()=>setSelectedBarId('');
       if(hubOpen.bar)return ()=>setHubOpen(h=>({...h,bar:null}));
     }
     if(panel==='points'){
@@ -3170,130 +3153,17 @@ function App(){
     }
     return null;
   }
-  /** Réglages du bouton de la barre sélectionné (partagés par la liste « Boutons et actions » et les tuiles par bouton). */
-  function renderBarButtonConfig(){
-    return <>{selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
-            <hr/>
-            <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
-            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar(selectedBar.type==='gallery'&&selectedBar.galleryTitle?{title:e.target.value,galleryTitle:undefined}:{title:e.target.value})}/></label><button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester cet effet</button><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
-                  <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
-            {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
-            <div className="section-title">ACTION DU BOUTON</div>
-            <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
-              <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
-              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
-              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
-              <button type="button" aria-pressed={selectedBar.type==='plan'} onClick={()=>chooseBarAction('plan')}>⌖ Plan</button>
-              <button type="button" aria-pressed={selectedBar.type==='photos'} onClick={()=>chooseBarAction('photos')}>▣ Photos</button>
-              <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
-              <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
-            </div>
-            {selectedBar.type==='plan'?<><p className="hint">Ce bouton ouvre la galerie des plans interactifs : flèches gauche/droite et points panoramiques pour chaque plan.</p>
-              {!plansInSpace(project,currentSpace).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
-              <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
-            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
-              <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
-              <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
-            :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}{selectedBar.type==='photos'&&<small className="hint-inline">Si tu mets un lien ici (par exemple la galerie en ligne …/kamci-galerie/#imperia), ce bouton l’ouvre dans la visite à la place de la galerie de photos.</small>}</label>}
-            {(selectedBar.type==='lien'||selectedBar.type==='information'||selectedBar.type==='photos')&&!!selectedBar.url&&<label>Ouverture du lien
-              <select value={selectedBar.linkMode??'embed'} onChange={e=>patchBar({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite (fenêtre intégrée)</option><option value="tab">Dans un nouvel onglet</option></select>
-              {refusesEmbedding(selectedBar.url)&&<small className="hint-inline">Instagram, Facebook, LinkedIn… refusent d’être affichés dans une fenêtre intégrée : ce lien s’ouvre automatiquement dans un nouvel onglet.</small>}</label>}
-            <InspectorSection title="Icônes : normal, survol, clic">
-            {generalLibraryBlock({barId:selectedBar.id},'au bouton « '+selectedBar.title+' »')}
-            {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size,useCustomIcon:true}))}
-            {libraryPackPicker(selectedBar.iconId,patch=>patchBar({...patch,useCustomIcon:true}))}
-            {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id,useCustomIcon:!!id}),'Icône par défaut')}
-            {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
-            {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
-            {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
-            {(!selectedBar.iconId||!barUsesIconImage(project.barStyle,selectedBar)) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
-              {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
-            </select></label>}
-            </InspectorSection>
-            <InspectorSection title="Taille et position">
-            <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
-            {selectedBar.iconId&&<>
-              <label>Zoom de l’icône : {selectedBar.iconZoom??100} %<input type="range" min="100" max="250" step="5" value={selectedBar.iconZoom??100} onChange={e=>patchBar({iconZoom:Number(e.target.value)})}/></label>
-              <button type="button" className="style-reset" onClick={()=>{const src=project.icons.find(i=>i.id===selectedBar.iconId)?.dataUrl;if(!src)return;void autoIconZoom(src).then(z=>{patchBar({iconZoom:z});setStatus('Icône ajustée automatiquement : zoom '+z+' %');});}} title="Mesure les marges transparentes de l’image et l’agrandit pour qu’elle remplisse son bouton comme les autres icônes">Ajuster automatiquement la taille de l’icône</button>
-            </>}
-            <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>withBarSize(p,size));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
-            <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
-            </InspectorSection>
-            <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
-          </InspectorSection>}</>;
-  }
-  /** « Appliquer le thème » : bouton Paramètres et croix de fermeture aux couleurs réelles de la barre (fond = boutons, picto = icônes). */
-  function applyBarThemeEverywhere(){
-    const t=barTheme;
-    if(!/^#[0-9a-f]{6}$/i.test(t.button)||!/^#[0-9a-f]{6}$/i.test(t.icon))return;
-    setProject(p=>({...p,closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined,
-      settingsIconId:undefined,settingsHoverIconId:undefined,settingsPressedIconId:undefined,
-      closeButtonColor:t.button,closeButtonInk:t.icon,settingsColor:t.button,settingsIconColor:t.icon}));
-    setStatus('Thème de la barre appliqué au bouton Paramètres et aux croix. ↶ pour annuler · enregistre avec la disquette.');
-  }
-  /** Panneau Icônes : couleurs de la visite (barre, bouton Paramètres, croix) avec aperçu en direct et « Appliquer le thème » en un clic. */
-  function visitColorsCard(){
-    const t=barTheme;
-    const isHex=(c?:string):c is string=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
-    const palette=[...new Set([t.button,t.icon,t.background,t.outline,'#ffffff','#1c1c1c'].filter(isHex).map(c=>c.toLowerCase()))];
-    const lumi=(c:string)=>{const n=parseInt(c.slice(1),16);return (0.299*(n>>16&255)+0.587*(n>>8&255)+0.114*(n&255))/255;};
-    const closeBg=isHex(project.closeButtonColor)?project.closeButtonColor:t.button;
-    const closeInk=isHex(project.closeButtonInk)?project.closeButtonInk:(isHex(closeBg)&&lumi(closeBg)>0.55?'#1b1208':'#ffffff');
-    const setBg=project.settingsColor??t.button,setFg=project.settingsIconColor??t.icon;
-    const barItem=project.bottomBar.find(item=>item.iconId&&barUsesIconImage(project.barStyle,item));
-    const barImg=barItem?project.icons.find(i=>i.id===barItem.iconId)?.dataUrl:undefined;
-    const themed=!closeIcon&&!settingsIconSrc&&project.closeButtonColor?.toLowerCase()===t.button.toLowerCase()&&project.closeButtonInk?.toLowerCase()===t.icon.toLowerCase()
-      &&setBg.toLowerCase()===t.button.toLowerCase()&&setFg.toLowerCase()===t.icon.toLowerCase();
-    const noPng={closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined};
-    const noSettingsPng={settingsIconId:undefined,settingsHoverIconId:undefined,settingsPressedIconId:undefined};
-    const pick=(label:string,value:string,onPick:(c:string)=>void)=><div className="nv-vc-pick">
-      <span className="nv-vc-pick-label">{label}</span>
-      <div className="nv-vc-swatches">
-        {palette.map(c=><button type="button" key={c} className={value.toLowerCase()===c?'is-on':''} style={{background:c}} title={c} aria-label={label+' '+c} onClick={()=>onPick(c)}/>)}
-        <label className="nv-vc-custom" title="Autre couleur"><input type="color" aria-label={label+' : autre couleur'} value={isHex(value)?value:'#888888'} onChange={e=>onPick(e.target.value)}/><span>+</span></label>
-      </div>
-    </div>;
-    return <section className="nv-vc" aria-label="Couleurs de la visite">
-      <header className="nv-vc-head"><Palette size={18}/><div><strong>Couleurs de la visite</strong><small>Barre du bas, bouton Paramètres et croix de fermeture</small></div></header>
-      <div className="nv-vc-preview" aria-label="Aperçu">
-        <figure><span className="nv-vc-dot" style={{background:t.button,color:t.icon,borderColor:t.buttonOutline}}>{barImg?<img src={barImg} alt=""/>:<Home size={20}/>}</span><figcaption>Barre</figcaption></figure>
-        <figure><span className="nv-vc-dot" style={{background:setBg,color:setFg}}>{settingsIconSrc?<img src={settingsIconSrc} alt=""/>:<SettingsIcon size={20}/>}</span><figcaption>Paramètres</figcaption></figure>
-        <figure><span className="nv-vc-dot" style={{background:closeBg,color:closeInk}}>{closeIcon?<img src={closeIcon.dataUrl} alt=""/>:<X size={20}/>}</span><figcaption>Croix</figcaption></figure>
-      </div>
-      <button type="button" className={'nv-vc-apply'+(themed?' is-done':'')} onClick={applyBarThemeEverywhere} disabled={!isHex(t.button)||!isHex(t.icon)}>
-        <span className="nv-vc-apply-chips"><i style={{background:t.button}}/><i style={{background:t.icon}}/></span>
-        {themed?'✓ Thème de la barre appliqué':'Appliquer le thème de la barre partout'}
-      </button>
-      <small className="nv-vc-note">Met le bouton Paramètres et les croix aux couleurs de la barre{(closeIcon||settingsIconSrc)?' (les images personnalisées de croix / Paramètres sont remplacées par la version couleur)':''}.</small>
-      <details className="nv-vc-fine">
-        <summary>Régler chaque élément</summary>
-        <div className="nv-vc-group">
-          <strong><X size={15}/> Croix de fermeture</strong>
-          {pick('Fond',closeBg,c=>setProject(p=>({...p,...noPng,closeButtonColor:c})))}
-          {pick('Croix',closeInk,c=>setProject(p=>({...p,...noPng,closeButtonColor:p.closeButtonColor??t.button,closeButtonInk:c})))}
-          <button type="button" className="nv-vc-reset" disabled={!project.closeButtonColor&&!project.closeButtonInk} onClick={()=>setProject(p=>({...p,closeButtonColor:undefined,closeButtonInk:undefined}))}>Couleurs par défaut</button>
-        </div>
-        <div className="nv-vc-group">
-          <strong><SettingsIcon size={15}/> Bouton Paramètres</strong>
-          {settingsIconSrc&&<small className="nv-vc-note">Une image personnalisée est active : choisir une couleur la remplace par la roue crantée.</small>}
-          {pick('Fond',setBg,c=>setProject(p=>({...p,...noSettingsPng,settingsColor:c})))}
-          {pick('Roue',setFg,c=>setProject(p=>({...p,...noSettingsPng,settingsIconColor:c})))}
-          <button type="button" className="nv-vc-reset" disabled={!project.settingsColor&&!project.settingsIconColor} onClick={()=>setProject(p=>({...p,settingsColor:undefined,settingsIconColor:undefined}))}>Couleurs de la barre</button>
-        </div>
-      </details>
-    </section>;
-  }
   /** Couleur des croix de fermeture : couleurs de la barre, sélecteur libre, pipette. Choisir une couleur remplace une icône de croix personnalisée. */
   function setCloseColor(color?:string){
     setProject(p=>({...p,closeButtonColor:color,...(color?{closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined}:{})}));
   }
   function closeColorControls(){
     const eyedropper=typeof window!=='undefined'&&'EyeDropper' in window;
-    const barColor=/^#[0-9a-f]{6}$/i.test(barTheme.button)?barTheme.button:undefined;
+    const barColor=/^#[0-9a-f]{6}$/i.test(project.barStyle.button)?project.barStyle.button:undefined;
     return <div className="nv-close-config">
       <p className="hint">Une seule couleur pour les croix des photos, vidéos, informations, galeries et pages intégrées de tout le projet. Au survol, la croix s’éclaircit.</p>
-      <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={applyBarThemeEverywhere}>
-        <i style={{background:barColor??'#888'}}/> Appliquer le thème de la barre (croix + bouton Paramètres)</button>
+      <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={()=>{setCloseColor(barColor);setStatus('Croix de fermeture : couleur des boutons de la barre appliquée. Enregistre avec la disquette.');}}>
+        <i style={{background:barColor??'#888'}}/> Appliquer les couleurs de la barre du bas</button>
       <div className="nv-close-colors">
         {([['Jaune','#f5b324'],['Blanc','#ffffff'],['Orange','#e18533'],['Rouge','#d93b3b'],['Bleu','#2f9fd8'],['Noir','#1c1c1c']] as const).map(([name,c])=>
           <button type="button" key={c} className={project.closeButtonColor?.toLowerCase()===c?'is-on':''} title={name} aria-label={'Croix '+name} style={{background:c}} onClick={()=>setCloseColor(c)}/>)}
@@ -3699,6 +3569,23 @@ function App(){
     setProject(fresh);setActiveId('');setSelectedId('');setLock(null);setPreparationOpen(true);
     void persist(fresh,true);
   }
+  async function startFresh(){
+    if(project.scenes.length && !await confirmAsk('Créer un nouveau projet ? Pense à exporter celui-ci avant.'))return;
+    // Toujours charger le modèle Supabase AVANT de quitter la visite active.
+    // En cas d'échec réseau, conserver l'ancien projet pour éviter toute perte.
+    let fresh:StudioProject,hasModel:boolean;
+    try{
+      hasModel=await cloudHasDefaultSkin();
+      fresh=await cloudNewProjectFromDefault();
+    }catch(e){
+      setStatus('Impossible de préparer la nouvelle visite depuis le Cloud : '+String(e));
+      window.alert('Le modèle Cloud n’a pas pu être chargé. La visite actuelle est conservée. Vérifie ta connexion Supabase.');
+      return;
+    }
+    setActiveSpaceId(null);setSpaceManagerOpen(false);resetProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
+    cloud.unlink();
+    if(hasModel)setStatus('Modèle Cloud appliqué au nouveau projet : packs d’icônes, charte, barre et VR. Ajoute les panoramas puis sauvegarde.');
+  }
   function addClientLink(item:ClientLink){
     const next:BottomBarItem={id:uid(),title:item.label,type:item.kind==='info'?'information':'lien',target:'',text:'',url:item.url,builtinIcon:item.label==='Appeler'?'phone':item.label==='Itinéraire'?'grid':'info'};
     setProject(p=>({...p,bottomBar:[...p.bottomBar,next]}));
@@ -3752,7 +3639,7 @@ function App(){
           </div>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setSkinsOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Layers size={17}/> Skins</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setVrMenuOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}><span className="nv-drawer-item-label"><Eye size={17}/> Vue casque</span></button>
-          <button type="button" className="nv-client-top-btn" onClick={()=>{setAiFreshClient(true);setAiAssistantOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}} title="NovaStudio AI — Création intelligente"><span className="nv-drawer-item-label"><Sparkles size={17} color="#38bdf8"/> NovaStudio AI</span></button>
+          <button type="button" className="nv-client-top-btn" onClick={()=>{setAiAssistantOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}} title="NovaStudio AI — Création intelligente"><span className="nv-drawer-item-label"><Sparkles size={17} color="#38bdf8"/> NovaStudio AI</span></button>
           <button type="button" className="nv-client-top-btn" onClick={()=>{setClientOpen(true);setNavigationDrawerOpen(false);setOpenTopMenu(null);}}>
             <Users size={17}/><span className="nv-drawer-item-label">Clients</span>
           </button>
@@ -3764,13 +3651,26 @@ function App(){
               <span className="nv-drawer-item-label"><Plus size={17}/> Fichier</span><ChevronDown size={15}/>
             </button>
             {openTopMenu==='file'&&<div className="nv-menu-popover" role="menu" aria-label="Fichier">
-              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setAiFreshClient(true);setAiAssistantOpen(true);}}>
-                <Sparkles size={16} color="#38bdf8"/><strong>Nouveau client (NovaStudio AI)</strong>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);setAiAssistantOpen(true);}}>
+                <Sparkles size={16} color="#38bdf8"/><strong>Nouveau projet (NovaStudio AI)</strong>
+              </button>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);startFresh();}}>
+                <Plus size={16}/><span>Nouveau projet vierge</span>
+              </button>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);projectInput.current?.click();}}>
+                <Download size={16}/><span>Ouvrir un projet</span>
               </button>
               <div className="nv-menu-divider" role="separator"/>
               <button type="button" role="menuitem" disabled={!ready||savingManually||!!lock}
                 onClick={()=>{setOpenTopMenu(null);void manualSave();}}>
                 <Save size={16}/><span>Enregistrer maintenant</span><b>⌘ S</b>
+              </button>
+              <button type="button" role="menuitem" onClick={()=>{setOpenTopMenu(null);download();}}>
+                <Download size={16}/><span>Télécharger une copie .nvstudio.json</span>
+              </button>
+              <button type="button" role="menuitem" disabled={exporting||!visibleScenes.length}
+                onClick={()=>{setOpenTopMenu(null);setExportDialog({spaceId:currentSpace?.id??null});}}>
+                <Sparkles size={16}/><span>Exporter HTML / ZIP…</span>
               </button>
             </div>}
           </div>
@@ -4244,24 +4144,18 @@ function App(){
           </div>
         </section>}
       <main className="editor">
-        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={{...barCss,...popupCss}}>
+        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
           {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
-            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className={'empty'+(!currentSpace?' nv-home':'')}>
+            onCameraChange={(yaw,pitch,zoom)=>{cameraRef.current={sceneId:activeId,yaw,pitch,zoom};}}/>:<div className={'empty'+(!currentSpace?' nv-immersive-welcome':'')}>
             {currentSpace&&<div className="empty-icon">◎</div>}
             {currentSpace&&<h1>Cet espace est vide</h1>}
             {currentSpace&&<p>Sélectionne les panoramas de la visite principale à inclure dans cet espace.</p>}
-            {currentSpace&&<button className="primary" onClick={()=>setSpaceManagerOpen(true)}>Choisir les panoramas</button>}
-            {!currentSpace&&<>
-              <h1>Bienvenue dans NovaStudio</h1>
-              <p>Crée un client : l'assistant analyse son site, sa charte et ses icônes, puis prépare la visite.</p>
-              <div className="nv-home-actions">
-                <button className="primary" onClick={()=>{setAiFreshClient(true);setAiAssistantOpen(true);}}>✨ Nouveau client (NovaStudio AI)</button>
-                <button onClick={()=>setPreparationOpen(true)}>Démarrer sans assistant</button>
-              </div>
-            </>}
+            <button className="primary" onClick={()=>currentSpace?setSpaceManagerOpen(true):setPreparationOpen(true)}>
+              {currentSpace?'Choisir les panoramas':'Démarrer'}
+            </button>
           </div>}
           {navigationDraft&&visibleScenes.some(sc=>sc.id===navigationDraft.targetId)&&
             <section className="nv-direction-preview" role="dialog" aria-modal="true" aria-label="Valider la direction de la destination">
@@ -4292,34 +4186,6 @@ function App(){
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
             <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
           </div>}
-          {autoNavigation&&!preview&&guide?.phase==='back'&&(()=>{const origin=project.scenes.find(sc=>sc.id===guide.prevId);return origin?<aside className="nv-auto-dest" aria-label="Panorama de retour">
-            <header><span>Retour vers</span><strong className="nv-auto-dest-name">{origin.name}</strong></header>
-            <div className="nv-auto-dest-view" key={'back-'+origin.id}>
-              <FullscreenGalleryHoverPreview scene={{...origin,arrivalYaw:(guide.fwdYaw+Math.PI)%(2*Math.PI),arrivalPitch:0}} thumb={sceneThumbs[origin.id]} onOrientation={view=>{
-                const cur=autoAimRef.current;
-                if(!cur||cur.id!==origin.id){autoAimRef.current={id:origin.id,base:view,touched:null};return;}
-                if(Math.abs(view.yaw-cur.base.yaw)>1e-3||Math.abs(view.pitch-cur.base.pitch)>1e-3||Math.abs(view.zoom-cur.base.zoom)>1e-3)cur.touched=view;
-              }}/>
-            </div>
-            <small>Place la flèche de retour vers ce panorama. La vue affichée ici sera la vue d’arrivée (glisse pour la changer).</small>
-          </aside>:null;})()}
-          {autoNavigation&&!preview&&guide?.phase==='forward'&&autoTarget&&<aside className="nv-auto-dest" aria-label="Panorama de destination">
-            <header>
-              <span>Destination</span>
-              <select value={autoTarget.id} aria-label="Choisir le panorama de destination" onChange={e=>setAutoDestId(e.target.value)}>
-                {visibleScenes.filter(sc=>sc.id!==active?.id).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
-              </select>
-            </header>
-            <div className="nv-auto-dest-view" key={autoTarget.id}>
-              <FullscreenGalleryHoverPreview scene={autoTarget} thumb={sceneThumbs[autoTarget.id]} onOrientation={view=>{
-                const cur=autoAimRef.current;
-                if(!cur||cur.id!==autoTarget.id){autoAimRef.current={id:autoTarget.id,base:view,touched:null};return;}
-                if(Math.abs(view.yaw-cur.base.yaw)>1e-3||Math.abs(view.pitch-cur.base.pitch)>1e-3||Math.abs(view.zoom-cur.base.zoom)>1e-3)cur.touched=view;
-              }}/>
-              <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
-            </div>
-            <small>La vue affichée ici sera enregistrée comme vue d’arrivée (glisse pour la changer).</small>
-          </aside>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
               <span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/>
@@ -4336,7 +4202,7 @@ function App(){
                     // Le + avance directement vers le panorama suivant dans l'ordre visible.
                     // La galerie de choix reste disponible par les autres commandes de navigation.
                     guidedForward(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),
-                      v.sceneId===active.id?v.pitch:(active.arrivalPitch??0),autoTarget?.id,'auto');
+                      v.sceneId===active.id?v.pitch:(active.arrivalPitch??0));
                   }}>
                   <span aria-hidden="true">+</span>
                 </button>}
@@ -4741,6 +4607,7 @@ function App(){
                   </label>
                   </div>
                   <SceneRoomNameOptions scene={active} onChange={v=>patchScene(sc=>({...sc,...v}))}/>
+                  <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   {nightSceneControls(active)}
                   <button type="button" className="nv-quick-primary" onClick={saveArrivalView}>
                     <Eye size={15}/> Définir cette vue comme arrivée
@@ -4857,7 +4724,7 @@ function App(){
           </div>}
           {videoZoom && <VideoPopup hotspot={videoZoom} animation={videoZoom.openAnimation??project.windowAnimation} origin={zoomFrom} onClose={()=>setVideoZoom(null)}/>}
           {active&&!introVisible&&<div className="nv-visitor-settings">
-            <button type="button" style={settingsButtonBarStyle(project,barTheme)} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label={ui('settings',visitorLang)} aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
+            <button type="button" style={settingsButtonBarStyle(project,project.barStyle??defaultBarStyle())} className={'nv-visitor-settings-btn'+(settingsIconSrc?' has-custom-png':'')} aria-label={ui('settings',visitorLang)} aria-expanded={preview?settingsOpen:undefined} title={preview?'Paramètres : plan, son et langue':'Modifier le bouton Paramètres'} onClick={()=>{if(preview){setSettingsOpen(o=>!o);return;}editSettingsButton();}}>{settingsIconSrc?<IconStateVisual icons={project.icons} normal={project.settingsIconId??project.settingsHoverIconId??project.settingsPressedIconId} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<SettingsIcon size={Math.round(settingsSize(project)*0.42)}/>}</button>
             {preview&&settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label="Paramètres">
               <strong>{ui('sound',visitorLang)}</strong>
               <div className="nv-vs-row">
@@ -4870,7 +4737,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
-          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} shortcuts={project.planShortcuts!==false?project.bottomBar.filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,visitorLang),icon:project.icons.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar.find(b=>b.id===id);if(item){setFloorPlanOpen(false);triggerBar(item);}}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -4921,6 +4788,12 @@ function App(){
       <aside id="nv-panorama-inspector" className="right panel">
         <div className="nv-inspector-resize" onPointerDown={startInspectorResize} onDoubleClick={()=>setInspectorWidth(inspectorVw<58?66:40)} role="separator" aria-orientation="vertical" aria-label="Glisser pour élargir ou réduire la colonne (double-clic : agrandir / normal)" title="Glisser pour élargir · double-clic : agrandir / normal"><i/></div>
         <div className="nv-inspector-top">{(()=>{const back=inspectorBack();return back?<button type="button" className="nv-inspector-back" onClick={back} aria-label="Retour à l’écran précédent" title="Retour"><ChevronLeft size={20}/><span>Retour</span></button>:null;})()}{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
+        <nav className="nv-right-tabs" aria-label="Navigation rapide du panneau">
+          <button type="button" className={(panel==='points'&&!!selected)||panel==='elements'?'is-active':''} disabled={!active} onClick={()=>{setMode(null);if(active&&!selected&&active.hotspots.length){setSelectedId(active.hotspots[0].id);setPanel('points');}else if(active&&selected){setPanel('points');}else{setPanel('elements');}}}>Point{active&&active.hotspots.length?<small>{active.hotspots.length}</small>:null}</button>
+          <button type="button" className={panel==='bar'?'is-active':''} onClick={()=>{setMode(null);setPanel('bar');if(!selectedBarId&&project.bottomBar.length)setSelectedBarId(project.bottomBar[0].id);}}>Barre<small>{project.bottomBar.length}</small></button>
+          <button type="button" className={panel==='points'&&!selected?'is-active':''} onClick={()=>{setMode(null);setSelectedId('');setHubOpen(h=>({...h,scene:null}));setPanel('points');}}>Panorama</button>
+          <button type="button" className={panel==='settings'?'is-active':''} onClick={()=>{setMode(null);setPanel('settings');}}>Visite</button>
+        </nav>
         {currentSpace&&<><SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/><SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/></>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
@@ -5051,54 +4924,22 @@ function App(){
             /* DIRECT ELEMENT INSPECTOR (QUAND UN ÉLÉMENT DU 360° EST CLIQUÉ) */
             /* ============================================================== */
             <div id="nv-selected-point" className="element-inspector">
-              <div className="element-inspector-header">
-                <div className="element-inspector-badge">
-                  <span className="badge-glyph">
-                    {selected.type==='navigation'?'➜':selected.type==='lien'?'↗':selected.type==='image'?'▣':selected.type==='video'?'▶':'ⓘ'}
-                  </span>
-                  <div>
-                    <strong>{selected.type==='navigation'?'Navigation':selected.type==='lien'?'Lien web':selected.type==='image'?'Photo':selected.type==='video'?'Vidéo':'Information'}</strong>
-                    <small>Paramètres de l’élément sélectionné</small>
-                  </div>
+              <div className="nv-qe-head">
+                <span className="nv-qe-symbol">{selected.type==='navigation'?'➜':selected.type==='lien'?'↗':selected.type==='image'?'▣':selected.type==='video'?'▶':'ⓘ'}</span>
+                {active.hotspots.length>1?<select className="nv-qe-switch" aria-label="Passer à un autre point" value={selectedId} onChange={e=>selectPointForEditing(e.target.value)}>
+                  {active.hotspots.map((h,idx)=><option key={h.id} value={h.id}>{idx+1}. {h.type==='navigation'?'➜ ':h.type==='lien'?'↗ ':h.type==='image'?'▣ ':h.type==='video'?'▶ ':'ⓘ '}{h.title||'Point sans titre'}</option>)}
+                </select>:<strong>{selected.type==='navigation'?'Navigation':selected.type==='lien'?'Lien web':selected.type==='image'?'Photo':selected.type==='video'?'Vidéo':'Information'}</strong>}
+                <div className="nv-qe-tools">
+                  <button type="button" className="is-danger" title="Supprimer ce point" aria-label="Supprimer ce point" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}><Trash2 size={15}/></button>
                 </div>
-                <button type="button" className="element-close-btn" onClick={()=>setSelectedId('')} title="Désélectionner et revenir aux paramètres de la scène">
-                  ← Vue d’ensemble
-                </button>
               </div>
 
               {navigationEditor()}
-              {active.hotspots.length > 1 && (
-                <div className="point-quick-switcher">
-                  <label>Passer à un autre point :
-                    <select value={selectedId} onChange={e=>selectPointForEditing(e.target.value)}>
-                      {active.hotspots.map((h, idx) => (
-                        <option key={h.id} value={h.id}>
-                          {idx + 1}. {h.type==='navigation'?'➜ ':h.type==='lien'?'↗ ':h.type==='image'?'▣ ':h.type==='video'?'▶ ':'ⓘ '}
-                          {h.title || 'Point sans titre'}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              )}
 
-              <div className="field-group">
-                <label>Titre / Libellé
-                  <input value={selected.title} placeholder="Nom du point..." onChange={e=>patchPoint({title:e.target.value})}/>
-                  <label>Animation à l’ouverture<select value={selected.openAnimation??''} onChange={e=>patchPoint({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
-                  <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=selected.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
-                </label>
-              </div>
+              <label>Titre<input value={selected.title} placeholder="Nom du point…" onChange={e=>patchPoint({title:e.target.value})}/></label>
 
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
-                {frameLoupe(selected)}
-                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
-                {isPopupMedia(selected)&&iconSizeControl()}
-                {isPopupMedia(selected)&&applyAllButton()}
-                <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
-                <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Choisir dans ma bibliothèque Photos & Vidéos (Drive, kDrive…)</button>
-                <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'image',fresh:false});}}>🖼 Choisir une photo déjà utilisée</button>
                 <label className="photo-upload-dropzone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add('drag-hover');}}
                   onDragLeave={e=>{e.currentTarget.classList.remove('drag-hover');}}
                   onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove('drag-hover');void addFrameImage(e.dataTransfer.files[0]);}}>
@@ -5107,9 +4948,22 @@ function App(){
                   <span>Cliquer ici ou déposer une photo dans ce cadre</span>
                   <input type="file" accept="image/*,.heic,.heif" onChange={e=>{const file=e.currentTarget.files?.[0];if(file)void addFrameImage(file);e.currentTarget.value='';}}/>
                 </label>
-                <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo max</small>
                 {photoFeedback&&<div role="status" className="photo-feedback">{photoFeedback}</div>}
                 {selected.imageDataUrl&&<img className="photo-preview-uploaded" src={selected.imageDataUrl} alt="Photo intégrée au cadre"/>}
+                <div className="nv-qe-row">
+                <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Bibliothèque</button>
+                <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'image',fresh:false});}}>🖼 Déjà utilisée</button>
+                </div>
+                {(selected.imageDataUrl||selected.imageUrl)&&<button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
+                  <Eye size={15}/> Tester le popup photo
+                </button>}
+                <details className="nv-more"><summary>Plus d’options <small>cadre, taille, effets</small></summary><div className="nv-more-body">
+                {frameLoupe(selected)}
+                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
+                {isPopupMedia(selected)&&iconSizeControl()}
+                {isPopupMedia(selected)&&applyAllButton()}
+                <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
+                <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo max</small>
                 {!isPopupMedia(selected)&&<>
                 {selected.imageDataUrl && <p className="hint">💡 Cadrage : déplace directement les quatre poignées turquoise sur le cadre photo dans le 360° pour suivre la perspective.</p>}
                 <label>Largeur : {selected.frameWidth??320} px
@@ -5121,28 +4975,29 @@ function App(){
                 </>}
                 <label className="toggle-row"><input type="checkbox" checked={selected.fadeOnClick??true} onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
                 {!isPopupMedia(selected)&&<label className="toggle-row"><input type="checkbox" checked={selected.imageBounce!==false} onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>}
-                {(selected.imageDataUrl||selected.imageUrl)&&<button type="button" className="tool" onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
-                  <Eye size={15}/> Tester le popup photo
-                </button>}
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
+                </div></details>
               </> : selected.type==='video' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>
-                {frameLoupe(selected)}
-                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
-                {isPopupMedia(selected)&&iconSizeControl()}
-                {isPopupMedia(selected)&&applyAllButton()}
-                <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Choisir dans ma bibliothèque Photos & Vidéos (Drive, kDrive…)</button>
-                <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'video',fresh:false});}}>🎞 Choisir une vidéo déjà utilisée</button>
-                <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer une vidéo MP4 / WebM'}</button>
+                <div className="nv-qe-row">
+                <button type="button" className="import" onClick={()=>{setPanel('medialib');setRightHidden(false);}}>📚 Bibliothèque</button>
+                <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'video',fresh:false});}}>🎞 Déjà utilisée</button>
+                <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer MP4 / WebM'}</button>
+                </div>
                 <small className="hint-inline">45 Mo max en local, ou renseigne une URL HTTPS directe :</small>
                 <label>Ou URL HTTPS de la vidéo
                   <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''} onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
                 </label>
                 {selected.videoUrl && !isSafeMediaUrl(selected.videoUrl)&&<small className="warning-inline">Adresse HTTPS invalide.</small>}
+                {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
+                <details className="nv-more"><summary>Plus d’options <small>son, cadre, lecture</small></summary><div className="nv-more-body">
+                {frameLoupe(selected)}
+                {isPopupMedia(selected)&&popupIconSettings(selected,selected.type)}
+                {isPopupMedia(selected)&&iconSizeControl()}
+                {isPopupMedia(selected)&&applyAllButton()}
                 {(selected.type==='video'||selected.videoDataUrl||selected.videoUrl)&&<label className="nv-volume-field">Volume du son : <b>{selected.videoVolume??100} %</b>
                   <input type="range" min={0} max={100} step={5} value={selected.videoVolume??100} onChange={e=>patchPoint({videoVolume:Number(e.target.value)})}/>
                   <small className="hint-inline">{isPopupMedia(selected)?'Appliqué à la vidéo quand le visiteur ouvre la fenêtre (0 % = sans son).':'En incrustation dans le panorama, la vidéo démarre sans son (blocage des navigateurs) : le volume s’applique à l’ouverture en fenêtre.'}</small></label>}
-                {(selected.videoDataUrl||selected.videoUrl)&&<video className="editor-video-preview" src={selected.videoDataUrl||selected.videoUrl} controls muted playsInline/>}
                 {!isPopupMedia(selected)&&<>
                 <div className="section-title">ADAPTER L'ÉCRAN À LA PERSPECTIVE</div>
                 
@@ -5166,6 +5021,7 @@ function App(){
                   </select>
                 </label>}
                 {!isPopupMedia(selected)&&<button className="style-reset" type="button" onClick={()=>patchPoint({frameCorners:defaultFrameCorners(),frameSphericalCorners:undefined})}>Réinitialiser les 4 coins</button>}
+                </div></details>
               </> : selected.type==='navigation' ? (
                 <>
                 {/* Destination, test, retour et vue d'arrivée : voir les tuiles d'action en haut du panneau */}
@@ -5249,29 +5105,28 @@ function App(){
                 </>
               )}
 
-              {!['image','video'].includes(selected.type) && <InspectorSection title="Icône et apparence">
-                <div className="section-title">ICÔNE DU POINT</div>
-                {generalLibraryBlock({sceneId:activeId,pointId:selected.id},'à ce point')}
-                {iconSetPicker({...selected,size:selected.iconSize??28},set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:Math.max(16,Math.min(80,set.size))}))}
-                {libraryPackPicker(selected.iconId,patch=>patchPoint(patch))}
-                {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
-                {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
-                {applyAllButton()}
-                {iconStateEditor('pt-hover','PNG au survol (optionnel)',selected.hoverIconId,id=>patchPoint({hoverIconId:id}),'Identique au normal')}
-                {iconStateEditor('pt-pressed','PNG au clic (optionnel)',selected.pressedIconId,id=>patchPoint({pressedIconId:id}),'Identique au survol')}
-                <label>Taille de l'icône : {selected.iconSize??28} px
-                  <input type="range" min="16" max="80" step="2" value={selected.iconSize??28} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
-                </label>
-              </InspectorSection>}
-
-              <div className="coords-card">
-                <span>Position 360° : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad</span>
-                <small>💡 Astuce : tu peux glisser ce point directement dans le panorama pour ajuster sa position.</small>
-              </div>
-
-              <button type="button" className="delete" onClick={()=>{patchScene(sc=>({...sc,hotspots:sc.hotspots.filter(h=>h.id!==selectedId)}));setSelectedId('');}}>
-                <Trash2 size={13} style={{marginRight:6,verticalAlign:'-2px'}}/> Supprimer ce point
-              </button>
+              <details className="nv-more">
+                <summary>Plus d’options <small>{['image','video'].includes(selected.type)?'animation, position':'icône, taille, animation'}</small></summary>
+                <div className="nv-more-body">
+                  <div className="nv-qe-inline"><label>Animation<select value={selected.openAnimation??''} onChange={e=>patchPoint({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+                    <button type="button" className="nv-test-anim" title="Tester l’animation" onClick={()=>{document.documentElement.dataset.windowAnim=selected.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester</button></div>
+                  {!['image','video'].includes(selected.type) && <>
+                    <label>Taille de l'icône : {selected.iconSize??28} px
+                      <input type="range" min="16" max="80" step="2" value={selected.iconSize??28} onChange={e=>patchPoint({iconSize:Number(e.target.value)})}/>
+                    </label>
+                    <div className="nv-qe-label">Icône du point</div>
+                    {generalLibraryBlock({sceneId:activeId,pointId:selected.id},'à ce point')}
+                    {iconSetPicker({...selected,size:selected.iconSize??28},set=>patchPoint({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:Math.max(16,Math.min(80,set.size))}))}
+                    {libraryPackPicker(selected.iconId,patch=>patchPoint(patch))}
+                    {iconStateEditor('pt-normal','Icône personnalisée',selected.iconId,id=>patchPoint({iconId:id}),'Icône par défaut')}
+                    {selected.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selected.iconId!)}>Remplacer ce PNG partout</button>}
+                    {applyAllButton()}
+                    {iconStateEditor('pt-hover','PNG au survol (optionnel)',selected.hoverIconId,id=>patchPoint({hoverIconId:id}),'Identique au normal')}
+                    {iconStateEditor('pt-pressed','PNG au clic (optionnel)',selected.pressedIconId,id=>patchPoint({pressedIconId:id}),'Identique au survol')}
+                  </>}
+                  <small className="hint-inline">Position 360° : {selected.yaw.toFixed(2)} / {selected.pitch.toFixed(2)} rad · glisse le point dans le panorama pour le déplacer.</small>
+                </div>
+              </details>
             </div>
           ) : (
             /* ============================================================== */
@@ -5295,6 +5150,7 @@ function App(){
                   </label>
               </div>
               <SceneRoomNameOptions scene={active} onChange={v=>patchScene(sc=>({...sc,...v}))}/>
+                  <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
@@ -5354,20 +5210,7 @@ function App(){
               </label>
               <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une musique</button>
               <button type="button" className="style-reset" onClick={()=>setPanel('music')}>Gérer la bibliothèque musicale</button>
-                  </>},
-                  {key:'visit-colors',title:'Couleurs',hint:'Barre, Paramètres, croix',icon:<Palette size={26}/>,tone:'#e86aa8',content:visitColorsCard()},
-                  {key:'visit-icons',title:'Mes icônes',hint:'Flèches, croix, Paramètres…',icon:<Images size={26}/>,tone:'#f0903c',onClick:()=>{setLibraryFor(null);setPanel('icons');}},
-                  // Raccourcis : un bouton par icône de la barre du bas, pour ouvrir ses réglages sans changer de menu.
-                  ...project.bottomBar.map((item,itemIndex)=>{
-                    const img=project.icons.find(i=>i.id===item.iconId)?.dataUrl;
-                    const kind=item.type==='plan'?'Plan':item.type==='photos'?'Photos':item.type==='navigation'?'Panorama':item.type==='information'?'Information':item.type==='gallery'?'Galerie':'Lien';
-                    const tone=item.type==='plan'?'#e1a525':item.type==='photos'?'#e0645c':item.type==='gallery'?'#4f7cff':item.type==='information'?'#2bb3d6':item.type==='navigation'?'#2fbf8f':'#a468f0';
-                    return {key:'sc:'+item.id,groupStart:itemIndex===0,title:item.title||kind,hint:'Raccourci · '+kind,tone,
-                      icon:img?<img className="nv-hub-tile-img" src={img} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>,
-                      onClick:()=>{setPanel('bar');setSelectedBarId(item.id);setHubOpen(h=>({...h,bar:'btn:'+item.id}));setSelectedId('');setRightHidden(false);}};
-                  }),
-                  // Vue casque : ouvre l'éditeur de l'interface du casque, dans le même groupe que les boutons de la barre.
-                  {key:'vr-menu',groupStart:project.bottomBar.length===0,title:'Vue casque',hint:'Interface jaune',icon:<Eye size={26}/>,tone:'#e1a525',onClick:()=>setVrMenuOpen(true)}
+                  </>}
                 ]}/>
             </div>
           )}
@@ -5375,16 +5218,72 @@ function App(){
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
-          <SectionHub id="bar" open={hubOpen.bar??null} onOpenChange={k=>{if(!k)setSelectedBarId('');setHubOpen(h=>({...h,bar:k}));}} forceOpen={selectedBarId&&hubOpen.bar!=='btn:'+selectedBarId&&hubOpen.bar!=='buttons'?'btn:'+selectedBarId:selectedBarId&&!hubOpen.bar?'buttons':null} sections={[
+          <SectionHub id="bar" open={hubOpen.bar??null} onOpenChange={k=>setHubOpen(h=>({...h,bar:k}))} forceOpen={selectedBarId?'buttons':null} sections={[
             {key:'buttons',title:'Boutons et actions',badge:project.bottomBar.length,hint:'Ajouter, modifier, ordonner',icon:<PanelBottom size={26}/>,tone:'#a468f0',content:<>
 
           <div className="bar-items-list" data-sort-scope="visit-bar">{project.bottomBar.map(item=><div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-list-sort">{barSort.grip(item.id,item.title)}<button className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
             <span className="bar-item-symbol">{project.icons.find(i=>i.id===item.iconId)?<img src={project.icons.find(i=>i.id===item.iconId)!.dataUrl} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
             <span>{item.title}</span><small>{item.type==='plan'?'Plan':item.type==='navigation'?'Scène':item.type==='information'?'Info':item.type==='gallery'?'Galerie':'Lien'}</small>
           </button></div></div>)}</div>
-          <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
-          <button className="preset-button" onClick={async ()=>{if(await confirmAsk('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
-          {renderBarButtonConfig()}
+          <div className="nv-qe-row"><button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
+          <button className="preset-button" title="Remplacer la barre par le modèle bordeaux à 5 icônes" onClick={async ()=>{if(await confirmAsk('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Modèle 5 icônes</button></div>
+          {selectedBar && <div className="nv-qe" key={selectedBar.id} id="nv-bar-button-settings">
+            <div className="nv-qe-head">
+              <span className="nv-qe-symbol">{project.icons.find(i=>i.id===selectedBar.iconId)?<img src={project.icons.find(i=>i.id===selectedBar.iconId)!.dataUrl} alt=""/>:<BarGlyph name={selectedBar.builtinIcon??'info'}/>}</span>
+              <strong>{selectedBar.title||'Bouton'}</strong>
+              <div className="nv-qe-tools">
+                <button type="button" onClick={()=>moveBar(-1)} title="Déplacer à gauche" aria-label="Déplacer à gauche"><ChevronLeft size={15}/></button>
+                <button type="button" onClick={()=>moveBar(1)} title="Déplacer à droite" aria-label="Déplacer à droite"><ChevronRight size={15}/></button>
+                <button type="button" className="is-danger" title="Supprimer ce bouton" aria-label="Supprimer ce bouton" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}><Trash2 size={15}/></button>
+              </div>
+            </div>
+            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar(selectedBar.type==='gallery'&&selectedBar.galleryTitle?{title:e.target.value,galleryTitle:undefined}:{title:e.target.value})}/></label>
+            <div className="nv-qe-label">Action</div>
+            <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
+              <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
+              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
+              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
+              <button type="button" aria-pressed={selectedBar.type==='plan'} onClick={()=>chooseBarAction('plan')}>⌖ Plan</button>
+              <button type="button" aria-pressed={selectedBar.type==='photos'} onClick={()=>chooseBarAction('photos')}>▣ Photos</button>
+              <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Info</button>
+              <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
+            </div>
+            {selectedBar.type==='plan'?<>
+              {!plansInSpace(project,currentSpace).length&&<p role="status" className="hint-inline">Importe d’abord un plan dans l’outil Plan.</p>}
+              <button type="button" className="tool" onClick={()=>{setPanel('plan');setRightHidden(false);}}>⌖ Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+            : selectedBar.type==='information'?<>
+              <label>Texte<textarea rows={4} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
+              <label>Ou page web intégrée<input type="text" value={selectedBar.url} placeholder="https://… (remplace le texte)" onChange={e=>patchBar({url:e.target.value})}/></label></>
+            :<label>Lien<input type="text" value={selectedBar.url} placeholder={selectedBar.type==='photos'?'Facultatif : https://… galerie en ligne':'https://… ou tel:+33…'} onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}</label>}
+            {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
+            {(selectedBar.type==='lien'||selectedBar.type==='information'||selectedBar.type==='photos')&&!!selectedBar.url&&<label>Ouverture
+              <select value={selectedBar.linkMode??'embed'} onChange={e=>patchBar({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite</option><option value="tab">Nouvel onglet</option></select>
+              {refusesEmbedding(selectedBar.url)&&<small className="hint-inline">Ce site refuse l’affichage intégré : ouverture dans un nouvel onglet.</small>}</label>}
+            <details className="nv-more">
+              <summary>Plus d’options <small>icône, taille, animation</small></summary>
+              <div className="nv-more-body">
+                <div className="nv-qe-inline"><label>Animation<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+                  <button type="button" className="nv-test-anim" title="Tester l’animation" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester</button></div>
+                <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
+                {selectedBar.iconId&&<>
+                  <label>Zoom de l’icône : {selectedBar.iconZoom??100} %<input type="range" min="100" max="250" step="5" value={selectedBar.iconZoom??100} onChange={e=>patchBar({iconZoom:Number(e.target.value)})}/></label>
+                  <button type="button" className="style-reset" onClick={()=>{const src=project.icons.find(i=>i.id===selectedBar.iconId)?.dataUrl;if(!src)return;void autoIconZoom(src).then(z=>{patchBar({iconZoom:z});setStatus('Icône ajustée automatiquement : zoom '+z+' %');});}} title="Mesure les marges transparentes de l’image et l’agrandit pour qu’elle remplisse son bouton comme les autres icônes">Ajuster automatiquement la taille de l’icône</button>
+                </>}
+                <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>withBarSize(p,size));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
+                <div className="nv-qe-label">Icônes : normal, survol, clic</div>
+                {generalLibraryBlock({barId:selectedBar.id},'au bouton « '+selectedBar.title+' »')}
+                {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size,useCustomIcon:true}))}
+                {libraryPackPicker(selectedBar.iconId,patch=>patchBar({...patch,useCustomIcon:true}))}
+                {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id,useCustomIcon:!!id}),'Icône par défaut')}
+                {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
+                {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
+                {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
+                {(!selectedBar.iconId||!barUsesIconImage(project.barStyle,selectedBar)) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
+                  {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
+                </select></label>}
+              </div>
+            </details>
+          </div>}
 
             </>},
             {key:'colors',title:'Couleurs et contours',hint:'Fond, boutons, pictogrammes',icon:<Palette size={26}/>,tone:'#ff8a3d',content:<><div className="style-settings">
@@ -5410,17 +5309,7 @@ function App(){
           </div>
 </>},
             {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/><label className="toggle-row"><input type="checkbox" checked={project.barIconTrim!==false} onChange={e=>setProject(p=>({...p,barIconTrim:e.target.checked}))}/> Remplir les boutons : rogner les marges transparentes des icônes (toutes à la même taille)</label></></>},
-            {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)},
-            // Une tuile par bouton de la barre : réglages rapides, « Retour » revient à ce panneau.
-            ...project.bottomBar.map(item=>{
-              const img=project.icons.find(i=>i.id===item.iconId)?.dataUrl;
-              const kind=item.type==='plan'?'Plan':item.type==='photos'?'Photos':item.type==='navigation'?'Panorama':item.type==='information'?'Information':item.type==='gallery'?'Galerie':'Lien';
-              const tone=item.type==='plan'?'#e1a525':item.type==='photos'?'#e0645c':item.type==='gallery'?'#4f7cff':item.type==='information'?'#2bb3d6':item.type==='navigation'?'#2fbf8f':'#a468f0';
-              return {key:'btn:'+item.id,title:item.title||kind,hint:kind,tone,
-                icon:img?<img className="nv-hub-tile-img" src={img} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>,
-                content:<>{selectedBar?.id===item.id?renderBarButtonConfig():null}</>,
-                onClick:()=>{setSelectedBarId(item.id);setHubOpen(h=>({...h,bar:'btn:'+item.id}));}};
-            })
+            {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)}
           ]}/>
         </div>}
         {panel==='medialib' && <div className="properties">
@@ -5556,19 +5445,8 @@ function App(){
             <p className="hint-inline">{currentSpace?'Ces plans et leurs repères sont propres à cet espace. Les autres espaces conservent leurs propres plans et panoramas.':'Ces plans appartiennent au projet principal. Choisis un espace pour lui attribuer ses propres plans.'}</p>
             <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} thumbs={sceneThumbs} onChange={plans=>setProject(p=>updatePlansInSpace(p,currentSpace,plans))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
-              onSceneChange={(id,patch)=>setProject(p=>({...p,scenes:p.scenes.map(sc=>{
-                if(sc.id!==id)return sc;
-                const next={...sc};
-                if(patch.name!==undefined)next.name=patch.name;
-                if(patch.surfaceM2===null)delete next.surfaceM2;else if(patch.surfaceM2!==undefined)next.surfaceM2=patch.surfaceM2;
-                return next;
-              })}))}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
-          </InspectorSection>
-          <InspectorSection title="Raccourcis dans le plan" initiallyOpen>
-            <label className="toggle-row"><input type="checkbox" checked={project.planShortcuts!==false} onChange={e=>setProject(p=>({...p,planShortcuts:e.target.checked}))}/> Intégrer les raccourcis de la barre dans le plan</label>
-            <p className="hint-inline">Affiche sous le plan les boutons de la barre du bas ({project.bottomBar.filter(b=>b.type!=='plan').map(b=>b.title).join(', ')||'aucun'}) : le visiteur passe du plan aux photos, informations ou panoramas sans le fermer à la main.</p>
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
@@ -5583,7 +5461,7 @@ function App(){
               </div>)}
             </div>
           </InspectorSection>
-          <InspectorSection title="Animation des fenêtres (info, photo, vidéo, galeries, plan)" initiallyOpen>
+          <InspectorSection title="Animation des fenêtres (info, photo, vidéo, galeries, plan)">
             <p className="hint">Ce style s’applique à toutes les fenêtres de la visite : informations, photos, vidéos, galeries et plan. Il s’applique aussi à l’aperçu.</p>
             <button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester l’animation</button>
             <label>Durée d’ouverture : {project.windowAnimationMs??700} ms
@@ -5595,16 +5473,16 @@ function App(){
               </select>
             </label>
           </InspectorSection>
-          <InspectorSection title="Rectangle avec le nom des pièces (en haut)" initiallyOpen>
+          <InspectorSection title="Rectangle avec le nom des pièces (en haut)">
             <p className="hint">Le petit cadre qui affiche le nom du panorama en haut de la visite. Ces deux cases le masquent partout, quel que soit le réglage des dossiers ou des panoramas.</p>
             <label className="toggle-row"><input type="checkbox" checked={!!project.hideRoomNames} onChange={e=>setProject(p=>({...p,hideRoomNames:e.target.checked||undefined}))}/> Masquer dans la visite immersive</label>
             <label className="toggle-row"><input type="checkbox" checked={!!project.hideRoomNamesVr} onChange={e=>setProject(p=>({...p,hideRoomNamesVr:e.target.checked||undefined}))}/> Masquer dans le casque (VR)</label>
             <small className="hint-inline">Pour garder le cadre seulement sur certains panoramas : décochez ici, puis réglez chaque dossier ou chaque panorama (tuile « Nom du panorama »).</small>
           </InspectorSection>
-          <InspectorSection title="Croix de fermeture (toutes les fenêtres)" initiallyOpen>
+          <InspectorSection title="Croix de fermeture (toutes les fenêtres)">
             {closeColorControls()}
           </InspectorSection>
-          <InspectorSection title="Visite immersive 360° et VR (facultatif)" initiallyOpen>
+          <InspectorSection title="Visite immersive 360° et VR (facultatif)">
             <label>Hauteur du regard dans le casque : {Math.round((project.vrEyeOffset??0)*100)} cm<input type="range" min={-100} max={50} step={5} value={Math.round((project.vrEyeOffset??0)*100)} onChange={e=>setProject(p=>({...p,vrEyeOffset:Number(e.target.value)/100}))}/></label>
             <small className="hint-inline">Négatif : le panorama descend, vous ne flottez plus au-dessus de l’image. 0 = réglage actuel.</small>
             <p className="hint">La visite fonctionne toujours sur mobile, ordinateur et tablette. Le mode casque VR est une option à activer uniquement pour les clients qui le souhaitent.</p>
@@ -5614,7 +5492,7 @@ function App(){
             </label>
             <small className="hint-inline">Avec l'option activée, les navigateurs WebXR compatibles proposent l'entrée immersive. Sans l'option, aucun bouton ni écran d'accueil VR n'apparaît. La fonction n'est pas activée automatiquement sur les nouveaux projets.</small>
           </InspectorSection>
-          <InspectorSection title="Personnaliser le bouton Paramètres" initiallyOpen>
+          <InspectorSection title="Personnaliser le bouton Paramètres">
           <p className="hint">Choisis les icônes normales, au survol et au clic. Les modifications sont visibles immédiatement sur le bouton en bas à droite. Passe en aperçu pour tester son menu son et langue.</p>
           <div className="section-title">BOUTON PARAMÈTRES (EN BAS À DROITE) — 3 ICÔNES</div>
           <button type="button" className="import" disabled={project.icons.length>147} onClick={()=>{
@@ -5832,14 +5710,37 @@ function App(){
             <div className="nv-tool-list">{list.map(h=><button type="button" key={h.id} onClick={()=>{setMode(null);setSelectedId(h.id);setPanel('points');}}>{h.title||names[t]}<small>Réglages ›</small></button>)}</div>
           </div>;
         })()}
-        {panel==='icons' && <div className="properties nv-icons-panel nv-icons-v2">
-          {visitColorsCard()}
-          <div className="nv-icons-sections">
-          <details className="nv-icons-card">
-            <summary><span className="nv-icons-card-thumb">{closeIcon?<img src={closeIcon.dataUrl} alt=""/>:<X size={18}/>}</span>
-              <span className="nv-icons-card-text"><strong>Croix de fermeture · image</strong><small>{closeIcon?'Image : '+closeIcon.name:project.closeButtonColor?'Version couleur (thème)':'Croix classique'}</small></span></summary>
-            <div className="nv-icons-card-body">
-              <p className="hint">Facultatif : remplace la croix couleur par un pack d’images (normal, survol, pressé). Choisir une couleur plus haut retire l’image.</p>
+        {panel==='icons' && <div className="properties nv-icons-panel">
+          <details className="nv-icons-library" open>
+            <summary>Bibliothèque générale · créer des icônes personnalisées (thème de la barre)</summary>
+            <GeneralIconLibrary
+              barTheme={project.barStyle}
+              applyLabel={libraryFor?.startsWith('global-close')?'à la croix de fermeture':selectedBar?'au bouton sélectionné':active&&selected?'au point sélectionné':undefined}
+              onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?(
+                libraryFor?.startsWith('global-close')?{close:true}:selectedBar?{barId:selectedBar.id}:
+                active&&selected?{sceneId:active.id,pointId:selected.id}:undefined
+              ):undefined)}/>
+          </details>
+          <div className="nv-close-config-box">
+            <div className="section-title"><span>COULEUR DE LA CROIX DE FERMETURE</span></div>
+            <p className="hint">Harmonise les croix de fermeture avec la charte graphique de cette visite.</p>
+            {closeColorControls()}
+          </div>
+          <details className="nv-icons-library" open>
+            <summary>Bibliothèque d’icônes · packs Normal / Survol / Pressé</summary>
+          <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
+            onCreateSet={createLibraryIconSet}
+            onDeleteSet={async (ids,name)=>{if(!await confirmAsk('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
+            applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
+            onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
+              const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
+              if(libraryFor?.startsWith('global-close')){setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId}));setStatus('Pack de croix appliqué : normal, survol et pressé.');}
+              else if(selectedBar){patchBar({...patch,useCustomIcon:true});setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
+              else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
+            }:undefined}/>
+          </details>
+          <InspectorSection title="Croix de fermeture">
+            <p className="hint">Une croix pour fermer toutes les fenêtres interactives : photos, vidéos, informations, galerie, plan et autres popups.</p>
             <div className="nv-close-current">
               <span className="nv-close-current-preview">{closeIcon?<img src={closeIcon.dataUrl} alt="Croix choisie"/>:'✕'}</span>
               <div><strong>{closeIcon?.name??'Croix classique'}</strong><small>{closeIcon?'Appliquée à toutes les interactions':'Croix classique par défaut'}</small></div>
@@ -5866,59 +5767,18 @@ function App(){
               {closeIcon&&<button type="button" className="style-reset" onClick={()=>requestReplaceIcon(closeIcon.id)}>Remplacer ce PNG partout</button>}
             </details>
             </details>
-            </div>
-          </details>
-          <button type="button" className="nv-icons-card nv-icons-card-link" onClick={editSettingsButton}>
-            <span className="nv-icons-card-thumb">{settingsIconSrc?<img src={settingsIconSrc} alt=""/>:<SettingsIcon size={18}/>}</span>
-            <span className="nv-icons-card-text"><strong>Bouton Paramètres · icône et taille</strong><small>{settingsIconSrc?'Image personnalisée':'Roue crantée · '+settingsSize(project)+' px'}</small></span>
-            <ChevronRight size={18} className="nv-icons-card-go"/>
-          </button>
-          <details className="nv-icons-card">
-            <summary><span className="nv-icons-card-thumb"><Sparkles size={18}/></span>
-              <span className="nv-icons-card-text"><strong>Créer des icônes</strong><small>Bibliothèque générale, aux couleurs de la barre</small></span></summary>
-            <div className="nv-icons-card-body">
-            <GeneralIconLibrary
-              barTheme={project.barStyle}
-              applyLabel={libraryFor?.startsWith('global-close')?'à la croix de fermeture':selectedBar?'au bouton sélectionné':active&&selected?'au point sélectionné':undefined}
-              onAdd={(name,images,apply)=>createLibraryIconSet(name,images,undefined,apply?(
-                libraryFor?.startsWith('global-close')?{close:true}:selectedBar?{barId:selectedBar.id}:
-                active&&selected?{sceneId:active.id,pointId:selected.id}:undefined
-              ):undefined)}/>
-            </div>
-          </details>
-          <details className="nv-icons-card">
-            <summary><span className="nv-icons-card-thumb"><Images size={18}/></span>
-              <span className="nv-icons-card-text"><strong>Mes packs d’icônes</strong><small>{project.icons.length} image{project.icons.length>1?'s':''} · packs Normal / Survol / Pressé</small></span></summary>
-            <div className="nv-icons-card-body">
-          <IconLibrary icons={project.icons} onImport={()=>iconInput.current?.click()}
-            onCreateSet={createLibraryIconSet}
-            onDeleteSet={async (ids,name)=>{if(!await confirmAsk('Supprimer définitivement le pack « '+name+' » et ses '+ids.length+' image(s) ? Si elles sont utilisées, leurs affectations dans la visite seront retirées. Les panoramas et les boutons resteront présents.'))return;deleteIcons(ids,true);setStatus('Pack « '+name+' » supprimé. Sauvegarde avec la disquette.');}}
-            applyLabel={libraryFor?.startsWith('global-close')?'croix de fermeture':selectedBar?'bouton « '+selectedBar.title+' »':selected?'point « '+(selected.title||'sans titre')+' »':undefined}
-            onApply={libraryFor?.startsWith('global-close')||selectedBar||selected?set=>{
-              const patch={iconId:(set.normal??set.hover??set.pressed)?.id,hoverIconId:set.hover?.id,pressedIconId:set.pressed?.id};
-              if(libraryFor?.startsWith('global-close')){setProject(p=>({...p,closeIconId:patch.iconId,closeIconHoverId:patch.hoverIconId,closeIconPressedId:patch.pressedIconId}));setStatus('Pack de croix appliqué : normal, survol et pressé.');}
-              else if(selectedBar){patchBar({...patch,useCustomIcon:true});setStatus('Jeu « '+set.name+' » appliqué au bouton.');}
-              else{patchPoint(patch);setStatus('Jeu « '+set.name+' » appliqué au point.');}
-            }:undefined}/>
-            </div>
-          </details>
-          </div>
-          <small className="hint-inline nv-icons-save">Pense à enregistrer avec la disquette pour conserver ces réglages.</small>
+            <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
+          </InspectorSection>
         </div>}
       </aside>
     </div>
     {clientOpen&&<ClientsDirectory
-      onOpenProject={async(projectId:string)=>{
-        if(projectRef.current!==savedRef.current&&!await confirmAsk('Des modifications du projet actuel ne sont pas encore enregistrées. Ouvrir ce projet sans sauvegarder ces modifications ?'))return;
-        try{const loaded=await openCloudProject(projectId,()=>{});writeLink(loaded.link);openCloudVisit(loaded.project,loaded.link);setClientOpen(false);}
-        catch(e){setStatus('Ouverture impossible : '+(e instanceof Error?e.message:String(e)));}
-      }}
       currentProjectName={project.name}
       currentProfile={project.clientProfile}
       canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
       onClose={()=>{setClientOpen(false);backFrom();}}
       onOpenCloud={()=>{setClientOpen(false);setCloudOpen(true);}}
-      onLaunchAiAssistant={()=>{setClientOpen(false);setAiFreshClient(false);setAiAssistantOpen(true);}}
+      onLaunchAiAssistant={()=>{setClientOpen(false);setAiAssistantOpen(true);}}
       currentStyle={project.barStyle}
       onUpdateCurrent={(profile,style)=>setProject(p=>({...p,...(profile?{clientProfile:profile}:{}),...(style?{barStyle:{...p.barStyle,...style}}:{})}))}
       onSaveDiscovered={(clientProfile,style)=>{
@@ -5986,7 +5846,7 @@ function App(){
       iconCount={project.icons.length}
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
-    {aiAssistantOpen&&<NovaStudioAIAssistant project={project} freshClient={aiFreshClient} onClose={()=>setAiAssistantOpen(false)}
+    {aiAssistantOpen&&<NovaStudioAIAssistant project={project} onClose={()=>setAiAssistantOpen(false)}
       onApply={(updated,clientProfile,brandKit,mode)=>{
         if(mode==='new'){
           const fresh=newProject();
@@ -6031,7 +5891,7 @@ function App(){
       const scene=project.scenes.find(sc=>sc.id===panoModalId);
       if(!scene)return null;
       return <PanoramaPreviewEditor key={scene.id} scene={scene} onDelete={()=>deleteScene(scene.id)} onClose={()=>setPanoModalId(null)}
-        onSave={async (name,surfaceM2)=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name,surfaceM2}:sc)})));return cloud.signedIn||readLink()?manualSave():persist(projectRef.current);}}>
+        onSave={async name=>{flushSync(()=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===scene.id?{...sc,name}:sc)})));return cloud.signedIn||readLink()?manualSave():persist(projectRef.current);}}>
         <FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[scene.id]}/>
       </PanoramaPreviewEditor>;
     })()}
@@ -6060,7 +5920,7 @@ function App(){
     {shareOpen&&<SharePanel project={projectForSpaceExport(project,currentSpace,true)} space={currentSpace} onClose={()=>{setShareOpen(false);backFrom();}} onStatus={setStatus}/>}
     {cloudOpen&&<CloudPanel project={project} onClose={()=>setCloudOpen(false)} onOpenClients={()=>{setCloudOpen(false);setClientOpen(true);}} hasUnsavedChanges={projectRef.current!==savedRef.current} onStatus={setStatus}
       autoEnabled={cloud.enabled} onAutoChange={cloud.setEnabled} manualMode autoLabel={cloud.state.kind==='saved'?'Dernier envoi à '+new Date(cloud.state.at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):cloudLabel(cloud.state)}
-      onOpen={openCloudVisit}/>}
+      onOpen={(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});const up=ensureFrameReferences(p,viewAreaRef.current?.clientHeight||550);resetProject(up);setPreparationOpen(false);const openSpace=spaceId?(up.spaces??[]).find(sp=>sp.id===spaceId):undefined;setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(up,openSpace)[0]?.id??''):(startSceneId(up.scenes)));setSelectedId('');setMode(null);setPreview(false);savedRef.current=up;setLock(null);cloud.markSynced(up,link);}}/>}
     {saveWarning&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setSaveWarning(null);}}>
       <section className="modal" role="alertdialog" aria-modal="true" aria-label="Sauvegarde impossible" onClick={e=>e.stopPropagation()}>
         <h2>⚠ Sauvegarde impossible</h2>
