@@ -8,7 +8,7 @@ import {frameWorldCorners} from './sphericalFrame';
 import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
-import {layoutColumns,vrMenuOf} from './vrMenu';
+import {layoutColumns,vrMenuOf,VR_SHELL} from './vrMenu';
 import {isReturnLink,displayPitch} from './returnLink';
 import {setVrMusicPlaying} from './vrAudioBridge';
 
@@ -515,7 +515,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const labelBg=themed?theme.button:'#25262a',labelLine=themed?theme.icon:'#d6a13d',labelInk=themed?theme.icon:'#ffffff';
     // Une plaque commune (fond + bord fin) soude les trois colonnes,
     // au lieu de les laisser flotter à des profondeurs indépendantes.
-    addPlane(vrShellGroup,2.13,1.15,canvasTexture(1200,650,ctx=>{
+    addPlane(vrShellGroup,VR_SHELL.w,VR_SHELL.h,canvasTexture(1200,650,ctx=>{
       roundRect(ctx,7,7,1186,636,54);
       ctx.fillStyle=shellFill;ctx.fill();
       ctx.lineWidth=7;ctx.strokeStyle=shellLine;ctx.stroke();
@@ -1094,7 +1094,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const render=async()=>{
       closePanels();
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=referenceMode?.36:.62,ch=referenceMode?.22:.34,gx=referenceMode?.03:.06,gy=referenceMode?.03:.05;
+      const cw=referenceMode?.46:.62,ch=referenceMode?.29:.34,gx=referenceMode?.04:.06,gy=referenceMode?.04:.05;
       const photoItem=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
       const W=cols*cw+(cols-1)*gx+.32;
       const H=referenceMode?.17+rows*ch+(rows-1)*gy+.16+(photoItem?.19:0):.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
@@ -1143,12 +1143,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const gen=panelGen;
     setNotice(tt('planLoading'));
     let bitmap:HTMLCanvasElement;
-    try{bitmap=await loadReduced(plan.imageDataUrl,4096);}
+    try{bitmap=await loadReduced(plan.imageDataUrl,8192);}
     catch{if(req===floorPlanRequest)setNotice(tt('planFail'));return;}
     if(ended||req!==floorPlanRequest||gen!==panelGen)return;
     closePanels();
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const maxW=referenceMode?1.55:1.72,maxH=referenceMode?.9:1.2;
+    const maxW=referenceMode?2.3:1.72,maxH=referenceMode?1.35:1.2;
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
     const W=imageW+.32,H=imageH+(referenceMode?.29:.33);
     addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);

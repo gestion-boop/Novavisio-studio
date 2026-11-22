@@ -7,9 +7,9 @@ import type {StudioProject, VrMenuConfig} from './storage';
  */
 
 /** Cadre de l'interface jaune, en mètres. */
-export const VR_SHELL = {w: 2.13, h: 1.15};
+export const VR_SHELL = {w: 2.6, h: 1.4};
 /** Côté d'un bouton rond. */
-export const VR_BTN = 0.124;
+export const VR_BTN = 0.15;
 /** Distance entre le bord extérieur d'un bouton et le bord du cadre : identique à gauche, à droite, en haut et en bas. */
 export const VR_MARGIN = 0.07;
 /** Écart maximal entre deux boutons (centre à centre) : évite des boutons trop espacés dans une colonne courte. */
