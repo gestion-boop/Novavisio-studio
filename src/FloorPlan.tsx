@@ -109,7 +109,7 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
     <img src={plan.imageDataUrl} alt={plan.name||'Plan de la visite'} draggable={false}/>
     {visiblePoints(plan,scenes).map(point=>{
       const url=rooms[point.sceneId];
-      if(!url||(visitor&&point.sceneId!==hoveredSceneId&&point.sceneId!==currentId))return null;
+      if(!url||(visitor&&point.sceneId!==hoveredSceneId))return null;
       return <img key={'room-'+point.sceneId} className={'nv-plan-room'+(point.sceneId===currentId?' is-current':'')+(point.sceneId===hoveredSceneId?' is-hover':'')} src={url} alt="" aria-hidden="true" draggable={false}/>;
     })}
     {dragOverPos&&<div className="nv-plan-reticle" style={{left:dragOverPos.x+'%',top:dragOverPos.y+'%'}}>
