@@ -1,4 +1,4 @@
-import {BackSide, CanvasTexture, Color, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
+import {BackSide, CanvasTexture, Color, Sprite, SpriteMaterial, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -231,15 +231,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const iconUrl=getIconUrl(h.iconId);
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
-      const radius=k*Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
-      const mesh=new Mesh(new SphereGeometry(radius,64,40),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
+      const radius=k*Math.max(.12,Math.min(.24,(h.iconSize??48)/90*.2));
+      // Couleur du contour (même réglage que l'éditeur) : sert aussi de teinte avant le chargement du panorama.
+      const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
+      const mesh=new Mesh(new SphereGeometry(radius,128,80),new MeshBasicMaterial({color:new Color(rimColor),transparent:true,opacity:1,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
       // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
-      const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
       const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
       const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;mesh.add(outline);
+      // Nom de la pièce juste sous la sphère : on sait où l'on va sans viser.
+      const destination=sceneOf(h.target);
+      const destinationName=destination?pick(destination.name,destination.nameTranslations,vlang()):'';
+      if(destinationName){
+        const labelTexture=canvasTexture(640,120,ctx=>{
+          roundRect(ctx,6,6,628,108,50);ctx.fillStyle='rgba(10,14,18,.92)';ctx.fill();
+          ctx.lineWidth=6;ctx.strokeStyle=rimColor;ctx.stroke();
+          ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.font='bold 60px sans-serif';
+          ctx.fillText(fitCanvasLabel(ctx,destinationName,580,60,28),320,62);
+        });
+        const label=new Sprite(new SpriteMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false}));
+        label.scale.set(.9,.17,1);label.position.set(0,-radius*1.9-.12,0);label.renderOrder=3;
+        mesh.add(label);
+      }
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
       mesh.userData={baseScale:1,hoverScale:1,spin:true,dir:pos.clone().normalize(),dist:HOTSPOT_R,onSelect:()=>void goTo(h.target,h)};
@@ -251,7 +267,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
             try{
               const pano=await loadReduced(url,1024);
               if(ended||!mesh.parent)return;
-              const texture=new CanvasTexture(pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
+              // Couleurs plus vives : la sphère reste lisible sur les murs blancs.
+              const vivid=document.createElement('canvas');vivid.width=pano.width;vivid.height=pano.height;
+              const vividCtx=vivid.getContext('2d');
+              if(vividCtx){vividCtx.filter='saturate(1.8) contrast(1.12)';vividCtx.drawImage(pano,0,0);}
+              const texture=new CanvasTexture(vividCtx?vivid:pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
               const material=mesh.material as MeshBasicMaterial;
               material.map=texture;material.color.set(0xffffff);material.opacity=1;material.needsUpdate=true;
               return;
@@ -1646,7 +1666,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
       // Surbrillance de pièce : fondu progressif (pas de saut entre 0 et 0,8) pour éviter le scintillement au survol.
       if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:hovered.has(m)?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
-      if(m.userData.spin&&m.userData.dir){const want=isPressed?HOTSPOT_R-4.2:hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
+      if(m.userData.spin&&m.userData.dir){
+        // Va-et-vient : la sphère avance et recule vers le spectateur.
+        const bob=Math.sin(now/520)*.55;
+        const want=isPressed?HOTSPOT_R-4.2:(hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R)+bob;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
         const mm=(m as Mesh).material as MeshBasicMaterial;
