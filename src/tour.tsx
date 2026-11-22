@@ -1,3 +1,4 @@
+import {isReturnLink,displayPitch} from './returnLink';
 import {barUsesIconImage} from './storage';
 import {FloorPlanDialog} from './FloorPlan';
 import {overlayClose} from './overlayClose';
@@ -51,7 +52,7 @@ function checkedLink(raw:string):string|null {
     return ['https:','http:','tel:','mailto:'].includes(parsed.protocol)?parsed.href:null;
   }catch{return null;}
 }
-function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lang:string='fr'):MarkerConfig {
+function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lang:string='fr',all:readonly Hotspot[]=[]):MarkerConfig {
   if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
     return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
   }
@@ -63,15 +64,16 @@ function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lan
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
   const size=isMedia?responsiveFrameSize(h,height,zoom):null;
   const isSphere=h.type==='navigation'&&!!h.sphere&&!!h.target;
-  const w=isSphere?Math.max(40,Math.min(120,h.iconSize??90)):size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28)));
+  const back=isReturnLink(h),k=back?.8:1; // flèche retour : un peu plus petite, pour ne pas être prise pour la flèche d'avancée
+  const w=k*(isSphere?Math.max(40,Math.min(120,h.iconSize??90)):size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28))));
   const hh=size?.height??w;
   const custom=icons.find(icon=>icon.id===h.iconId);
   const html=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,pick(h.title,h.titleTranslations,lang)):
     h.type==='video'?videoMarkerHtml(h,w,hh):
     isSphere?'<span class="nv-sphere-hit"></span>':
     custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
-    '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
-  return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},
+    '<span class="tour-marker'+(back?' tour-marker-return':'')+'">'+(back?'↩':h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
+  return {id:h.id,position:{yaw:h.yaw,pitch:displayPitch(h,all)},size:{width:w,height:hh},...(back?{className:'nv-return-marker'}:{}),
     anchor:'center center',html,tooltip:pick(h.title,h.titleTranslations,lang),
     ...(isSphere?{data:{nvSphere:{size:w,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
@@ -144,7 +146,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
       syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(current.scene.hotspots).flatMap(h=>[
-        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current,current.scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
     let pending=0;
@@ -173,7 +175,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>nightOnly()?[]:visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]);
+    const markersNow=()=>nightOnly()?[]:visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,next.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const T=getTransitionMs();
     warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?handlers.current.sphereImage(h.target):undefined));
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),T);};
@@ -218,7 +220,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
     syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(scene.hotspots).flatMap(h=>[
-      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
   },[scene.id,scene.hotspots,icons,lang,night,nightTexture]);
   return <div className="tour-panorama" ref={container}/>;
 }

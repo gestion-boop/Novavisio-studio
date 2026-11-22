@@ -211,3 +211,8 @@ html.nv-tour-mobile-expanded,html.nv-tour-mobile-expanded body{
 @media(max-width:700px){
   .tour-app:has(.nv-tour-room-heading) .nv-daynight-switch{top:60px!important}
 }
+
+/* Flèche retour : plus discrète que la flèche d'avancée (pointillés, légèrement transparente). */
+.nv-return-marker{opacity:.82}
+.tour-marker.tour-marker-return{background:#33414a;border-style:dashed;border-color:#ffffffd9}
+.nv-return-marker .tour-marker-custom img,.nv-return-marker img{filter:saturate(.55) drop-shadow(1px 3px 4px #0008)}

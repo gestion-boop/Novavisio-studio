@@ -6233,3 +6233,5 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-hub-tile-img{width:30px;height:30px;object-fit:contain;display:block}
 
 .nv-hub-sep{grid-column:1/-1;height:1px;margin:6px 0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent)}
+
+.nv-return-marker{opacity:.82}.nv-return-marker .nv-marker{background:#33414a;border-style:dashed}

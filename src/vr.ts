@@ -8,6 +8,7 @@ import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
 import {layoutColumns,vrMenuOf} from './vrMenu';
+import {isReturnLink,displayPitch} from './returnLink';
 import {setVrMusicPlaying} from './vrAudioBridge';
 
 /**
@@ -220,16 +221,17 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }};
     return mesh;
   };
-  const makeHotspot=async(h:Hotspot):Promise<Mesh|null>=>{
+  const makeHotspot=async(h:Hotspot,all:readonly Hotspot[]=[]):Promise<Mesh|null>=>{
+    const back=isReturnLink(h),k=back?.8:1,shownPitch=displayPitch(h,all); // flèche retour : plus petite et descendue si proche d'une flèche avant
     if((h.type==='image'||h.type==='video')&&h.mediaDisplay!=='popup'){const f=await makeFrame(h);if(f)return f;}
     if(h.type!=='navigation'&&h.type!=='information'&&h.type!=='lien'&&h.type!=='image'&&h.type!=='video')return null;
     if(h.type==='navigation'&&!h.target)return null;
     const iconUrl=getIconUrl(h.iconId);
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
-      const radius=Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
+      const radius=k*Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
       const mesh=new Mesh(new SphereGeometry(radius,32,20),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
-      const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
+      const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
@@ -259,13 +261,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       c.fillStyle='rgba(20,20,24,.72)';c.beginPath();c.arc(128,128,120,0,Math.PI*2);c.fill();
       c.lineWidth=10;c.strokeStyle='#ffffff';c.stroke();
       c.strokeStyle='#ffffff';c.lineWidth=22;c.lineCap='round';c.lineJoin='round';
-      if(h.type==='navigation'){c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();}
+      if(back){c.font='bold 150px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('↩',128,130);}
+      else if(h.type==='navigation'){c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();}
       else {c.font='bold 144px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(h.type==='information'?'i':h.type==='lien'?'↗':h.type==='video'?'▶':'▣',128,130);}
     });
-    const size=Math.min(.30,Math.max(.12,(h.iconSize??28)/48*.20));
+    const size=k*Math.min(.30,Math.max(.12,(h.iconSize??28)/48*.20));
     const mesh=new Mesh(new PlaneGeometry(size,size),new MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false,side:DoubleSide}));
     mesh.renderOrder=1;
-    const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
+    const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
     mesh.position.copy(pos);
     mesh.userData={baseScale:1,hoverScale:1,onSelect:()=>{
       if(h.type==='navigation')void goTo(h.target,h);
@@ -337,7 +340,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     alignPending=true;
     clearGroup(hotspotGroup);
     for(const h of target.hotspots){
-      const m=await makeHotspot(h);
+      const m=await makeHotspot(h,target.hotspots);
       if(m){hotspotGroup.add(m);clickables.push(m as Clickable);}
     }
     opts.onSceneChange?.(id);
@@ -1399,7 +1402,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           const active=sceneOf(currentId);
           if(active){
             clearGroup(hotspotGroup);
-            for(const h of active.hotspots){const m=await makeHotspot(h);if(m){hotspotGroup.add(m);clickables.push(m as Clickable);}}
+            for(const h of active.hotspots){const m=await makeHotspot(h,active.hotspots);if(m){hotspotGroup.add(m);clickables.push(m as Clickable);}}
           }
         })().finally(()=>{refreshBusy=false;});
       }
