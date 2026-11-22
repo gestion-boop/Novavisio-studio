@@ -6230,3 +6230,4 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-icons-v2 .nv-icons-card-text small{font:500 12px/1.3 system-ui;color:#9cc0ca;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nv-icons-v2 .nv-icons-card-body{padding:12px 14px 14px}
 .nv-icons-v2 .nv-icons-save{text-align:center}
+.nv-hub-tile-img{width:30px;height:30px;object-fit:contain;display:block}

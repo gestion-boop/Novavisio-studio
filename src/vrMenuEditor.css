@@ -22,10 +22,10 @@
 .nv-vrx-tile:hover{border-color:#e8b33a;background:#143341}
 .nv-vrx-tile:active{cursor:grabbing}
 .nv-vrx-tile em{display:block;font:500 11px system-ui;font-style:normal;color:#8fb0b9}
-.nv-vrx-tile-ico{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid #daa025;background:#1c1d20;color:#f6bb34;font:800 11px system-ui}
+.nv-vrx-tile-ico{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid var(--vr-accent,#daa025);background:var(--vr-btn,#1c1d20);color:var(--vr-accent,#f6bb34);font:800 11px system-ui}
 .nv-vrx-empty{font:500 13px system-ui;color:#94b6bf}
 .nv-vrx-stage{min-width:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;overflow:auto}
-.nv-vrx-shell{position:relative;width:min(100%,calc((100vh - 230px) * 2.13 / 1.15));aspect-ratio:2.13/1.15;border-radius:clamp(14px,2.4vw,30px);background:rgba(30,31,35,.94);border:3px solid rgba(238,180,52,.9);box-shadow:0 30px 80px #000a;flex:none}
+.nv-vrx-shell{position:relative;width:min(100%,calc((100vh - 230px) * 2.13 / 1.15));aspect-ratio:2.13/1.15;border-radius:clamp(14px,2.4vw,30px);background:var(--vr-shell,rgba(30,31,35,.94));border:3px solid var(--vr-line,rgba(238,180,52,.9));box-shadow:0 30px 80px #000a;flex:none}
 .nv-vrx-center-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:52%;text-align:center;color:#8b8678;font:600 clamp(12px,1.4vw,17px)/1.4 system-ui;pointer-events:none}
 .nv-vrx-center-hint small{font-weight:500;opacity:.8}
 .nv-vrx-slot{position:absolute;display:grid;place-items:center;border-radius:50%;border:2px dashed #4a4636;cursor:pointer;transition:border-color .15s,background .15s,transform .15s;box-sizing:border-box}
@@ -36,9 +36,9 @@
 .nv-vrx-plus{color:#6e6852;font:400 clamp(16px,2vw,26px)/1 system-ui}
 .nv-vrx-row{position:absolute;left:50%;top:100%;transform:translate(-50%,4px);font:700 10px system-ui;color:#5e5a4a;pointer-events:none}
 .nv-vrx-slot.is-full .nv-vrx-row{display:none}
-.nv-vrx-btn{width:100%;height:100%;display:grid;place-items:center;border-radius:inherit;background:#1c1d20;border:3px solid #daa025;color:#f6bb34;font:800 clamp(10px,1.1vw,14px) system-ui;box-sizing:border-box;cursor:grab;user-select:none}
+.nv-vrx-btn{width:100%;height:100%;display:grid;place-items:center;border-radius:inherit;background:var(--vr-btn,#1c1d20);border:3px solid var(--vr-accent,#daa025);color:var(--vr-accent,#f6bb34);font:800 clamp(10px,1.1vw,14px) system-ui;box-sizing:border-box;cursor:grab;user-select:none}
 .nv-vrx-btn svg{width:48%;height:48%}
-.nv-vrx-slot.is-counter .nv-vrx-btn{border-width:2px;color:#fff;background:#25262a}
+.nv-vrx-slot.is-counter .nv-vrx-btn{border-width:2px;color:var(--vr-label-ink,#fff);background:var(--vr-label-bg,#25262a)}
 .nv-vrx-slot.is-selected .nv-vrx-btn,.nv-vrx-slot.is-selected{box-shadow:0 0 0 4px #08161d,0 0 0 7px #5fe3d2}
 .nv-vrx-slot.is-full:hover .nv-vrx-btn{transform:scale(1.08)}
 .nv-vrx-align{margin:0;font:500 13px/1.4 system-ui;color:#94b6bf;text-align:center;max-width:720px}
@@ -48,7 +48,7 @@
 .nv-vrx-card-where{font:700 11px system-ui;letter-spacing:.14em;text-transform:uppercase;color:#e8b33a}
 .nv-vrx-card-head{display:flex;align-items:center;gap:12px}
 .nv-vrx-card-head strong{font:800 16px/1.25 system-ui}
-.nv-vrx-card-ico{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:3px solid #daa025;background:#1c1d20;color:#f6bb34;font:800 12px system-ui}
+.nv-vrx-card-ico{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:50%;border:3px solid var(--vr-accent,#daa025);background:var(--vr-btn,#1c1d20);color:var(--vr-accent,#f6bb34);font:800 12px system-ui}
 .nv-vrx-card p{margin:0;font:500 13px/1.45 system-ui;color:#b5d0d7}
 .nv-vrx-card label{display:flex;flex-direction:column;gap:6px;font:700 12px system-ui;color:#cfe7ec}
 .nv-vrx-card select{padding:10px;border-radius:9px;border:1px solid #2c5361;background:#08161d;color:#e7f6f8;font:600 13px system-ui}

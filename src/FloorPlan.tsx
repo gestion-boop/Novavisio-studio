@@ -104,9 +104,11 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
 
 
 /** Galerie publique de plans : l'étage actif est prioritaire si le panorama courant y figure. */
-export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,lang='fr'}:{
+export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,lang='fr',shortcuts,onShortcut}:{
   plans:FloorPlan[];scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onClose:()=>void;
   thumbs?:Record<string,string>;lang?:string;
+  /** Raccourcis de la barre du bas affichés sous le plan (option « Intégrer les raccourcis dans le plan »). */
+  shortcuts?:{id:string;label:string;icon?:string}[];onShortcut?:(id:string)=>void;
 }){
   const [selectedIndex,setSelectedIndex]=useState(()=>{
     const index=plans.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
@@ -126,6 +128,10 @@ export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,la
         <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes}
           currentId={currentId} onPick={onPick} thumbs={thumbs} lang={lang}/></div>
         {!points.length&&<small className="nv-plan-immersive-empty">{ui('noPlanPoint',lang)}</small>}
+        {shortcuts&&shortcuts.length>0&&onShortcut&&<nav className="nv-plan-shortcuts" aria-label="Raccourcis">
+          {shortcuts.map(s=><button type="button" key={s.id} title={s.label} onClick={()=>onShortcut(s.id)}>
+            {s.icon?<img src={s.icon} alt="" draggable={false}/>:<span aria-hidden="true">●</span>}<span>{s.label}</span></button>)}
+        </nav>}
       </div>
       {plans.length>1&&<aside className="nv-plan-immersive-rail" aria-label="Changer de plan">
         <button type="button" className="nv-plan-rail-arrow" onClick={()=>change(-1)} aria-label="Plan précédent">‹</button>
@@ -162,8 +168,10 @@ async function importPlan(file:File):Promise<string>{
 }
 
 
-export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview}:{
+export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview,onSceneChange}:{
   renderPreview?:(id:string)=>ReactNode;thumbs?:Record<string,string>;
+  /** Renomme un panorama ou règle sa superficie (m²) directement depuis le plan. */
+  onSceneChange?:(id:string,patch:{name?:string;surfaceM2?:number|null})=>void;
   plans:FloorPlan[];scenes:Scene[];onChange:(plans:FloorPlan[])=>void;
   hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void;
 }){
@@ -233,6 +241,18 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
       </div>
       <aside className="nv-plan-panorama-pane" aria-label="Panoramas à placer">
         <strong>Panoramas ({available.length})</strong>
+        {onSceneChange&&selected&&<div className="nv-plan-scene-edit" key={selected.id}>
+          <span className="nv-plan-scene-edit-title">Panorama sélectionné</span>
+          <label>Nom<input type="text" maxLength={150} value={selected.name} onChange={e=>onSceneChange(selected.id,{name:e.target.value})}/></label>
+          <label>Superficie (m²)<input type="text" inputMode="decimal" placeholder="ex. 25" defaultValue={selected.surfaceM2!==undefined?String(selected.surfaceM2):''}
+            onChange={e=>{
+              const raw=e.target.value.trim().replace(',','.');
+              if(raw===''){onSceneChange(selected.id,{surfaceM2:null});return;}
+              const n=Number(raw);
+              if(Number.isFinite(n)&&n>0&&n<=100000)onSceneChange(selected.id,{surfaceM2:n});
+            }}/></label>
+          <small>Le nom et la superficie s’affichent dans la visite.</small>
+        </div>}
         <div className="nv-plan-source-list" role="group">{available.map(scene=>{
           const pointIndex=visiblePoints(plan,available).findIndex(point=>point.sceneId===scene.id);
           return <div className="nv-plan-source-row" key={scene.id}>

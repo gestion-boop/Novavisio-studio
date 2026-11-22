@@ -496,22 +496,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // au lieu de les laisser flotter à des profondeurs indépendantes.
     addPlane(vrShellGroup,2.13,1.15,canvasTexture(1200,650,ctx=>{
       roundRect(ctx,7,7,1186,636,54);
-      ctx.fillStyle='rgba(30,31,35,.79)';ctx.fill();
-      ctx.lineWidth=7;ctx.strokeStyle='rgba(238,180,52,.72)';ctx.stroke();
+      ctx.fillStyle=shellFill;ctx.fill();
+      ctx.lineWidth=7;ctx.strokeStyle=shellLine;ctx.stroke();
     }),3,0,0,-.03);
     const button=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
-      const normal=makeVrControlTexture(icon,'normal');
-      const hover=makeVrControlTexture(icon,'hover');
-      const pressed=makeVrControlTexture(icon,'pressed');
+      const normal=makeVrControlTexture(icon,'normal',ctrlColors);
+      const hover=makeVrControlTexture(icon,'hover',ctrlColors);
+      const pressed=makeVrControlTexture(icon,'pressed',ctrlColors);
       const mesh=addButton(barGroup,.124,.124,normal,x,y,onSelect,9);
       mesh.userData.vrIconStates={normal,hover,pressed,pressedUntil:0};
       mesh.userData.referenceUi=true;
       return mesh;
     };
     const floorLabel=(label:string)=>canvasTexture(280,180,ctx=>{
-      roundRect(ctx,8,8,264,164,36);ctx.fillStyle='#25262a';ctx.fill();
-      ctx.strokeStyle='#d6a13d';ctx.lineWidth=7;ctx.stroke();
-      ctx.fillStyle='#ffffff';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      roundRect(ctx,8,8,264,164,36);ctx.fillStyle=labelBg;ctx.fill();
+      ctx.strokeStyle=labelLine;ctx.lineWidth=7;ctx.stroke();
+      ctx.fillStyle=labelInk;ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(label,140,90);
     });
     const scenes=project().scenes.filter(scene=>!scene.excluded);
@@ -524,6 +524,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
     const menu=vrMenuOf(project());
     const grid=layoutColumns(menu.left,menu.right);
+    // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
+    const hexOk=(c?:string)=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
+    const themed=!!menu.themed&&hexOk(theme?.button)&&hexOk(theme?.icon);
+    const ctrlColors=themed?{button:theme.button,icon:theme.icon}:undefined;
+    const shellFill=themed&&hexOk(theme.background)?theme.background+'e6':'rgba(30,31,35,.79)';
+    const shellLine=themed&&hexOk(theme.outline)?theme.outline:'rgba(238,180,52,.72)';
+    const labelBg=themed?theme.button:'#25262a',labelLine=themed?theme.icon:'#d6a13d',labelInk=themed?theme.icon:'#ffffff';
     const iconOfItem=(item:BottomBarItem):VrControlIcon=>
       item.type==='plan'?'plan':item.type==='photos'?'photos':item.type==='lien'?'link':item.type==='information'?'info':'gallery';
     const toggleSound=()=>{

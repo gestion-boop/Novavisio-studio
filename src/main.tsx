@@ -3150,7 +3150,7 @@ function App(){
       return ()=>{setPanelBack(null);setLibraryFor(null);if(b){setPanel(b.panel);setHubOpen(b.hub);setSelectedBarId(b.barId);setSelectedId(b.pointId);}else setPanel('points');};
     }
     if(panel==='bar'){
-      if(selectedBarId)return ()=>setSelectedBarId('');
+      if(selectedBarId)return ()=>{setSelectedBarId('');if(hubOpen.bar?.startsWith('btn:'))setHubOpen(h=>({...h,bar:null}));};
       if(hubOpen.bar)return ()=>setHubOpen(h=>({...h,bar:null}));
     }
     if(panel==='points'){
@@ -3158,6 +3158,58 @@ function App(){
       if(hubOpen.scene)return ()=>setHubOpen(h=>({...h,scene:null}));
     }
     return null;
+  }
+  /** Réglages du bouton de la barre sélectionné (partagés par la liste « Boutons et actions » et les tuiles par bouton). */
+  function renderBarButtonConfig(){
+    return <>{selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
+            <hr/>
+            <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
+            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar(selectedBar.type==='gallery'&&selectedBar.galleryTitle?{title:e.target.value,galleryTitle:undefined}:{title:e.target.value})}/></label><button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester cet effet</button><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
+                  <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
+            {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
+            <div className="section-title">ACTION DU BOUTON</div>
+            <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
+              <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
+              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
+              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
+              <button type="button" aria-pressed={selectedBar.type==='plan'} onClick={()=>chooseBarAction('plan')}>⌖ Plan</button>
+              <button type="button" aria-pressed={selectedBar.type==='photos'} onClick={()=>chooseBarAction('photos')}>▣ Photos</button>
+              <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
+              <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
+            </div>
+            {selectedBar.type==='plan'?<><p className="hint">Ce bouton ouvre la galerie des plans interactifs : flèches gauche/droite et points panoramiques pour chaque plan.</p>
+              {!plansInSpace(project,currentSpace).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
+              <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
+            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
+              <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
+              <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
+            :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}{selectedBar.type==='photos'&&<small className="hint-inline">Si tu mets un lien ici (par exemple la galerie en ligne …/kamci-galerie/#imperia), ce bouton l’ouvre dans la visite à la place de la galerie de photos.</small>}</label>}
+            {(selectedBar.type==='lien'||selectedBar.type==='information'||selectedBar.type==='photos')&&!!selectedBar.url&&<label>Ouverture du lien
+              <select value={selectedBar.linkMode??'embed'} onChange={e=>patchBar({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite (fenêtre intégrée)</option><option value="tab">Dans un nouvel onglet</option></select>
+              {refusesEmbedding(selectedBar.url)&&<small className="hint-inline">Instagram, Facebook, LinkedIn… refusent d’être affichés dans une fenêtre intégrée : ce lien s’ouvre automatiquement dans un nouvel onglet.</small>}</label>}
+            <InspectorSection title="Icônes : normal, survol, clic">
+            {generalLibraryBlock({barId:selectedBar.id},'au bouton « '+selectedBar.title+' »')}
+            {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size,useCustomIcon:true}))}
+            {libraryPackPicker(selectedBar.iconId,patch=>patchBar({...patch,useCustomIcon:true}))}
+            {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id,useCustomIcon:!!id}),'Icône par défaut')}
+            {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
+            {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
+            {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
+            {(!selectedBar.iconId||!barUsesIconImage(project.barStyle,selectedBar)) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
+              {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
+            </select></label>}
+            </InspectorSection>
+            <InspectorSection title="Taille et position">
+            <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
+            {selectedBar.iconId&&<>
+              <label>Zoom de l’icône : {selectedBar.iconZoom??100} %<input type="range" min="100" max="250" step="5" value={selectedBar.iconZoom??100} onChange={e=>patchBar({iconZoom:Number(e.target.value)})}/></label>
+              <button type="button" className="style-reset" onClick={()=>{const src=project.icons.find(i=>i.id===selectedBar.iconId)?.dataUrl;if(!src)return;void autoIconZoom(src).then(z=>{patchBar({iconZoom:z});setStatus('Icône ajustée automatiquement : zoom '+z+' %');});}} title="Mesure les marges transparentes de l’image et l’agrandit pour qu’elle remplisse son bouton comme les autres icônes">Ajuster automatiquement la taille de l’icône</button>
+            </>}
+            <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>withBarSize(p,size));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
+            <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
+            </InspectorSection>
+            <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
+          </InspectorSection>}</>;
   }
   /** « Appliquer le thème » : bouton Paramètres et croix de fermeture aux couleurs réelles de la barre (fond = boutons, picto = icônes). */
   function applyBarThemeEverywhere(){
@@ -4779,7 +4831,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
-          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} shortcuts={project.planShortcuts?project.bottomBar.filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,visitorLang),icon:project.icons.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar.find(b=>b.id===id);if(item){setFloorPlanOpen(false);triggerBar(item);}}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -5271,7 +5323,7 @@ function App(){
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
-          <SectionHub id="bar" open={hubOpen.bar??null} onOpenChange={k=>setHubOpen(h=>({...h,bar:k}))} forceOpen={selectedBarId?'buttons':null} sections={[
+          <SectionHub id="bar" open={hubOpen.bar??null} onOpenChange={k=>{if(!k)setSelectedBarId('');setHubOpen(h=>({...h,bar:k}));}} forceOpen={selectedBarId&&hubOpen.bar!=='btn:'+selectedBarId&&hubOpen.bar!=='buttons'?'btn:'+selectedBarId:selectedBarId&&!hubOpen.bar?'buttons':null} sections={[
             {key:'buttons',title:'Boutons et actions',badge:project.bottomBar.length,hint:'Ajouter, modifier, ordonner',icon:<PanelBottom size={26}/>,tone:'#a468f0',content:<>
 
           <div className="bar-items-list" data-sort-scope="visit-bar">{project.bottomBar.map(item=><div key={item.id} {...barSort.itemProps(item.id)}><div className="nv-bar-list-sort">{barSort.grip(item.id,item.title)}<button className={'bar-item-row '+(selectedBarId===item.id?'current':'')} aria-expanded={selectedBarId===item.id} onClick={()=>setSelectedBarId(current=>current===item.id?'':item.id)}>
@@ -5280,55 +5332,7 @@ function App(){
           </button></div></div>)}</div>
           <button className="import" onClick={()=>addBar('information')}>＋ Ajouter un bouton</button>
           <button className="preset-button" onClick={async ()=>{if(await confirmAsk('Remplacer la barre actuelle par le modèle bordeaux à 5 icônes ? Les icônes importées resteront disponibles.')){setProject(p=>({...p,bottomBar:defaultBar()}));setSelectedBarId('');}}}>↻ Appliquer le modèle 5 icônes</button>
-          {selectedBar && <InspectorSection key={selectedBar.id} title={"Configurer : "+selectedBar.title} initiallyOpen>
-            <hr/>
-            <div id="nv-bar-button-settings" className="section-title">CONFIGURER LE BOUTON</div>
-            <label>Libellé<input value={selectedBar.title} onChange={e=>patchBar(selectedBar.type==='gallery'&&selectedBar.galleryTitle?{title:e.target.value,galleryTitle:undefined}:{title:e.target.value})}/></label><button type="button" className="primary" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(true);}}>▶ Tester cet effet</button><label>Animation à l’ouverture<select value={selectedBar.openAnimation??''} onChange={e=>patchBar({openAnimation:e.target.value?e.target.value as WindowAnimation:undefined})}><option value="">Comme le réglage général</option>{WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}</select></label>
-                  <button type="button" className="nv-test-anim" onClick={()=>{document.documentElement.dataset.windowAnim=selectedBar.openAnimation??project.windowAnimation??'fade';setWindowDemo(false);window.setTimeout(()=>setWindowDemo(true),30);}}>▶ Tester l’animation</button>
-            {selectedBar.type!=='plan'&&<BarSmartCard item={selectedBar} onPatch={patchBar} onChooseGallery={()=>chooseBarAction('gallery','panoramas')} library={project.mediaLibrary??[]} onOpenLibrary={()=>{setPanel('medialib');setRightHidden(false);}}/>}
-            <div className="section-title">ACTION DU BOUTON</div>
-            <div className="nv-bar-action-choices" role="group" aria-label="Action du bouton">
-              <button type="button" aria-pressed={selectedBar.type==='navigation'} onClick={()=>chooseBarAction('navigation')}>➜ Panorama</button>
-              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='panoramas'} onClick={()=>chooseBarAction('gallery','panoramas')}>▧ Panoramas</button>
-              <button type="button" aria-pressed={selectedBar.type==='gallery'&&barGalleryTab==='spaces'} onClick={()=>chooseBarAction('gallery','spaces')}>▦ Espaces</button>
-              <button type="button" aria-pressed={selectedBar.type==='plan'} onClick={()=>chooseBarAction('plan')}>⌖ Plan</button>
-              <button type="button" aria-pressed={selectedBar.type==='photos'} onClick={()=>chooseBarAction('photos')}>▣ Photos</button>
-              <button type="button" aria-pressed={selectedBar.type==='information'} onClick={()=>chooseBarAction('information')}>ⓘ Information</button>
-              <button type="button" aria-pressed={selectedBar.type==='lien'} onClick={()=>chooseBarAction('lien')}>↗ Lien</button>
-            </div>
-            {selectedBar.type==='plan'?<><p className="hint">Ce bouton ouvre la galerie des plans interactifs : flèches gauche/droite et points panoramiques pour chaque plan.</p>
-              {!plansInSpace(project,currentSpace).length&&<p role="status">Importe d’abord un plan dans l’outil Plan.</p>}
-              <button type="button" onClick={()=>{setPanel('plan');setRightHidden(false);}}>Configurer le plan</button></>:selectedBar.type==='gallery'?<BarGalleryEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} item={selectedBar} scenes={project.scenes} spaces={project.spaces??[]} thumbs={sceneThumbs} tab={barGalleryTab} onTabChange={setBarGalleryTab} onChange={patchBar} onPreview={()=>{setPreview(true);setMode(null);setSelectedId('');setIntroVisible(false);setGalleryOpen(selectedBar.id);}}/>:selectedBar.type==='navigation'?<label>Scène de destination<select value={selectedBar.target} onChange={e=>patchBar({target:e.target.value})}><option value="">Première scène (accueil)</option>{project.scenes.map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select></label>
-            : selectedBar.type==='information'?<><label>Contenu du panneau<textarea rows={5} value={selectedBar.text} onChange={e=>patchBar({text:e.target.value})} placeholder="Horaires, description, informations utiles…"/></label>
-              <label>Page intégrée (optionnel)<input type="text" value={selectedBar.url} placeholder="https://… menu, photos, réservations" onChange={e=>patchBar({url:e.target.value})}/></label>
-              <small className="hint-inline">Si tu renseignes une URL, elle remplacera le texte par une fenêtre intégrée.</small></>
-            :<label>Lien de destination<input type="text" value={selectedBar.url} placeholder="https://… ou tel:+33…" onChange={e=>patchBar({url:e.target.value})}/>{selectedBar.url && !safeLink(selectedBar.url)&&<small className="warning-inline">Adresse invalide : https://, mailto: ou tel: requis</small>}{selectedBar.type==='photos'&&<small className="hint-inline">Si tu mets un lien ici (par exemple la galerie en ligne …/kamci-galerie/#imperia), ce bouton l’ouvre dans la visite à la place de la galerie de photos.</small>}</label>}
-            {(selectedBar.type==='lien'||selectedBar.type==='information'||selectedBar.type==='photos')&&!!selectedBar.url&&<label>Ouverture du lien
-              <select value={selectedBar.linkMode??'embed'} onChange={e=>patchBar({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite (fenêtre intégrée)</option><option value="tab">Dans un nouvel onglet</option></select>
-              {refusesEmbedding(selectedBar.url)&&<small className="hint-inline">Instagram, Facebook, LinkedIn… refusent d’être affichés dans une fenêtre intégrée : ce lien s’ouvre automatiquement dans un nouvel onglet.</small>}</label>}
-            <InspectorSection title="Icônes : normal, survol, clic">
-            {generalLibraryBlock({barId:selectedBar.id},'au bouton « '+selectedBar.title+' »')}
-            {iconSetPicker({...selectedBar,size:barIconSize(selectedBar)},set=>patchBar({iconId:set.iconId,hoverIconId:set.hoverIconId,pressedIconId:set.pressedIconId,iconSize:set.size,useCustomIcon:true}))}
-            {libraryPackPicker(selectedBar.iconId,patch=>patchBar({...patch,useCustomIcon:true}))}
-            {iconStateEditor('bar-normal','PNG normal',selectedBar.iconId,id=>patchBar({iconId:id,useCustomIcon:!!id}),'Icône par défaut')}
-            {selectedBar.iconId && <button type="button" className="style-reset" onClick={()=>requestReplaceIcon(selectedBar.iconId!)}>Remplacer ce PNG dans toute la visite</button>}
-            {iconStateEditor('bar-hover','PNG au survol',selectedBar.hoverIconId,id=>patchBar({hoverIconId:id}),'Identique au normal')}
-            {iconStateEditor('bar-pressed','PNG au clic',selectedBar.pressedIconId,id=>patchBar({pressedIconId:id}),'Identique au survol')}
-            {(!selectedBar.iconId||!barUsesIconImage(project.barStyle,selectedBar)) && <label>Icône de base<select value={selectedBar.builtinIcon??'info'} onChange={e=>patchBar({builtinIcon:e.target.value})}>
-              {Object.keys(glyphs).map(key=><option value={key} key={key}>{key}</option>)}
-            </select></label>}
-            </InspectorSection>
-            <InspectorSection title="Taille et position">
-            <label>Taille : {barIconSize(selectedBar)} px<input type="range" min="20" max="72" step="2" value={barIconSize(selectedBar)} onChange={e=>patchBar({iconSize:Number(e.target.value)})}/></label>
-            {selectedBar.iconId&&<>
-              <label>Zoom de l’icône : {selectedBar.iconZoom??100} %<input type="range" min="100" max="250" step="5" value={selectedBar.iconZoom??100} onChange={e=>patchBar({iconZoom:Number(e.target.value)})}/></label>
-              <button type="button" className="style-reset" onClick={()=>{const src=project.icons.find(i=>i.id===selectedBar.iconId)?.dataUrl;if(!src)return;void autoIconZoom(src).then(z=>{patchBar({iconZoom:z});setStatus('Icône ajustée automatiquement : zoom '+z+' %');});}} title="Mesure les marges transparentes de l’image et l’agrandit pour qu’elle remplisse son bouton comme les autres icônes">Ajuster automatiquement la taille de l’icône</button>
-            </>}
-            <button type="button" className="style-reset" onClick={()=>{const size=barIconSize(selectedBar);setProject(p=>withBarSize(p,size));setStatus('Taille '+size+' px appliquée à tous les boutons');}}>Appliquer cette taille à tous les boutons</button>
-            <div className="reorder-row"><button className="tool" onClick={()=>moveBar(-1)}>← Déplacer</button><button className="tool" onClick={()=>moveBar(1)}>Déplacer →</button></div>
-            </InspectorSection>
-            <button className="delete" onClick={()=>{setProject(p=>({...p,bottomBar:p.bottomBar.filter(b=>b.id!==selectedBarId)}));setSelectedBarId('');}}>Supprimer ce bouton</button>
-          </InspectorSection>}
+          {renderBarButtonConfig()}
 
             </>},
             {key:'colors',title:'Couleurs et contours',hint:'Fond, boutons, pictogrammes',icon:<Palette size={26}/>,tone:'#ff8a3d',content:<><div className="style-settings">
@@ -5354,7 +5358,17 @@ function App(){
           </div>
 </>},
             {key:'size',title:'Dimensions de la barre',hint:project.barStyle.height?project.barStyle.height+' px':'Taille automatique',icon:<Ruler size={26}/>,tone:'#2bb3d6',content:<><><BarDimensions style={project.barStyle} onChange={changeBarStyle} size={project.bottomBar.length?Math.max(...project.bottomBar.map(barIconSize)):48} onSize={size=>setProject(p=>withBarSize(p,size))}/><label className="toggle-row"><input type="checkbox" checked={project.barIconTrim!==false} onChange={e=>setProject(p=>({...p,barIconTrim:e.target.checked}))}/> Remplir les boutons : rogner les marges transparentes des icônes (toutes à la même taille)</label></></>},
-            {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)}
+            {key:'skins',title:'Skins',hint:'Enregistrer ou appliquer',icon:<Layers size={26}/>,tone:'#2fbf8f',onClick:()=>setSkinsOpen(true)},
+            // Une tuile par bouton de la barre : réglages rapides, « Retour » revient à ce panneau.
+            ...project.bottomBar.map(item=>{
+              const img=project.icons.find(i=>i.id===item.iconId)?.dataUrl;
+              const kind=item.type==='plan'?'Plan':item.type==='photos'?'Photos':item.type==='navigation'?'Panorama':item.type==='information'?'Information':item.type==='gallery'?'Galerie':'Lien';
+              const tone=item.type==='plan'?'#e1a525':item.type==='photos'?'#e0645c':item.type==='gallery'?'#4f7cff':item.type==='information'?'#2bb3d6':item.type==='navigation'?'#2fbf8f':'#a468f0';
+              return {key:'btn:'+item.id,title:item.title||kind,hint:kind,tone,
+                icon:img?<img className="nv-hub-tile-img" src={img} alt=""/>:<BarGlyph name={item.builtinIcon??'info'}/>,
+                content:<>{selectedBar?.id===item.id?renderBarButtonConfig():null}</>,
+                onClick:()=>{setSelectedBarId(item.id);setHubOpen(h=>({...h,bar:'btn:'+item.id}));}};
+            })
           ]}/>
         </div>}
         {panel==='medialib' && <div className="properties">
@@ -5490,8 +5504,19 @@ function App(){
             <p className="hint-inline">{currentSpace?'Ces plans et leurs repères sont propres à cet espace. Les autres espaces conservent leurs propres plans et panoramas.':'Ces plans appartiennent au projet principal. Choisis un espace pour lui attribuer ses propres plans.'}</p>
             <FloorPlanEditor renderPreview={id=>{const scene=project.scenes.find(sc=>sc.id===id);return scene?<FullscreenGalleryHoverPreview scene={scene} thumb={sceneThumbs[id]}/>:null;}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} thumbs={sceneThumbs} onChange={plans=>setProject(p=>updatePlansInSpace(p,currentSpace,plans))}
               hasPlanButton={project.bottomBar.some(item=>item.type==='plan')}
+              onSceneChange={(id,patch)=>setProject(p=>({...p,scenes:p.scenes.map(sc=>{
+                if(sc.id!==id)return sc;
+                const next={...sc};
+                if(patch.name!==undefined)next.name=patch.name;
+                if(patch.surfaceM2===null)delete next.surfaceM2;else if(patch.surfaceM2!==undefined)next.surfaceM2=patch.surfaceM2;
+                return next;
+              })}))}
               onAddButton={()=>{if(project.bottomBar.length>=20){setStatus('20 boutons maximum');return;}setProject(p=>({...p,bottomBar:[...p.bottomBar,{id:uid(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]}));}}
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
+          </InspectorSection>
+          <InspectorSection title="Raccourcis dans le plan" initiallyOpen>
+            <label className="toggle-row"><input type="checkbox" checked={!!project.planShortcuts} onChange={e=>setProject(p=>({...p,planShortcuts:e.target.checked}))}/> Intégrer les raccourcis de la barre dans le plan</label>
+            <p className="hint-inline">Affiche sous le plan les boutons de la barre du bas ({project.bottomBar.filter(b=>b.type!=='plan').map(b=>b.title).join(', ')||'aucun'}) : le visiteur passe du plan aux photos, informations ou panoramas sans le fermer à la main.</p>
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">

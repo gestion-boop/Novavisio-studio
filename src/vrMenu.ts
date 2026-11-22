@@ -72,7 +72,7 @@ export function vrMenuOf(project: Pick<StudioProject, 'vrMenu' | 'bottomBar'>): 
     return out.slice(0, lastUsed(out) + 1);
   };
   const left = clean(cfg.left), right = clean(cfg.right);
-  return {left, right, autoOpen: !!cfg.autoOpen};
+  return {left, right, autoOpen: !!cfg.autoOpen, themed: !!cfg.themed};
 }
 
 export type VrSlot = {id: string; x: number; y: number; row: number};

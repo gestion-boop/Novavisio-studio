@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState, type Dispatch, type DragEvent, type ReactNode, type SetStateAction} from 'react';
+import {useEffect, useMemo, useState, type CSSProperties, type Dispatch, type DragEvent, type ReactNode, type SetStateAction} from 'react';
 import {createPortal} from 'react-dom';
 import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, LayoutGrid, Map as MapIcon, Pencil, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
 import {getFloorPlans, type BottomBarItem, type StudioProject} from './storage';
@@ -82,7 +82,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   }, [menu.left, menu.right]);
   const commit = (next: {left: string[]; right: string[]}) => {
     const trim = (l: string[]) => {const out = [...l]; while (out.length && !out[out.length - 1]) out.pop(); return out;};
-    setProject((p) => ({...p, vrMenu: {left: trim(next.left), right: trim(next.right), autoOpen: !!menu.autoOpen}}));
+    setProject((p) => ({...p, vrMenu: {left: trim(next.left), right: trim(next.right), autoOpen: !!menu.autoOpen, themed: !!menu.themed}}));
   };
   const clone = () => ({left: [...cols.left], right: [...cols.right]});
   const findSlot = (id: string): SlotRef | null => {
@@ -211,7 +211,14 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
         </div> : <button type="button" className="nv-vrx-reopen" onClick={() => setMenuOpen(true)}>Menu fermé · clique ici (bouton A ou B dans le casque) pour le rouvrir</button>}
       </div>;
 
-  return createPortal(<div className="nv-vrx" role="dialog" aria-modal="true" aria-label="Interface du casque">
+  const bs = project.barStyle;
+  const hex = (c?: string) => !!c && /^#[0-9a-f]{6}$/i.test(c);
+  const themedOk = !!menu.themed && hex(bs.button) && hex(bs.icon);
+  const themeVars = (themedOk ? {
+    '--vr-btn': bs.button, '--vr-accent': bs.icon, '--vr-label-bg': bs.button, '--vr-label-ink': bs.icon,
+    ...(hex(bs.background) ? {'--vr-shell': bs.background + 'e6'} : {}), ...(hex(bs.outline) ? {'--vr-line': bs.outline} : {}),
+  } : {}) as CSSProperties;
+  return createPortal(<div className="nv-vrx" style={themeVars} role="dialog" aria-modal="true" aria-label="Interface du casque">
     <header className="nv-vrx-top">
       <div className="nv-vrx-title"><small>Casque VR</small><strong>Interface du casque</strong></div>
       <div className="nv-vrx-tabs" role="tablist">
@@ -268,6 +275,12 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
             </div>}
           </>}
         <div className="nv-vrx-card-foot">
+          <label>Couleurs de l’interface
+            <select value={menu.themed ? 'theme' : 'yellow'} onChange={(e) => setProject((p) => ({...p, vrMenu: {...vrMenuOf(p), themed: e.target.value === 'theme'}}))}>
+              <option value="yellow">Jaune (actuel)</option>
+              <option value="theme">Thème de la barre du bas</option>
+            </select>
+          </label>
           <label className="toggle-row"><input type="checkbox" checked={!!menu.autoOpen} onChange={(e) => setProject((p) => ({...p, vrMenu: {...vrMenuOf(p), autoOpen: e.target.checked}}))}/>
             Ouvrir l’interface dès l’entrée dans le casque</label>
           <button type="button" className="nv-vrx-reset" disabled={!project.vrMenu || JSON.stringify(project.vrMenu) === JSON.stringify(DEFAULT_VR_MENU)}

@@ -73,18 +73,29 @@ function drawIcon(c:CanvasRenderingContext2D,kind:VrControlIcon){
   c.restore();
 }
 
-export function makeVrControlTexture(icon:VrControlIcon,state:VrControlState):CanvasTexture{
+const mixHex=(a:string,b:string,k:number)=>{
+  const ch=(h:string)=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+  const [x,y]=[ch(a),ch(b)];
+  return '#'+x.map((v,i)=>Math.round(v+(y[i]-v)*k).toString(16).padStart(2,'0')).join('');
+};
+/** Couleurs optionnelles (thème de la barre) : disque = bouton, pictogramme et bord = icône. Sans elles : jaune actuel. */
+export type VrControlColors={button:string;icon:string};
+const HEX6=/^#[0-9a-f]{6}$/i;
+export function makeVrControlTexture(icon:VrControlIcon,state:VrControlState,colors?:VrControlColors):CanvasTexture{
   const canvas=document.createElement('canvas');
   canvas.width=320;canvas.height=320;
   const c=canvas.getContext('2d');
   if(!c)throw new Error('Canvas 2D indisponible');
-  const color=state==='pressed'?'#fff4c7':state==='hover'?'#ffe19b':'#f3bb37';
-  const bg=state==='pressed'?'#68471d':state==='hover'?'#393027':'#1d1e22';
+  const themed=!!colors&&HEX6.test(colors.button)&&HEX6.test(colors.icon);
+  const color=themed?(state==='pressed'?mixHex(colors!.icon,'#ffffff',.65):state==='hover'?mixHex(colors!.icon,'#ffffff',.35):colors!.icon)
+    :state==='pressed'?'#fff4c7':state==='hover'?'#ffe19b':'#f3bb37';
+  const bg=themed?(state==='pressed'?mixHex(colors!.button,colors!.icon,.5):state==='hover'?mixHex(colors!.button,colors!.icon,.28):colors!.button)
+    :state==='pressed'?'#68471d':state==='hover'?'#393027':'#1d1e22';
   c.save();
   c.beginPath();c.arc(160,160,144,0,Math.PI*2);
   c.fillStyle=bg;c.fill();
   c.strokeStyle=color;c.lineWidth=state==='normal'?8:11;
-  c.shadowColor=state==='normal'?'transparent':'#ffc33d';
+  c.shadowColor=state==='normal'?'transparent':themed?colors!.icon:'#ffc33d';
   c.shadowBlur=state==='pressed'?25:state==='hover'?17:0;
   c.stroke();
   c.restore();
