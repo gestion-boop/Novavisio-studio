@@ -332,3 +332,11 @@
 .nv-minimap .nv-plan-image>button.nv-plan-point{width:22px;height:22px;min-width:22px;min-height:22px;font-size:11px}
 @media(max-width:700px){.nv-minimap{top:62px;right:10px}.nv-minimap-body{width:min(46vw,210px)}.nv-minimap-eye{width:36px;height:36px}}
 @media print{.nv-minimap{display:none}}
+
+/* Zoom au survol : le plan grandit en diagonale vers le bas à gauche (ancré en haut à droite) et revient au même coin. */
+.nv-minimap-body{transform-origin:100% 0;transition:transform .42s cubic-bezier(.22,.8,.2,1),box-shadow .3s ease;will-change:transform}
+.nv-minimap.is-zoomed{z-index:60}
+.nv-minimap.is-zoomed .nv-minimap-body{box-shadow:0 18px 60px rgba(0,0,0,.6)}
+.nv-minimap-lock{min-width:28px;height:28px;padding:0 6px;border-radius:8px;background:var(--nv-button-bg,#241d1f);border:1px solid var(--nv-button-outline,#e5c890);color:var(--nv-icon-color,#f6e6bf);cursor:pointer;display:inline-grid;place-items:center}
+.nv-minimap-lock[aria-pressed="true"]{background:var(--nv-icon-color,#f6e6bf);color:var(--nv-button-bg,#241d1f)}
+@media(prefers-reduced-motion:reduce){.nv-minimap-body{transition:none}}

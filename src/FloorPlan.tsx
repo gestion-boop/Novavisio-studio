@@ -3,7 +3,7 @@ import {readPlanImage,matchScenesToRooms,type PlanRoom} from './planRead';
 import {confirmAsk} from './confirmDialog';
 import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
-import {Map,Maximize2,X,Eye,EyeOff} from 'lucide-react';
+import {Map,Maximize2,X,Eye,EyeOff,Lock,Unlock} from 'lucide-react';
 import {isSafeFrameImage,type FloorPlan,type Scene} from './storage';
 import {ui,pick} from './i18n';
 import './floorPlan.css';
@@ -140,25 +140,46 @@ export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{
   const usable=plans.filter(plan=>plan.imageDataUrl&&visiblePoints(plan,scenes).length>0);
   const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem('nv-minimap-hidden')==='1';}catch{return false;}});
   const [manual,setManual]=useState<number|null>(null);
+  const [locked,setLocked]=useState(()=>{try{return localStorage.getItem('nv-minimap-lock')==='1';}catch{return false;}});
+  // Survol (souris) : le plan grandit presque jusqu'à la taille de l'écran, depuis le coin haut droit, puis y revient.
+  const [zoom,setZoom]=useState(1);
+  const body=useRef<HTMLDivElement>(null);
   useEffect(()=>{setManual(null);},[currentId]);
   if(!usable.length)return null;
+  const canHover=typeof window!=='undefined'&&window.matchMedia?.('(hover:hover) and (pointer:fine)').matches;
+  const enter=()=>{
+    if(locked||!canHover||!body.current)return;
+    setZoom(z=>{
+      if(z>1)return z;
+      const rect=body.current!.getBoundingClientRect();
+      if(!rect.width||!rect.height)return z;
+      const k=Math.min((window.innerWidth*.9-60)/rect.width,(window.innerHeight*.82)/rect.height);
+      return Math.max(1,Math.min(k,5));
+    });
+  };
+  const leave=()=>setZoom(1);
+  const toggleLock=()=>setLocked(value=>{const next=!value;try{localStorage.setItem('nv-minimap-lock',next?'1':'0');}catch{/* stockage indisponible */}if(next)setZoom(1);return next;});
   const auto=usable.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
   const index=Math.max(0,Math.min(manual??(auto>=0?auto:0),usable.length-1));
   const plan=usable[index];
   const toggle=()=>setHidden(value=>{const next=!value;try{localStorage.setItem('nv-minimap-hidden',next?'1':'0');}catch{/* stockage indisponible */}return next;});
-  return <aside className={'nv-minimap'+(hidden?' is-hidden':'')} aria-label="Plan de la visite">
+  return <aside className={'nv-minimap'+(hidden?' is-hidden':'')+(zoom>1?' is-zoomed':'')} aria-label="Plan de la visite" onMouseEnter={enter} onMouseLeave={leave}>
     <button type="button" className="nv-minimap-eye" aria-pressed={!hidden} onClick={toggle}
       aria-label={hidden?'Afficher le plan':'Masquer le plan'} title={hidden?'Afficher le plan':'Masquer le plan'}>
       {hidden?<EyeOff size={18}/>:<Eye size={18}/>}
     </button>
-    {!hidden&&<div className="nv-minimap-body">
+    {!hidden&&<div className="nv-minimap-body" ref={body} style={zoom>1?{transform:'scale('+zoom.toFixed(3)+')'}:undefined}>
       <div className="nv-minimap-head">
+        <button type="button" className="nv-minimap-lock" aria-pressed={locked} onClick={toggleLock}
+          aria-label={locked?'Débloquer le zoom du plan':'Bloquer le zoom du plan'} title={locked?'Zoom bloqué : cliquer pour le réactiver':'Bloquer le zoom au survol'}>
+          {locked?<Lock size={14}/>:<Unlock size={14}/>}
+        </button>
         {usable.length>1&&<div className="nv-minimap-levels" role="group" aria-label="Étages">
           {usable.map((item,i)=><button type="button" key={item.id??i} aria-pressed={i===index} title={item.name||'Plan '+(i+1)} onClick={()=>setManual(i)}>{i+1}</button>)}
         </div>}
         {onExpand&&<button type="button" className="nv-minimap-expand" onClick={onExpand} aria-label="Agrandir le plan" title="Agrandir le plan"><Maximize2 size={15}/></button>}
       </div>
-      <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes} currentId={currentId} onPick={onPick} lang={lang}/></div>
+      <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes} currentId={currentId} onPick={id=>{setZoom(1);onPick(id);}} lang={lang}/></div>
     </div>}
   </aside>;
 }
