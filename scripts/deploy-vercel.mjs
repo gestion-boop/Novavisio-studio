@@ -18,55 +18,68 @@ const REPO_ID = 1451961082;
 
 const sha = process.env.GITHUB_SHA || execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
 const branch = process.env.GITHUB_REF_NAME || execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8' }).trim();
+const isProduction = branch === 'main';
+const modeLabel = isProduction ? 'production' : `preview (${branch})`;
 
-console.log(`🚀 Déclenchement déploiement Vercel pour ${sha.slice(0, 7)} (${branch})...`);
+console.log(`🚀 Déclenchement du déploiement Vercel [${modeLabel}] pour ${branch}@${sha.slice(0, 7)}...`);
+
+const payload = {
+  name: 'novavisio-studio',
+  project: PROJECT_ID,
+  ...(isProduction ? { target: 'production' } : {}),
+  gitSource: { type: 'github', repoId: REPO_ID, ref: branch, sha },
+};
 
 const createRes = await fetch(`https://api.vercel.com/v13/deployments?teamId=${TEAM_ID}`, {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${TOKEN}`,
+    Authorization: `Bearer ${TOKEN}`,
     'Content-Type': 'application/json',
   },
-  body: JSON.stringify({
-    name: 'novavisio-studio',
-    project: PROJECT_ID,
-    target: 'production',
-    gitSource: {
-      type: 'github',
-      repoId: REPO_ID,
-      ref: branch,
-      sha: sha,
-    },
-  }),
+  body: JSON.stringify(payload),
 });
 
+const deployData = await createRes.json();
 if (!createRes.ok) {
-  const errText = await createRes.text();
-  console.error('Erreur API Vercel:', errText);
+  console.error('❌ Échec création déploiement Vercel:', JSON.stringify(deployData, null, 2));
   process.exit(1);
 }
 
-const deployData = await createRes.json();
-console.log(`📦 Déploiement créé: ${deployData.id} (${deployData.url})`);
-console.log(`⏳ En attente de la fin du build...`);
+console.log(`⏳ Déploiement créé (${deployData.id}), attente du statut READY...`);
 
-const startTime = Date.now();
-while (Date.now() - startTime < 180000) {
-  await new Promise(r => setTimeout(r, 4000));
+const deadline = Date.now() + 180_000;
+while (Date.now() < deadline) {
+  await new Promise(resolve => setTimeout(resolve, 5000));
   const checkRes = await fetch(`https://api.vercel.com/v13/deployments/${deployData.id}?teamId=${TEAM_ID}`, {
-    headers: { 'Authorization': `Bearer ${TOKEN}` },
+    headers: { Authorization: `Bearer ${TOKEN}` },
   });
-  if (checkRes.ok) {
-    const status = await checkRes.json();
-    if (status.readyState === 'READY') {
-      console.log(`✅ Déploiement prêt en production !`);
-      console.log(`🌐 URL: https://novavisio-studio.vercel.app/`);
-      process.exit(0);
+  const status = await checkRes.json();
+  if (!checkRes.ok) {
+    console.warn(`⚠️ Réponse API Vercel (${checkRes.status}), nouvelle tentative...`);
+    continue;
+  }
+  if (status.readyState === 'READY') {
+    const deployUrl = status.url ? `https://${status.url}` : (deployData.url ? `https://${deployData.url}` : '');
+    const aliases = Array.isArray(status.alias) ? status.alias.map(a => `https://${a}`) : [];
+    const primaryUrl = isProduction ? 'https://novavisio-studio.vercel.app/' : (aliases[0] || deployUrl);
+    console.log(`✅ Déploiement prêt en ${modeLabel} !`);
+    console.log(`🌐 URL principale: ${primaryUrl}`);
+    if (deployUrl && deployUrl !== primaryUrl) console.log(`🔗 URL immuable: ${deployUrl}`);
+    if (aliases.length > 1) console.log(`🏷️ Alias: ${aliases.join(', ')}`);
+    if (process.env.GITHUB_STEP_SUMMARY) {
+      const summary = [
+        `### Déploiement Vercel (${modeLabel})`,
+        `- Branche : \`${branch}\` (\`${sha.slice(0, 7)}\`)`,
+        `- URL principale : ${primaryUrl}`,
+        deployUrl && deployUrl !== primaryUrl ? `- URL immuable : ${deployUrl}` : null,
+      ].filter(Boolean).join('\n') + '\n';
+      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary, 'utf8');
     }
-    if (status.readyState === 'ERROR' || status.readyState === 'CANCELED') {
-      console.error(`❌ Échec du déploiement: ${status.readyState}`);
-      process.exit(1);
-    }
+    process.exit(0);
+  }
+  if (status.readyState === 'ERROR' || status.readyState === 'CANCELED') {
+    console.error(`❌ Déploiement Vercel terminé en erreur (${status.readyState}):`, status.errorMessage || '');
+    process.exit(1);
   }
 }
 
