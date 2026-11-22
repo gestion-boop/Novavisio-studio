@@ -28,7 +28,7 @@ export const GLOSSY_THEMES: ReadonlyArray<GlossyTheme> = [
   {id: 'anthracite', name: 'Anthracite', bar: {background: '#1d2126', outline: '#718692', button: '#3d4248', buttonOutline: '#718692', icon: '#ffffff'}, glossy: {base: '#3d4248', rim: '#15181c', gloss: 0.6, shadow: 0.6}},
   {id: 'ocean-clair', name: 'Océan clair', bar: {background: '#e0eff3', outline: '#6591a5', button: '#176a91', buttonOutline: '#62a4bc', icon: '#ffffff'}, glossy: {base: '#176a91', rim: '#0d3f57', gloss: 0.7, shadow: 0.4}},
   {id: 'sable', name: 'Sable', bar: {background: '#f3e7d3', outline: '#c79c5a', button: '#e6c17c', buttonOutline: '#b8924a', icon: '#5a4630'}, glossy: {base: '#e6c17c', rim: '#b8924a', gloss: 0.8, shadow: 0.4}},
-  {id: 'immosphera', name: 'Immosphera', bar: {background: '#0f0f0f', outline: '#e2ad5c', button: '#171717', buttonOutline: '#e2ad5c', icon: '#f6c97f'}, glossy: {base: '#171717', rim: '#e2ad5c', gloss: 0.8, shadow: 0.5},
+  {id: 'immosphera', name: 'Immosphera', bar: {background: '#0f0f0f', outline: '#e2ad5c', button: '#171717', buttonOutline: '#e2ad5c', icon: '#f6c97f'}, glossy: {base: '#c99645', rim: '#6b4a1f', gloss: 0.8, shadow: 0.5},
     vr: {...DEFAULT_VR_MENU, autoOpen: true}},
   {id: 'minuit-dore', name: 'Minuit doré', bar: {background: '#071a28', outline: '#e6c17c', button: '#0b1826', buttonOutline: '#e6c17c', icon: '#e6c17c'}, glossy: {base: '#153f59', rim: '#c79c5a', gloss: 0.7, shadow: 0.5}},
 ];
@@ -103,6 +103,9 @@ const mixHex = (hex: string, to: string, k: number): string => {
  */
 export async function harmonizeWithBar(project: StudioProject): Promise<StudioProject> {
   const bar = project.barStyle;
+  // Si la barre correspond à un thème connu (ex. Immosphera), on reprend exactement son style glossy.
+  const known = GLOSSY_THEMES.find(t => t.bar.button.toLowerCase() === bar.button?.toLowerCase());
+  if (known) return applyGlossyTheme(project, known, {defaults: true});
   const base = /^#[0-9a-f]{6}$/i.test(bar.button) ? bar.button : '#c79c5a';
   const theme: GlossyTheme = {
     id: 'harmonise', name: 'Couleur de la barre',
