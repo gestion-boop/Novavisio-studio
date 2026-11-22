@@ -1,4 +1,4 @@
-import {BackSide, CanvasTexture, Color, Sprite, SpriteMaterial, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
+import {BackSide, CanvasTexture, Color, Sprite, SpriteMaterial, CylinderGeometry, LinearFilter, DoubleSide, Group, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, ShaderMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
@@ -231,36 +231,107 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const iconUrl=getIconUrl(h.iconId);
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
-      const radius=k*Math.max(.13,Math.min(.22,(h.iconSize??48)/90*.2));
-      // Couleur du contour (réglage de l'éditeur) : teinte la sphère avant le chargement du panorama.
+      const radius=k*Math.max(.14,Math.min(.24,(h.iconSize??48)/90*.21));
+      // Couleur du contour (réglage de l'éditeur) : teinte la sphère avant le chargement du panorama et son halo lumineux.
       const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
-      const hitRadius=Math.max(.15,radius*1.38);
+      const hitRadius=Math.max(.18,radius*1.44);
       const mesh=new Mesh(new SphereGeometry(hitRadius,16,12),new MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
-      const visual=new Mesh(new SphereGeometry(radius,128,80),new MeshBasicMaterial({color:new Color(rimColor),transparent:true,opacity:1,depthTest:false,depthWrite:false}));
+      // Shader 3D "bulle / goutte d'eau opaque" : courbure sphérique, réfraction convexe, ménisque Fresnel et reflets vitreux.
+      const dropMat=new ShaderMaterial({
+        transparent:true,depthTest:false,depthWrite:false,
+        uniforms:{
+          panorama:{value:null as Texture|null},
+          hasPanorama:{value:false},
+          rimColor:{value:new Color(rimColor)},
+          hover:{value:0},
+          pressed:{value:0},
+          opacity:{value:0.99},
+        },
+        vertexShader:`
+          varying vec2 vUv;
+          varying vec3 vViewNormal;
+          varying vec3 vViewDir;
+          void main(){
+            vUv=uv;
+            vec4 mvPos=modelViewMatrix*vec4(position,1.0);
+            vViewNormal=normalize(normalMatrix*normal);
+            vViewDir=normalize(-mvPos.xyz);
+            gl_Position=projectionMatrix*mvPos;
+          }`,
+        fragmentShader:`
+          uniform sampler2D panorama;
+          uniform bool hasPanorama;
+          uniform vec3 rimColor;
+          uniform float hover;
+          uniform float pressed;
+          uniform float opacity;
+          varying vec2 vUv;
+          varying vec3 vViewNormal;
+          varying vec3 vViewDir;
+          void main(){
+            vec3 n=normalize(vViewNormal);
+            vec3 v=normalize(vViewDir);
+            float facing=clamp(dot(n,v),0.0,1.0);
+            vec2 lensUv=vec2(1.0-vUv.x,vUv.y)+n.xy*vec2(-0.045,0.045)*(1.0-facing);
+            lensUv.y=clamp(lensUv.y,0.002,0.998);
+            vec3 innerColor=hasPanorama
+              ?texture2D(panorama,lensUv).rgb
+              :mix(rimColor*0.24+vec3(0.06,0.13,0.20),rimColor*0.86,pow(facing,0.62));
+            // Volume sphérique marqué : centre net, courbure assombrie sur les bords (supprime l'aspect plat).
+            float sphereDepth=0.46+0.58*pow(facing,0.56);
+            vec3 color=innerColor*sphereDepth;
+            // Ménisque Fresnel dense tout autour de la bulle
+            float fresnel=pow(1.0-facing,2.5);
+            vec3 meniscus=mix(vec3(0.86,0.97,1.0),rimColor*0.82+vec3(0.28),0.45);
+            color=mix(color,meniscus,clamp(fresnel*(0.64+0.26*hover),0.0,0.90));
+            // Reflets spéculaires de goutte d'eau (dôme haut gauche + éclat brillant + caustique interne bas droite)
+            vec3 light1=normalize(vec3(-0.38,0.56,0.73));
+            float h1=max(dot(n,light1),0.0);
+            float softDome=pow(h1,10.0)*0.24;
+            float crispSpot=smoothstep(0.85,0.96,h1)*0.30+pow(h1,105.0)*0.90;
+            float bounce=pow(max(dot(n,normalize(vec3(0.45,-0.66,0.60))),0.0),14.0);
+            color=mix(color,vec3(1.0),min(0.94,softDome+crispSpot));
+            color+=(vec3(0.55,0.85,1.0)*0.22+rimColor*0.24)*bounce;
+            color*=(1.0+0.12*hover-0.28*pressed);
+            gl_FragColor=vec4(color,opacity);
+            #include <tonemapping_fragment>
+            #include <colorspace_fragment>
+          }`,
+      });
+      const visual=new Mesh(new SphereGeometry(radius,96,64),dropMat);
       visual.renderOrder=2;mesh.add(visual);
       // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
       const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
       const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;visual.add(outline);
-      // Nom de la pièce juste sous la sphère : on sait où l'on va sans viser.
+      // Nom de la pièce bien lisible juste sous la sphère : immobile au repos, grossit fortement au survol vers le client.
       const destination=sceneOf(h.target);
       const destinationName=destination?pick(destination.name,destination.nameTranslations,vlang()):'';
+      let labelSprite:Sprite|null=null;
+      const baseLabelW=1.04,baseLabelH=.245;
       if(destinationName){
-        const labelTexture=canvasTexture(640,120,ctx=>{
-          roundRect(ctx,6,6,628,108,50);ctx.fillStyle='rgba(10,14,18,.92)';ctx.fill();
-          ctx.lineWidth=6;ctx.strokeStyle=rimColor;ctx.stroke();
+        const labelTexture=canvasTexture(1024,240,ctx=>{
+          const text=fitCanvasLabel(ctx,destinationName,876,94,46);
+          const textW=ctx.measureText(text).width;
+          const boxW=Math.min(996,Math.max(380,Math.ceil(textW+136)));
+          const x0=(1024-boxW)/2;
+          roundRect(ctx,x0,14,boxW,212,102);ctx.fillStyle='rgba(8,12,18,.94)';ctx.fill();
+          ctx.lineWidth=9;ctx.strokeStyle=rimColor;ctx.stroke();
           ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.textBaseline='middle';
-          ctx.font='bold 60px sans-serif';
-          ctx.fillText(fitCanvasLabel(ctx,destinationName,580,60,28),320,62);
+          ctx.fillText(text,512,124);
         });
-        const label=new Sprite(new SpriteMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false}));
-        label.scale.set(.3,.056,1);label.position.set(0,-radius*1.7-.06,0);label.renderOrder=3;
-        visual.add(label);
+        labelSprite=new Sprite(new SpriteMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false}));
+        labelSprite.scale.set(baseLabelW,baseLabelH,1);
+        labelSprite.position.set(0,-(radius*1.12+baseLabelH*.52),0);
+        labelSprite.renderOrder=3;
+        visual.add(labelSprite);
       }
-      // Le collider reste strictement fixe à 6 m (aucun saut radial sous le rayon) : la sphère visuelle grossit sur place autour de son centre.
-      mesh.userData={baseScale:1,hoverScale:1,spin:true,visualSphere:visual,rimOutline:outline,rimOpacity,toViewer:pos.clone().normalize().multiplyScalar(-1),onSelect:()=>void goTo(h.target,h)};
+      // Le collider reste strictement fixe à 6 m : la goutte 3D reste immobile au repos puis s'avance vers les yeux au survol.
+      mesh.userData={baseScale:1,hoverScale:1,spin:true,visualSphere:visual,rimOutline:outline,rimOpacity,
+        labelSprite,baseLabelW,baseLabelH,sphereRadius:radius,toViewer:pos.clone().normalize().multiplyScalar(-1),
+        onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
         for(let attempt=0;attempt<30&&!ended;attempt++){
@@ -269,13 +340,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
             try{
               const pano=await loadReduced(url,2048);
               if(ended||!mesh.parent)return;
-              // Couleurs plus vives : la sphère reste lisible sur les murs blancs.
+              // Couleurs riches dans la bulle de verre pour rester nettes face aux murs clairs.
               const vivid=document.createElement('canvas');vivid.width=pano.width;vivid.height=pano.height;
               const vividCtx=vivid.getContext('2d');
-              if(vividCtx){vividCtx.filter='saturate(1.8) contrast(1.12)';vividCtx.drawImage(pano,0,0);}
+              if(vividCtx){vividCtx.filter='saturate(1.65) contrast(1.10)';vividCtx.drawImage(pano,0,0);}
               const texture=new CanvasTexture(vividCtx?vivid:pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
-              const material=visual.material as MeshBasicMaterial;
-              material.map=texture;material.color.set(0xffffff);material.opacity=1;material.needsUpdate=true;
+              dropMat.uniforms.panorama.value=texture;
+              dropMat.uniforms.hasPanorama.value=true;
+              dropMat.needsUpdate=true;
               return;
             }catch{}
           }
@@ -336,10 +408,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const disposeNode=(node:Object3D)=>{
     for(const sub of [...node.children])disposeNode(sub);
     const m=node as Mesh;
-    const mat=m.material as MeshBasicMaterial|undefined;
+    const mat=m.material as (MeshBasicMaterial|ShaderMaterial|undefined);
+    if(mat&&'uniforms' in mat&&mat.uniforms?.panorama?.value)(mat.uniforms.panorama.value as Texture).dispose();
+    const basic=mat as MeshBasicMaterial|undefined;
     const states=m.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null}|undefined;
-    for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==mat?.map)texture.dispose();
-    mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
+    for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==basic?.map)texture.dispose();
+    basic?.map?.dispose();mat?.dispose();m.geometry?.dispose();
     const vid=m.userData.video as HTMLVideoElement|null|undefined;
     if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
   };
@@ -1805,7 +1879,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }
     if(remoteTarget){
       hovered.add(remoteTarget);
-      if(remoteTarget.userData.roomHighlight){
+      if(remoteTarget.userData.roomHighlight||remoteTarget.userData.spin){
         remoteFocus.visible=false;
       }else{
         const mesh=remoteTarget as Mesh;
@@ -1823,33 +1897,55 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }else remoteFocus.visible=false;
     for(const m of clickables){
       const isPressed=(m.userData.pressedUntil??0)>now;
-      const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
-      // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
+      const isHovered=hovered.has(m);
+      const base=m.userData.baseScale??1,wanted=isPressed?.9:isHovered?(m.userData.hoverScale??1):base;
       // Surbrillance de pièce : fondu progressif (pas de saut entre 0 et 0,8) pour éviter le scintillement au survol.
-      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:hovered.has(m)?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
+      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:isHovered?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
       if(m.userData.spin){
         const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
-        // Va-et-vient : la sphère visuelle avance et recule vers le spectateur (le collider reste à 6 m).
+        // Au repos : strictement immobile (pushOut = 0). Au survol : s'avance franchement vers les yeux du client.
         const toViewer=m.userData.toViewer as Vector3|undefined;
-        // Léger va-et-vient au repos ; au pointeur, la sphère s'avance vers nous (sans saut).
-        const pushTarget=(isPressed?.7:hovered.has(m)?.45:0)+(1+Math.sin(now/520))*.05;
-        m.userData.pushOut=((m.userData.pushOut as number|undefined)??0)+(pushTarget-((m.userData.pushOut as number|undefined)??0))*.18;
+        const pushTarget=isPressed?1.35:isHovered?1.70:0;
+        const prevPush=(m.userData.pushOut as number|undefined)??0;
+        const nextPush=prevPush+(pushTarget-prevPush)*.16;
+        m.userData.pushOut=Math.abs(pushTarget-nextPush)<.002?pushTarget:nextPush;
         if(toViewer)visual.position.copy(toViewer).multiplyScalar(m.userData.pushOut as number);
         const rim=m.userData.rimOutline as Mesh|undefined;
         const baseRim=(m.userData.rimOpacity as number|undefined)??.15;
-        const vs=isPressed?.92:hovered.has(m)?1.22:1;
-        visual.scale.setScalar(visual.scale.x+(vs-visual.scale.x)*.28);
+        const vs=isPressed?.95:isHovered?1.25:1;
+        visual.scale.setScalar(visual.scale.x+(vs-visual.scale.x)*.20);
+        // Libellé sous la sphère : s'agrandit généreusement au survol pour une lecture très confortable face aux yeux.
+        const label=m.userData.labelSprite as Sprite|undefined;
+        if(label){
+          const baseW=(m.userData.baseLabelW as number|undefined)??.96;
+          const baseH=(m.userData.baseLabelH as number|undefined)??.21;
+          const r=(m.userData.sphereRadius as number|undefined)??.18;
+          const goalLF=isPressed?.96:isHovered?1.36:1;
+          const prevLF=(m.userData.labelFactor as number|undefined)??1;
+          const nextLF=prevLF+(goalLF-prevLF)*.20;
+          m.userData.labelFactor=nextLF;
+          label.scale.set(baseW*nextLF,baseH*nextLF,1);
+          label.position.set(0,-(r*1.12+baseH*nextLF*.52),0);
+        }
         const vm=visual.material;
-        if(vm instanceof MeshBasicMaterial)vm.color.setScalar(isPressed?.7:hovered.has(m)?1.25:1);
+        if(vm instanceof ShaderMaterial){
+          const curH=(vm.uniforms.hover.value as number|undefined)??0;
+          const goalH=isHovered||isPressed?1:0;
+          vm.uniforms.hover.value=curH+(goalH-curH)*.22;
+          const curP=(vm.uniforms.pressed.value as number|undefined)??0;
+          vm.uniforms.pressed.value=curP+((isPressed?1:0)-curP)*.3;
+        }else if(vm instanceof MeshBasicMaterial){
+          vm.color.setScalar(isPressed?.7:isHovered?1.25:1);
+        }
         if(rim&&rim.material instanceof MeshBasicMaterial){
-          rim.material.opacity=hovered.has(m)?Math.max(baseRim,.85):baseRim;
+          rim.material.opacity=isHovered?Math.max(baseRim,.9):baseRim;
         }
         continue;
       }
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
         const mm=(m as Mesh).material as MeshBasicMaterial;
-        const tint=isPressed?.55:hovered.has(m)?1.5:1;
+        const tint=isPressed?.55:isHovered?1.5:1;
         if(!m.userData.spin)mm.color.setScalar(tint);
       }
       const cur=m.scale.x;m.scale.setScalar(cur+(wanted-cur)*.3);
