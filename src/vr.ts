@@ -1255,12 +1255,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const visible=plan.points.filter(point=>{
       const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;
     });
-    visible.forEach((point,pointIndex)=>{
+    visible.forEach((point)=>{
       // Pas de pastille quand la pièce est en surbrillance (vue classique). Secours seulement si elle n'a pas été détectée.
       if(roomIds.has(point.sceneId))return;
       const target=sceneOf(point.sceneId)!;
       const x=imgX+(point.x/100-.5)*imageW,y=imgY+(.5-point.y/100)*imageH;
-      addPanelButton(.12,.12,pointTexture(String(pointIndex+1),target.id===currentId),
+      // Pas de numéro : la zone reste cliquable mais invisible (plan jaune sans pastilles, comme la visite classique).
+      addPanelButton(.12,.12,canvasTexture(64,64,()=>{}),
         x,y,()=>{void goTo(target.id);},9);
     });
     // Plusieurs plans / étages : colonne à gauche (escalier + numéros 1, 2, 3...), le plan affiché est en surbrillance.
