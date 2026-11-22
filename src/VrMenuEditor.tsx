@@ -229,8 +229,8 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
             <span className="nv-vrx-stairs" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20v-4h4v-4h4V8h4V4h6"/></svg></span>
             {plans.map((p, i) => [p, i] as const).reverse().map(([p, i]) => <button type="button" key={p.id ?? i} className={plans[Math.min(planIdx, plans.length - 1)] === p ? 'is-on' : ''} title={p.name} onClick={() => setPlanIdx(i)}>{planLevelLabel(p, i)}</button>)}
           </div>}
-          <span className="nv-vrx-plan-wrap"><img className="nv-vrx-plan" src={plan.imageDataUrl} alt="Plan"/>
-            {simRooms.key === simKey && Object.entries(simRooms.urls).map(([id, url]) => <img key={id} className="nv-vrx-plan-room" src={url} alt="" aria-hidden="true"/>)}</span></div> : <p>Aucun plan dans cette visite.</p>}</div>;
+          <div className="nv-vrx-plan-stage"><span className="nv-vrx-plan-wrap"><img className="nv-vrx-plan" src={plan.imageDataUrl} alt="Plan"/>
+            {simRooms.key === simKey && Object.entries(simRooms.urls).map(([id, url]) => <img key={id} className="nv-vrx-plan-room" src={url} alt="" aria-hidden="true"/>)}</span></div></div> : <p>Aucun plan dans cette visite.</p>}</div>;
     }
     if (panel.kind === 'help') {
       return <div className="nv-vrx-panel"><strong>Navigation VR</strong>

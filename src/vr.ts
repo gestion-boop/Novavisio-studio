@@ -1203,9 +1203,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(back)void showGallery(back);
     };
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const leftReserve=referenceMode?(plans.length>1?.28:.08):.16;
-    const rightReserve=referenceMode?.08:.16;
-    const topReserve=referenceMode?.18:.20;
+    const leftReserve=referenceMode?(plans.length>1?.30:.08):.16;
+    const rightReserve=referenceMode?.10:.16;
+    const topReserve=referenceMode?.24:.20;
     const bottomReserve=referenceMode?.06:.14;
     const W=referenceMode?VR_SHELL.w:Math.min(1.72,1.2*ratio)+.32;
     const H=referenceMode?VR_SHELL.h:Math.min(1.2,1.72/ratio)+.33;
