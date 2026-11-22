@@ -231,13 +231,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
       const radius=k*Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
-      const mesh=new Mesh(new SphereGeometry(radius,64,40),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
+      const mesh=new Mesh(new SphereGeometry(radius,128,80),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:1,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
       // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
       const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
       const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
-      const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
+      const outline=new Mesh(new SphereGeometry(radius*1.09,128,80),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;mesh.add(outline);
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
@@ -248,7 +248,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           const url=sceneOf(h.target)?.dataUrl;
           if(url){
             try{
-              const pano=await loadReduced(url,1024);
+              const pano=await loadReduced(url,2048);
               if(ended||!mesh.parent)return;
               const texture=new CanvasTexture(pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
               const material=mesh.material as MeshBasicMaterial;
@@ -492,7 +492,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
     });
     // Libellé compact sur une ligne ; même distance et même suivi du regard.
-    addPlane(headerGroup,1.1,.14,tex,6,0,0);
+    addPlane(headerGroup,.72,.092,tex,6,0,0);
     // Le titre reste indépendamment du monobloc, très loin et très haut.
     // La position sera mise à jour progressivement avec le regard dans tick().
     syncRoomHeaderPose(true);
