@@ -5,6 +5,8 @@ Ces règles s'appliquent à toutes les sessions et à toutes les visites virtuel
 ## Interface de visite (toutes les visites)
 - Le panneau « Prochaine cible » est en haut à gauche de la vue 360°, sous la barre (`.nv-guide-banner.is-forward` dans `src/style.css`). Il ne doit jamais revenir au centre. Il vaut pour chaque projet, sans qu'il faille le redemander.
 
+- Mini-plan fixe : pendant la navigation (PC, tablette, téléphone), le plan est affiché en haut à droite (sous le bouton plein écran), fixe, avec un œil sur le côté pour le masquer. Un clic sur un numéro ouvre le panorama ; la pièce courante a son halo qui scintille. Composant `PlanMiniMap` (`src/FloorPlan.tsx`), styles dans `src/visitor.css`.
+
 ## Fenêtres et panneaux (toutes les visites, éditeur compris)
 - La croix de fermeture est TOUJOURS en haut, au milieu de la fenêtre, jamais en haut à droite. Elle vaut pour chaque fenêtre ou panneau qui s'ouvre (visiteur, éditeur, casque VR).
 - La croix et le bouton Paramètres prennent automatiquement les couleurs des boutons de la barre du bas (fond, contour, pictogramme). Règles centralisées dans `src/windowAnim.css` (visiteur et éditeur) et `closeIconTexture` dans `src/vr.ts` (casque).

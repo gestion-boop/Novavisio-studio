@@ -3,7 +3,7 @@ import {readPlanImage,matchScenesToRooms,type PlanRoom} from './planRead';
 import {confirmAsk} from './confirmDialog';
 import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
-import {Map,Maximize2,X,Eye} from 'lucide-react';
+import {Map,Maximize2,X,Eye,EyeOff} from 'lucide-react';
 import {isSafeFrameImage,type FloorPlan,type Scene} from './storage';
 import {ui,pick} from './i18n';
 import './floorPlan.css';
@@ -131,6 +131,38 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
 
 
 /** Galerie publique de plans : l'étage actif est prioritaire si le panorama courant y figure. */
+/**
+ * Mini-plan fixe, en haut à droite pendant la navigation (PC, tablette, téléphone).
+ * Un œil sur le côté le masque ou le réaffiche ; le plan ne bouge pas. Un clic sur un numéro ouvre le panorama,
+ * et le numéro de la pièce où l'on se trouve a son halo qui scintille. Le bouton « agrandir » ouvre le grand plan.
+ */
+export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{plans:FloorPlan[];scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onExpand?:()=>void;lang?:string}){
+  const usable=plans.filter(plan=>plan.imageDataUrl&&visiblePoints(plan,scenes).length>0);
+  const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem('nv-minimap-hidden')==='1';}catch{return false;}});
+  const [manual,setManual]=useState<number|null>(null);
+  useEffect(()=>{setManual(null);},[currentId]);
+  if(!usable.length)return null;
+  const auto=usable.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
+  const index=Math.max(0,Math.min(manual??(auto>=0?auto:0),usable.length-1));
+  const plan=usable[index];
+  const toggle=()=>setHidden(value=>{const next=!value;try{localStorage.setItem('nv-minimap-hidden',next?'1':'0');}catch{/* stockage indisponible */}return next;});
+  return <aside className={'nv-minimap'+(hidden?' is-hidden':'')} aria-label="Plan de la visite">
+    <button type="button" className="nv-minimap-eye" aria-pressed={!hidden} onClick={toggle}
+      aria-label={hidden?'Afficher le plan':'Masquer le plan'} title={hidden?'Afficher le plan':'Masquer le plan'}>
+      {hidden?<EyeOff size={18}/>:<Eye size={18}/>}
+    </button>
+    {!hidden&&<div className="nv-minimap-body">
+      <div className="nv-minimap-head">
+        {usable.length>1&&<div className="nv-minimap-levels" role="group" aria-label="Étages">
+          {usable.map((item,i)=><button type="button" key={item.id??i} aria-pressed={i===index} title={item.name||'Plan '+(i+1)} onClick={()=>setManual(i)}>{i+1}</button>)}
+        </div>}
+        {onExpand&&<button type="button" className="nv-minimap-expand" onClick={onExpand} aria-label="Agrandir le plan" title="Agrandir le plan"><Maximize2 size={15}/></button>}
+      </div>
+      <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes} currentId={currentId} onPick={onPick} lang={lang}/></div>
+    </div>}
+  </aside>;
+}
+
 export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,lang='fr',shortcuts,onShortcut}:{
   plans:FloorPlan[];scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onClose:()=>void;
   thumbs?:Record<string,string>;lang?:string;

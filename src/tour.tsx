@@ -1,6 +1,6 @@
 import {isReturnLink,displayPitch} from './returnLink';
 import {barUsesIconImage} from './storage';
-import {FloorPlanDialog} from './FloorPlan';
+import {FloorPlanDialog,PlanMiniMap} from './FloorPlan';
 import {overlayClose} from './overlayClose';
 import {getFloorPlans,refusesEmbedding,roomNameVisible} from './storage';
 import {EmbeddedPage} from './EmbeddedPage';
@@ -523,6 +523,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       </section>
     </div>}
     {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
+    {!showIntro&&firstPanoramaReady&&!floorPlanOpen&&<PlanMiniMap lang={lang} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onPick={id=>move(id)} onExpand={()=>setFloorPlanOpen(true)}/>}
     {floorPlanOpen&&<FloorPlanDialog lang={lang} shortcuts={project.planShortcuts!==false?(project.bottomBar??[]).filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,lang),icon:project.icons?.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar?.find(b=>b.id===id);if(item){setFloorPlanOpen(false);act(item);}}} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
     {photosId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===photosId&&b.type==='photos');
