@@ -340,3 +340,12 @@
 .nv-minimap-lock{min-width:28px;height:28px;padding:0 6px;border-radius:8px;background:var(--nv-button-bg,#241d1f);border:1px solid var(--nv-button-outline,#e5c890);color:var(--nv-icon-color,#f6e6bf);cursor:pointer;display:inline-grid;place-items:center}
 .nv-minimap-lock[aria-pressed="true"]{background:var(--nv-icon-color,#f6e6bf);color:var(--nv-button-bg,#241d1f)}
 @media(prefers-reduced-motion:reduce){.nv-minimap-body{transition:none}}
+
+/* ===== Mini-plan simplifié : logo carte, fond gris anthracite transparent (30 %), coin bas droit = plein écran ===== */
+.nv-minimap-body{position:relative;background:rgba(40,42,46,.30)!important;border:1px solid rgba(255,255,255,.14)!important;backdrop-filter:blur(3px)}
+.nv-minimap .nv-plan-view{background:transparent!important}
+.nv-minimap .nv-plan-image{background:transparent!important}
+.nv-minimap .nv-plan-image>img{opacity:.82}
+.nv-minimap-corner{position:absolute;right:6px;bottom:6px;z-index:3;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--nv-button-bg,#241d1f);border:1px solid var(--nv-button-outline,#e5c890);color:var(--nv-icon-color,#f6e6bf);cursor:pointer;opacity:.9}
+.nv-minimap-corner:hover{opacity:1;background:color-mix(in srgb,var(--nv-button-bg,#241d1f) 78%,#fff)}
+.nv-minimap-corner:active{background:color-mix(in srgb,var(--nv-button-bg,#241d1f) 70%,#000)}
