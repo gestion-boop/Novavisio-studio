@@ -189,3 +189,10 @@
 /* Les en-têtes ne réservent plus la place de la croix à droite : le titre garde toute la largeur. */
 :root:not(#nv-x) :is(.nv-plan-dialog,.nv-preparation-dialog,.tour-dialog)>header{justify-content:flex-start;min-height:56px}
 :root:not(#nv-x) :is(.nv-plan-dialog,.nv-preparation-dialog,.tour-dialog)>header h2{max-width:calc(50% - 40px)}
+
+/* ===== Galerie photo : normal / survol / pressé = couleurs des boutons de la barre du bas ===== */
+:root:not(#nv-x) .nv-photo-gallery :is(.nv-pg-nav,.nv-pg-exit,.nv-pg-close){background:var(--nv-button-bg,#311820);border:var(--nv-button-border-width,1px) solid var(--nv-button-outline,#d3c1b6);color:var(--nv-icon-color,#fff)}
+:root:not(#nv-x) .nv-photo-gallery :is(.nv-pg-nav,.nv-pg-exit,.nv-pg-close):hover{background:color-mix(in srgb,var(--nv-button-bg,#311820) 78%,#fff);border-color:var(--nv-icon-color,#fff)}
+:root:not(#nv-x) .nv-photo-gallery :is(.nv-pg-nav,.nv-pg-exit,.nv-pg-close):active{background:color-mix(in srgb,var(--nv-button-bg,#311820) 70%,#000);transform:scale(.96)}
+:root:not(#nv-x) .nv-photo-gallery .nv-pg-tile[aria-current="true"],:root:not(#nv-x) .nv-photo-gallery .nv-pg-strip button[aria-current="true"]{outline:2px solid var(--nv-icon-color,#f6bf56);outline-offset:2px}
+:root:not(#nv-x) .nv-photo-gallery .nv-pg-tile:hover{outline:2px solid var(--nv-button-outline,#d3c1b6);outline-offset:2px}

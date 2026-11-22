@@ -1917,6 +1917,12 @@ function App(){
     '--nv-bar-width':project.barStyle.width?project.barStyle.width+'px':'max-content',
     '--nv-bar-height':Math.max(project.barStyle.height??82,project.bottomBar.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
+  // Variables de la barre du bas disponibles partout dans l'éditeur (fenêtres et panneaux rendus hors de l'application compris).
+  const barCssKey=JSON.stringify(barCss);
+  useEffect(()=>{
+    const root=document.documentElement;
+    for(const [name,value] of Object.entries(JSON.parse(barCssKey) as Record<string,string>))root.style.setProperty(name,String(value));
+  },[barCssKey]);
   function changeBarStyle(update:Partial<BarStyle>) {
     setProject(p=>({...p,barStyle:updateBarStyle(p.barStyle,update)}));
   }
