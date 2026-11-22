@@ -4186,6 +4186,9 @@ function App(){
           </div>}
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
             <span>➜ <b>Prochaine cible</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
+            {(()=>{const nextId=classicDestinationPreviewId??galleryPreviewSceneId;const next=nextId?project.scenes.find(sc=>sc.id===nextId&&!sc.excluded):undefined;return <div className="nv-next-preview">
+              {next?<><img src={sceneThumbs[next.id]??next.dataUrl} alt="" draggable={false}/><b>{next.name}</b></>:<em>Aucun panorama suivant choisi</em>}
+            </div>;})()}
           </div>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">

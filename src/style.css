@@ -6245,3 +6245,10 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-auto-dest small{opacity:.8;line-height:1.3}
 .nv-auto-dest .nv-target-center{width:70px;height:70px}
 .nv-auto-dest-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Aperçu du prochain panorama dans le panneau « Prochaine cible ». */
+.nv-guide-banner.is-forward{flex-direction:column;align-items:flex-start}
+.nv-next-preview{display:flex;align-items:center;gap:10px;width:100%}
+.nv-next-preview img{width:132px;height:74px;object-fit:cover;border-radius:9px;border:1px solid #4bebde;flex:none}
+.nv-next-preview b{font-size:14px}
+.nv-next-preview em{opacity:.75;font-size:12px}
