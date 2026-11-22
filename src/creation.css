@@ -49,3 +49,36 @@
 .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-creation-tool,.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-auto-toolbar,.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-gear{flex:none}
 .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-creation-tool>.tool{padding:7px 9px!important;font-size:12px!important}
 .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-gear{width:24px;height:24px;border-radius:7px}
+
+/* Refonte panneau de droite : onglets fixes, éditeur rapide compact, options avancées repliées */
+.nv-right-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;padding:4px;border-radius:10px;background:#0e2530;border:1px solid #2b5463;flex:none}
+.nv-right-tabs button{display:flex;align-items:center;justify-content:center;gap:5px;min-height:32px;padding:5px 6px;border:none;border-radius:7px;background:transparent;color:#9cc3cf;font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,color .15s}
+.nv-right-tabs button:hover:not(:disabled){background:#163948;color:#e5fbfc}
+.nv-right-tabs button.is-active{background:#188a7d;color:#fff;box-shadow:0 2px 8px #00000033}
+.nv-right-tabs button:disabled{opacity:.42;cursor:not-allowed}
+.nv-right-tabs button small{font-size:10px;padding:1px 5px;border-radius:999px;background:#ffffff24;color:inherit;font-weight:700}
+
+.nv-qe{display:flex;flex-direction:column;gap:10px;padding:10px;border-radius:11px;background:#112c38;border:1px solid #2e5968}
+.nv-qe-head{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid #254a57}
+.nv-qe-symbol{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:#183e4d;color:#9cf2e3;font-size:15px;flex:none;overflow:hidden}
+.nv-qe-symbol img{width:22px;height:22px;object-fit:contain}
+.nv-qe-head strong{flex:1;min-width:0;font-size:13px;color:#e8fbfc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nv-qe-switch{flex:1;min-width:0;height:30px;padding:0 8px;border-radius:7px;border:1px solid #356373;background:#0e2631;color:#e5f9fa;font-size:12px;font-weight:600}
+.nv-qe-tools{display:flex;align-items:center;gap:4px;flex:none}
+.nv-qe-tools button{width:28px;height:28px;display:grid;place-items:center;border-radius:7px;border:1px solid #356373;background:#163a47;color:#cdeff2;cursor:pointer}
+.nv-qe-tools button:hover{background:#1f4f60}
+.nv-qe-tools button.is-danger{border-color:#6d3540;background:#441c24;color:#ffb4be}
+.nv-qe-tools button.is-danger:hover{background:#5f2330}
+.nv-qe-row{display:flex;gap:6px;flex-wrap:wrap}
+.nv-qe-row>*{flex:1;min-width:110px}
+.nv-qe-inline{display:flex;align-items:flex-end;gap:6px}
+.nv-qe-inline>label{flex:1;min-width:0}
+.nv-qe-label{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8cb7c4;margin-top:2px}
+
+.nv-more{border:1px solid #2a5362;border-radius:9px;background:#0e2530;overflow:hidden}
+.nv-more>summary{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;font-size:12px;font-weight:600;color:#bce3ea;cursor:pointer;list-style:none}
+.nv-more>summary::-webkit-details-marker{display:none}
+.nv-more>summary small{font-weight:400;color:#7fa8b5;font-size:11px}
+.nv-more[open]>summary{border-bottom:1px solid #244856;background:#133240}
+.nv-more-body{display:flex;flex-direction:column;gap:9px;padding:10px}
+

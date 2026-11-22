@@ -12,9 +12,27 @@ export const INTEREST_CATEGORIES:ReadonlyArray<{id:InterestCategory;label:string
 ];
 /** Données VÉRIFIÉES (saisies ou confirmées par l'utilisateur). Une clé absente = information inconnue. */
 export type VerifiedInfo=Partial<Record<'phone'|'email'|'bookingUrl'|'address'|'website'|'menuUrl'|'tariffUrl'|'openingHours'|'services'|'specialties'|'activities'|'rooms'|'surfaces'|'equipments'|'pool'|'accessibility',string|string[]>>;
-export type PointKind='text'|'link'|'phone'|'email'|'navigate'|'gallery'|'plan'|'map';
+export type PointKind='text'|'link'|'phone'|'email'|'navigate'|'gallery'|'plan'|'map'|'image'|'video'|'booking'|'pdf'|'space';
 export type PointTemplate={key:string;title:string;kind:PointKind;icon:string;requires?:Array<keyof VerifiedInfo>};
-export type Suggestion={id:string;key:string;title:string;kind:PointKind;icon:string;status:'proposed'|'confirmed'|'rejected'};
+/** `text`/`url`/`targetSceneId`/`targetSpaceId` : saisis par l'utilisateur pour un point personnalisé (`custom`). */
+export type Suggestion={id:string;key:string;title:string;kind:PointKind;icon:string;status:'proposed'|'confirmed'|'rejected';custom?:boolean;text?:string;url?:string;targetSceneId?:string;targetSpaceId?:string};
+/** Les 12 types de points du module 4, avec l'icône par défaut et le type de point NovaStudio créé au placement. */
+export const POINT_KINDS:ReadonlyArray<{id:PointKind;label:string;icon:string;hotspot:'information'|'lien'|'image'|'video'|'navigation';needsUrl?:boolean}>=[
+  {id:'text',label:'Texte',icon:'informations',hotspot:'information'},
+  {id:'image',label:'Image',icon:'galerie-photos',hotspot:'image'},
+  {id:'gallery',label:'Galerie',icon:'galerie-photos',hotspot:'image'},
+  {id:'video',label:'Vidéo',icon:'videos',hotspot:'video'},
+  {id:'link',label:'Lien externe',icon:'site-internet',hotspot:'lien',needsUrl:true},
+  {id:'booking',label:'Réservation',icon:'reservation',hotspot:'lien',needsUrl:true},
+  {id:'phone',label:'Téléphone',icon:'telephone',hotspot:'lien'},
+  {id:'email',label:'E-mail',icon:'email',hotspot:'lien'},
+  {id:'pdf',label:'Document PDF',icon:'informations',hotspot:'lien',needsUrl:true},
+  {id:'navigate',label:'Vers un panorama',icon:'nav-avant',hotspot:'navigation'},
+  {id:'space',label:'Vers un autre espace',icon:'plan',hotspot:'navigation'},
+  {id:'map',label:'Carte / localisation',icon:'localisation',hotspot:'lien'},
+  {id:'plan',label:'Plan',icon:'plan',hotspot:'information'}
+];
+export const kindLabel=(k:PointKind)=>POINT_KINDS.find(p=>p.id===k)?.label??'Texte';
 export type Missing={key:string;title:string;needs:Array<keyof VerifiedInfo>};
 
 const T:Record<InterestCategory,PointTemplate[]>={
