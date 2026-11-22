@@ -6252,3 +6252,10 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-next-preview img{width:132px;height:74px;object-fit:cover;border-radius:9px;border:1px solid #4bebde;flex:none}
 .nv-next-preview b{font-size:14px}
 .nv-next-preview em{opacity:.75;font-size:12px}
+
+/* Avant / Après dans « Prochaine cible ». */
+.nv-next-compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.nv-next-compare figure{margin:0;min-width:0}
+.nv-next-view{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:9px;border:1px solid #4bebde;background:#06161d}
+.nv-next-view img{position:absolute;top:0;width:400%;height:100%;object-fit:cover;max-width:none;pointer-events:none}
+.nv-next-compare figcaption{font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

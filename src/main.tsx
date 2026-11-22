@@ -118,6 +118,19 @@ function readStudioLayout(){
   }catch{/* Private browsing or storage disabled. */}
   return {leftHidden:false,rightHidden:true,density:'comfortable' as const}; // les réglages s'ouvrent à la demande (icône en haut à droite)
 }
+// Aperçu « Avant / Après » dans le panneau « Prochaine cible » : même direction de visée sur le panorama actuel et sur le suivant.
+function AimCompare({readYaw,before,beforeName,after,afterName}:{readYaw:()=>number;before?:string;beforeName:string;after?:string;afterName:string}){
+  const [yaw,setYaw]=useState(0);
+  useEffect(()=>{const t=setInterval(()=>setYaw(readYaw()),120);return()=>clearInterval(t);},[readYaw]);
+  // Une image équirectangulaire couvre 360° : on affiche un quart de tour centré sur la direction de visée.
+  const frac=((yaw/(2*Math.PI))%1+1)%1;
+  const left=`calc(50% - ${(frac*400).toFixed(2)}%)`;
+  return <div className="nv-next-compare">
+    <figure><div className="nv-next-view">{before&&<img src={before} alt="" draggable={false} style={{left}}/>}</div><figcaption>Avant · {beforeName}</figcaption></figure>
+    <figure><div className="nv-next-view">{after&&<img src={after} alt="" draggable={false} style={{left}}/>}</div><figcaption>Après · {afterName}</figcaption></figure>
+  </div>;
+}
+
 function App(){
   const studioRef=useRef<HTMLDivElement>(null);
   const topMenusRef=useRef<HTMLDivElement>(null);
@@ -4186,9 +4199,8 @@ function App(){
           </div>}
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
             <span>➜ <b>Prochaine cible</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
-            {(()=>{const nextId=classicDestinationPreviewId??galleryPreviewSceneId;const next=nextId?project.scenes.find(sc=>sc.id===nextId&&!sc.excluded):undefined;return <div className="nv-next-preview">
-              {next?<><img src={sceneThumbs[next.id]??next.dataUrl} alt="" draggable={false}/><b>{next.name}</b></>:<em>Aucun panorama suivant choisi</em>}
-            </div>;})()}
+            {(()=>{const listScenes=project.scenes.filter(sc=>!sc.excluded);const listIndex=active?listScenes.findIndex(sc=>sc.id===active.id):-1;const nextId=listIndex>=0?listScenes[(listIndex+1)%listScenes.length]?.id:undefined;const next=nextId?project.scenes.find(sc=>sc.id===nextId&&!sc.excluded):undefined;
+              return <AimCompare readYaw={()=>cameraRef.current.yaw} before={active?(sceneThumbs[active.id]??active.dataUrl):undefined} beforeName={active?.name??''} after={next?(sceneThumbs[next.id]??next.dataUrl):undefined} afterName={next?.name??'Aucun panorama suivant'}/>;})()}
           </div>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
