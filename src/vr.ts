@@ -492,6 +492,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }
     if(referenceMode){
     clearGroup(barGroup);clearGroup(vrShellGroup);
+    const menu=vrMenuOf(project());
+    const grid=layoutColumns(menu.left,menu.right);
+    // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
+    const hexOk=(c?:string)=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
+    const themed=!!menu.themed&&hexOk(theme?.button)&&hexOk(theme?.icon);
+    const ctrlColors=themed?{button:theme.button,icon:theme.icon}:undefined;
+    const shellFill=themed&&hexOk(theme.background)?theme.background+'e6':'rgba(30,31,35,.79)';
+    const shellLine=themed&&hexOk(theme.outline)?theme.outline:'rgba(238,180,52,.72)';
+    const labelBg=themed?theme.button:'#25262a',labelLine=themed?theme.icon:'#d6a13d',labelInk=themed?theme.icon:'#ffffff';
     // Une plaque commune (fond + bord fin) soude les trois colonnes,
     // au lieu de les laisser flotter à des profondeurs indépendantes.
     addPlane(vrShellGroup,2.13,1.15,canvasTexture(1200,650,ctx=>{
@@ -522,15 +531,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const plan=project().bottomBar.find(item=>item.type==='plan');
     const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
     // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
-    const menu=vrMenuOf(project());
-    const grid=layoutColumns(menu.left,menu.right);
-    // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
-    const hexOk=(c?:string)=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
-    const themed=!!menu.themed&&hexOk(theme?.button)&&hexOk(theme?.icon);
-    const ctrlColors=themed?{button:theme.button,icon:theme.icon}:undefined;
-    const shellFill=themed&&hexOk(theme.background)?theme.background+'e6':'rgba(30,31,35,.79)';
-    const shellLine=themed&&hexOk(theme.outline)?theme.outline:'rgba(238,180,52,.72)';
-    const labelBg=themed?theme.button:'#25262a',labelLine=themed?theme.icon:'#d6a13d',labelInk=themed?theme.icon:'#ffffff';
     const iconOfItem=(item:BottomBarItem):VrControlIcon=>
       item.type==='plan'?'plan':item.type==='photos'?'photos':item.type==='lien'?'link':item.type==='information'?'info':'gallery';
     const toggleSound=()=>{
