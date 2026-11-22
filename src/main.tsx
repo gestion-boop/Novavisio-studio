@@ -4831,7 +4831,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
-          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} shortcuts={project.planShortcuts?project.bottomBar.filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,visitorLang),icon:project.icons.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar.find(b=>b.id===id);if(item){setFloorPlanOpen(false);triggerBar(item);}}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
+          {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} shortcuts={project.planShortcuts!==false?project.bottomBar.filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,visitorLang),icon:project.icons.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar.find(b=>b.id===id);if(item){setFloorPlanOpen(false);triggerBar(item);}}} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
             return item?<PhotoGallery title={item.title||'Photos'} items={item.photos??[]} onClose={()=>setPhotoGalleryId(null)}/>:null;
@@ -5515,7 +5515,7 @@ function App(){
               onPreview={()=>{setPreview(true);setRightHidden(true);setIntroVisible(false);setFloorPlanOpen(true);}}/>
           </InspectorSection>
           <InspectorSection title="Raccourcis dans le plan" initiallyOpen>
-            <label className="toggle-row"><input type="checkbox" checked={!!project.planShortcuts} onChange={e=>setProject(p=>({...p,planShortcuts:e.target.checked}))}/> Intégrer les raccourcis de la barre dans le plan</label>
+            <label className="toggle-row"><input type="checkbox" checked={project.planShortcuts!==false} onChange={e=>setProject(p=>({...p,planShortcuts:e.target.checked}))}/> Intégrer les raccourcis de la barre dans le plan</label>
             <p className="hint-inline">Affiche sous le plan les boutons de la barre du bas ({project.bottomBar.filter(b=>b.type!=='plan').map(b=>b.title).join(', ')||'aucun'}) : le visiteur passe du plan aux photos, informations ou panoramas sans le fermer à la main.</p>
           </InspectorSection>
         </div>}
