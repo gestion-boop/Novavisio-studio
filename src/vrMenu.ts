@@ -45,36 +45,65 @@ export function availableVrActions(project: Pick<StudioProject, 'bottomBar'>): V
   ];
 }
 
-/** Configuration à utiliser : celle du projet, débarrassée des actions inconnues ou en double, sinon l'interface actuelle. */
+/** Case vide d'une colonne : garde l'alignement des lignes entre les deux colonnes. */
+export const VR_GAP = '';
+
+/** Dernier index occupé d'une colonne (-1 si vide). */
+const lastUsed = (list: string[]) => {for (let i = list.length - 1; i >= 0; i--) if (list[i]) return i; return -1;};
+const firstUsed = (list: string[]) => list.findIndex(Boolean);
+
+/**
+ * Configuration à utiliser : celle du projet, sinon l'interface actuelle.
+ * Les actions inconnues ou en double deviennent des cases vides (les lignes restent alignées),
+ * les cases vides en fin de colonne sont retirées.
+ */
 export function vrMenuOf(project: Pick<StudioProject, 'vrMenu' | 'bottomBar'>): VrMenuConfig {
   const cfg = project.vrMenu;
   if (!cfg) return DEFAULT_VR_MENU;
   const barIds = new Set(project.bottomBar.map((b) => b.id));
   const valid = (id: string) => VR_BUILTIN_ACTIONS.some((a) => a.id === id) || (id.startsWith('bar:') && barIds.has(id.slice(4)));
   const seen = new Set<string>();
-  const clean = (list: string[]) => list.filter((id) => valid(id) && !seen.has(id) && !!seen.add(id)).slice(0, VR_MAX_PER_COLUMN);
+  const clean = (list: string[]) => {
+    const out = (Array.isArray(list) ? list : []).slice(0, VR_MAX_PER_COLUMN).map((id) => {
+      if (typeof id !== 'string' || !id || !valid(id) || seen.has(id)) return VR_GAP;
+      seen.add(id);
+      return id;
+    });
+    return out.slice(0, lastUsed(out) + 1);
+  };
   const left = clean(cfg.left), right = clean(cfg.right);
-  return {left, right, autoOpen: !!cfg.autoOpen};
+  return {left, right, autoOpen: !!cfg.autoOpen, themed: !!cfg.themed};
 }
 
-export type VrSlot = {id: string; x: number; y: number};
+export type VrSlot = {id: string; x: number; y: number; row: number};
 export type VrLayoutOptions = {w?: number; h?: number; btn?: number; margin?: number; maxPitch?: number};
 
 /**
- * Place les boutons des deux colonnes :
- *  - mêmes marges au cadre : à gauche et à droite (`margin`), et en haut / en bas quand une colonne est pleine ;
- *  - même écart entre les boutons dans les DEUX colonnes (les lignes sont donc alignées d'une colonne à l'autre) ;
- *  - chaque colonne centrée verticalement dans le cadre.
+ * Place les boutons des deux colonnes sur UNE MÊME GRILLE de lignes :
+ *  - la ligne n de gauche est exactement à la hauteur de la ligne n de droite (cases vides comprises) ;
+ *  - mêmes marges au cadre à gauche et à droite (`margin`), et en haut / en bas quand la grille est pleine ;
+ *  - le bloc de lignes utilisées est centré verticalement dans le cadre.
+ * Ancien format sans case vide : la colonne la plus courte est centrée sur la grille (au plus près).
  */
 export function layoutColumns(left: string[], right: string[], options: VrLayoutOptions = {}) {
   const w = options.w ?? VR_SHELL.w, h = options.h ?? VR_SHELL.h;
   const btn = options.btn ?? VR_BTN, margin = options.margin ?? VR_MARGIN, maxPitch = options.maxPitch ?? VR_MAX_PITCH;
-  const rows = Math.max(left.length, right.length);
+  let L = left, R = right;
+  const nL = lastUsed(L) + 1, nR = lastUsed(R) + 1;
+  const compact = (l: string[]) => l.slice(0, lastUsed(l) + 1).every(Boolean);
+  if (compact(L) && compact(R) && nL && nR && nL !== nR) {
+    const pad = Array(Math.floor(Math.abs(nL - nR) / 2)).fill(VR_GAP);
+    if (nL < nR) L = [...pad, ...L]; else R = [...pad, ...R];
+  }
+  const firsts = [firstUsed(L), firstUsed(R)].filter((i) => i >= 0);
+  const top = firsts.length ? Math.min(...firsts) : 0;
+  const bottom = Math.max(lastUsed(L), lastUsed(R), top);
+  const rows = bottom - top + 1;
   const pitch = rows > 1 ? Math.min(maxPitch, (h - 2 * margin - btn) / (rows - 1)) : 0;
   const x = w / 2 - margin - btn / 2;
-  const place = (ids: string[], sign: number): VrSlot[] =>
-    ids.map((id, i) => ({id, x: sign * x, y: ((ids.length - 1) / 2 - i) * pitch}));
-  return {left: place(left, -1), right: place(right, 1), pitch, x, btn};
+  const place = (ids: string[], sign: number): VrSlot[] => ids.flatMap((id, i) =>
+    id ? [{id, row: i, x: sign * x, y: ((rows - 1) / 2 - (i - top)) * pitch}] : []);
+  return {left: place(L, -1), right: place(R, 1), pitch, x, btn, rows};
 }
 
 /** Libellé du bouton pour l'éditeur (aperçu) : symbole simple par action. */

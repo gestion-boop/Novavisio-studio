@@ -194,7 +194,16 @@ export type ImportedButtonSet = DefaultNavigationIcon & {id:string;name:string};
 export type ProjectComment = {id:string;sceneId:string;yaw:number;pitch:number;text:string;author:string;at:number;done?:boolean;issueId?:string};
 /** Positions in percentages of the plan image, independent of screen size. */
 export type FloorPlanPoint = {sceneId:string;x:number;y:number};
-export type FloorPlan = {id?:string;imageDataUrl:string;name:string;points:FloorPlanPoint[];/** Espace auquel appartient le plan, absent pour un plan du projet principal (anciens plans inclus). */spaceId?:string};
+export type FloorPlan = {id?:string;imageDataUrl:string;name:string;points:FloorPlanPoint[];/** Espace auquel appartient le plan, absent pour un plan du projet principal (anciens plans inclus). */spaceId?:string;/** Étage du plan : 0 = rez-de-chaussée, 1 = 1er étage, -1 = sous-sol. Absent = non précisé. */level?:number};
+/** Libellé court d'un étage : RDC, 1, 2… ; sans étage précisé, le numéro d'ordre du plan. */
+export const planLevelLabel=(plan:Pick<FloorPlan,'level'>,index:number):string=>plan.level===undefined?String(index+1):plan.level===0?'RDC':plan.level<0?'S'+Math.abs(plan.level):String(plan.level);
+/** Plans triés du plus bas au plus haut ; ceux sans étage gardent leur ordre, après les autres. */
+export const plansByLevel=<T extends Pick<FloorPlan,'level'>>(plans:T[]):T[]=>plans.map((plan,i)=>({plan,i})).sort((a,b)=>{
+  const la=a.plan.level,lb=b.plan.level;
+  if(la===undefined&&lb===undefined)return a.i-b.i;
+  if(la===undefined)return 1;if(lb===undefined)return -1;
+  return la-lb||a.i-b.i;
+}).map(x=>x.plan);
 /** Compatibilité : les anciennes visites n'ont qu'un floorPlan.
  * Le tableau floorPlans devient la source de vérité dès sa création. */
 export function getFloorPlans(project:Pick<StudioProject,'floorPlan'|'floorPlans'>):FloorPlan[]{
@@ -206,11 +215,11 @@ export function withFloorPlans<T extends StudioProject>(project:T,plans:FloorPla
 }
 export type GlossyStyle = {base:string;rim?:string;gloss:number;shadow:number};
 /** Interface jaune du casque : actions de chaque colonne, dans l'ordre. `autoOpen` : s'ouvre dès l'entrée dans le casque. */
-export type VrMenuConfig = {left:string[];right:string[];autoOpen?:boolean};
+export type VrMenuConfig = {left:string[];right:string[];autoOpen?:boolean;/** Cadre et boutons aux couleurs de la barre du bas (au lieu du jaune). */themed?:boolean};
 import type {BrandKit} from './brandKit';
 import {validateIntroDesign,type IntroDesign} from './introDesign';
 import type {InterestCategory,VerifiedInfo,Suggestion} from './interestPoints';
-export type StudioProject = { version: 1; /** Charte graphique NovaStudio AI (optionnelle, phase 1). */ brandKit?: BrandKit; /** Introduction native NovaStudio AI (phase 3) ; l'URL externe reste prioritaire. */ introDesign?: IntroDesign; /** Points d'information NovaStudio AI (phase 4) : catégorie, infos vérifiées, décisions. */ interestCategory?: InterestCategory; interestInfo?: VerifiedInfo; interestPoints?: Suggestion[]; /** Traductions relues et validées par l'utilisateur (module 8). */ translationsValidated?: boolean; /** Masque le rectangle avec le nom des pièces partout dans la visite immersive (prioritaire sur les réglages des dossiers et des panoramas). */ hideRoomNames?:boolean; /** Idem dans le casque. */ hideRoomNamesVr?:boolean; /** Durée du fondu entre deux panoramas, en ms (0 = instantané, défaut 200). */ transitionMs?:number; /** Couleur (#rrggbb) des croix de fermeture de toute la visite ; absent = couleur des boutons de la barre. */ closeButtonColor?:string; windowAnimation?: WindowAnimation; /** Hauteur du regard dans le casque, en mètres par rapport à la position par défaut (négatif = plus bas). */ vrEyeOffset?:number; /** Charte du bouton glossy (couleur, reflet, ombre), réutilisable via les thèmes. */ glossyStyle?:GlossyStyle; /** Boutons et actions de l'interface jaune du casque (défaut : interface actuelle). */ vrMenu?:VrMenuConfig; /** Réglage de soleil enregistré comme modèle pour les autres panoramas (cap, hauteur, intensité, longueur, orientation, rayons). */ sunFlareDefault?: SunFlare; /** Durée d'ouverture des fenêtres, en ms (200 à 2000, défaut 700). */ windowAnimationMs?: number; /** Autorise le mode immersif WebXR pour cette visite. Les anciens projets sans ce champ conservent la VR. */ vrEnabled?:boolean; floorPlan?:FloorPlan; floorPlans?:FloorPlan[]; comments?:ProjectComment[]; ignoredChecks?:string[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string;/** Rectangle avec le nom des pièces de ce dossier dans la visite immersive : false = masqué (défaut : affiché). */showRoomName?:boolean;/** Idem dans le casque (VR). */showRoomNameVr?:boolean}[] };
+export type StudioProject = { version: 1; /** Charte graphique NovaStudio AI (optionnelle, phase 1). */ brandKit?: BrandKit; /** Introduction native NovaStudio AI (phase 3) ; l'URL externe reste prioritaire. */ introDesign?: IntroDesign; /** Points d'information NovaStudio AI (phase 4) : catégorie, infos vérifiées, décisions. */ interestCategory?: InterestCategory; interestInfo?: VerifiedInfo; interestPoints?: Suggestion[]; /** Traductions relues et validées par l'utilisateur (module 8). */ translationsValidated?: boolean; /** Masque le rectangle avec le nom des pièces partout dans la visite immersive (prioritaire sur les réglages des dossiers et des panoramas). */ hideRoomNames?:boolean; /** Idem dans le casque. */ hideRoomNamesVr?:boolean; /** Durée du fondu entre deux panoramas, en ms (0 = instantané, défaut 200). */ transitionMs?:number; /** Couleur (#rrggbb) des croix de fermeture de toute la visite ; absent = couleur des boutons de la barre. */ closeButtonColor?:string; /** Affiche les raccourcis de la barre du bas (Photos, Informations, Galerie…) dans la fenêtre du plan (défaut : oui). */ planShortcuts?:boolean; /** Couleur (#rrggbb) du pictogramme des croix ; absent = blanc ou foncé selon le fond. */ closeButtonInk?:string; windowAnimation?: WindowAnimation; /** Hauteur du regard dans le casque, en mètres par rapport à la position par défaut (négatif = plus bas). */ vrEyeOffset?:number; /** Charte du bouton glossy (couleur, reflet, ombre), réutilisable via les thèmes. */ glossyStyle?:GlossyStyle; /** Boutons et actions de l'interface jaune du casque (défaut : interface actuelle). */ vrMenu?:VrMenuConfig; /** Réglage de soleil enregistré comme modèle pour les autres panoramas (cap, hauteur, intensité, longueur, orientation, rayons). */ sunFlareDefault?: SunFlare; /** Durée d'ouverture des fenêtres, en ms (200 à 2000, défaut 700). */ windowAnimationMs?: number; /** Autorise le mode immersif WebXR pour cette visite. Les anciens projets sans ce champ conservent la VR. */ vrEnabled?:boolean; floorPlan?:FloorPlan; floorPlans?:FloorPlan[]; comments?:ProjectComment[]; ignoredChecks?:string[]; defaultPhotoIcon?:DefaultNavigationIcon;defaultVideoIcon?:DefaultNavigationIcon; buttonSets?:ImportedButtonSet[]; preparationComplete?:boolean; defaultNavigationIcon?:DefaultNavigationIcon; defaultMusicTrackId?:string; iconPackId?:string; clientProfile?:ClientProfile; name: string; languages?:StudioLanguage[]; scenes: Scene[]; icons: CustomIcon[]; audioTracks: MusicTrack[]; bottomBar: BottomBarItem[]; barStyle: BarStyle; introUrl: string; introEnabled: boolean; introDuration: number; updatedAt: string; closeIconId?:string;closeIconHoverId?:string;closeIconPressedId?:string; soundOnIconId?:string; soundOnHoverIconId?:string; soundOnPressedIconId?:string; soundOffIconId?:string; soundOffHoverIconId?:string; soundOffPressedIconId?:string;settingsIconId?:string;settingsHoverIconId?:string;settingsPressedIconId?:string;mediaLibrary?:MediaLinkItem[];/** Barre du bas : rogne les marges transparentes des icônes pour qu'elles remplissent toutes leur bouton (défaut : oui). */barIconTrim?:boolean;settingsIconSize?:number;settingsIconZoom?:number;settingsColor?:string;settingsIconColor?:string; hiddenIconSets?: string[]; hiddenAvailableIcons?:string[]; favoriteNavigationIconSet?:string; spaces?: {id:string;name:string;sceneIds:string[];coverDataUrl?:string;/** Rectangle avec le nom des pièces de ce dossier dans la visite immersive : false = masqué (défaut : affiché). */showRoomName?:boolean;/** Idem dans le casque (VR). */showRoomNameVr?:boolean}[] };
 
 const DB_NAME = 'novavisio-studio-v1';
 function openDb(): Promise<IDBDatabase> {
@@ -291,6 +300,7 @@ export function validateProject(value:unknown):StudioProject {
     if(!plan||typeof plan!=='object'||!isSafeFrameImage(plan.imageDataUrl)||plan.imageDataUrl.length>6_000_000||
       typeof plan.name!=='string'||plan.name.length>200||!Array.isArray(plan.points)||plan.points.length>500||
       (plan.spaceId!==undefined&&(typeof plan.spaceId!=='string'||plan.spaceId.length>100||!plan.spaceId.trim()))||
+      (plan.level!==undefined&&(!Number.isInteger(plan.level)||plan.level<-5||plan.level>60))||
       (plan.id!==undefined&&(typeof plan.id!=='string'||plan.id.length>120||!plan.id.trim())))
       throw new Error('Plan de la visite invalide');
     if(plan.id){
@@ -338,8 +348,8 @@ export function validateProject(value:unknown):StudioProject {
   }
   if(p.vrMenu!==undefined){
     const m=p.vrMenu as Partial<VrMenuConfig>;
-    const column=(list:unknown)=>Array.isArray(list)&&list.length<=8&&list.every(id=>typeof id==='string'&&id.length>0&&id.length<=80);
-    if(typeof m!=='object'||m===null||!column(m.left)||!column(m.right)||(m.autoOpen!==undefined&&typeof m.autoOpen!=='boolean'))throw new Error('Menu du casque invalide');
+    const column=(list:unknown)=>Array.isArray(list)&&list.length<=8&&list.every(id=>typeof id==='string'&&id.length<=80);
+    if(typeof m!=='object'||m===null||!column(m.left)||!column(m.right)||(m.autoOpen!==undefined&&typeof m.autoOpen!=='boolean')||(m.themed!==undefined&&typeof m.themed!=='boolean'))throw new Error('Menu du casque invalide');
   }
   if(p.mediaLibrary!==undefined){
 
@@ -547,8 +557,8 @@ export function validateProject(value:unknown):StudioProject {
  * Panoramas larger than 8192 px wide exceed the texture budget of many GPUs/phones and make
  * rotation stutter. Larger images are downscaled once at import; smaller files are kept untouched.
  */
-// 6144 px suffisent pour un écran 4K et économisent ~45 % de mémoire graphique par panorama (8192 px : 134 Mo décodés, 6144 px : 75 Mo).
-export const MAX_PANORAMA_WIDTH = 6144;
+// 8192 px : pleine définition pour le casque VR (134 Mo décodés par panorama ; 6144 px : 75 Mo). Choix assumé : visites vues au casque.
+export const MAX_PANORAMA_WIDTH = 8192;
 export async function readPanorama(file:File):Promise<string> {
   try {
     const bitmap = await createImageBitmap(file);
@@ -567,7 +577,7 @@ export async function readPanorama(file:File):Promise<string> {
       const ctx = canvas.getContext('2d');
       if (!ctx) return await readImage(file);
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.86);
+      return canvas.toDataURL('image/jpeg', 0.92);
     } finally { bitmap.close(); }
   } catch {
     return readImage(file);

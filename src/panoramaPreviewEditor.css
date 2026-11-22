@@ -7,3 +7,5 @@
 .nv-panorama-preview-editor form{display:flex;gap:12px;align-items:end}.nv-panorama-preview-editor label{display:flex;flex:1;flex-direction:column;gap:6px}.nv-panorama-preview-editor input{width:100%;box-sizing:border-box;min-width:0;padding:11px;border:1px solid #527c8c;background:#081f2d;border-radius:8px;color:#fff;font:inherit}
 .nv-panorama-preview-editor p{margin:0;color:#a9e1d5}.nv-panorama-preview-editor small{color:#b5ccd8}
 @media(max-width:820px){.nv-panorama-preview-editor{left:8px;right:8px;top:75px;bottom:35px}.nv-panorama-preview-editor form{flex-wrap:wrap}.nv-panorama-preview-editor label{min-width:150px}}
+
+.nv-panorama-preview-editor label.nv-ppe-surface{flex:0 0 150px}.nv-panorama-preview-editor input[aria-invalid="true"]{border-color:#e0645c}

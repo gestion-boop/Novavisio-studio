@@ -2,13 +2,15 @@ import {MediaIconDefaults} from './MediaIconSettings';
 import {ButtonImporter} from './ButtonImporter';
 import {SetupBarPreview} from './SetupBarPreview';
 import {useRef,useState,type Dispatch,type SetStateAction} from 'react';
-import {updateBarStyle,STUDIO_LANGUAGES,defaultBarStyle,barIconSize,withBarSize,isSafeAudioData,readImage,type BarStyle,type StudioProject} from './storage';
+import {FloorPlanEditor} from './FloorPlan';
+import {MediaLibraryPanel} from './MediaLibraryPanel';
+import {getFloorPlans,withFloorPlans,updateBarStyle,STUDIO_LANGUAGES,defaultBarStyle,barIconSize,withBarSize,isSafeAudioData,readImage,type BarStyle,type StudioProject} from './storage';
 import {BarDimensions,PreparationDialog} from './PreparationControls';
 import {SkinChoices} from './SkinLibrary';
 import {ICON_PACKS,packPreview,prepareIconPack} from './iconPacks';
 import {ClientStep,ClientColorProposals,ClientButtonsStep} from './ClientSetupSteps';
 
-const TITLES:Record<string,string>={client:'Client',project:'Projet & modèle',icons:'Icônes',colors:'Couleurs & barre',buttons:'Boutons de la barre',languages:'Langues',panoramas:'Panoramas',music:'Musique',vr:'VR en option',ready:'Prêt à créer'};
+const TITLES:Record<string,string>={client:'Client',project:'Projet & modèle',icons:'Icônes',colors:'Couleurs & barre',buttons:'Boutons de la barre',languages:'Langues',panoramas:'Panoramas',plans:'Plans',photos:'Photos & vidéos',music:'Musique',vr:'VR en option',ready:'Prêt à créer'};
 const palettes=[
   {name:'Camping',background:'#f0e9d8',outline:'#91816b',button:'#536e28',buttonOutline:'#859652',icon:'#fff4cf'},
   {name:'Océan',background:'#e0eff3',outline:'#6591a5',button:'#176a91',buttonOutline:'#62a4bc',icon:'#ffffff'},
@@ -23,7 +25,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
   const content=useRef<HTMLDivElement>(null);
   // Visite créée à partir d'un client : étapes supplémentaires (fiche, boutons proposés).
   const clientMode=!!project.clientProfile?.name?.trim();
-  const keys=[...(clientMode?['client']:[]),'project','icons','colors',...(clientMode?['buttons']:[]),'languages','panoramas','music','vr','ready'];
+  const keys=[...(clientMode?['client']:[]),'project','icons','colors',...(clientMode?['buttons']:[]),'languages','panoramas','plans','photos','music','vr','ready'];
   const steps=keys.map(k=>TITLES[k]);
   const key=keys[Math.min(step,keys.length-1)];
   function move(index:number){setStep(index);setMessage('');content.current?.scrollTo({top:0});}
@@ -72,6 +74,22 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
             <label className="nv-setup-upload">＋ Importer des panoramas<input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={busy} onChange={e=>{const files=e.target.files;if(!files?.length)return;setBusy(true);setMessage('Import des panoramas…');void onImportPanoramas(files).then(()=>setMessage('Import terminé. Vérifie la liste des panoramas ci-dessous.')).catch(err=>setMessage(String(err))).finally(()=>setBusy(false));e.target.value='';}}/></label>
             <p>{project.scenes.length} panorama(s) dans le projet</p>
           </>}
+          {key==='plans'&&<><p>Étape facultative : importe le plan d'étage (image JPG, PNG ou WebP). Clique ensuite sur « ✨ Placer automatiquement » : le premier panorama (l'entrée) est posé en premier, puis les suivants selon les liens. « 🔎 Lire le plan » reprend les noms de pièces et les superficies écrits sur le plan pour renommer tes panoramas. Tout reste à valider et à ajuster à la souris.</p>
+            <FloorPlanEditor plans={getFloorPlans(project)} scenes={project.scenes} onChange={plans=>setProject(p=>withFloorPlans(p,plans))}
+              hasPlanButton={project.bottomBar.some(b=>b.type==='plan')}
+              onAddButton={()=>setProject(p=>p.bottomBar.some(b=>b.type==='plan')||p.bottomBar.length>=20?p:{...p,bottomBar:[...p.bottomBar,{id:crypto.randomUUID(),title:'Plan',type:'plan',builtinIcon:'map',target:'',text:'',url:''}]})}
+              onPreview={()=>setMessage('L’aperçu du plan est disponible après la préparation, dans l’éditeur.')}
+              onSceneChange={(id,patch)=>setProject(p=>({...p,scenes:p.scenes.map(sc=>{
+                if(sc.id!==id)return sc;
+                const next={...sc};
+                if(patch.name!==undefined)next.name=patch.name;
+                if(patch.surfaceM2===null)delete next.surfaceM2;else if(patch.surfaceM2!==undefined)next.surfaceM2=patch.surfaceM2;
+                return next;
+              })}))}/>
+          </>}
+          {key==='photos'&&<><p>Étape facultative : ajoute les photos et vidéos du bien (importées depuis l'ordinateur ou liens Google Drive / kDrive). Tu les placeras ensuite dans le bouton « Photos » de la barre ou sur les panoramas.</p>
+            <MediaLibraryPanel items={project.mediaLibrary??[]} onChange={items=>setProject(p=>({...p,mediaLibrary:items}))} selected={null} onApply={()=>{}}/>
+          </>}
           {key==='music'&&<><p>Ajoute une ambiance sonore. Une musique par défaut accompagne les nouveaux panoramas ; un même morceau continue lors des déplacements.</p>
             <label className="nv-setup-upload">♫ Importer une musique<input type="file" accept="audio/mpeg,audio/mp3,audio/ogg,audio/wav,audio/x-wav,audio/webm,audio/mp4" disabled={busy} onChange={e=>{void importMusic(e.target.files?.[0]);e.target.value='';}}/></label>
             <label>Musique par défaut<select aria-label="Musique par défaut" value={project.defaultMusicTrackId??''} onChange={e=>{const id=e.target.value;setProject(p=>({...p,defaultMusicTrackId:id||undefined}));}}><option value="">Sans musique</option>{project.audioTracks?.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -83,7 +101,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
             <small className="hint-inline">Désactivé : aucun bouton ni invitation VR sur le lien public. Activé : le visiteur peut basculer vers le casque compatible ; la navigation 360° classique reste disponible. Ce choix est conservé dans tes modèles.</small>
           </>}
           {key==='ready'&&<><p>La base du projet est prête. Tu pourras maintenant relier les panoramas, placer les photos et compléter les liens.</p>
-            <dl className="nv-setup-review"><div><dt>Établissement</dt><dd>{project.name}</dd></div><div><dt>Panoramas</dt><dd>{project.scenes.length}</dd></div><div><dt>Barre du bas</dt><dd>{project.barStyle.width?project.barStyle.width+' px':'Largeur automatique'} · {project.barStyle.height??82} px de haut</dd></div><div><dt>Langues</dt><dd>{(project.languages??['fr']).map(code=>STUDIO_LANGUAGES.find(lang=>lang.code===code)?.name).join(', ')}</dd></div><div><dt>Musique par défaut</dt><dd>{track?.name??'Sans musique'}</dd></div><div><dt>Mode casque VR</dt><dd>{project.vrEnabled===false?'Désactivé':'Autorisé si compatible'}</dd></div></dl>
+            <dl className="nv-setup-review"><div><dt>Établissement</dt><dd>{project.name}</dd></div><div><dt>Panoramas</dt><dd>{project.scenes.length}</dd></div><div><dt>Plans</dt><dd>{getFloorPlans(project).length}</dd></div><div><dt>Photos et vidéos</dt><dd>{(project.mediaLibrary??[]).length}</dd></div><div><dt>Barre du bas</dt><dd>{project.barStyle.width?project.barStyle.width+' px':'Largeur automatique'} · {project.barStyle.height??82} px de haut</dd></div><div><dt>Langues</dt><dd>{(project.languages??['fr']).map(code=>STUDIO_LANGUAGES.find(lang=>lang.code===code)?.name).join(', ')}</dd></div><div><dt>Musique par défaut</dt><dd>{track?.name??'Sans musique'}</dd></div><div><dt>Mode casque VR</dt><dd>{project.vrEnabled===false?'Désactivé':'Autorisé si compatible'}</dd></div></dl>
             <button type="button" aria-expanded={saveSkin} onClick={()=>setSaveSkin(value=>!value)}>Enregistrer cette préparation comme skin</button>
             {saveSkin&&<SkinChoices project={project} setProject={setProject}/>}
             <p className="nv-setup-note">Clique ensuite sur « Enregistrer » dans la barre du haut pour sauvegarder le projet dans ton compte Cloud. Les skins se sauvegardent séparément dans leur bibliothèque.</p>

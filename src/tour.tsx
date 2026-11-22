@@ -1,3 +1,4 @@
+import {isReturnLink,displayPitch} from './returnLink';
 import {barUsesIconImage} from './storage';
 import {FloorPlanDialog} from './FloorPlan';
 import {overlayClose} from './overlayClose';
@@ -26,6 +27,7 @@ import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
+import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
 import {startVr,vrSupported} from './vr';
 import './visitor.css';
@@ -50,7 +52,7 @@ function checkedLink(raw:string):string|null {
     return ['https:','http:','tel:','mailto:'].includes(parsed.protocol)?parsed.href:null;
   }catch{return null;}
 }
-function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lang:string='fr'):MarkerConfig {
+function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lang:string='fr',all:readonly Hotspot[]=[]):MarkerConfig {
   if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
     return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
   }
@@ -62,15 +64,16 @@ function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lan
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
   const size=isMedia?responsiveFrameSize(h,height,zoom):null;
   const isSphere=h.type==='navigation'&&!!h.sphere&&!!h.target;
-  const w=isSphere?Math.max(40,Math.min(120,h.iconSize??90)):size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28)));
+  const back=isReturnLink(h),k=back?.8:1; // flèche retour : un peu plus petite, pour ne pas être prise pour la flèche d'avancée
+  const w=k*(isSphere?Math.max(40,Math.min(120,h.iconSize??90)):size?.width??(isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.min(80,Math.max(16,h.iconSize??28))));
   const hh=size?.height??w;
   const custom=icons.find(icon=>icon.id===h.iconId);
   const html=isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),w,hh,pick(h.title,h.titleTranslations,lang)):
     h.type==='video'?videoMarkerHtml(h,w,hh):
     isSphere?'<span class="nv-sphere-hit"></span>':
     custom?iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId,'tour-marker'):
-    '<span class="tour-marker">'+(h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
-  return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},size:{width:w,height:hh},
+    '<span class="tour-marker'+(back?' tour-marker-return':'')+'">'+(back?'↩':h.type==='navigation'?'➜':h.type==='lien'?'↗':'i')+'</span>';
+  return {id:h.id,position:{yaw:h.yaw,pitch:displayPitch(h,all)},size:{width:w,height:hh},...(back?{className:'nv-return-marker'}:{}),
     anchor:'center center',html,tooltip:pick(h.title,h.titleTranslations,lang),
     ...(isSphere?{data:{nvSphere:{size:w,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
@@ -143,7 +146,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
       syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(current.scene.hotspots).flatMap(h=>[
-        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current,current.scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
     let pending=0;
@@ -172,7 +175,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>nightOnly()?[]:visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]);
+    const markersNow=()=>nightOnly()?[]:visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,next.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const T=getTransitionMs();
     warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?handlers.current.sphereImage(h.target):undefined));
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),T);};
@@ -217,7 +220,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
     syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(scene.hotspots).flatMap(h=>[
-      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
   },[scene.id,scene.hotspots,icons,lang,night,nightTexture]);
   return <div className="tour-panorama" ref={container}/>;
 }
@@ -335,6 +338,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     };
   },[mobileExpanded]);
   const theme=project?.barStyle??defaultBarStyle();
+  const viewTheme=useEffectiveBarTheme(project,theme);
   const popupCloseIcon=project?.icons?.find(icon=>icon.id===project?.closeIconId);
   const popupCloseHoverIcon=project?.icons?.find(icon=>icon.id===project?.closeIconHoverId);
   const popupClosePressedIcon=project?.icons?.find(icon=>icon.id===project?.closeIconPressedId);
@@ -354,7 +358,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     '--nv-bar-height':Math.max(theme.height??82,project?.bottomBar?.length?barHeightFor(project.bottomBar):0)+'px'
   } as CSSProperties;
   // Animation d'ouverture des fenêtres : posée sur <html> pour toutes les fenêtres (info, photo, vidéo, galeries, plan).
-  useEffect(()=>{applyCloseColor(project?.closeIconId?undefined:project?.closeButtonColor);},[project?.closeButtonColor,project?.closeIconId]);
+  useEffect(()=>{applyCloseColor(project?.closeIconId?undefined:project?.closeButtonColor,project?.closeButtonInk);},[project?.closeButtonColor,project?.closeButtonInk,project?.closeIconId]);
   useEffect(()=>{setTransitionMs(project?.transitionMs);},[project?.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project?.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project?.windowAnimationMs??700)+'ms');},[project?.windowAnimation,project?.windowAnimationMs]);
   // Fluidité : on précharge en tâche de fond les panoramas atteignables depuis celui-ci (flèches, boutons de la barre, précédent / suivant).
@@ -457,7 +461,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }
     setMobileExpanded(true);
   };
-  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={cssVars} data-scene={vrSceneId||current.id}>
+  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={{...cssVars,...popupThemeVars(viewTheme)}} data-scene={vrSceneId||current.id}>
     {!showIntro&&firstPanoramaReady&&roomNameVisible(project,current,'visit')&&<div className="nv-tour-room-heading" aria-label="Pièce actuellement visitée">
       <strong title={pick(current.name,current.nameTranslations,lang)}>{pick(current.name,current.nameTranslations,lang)}</strong>
       {current.surfaceM2!==undefined&&<span>{current.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})} m²</span>}
@@ -494,7 +498,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       })}
     </nav>}
     {!showIntro&&firstPanoramaReady&&<div className="nv-visitor-settings">
-      <button type="button" style={settingsButtonBarStyle(project,theme)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label={ui('settings',lang)} aria-expanded={settingsOpen} title={ui('settingsTitle',lang)} onClick={()=>setSettingsOpen(o=>!o)}>
+      <button type="button" style={settingsButtonBarStyle(project,viewTheme)} className={'nv-visitor-settings-btn'+(hasSettingsIcon?' has-custom-png':'')} aria-label={ui('settings',lang)} aria-expanded={settingsOpen} title={ui('settingsTitle',lang)} onClick={()=>setSettingsOpen(o=>!o)}>
         {hasSettingsIcon?<IconStateVisual icons={project.icons??[]} normal={settingsIcon} hover={project.settingsHoverIconId} pressed={project.settingsPressedIconId} size={settingsSize(project)}/>:<Settings size={Math.round(settingsSize(project)*0.42)}/>}
       </button>
       {settingsOpen&&<div className="nv-visitor-settings-panel" role="dialog" aria-label={ui('settings',lang)}>
@@ -518,7 +522,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       </section>
     </div>}
     {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
-    {floorPlanOpen&&<FloorPlanDialog lang={lang} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
+    {floorPlanOpen&&<FloorPlanDialog lang={lang} shortcuts={project.planShortcuts!==false?(project.bottomBar??[]).filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,lang),icon:project.icons?.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar?.find(b=>b.id===id);if(item){setFloorPlanOpen(false);act(item);}}} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
     {photosId&&(()=>{
       const item=project.bottomBar?.find(b=>b.id===photosId&&b.type==='photos');
       return item?<PhotoGallery title={pick(item.title,item.titleTranslations,lang)||ui('photos',lang)} items={item.photos??[]} onClose={()=>setPhotosId(null)}/>:null;

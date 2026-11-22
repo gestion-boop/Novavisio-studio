@@ -1,3 +1,6 @@
+import {roomHighlights} from './planRooms';
+import {proposePlanLayout} from './planAutoPlace';
+import {readPlanImage,matchScenesToRooms,type PlanRoom} from './planRead';
 import {confirmAsk} from './confirmDialog';
 import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
@@ -52,8 +55,42 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
   const [ripple,setRipple]=useState<{x:number;y:number;id:number}|null>(null);
   const [movingPointId,setMovingPointId]=useState<string|null>(null);
   const [hoveredSceneId,setHoveredSceneId]=useState<string|null>(null);
+  // Pièces en surbrillance (jaune léger) autour de chaque panorama placé : on voit d'un coup d'œil où l'on peut aller.
+  const [rooms,setRooms]=useState<Record<string,string>>({});
+  const [roomsReady,setRoomsReady]=useState(false);
+  const roomCanvases=useRef<Record<string,HTMLCanvasElement>>({});
+  // Visite : plus de numéros. On survole une pièce, elle s'allume en jaune, un clic y emmène. (Éditeur : repères conservés.)
+  const visitor=!onPlace&&!onMove;
+  const roomAt=(clientX:number,clientY:number,rect:DOMRect):string|null=>{
+    const nx=(clientX-rect.left)/rect.width,ny=(clientY-rect.top)/rect.height;
+    if(nx<0||ny<0||nx>1||ny>1)return null;
+    for(const [id,canvas] of Object.entries(roomCanvases.current)){
+      try{
+        const x=Math.min(canvas.width-1,Math.floor(nx*canvas.width)),y=Math.min(canvas.height-1,Math.floor(ny*canvas.height));
+        if(canvas.getContext('2d')!.getImageData(x,y,1,1).data[3]>0)return id;
+      }catch{/* canvas illisible : pas de pièce */}
+    }
+    return null;
+  };
+  const roomsKey=visiblePoints(plan,scenes).map(p=>p.sceneId+':'+p.x.toFixed(1)+','+p.y.toFixed(1)).join('|')+'#'+plan.imageDataUrl.length;
+  useEffect(()=>{
+    let alive=true;
+    const timer=window.setTimeout(()=>{
+      void roomHighlights(plan,visiblePoints(plan,scenes)).then(found=>{
+        if(!alive)return;
+        const urls:Record<string,string>={};
+        for(const [id,canvas] of Object.entries(found))urls[id]=canvas.toDataURL('image/png');
+        roomCanvases.current=found;setRooms(urls);setRoomsReady(true);
+      }).catch(()=>{if(alive){roomCanvases.current={};setRooms({});setRoomsReady(true);}});
+    },250);
+    return ()=>{alive=false;window.clearTimeout(timer);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[roomsKey]);
   const position=(clientX:number,clientY:number,rect:DOMRect)=>({x:Math.max(0,Math.min(100,(clientX-rect.left)/rect.width*100)),y:Math.max(0,Math.min(100,(clientY-rect.top)/rect.height*100))});
-  return <div className={'nv-plan-image'+(onPlace?' is-editing':'')+(dragOverPos?' is-drag-over':'')}
+  return <div className={'nv-plan-image'+(onPlace?' is-editing':'')+(dragOverPos?' is-drag-over':'')+(visitor?' is-visitor':'')+(visitor&&hoveredSceneId&&rooms[hoveredSceneId]?' is-room-hover':'')}
+    onPointerMove={visitor?e=>{const id=roomAt(e.clientX,e.clientY,e.currentTarget.getBoundingClientRect());setHoveredSceneId(cur=>cur===id?cur:id);}:undefined}
+    onPointerLeave={visitor?()=>setHoveredSceneId(null):undefined}
+    onClickCapture={visitor?e=>{const id=roomAt(e.clientX,e.clientY,e.currentTarget.getBoundingClientRect());if(id){e.stopPropagation();onPick(id);}}:undefined}
     onDragOver={onMove?e=>{e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDragOverPos(position(e.clientX,e.clientY,rect));}:undefined}
     onDragLeave={onMove?e=>{if(e.currentTarget.contains(e.relatedTarget as Node))return;setDragOverPos(null);}:undefined}
     onDrop={onMove?e=>{
@@ -70,6 +107,11 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
       onPlace(p.x,p.y);
     }:undefined}>
     <img src={plan.imageDataUrl} alt={plan.name||'Plan de la visite'} draggable={false}/>
+    {visiblePoints(plan,scenes).map(point=>{
+      const url=rooms[point.sceneId];
+      if(!url||(visitor&&point.sceneId!==hoveredSceneId&&point.sceneId!==currentId))return null;
+      return <img key={'room-'+point.sceneId} className={'nv-plan-room'+(point.sceneId===currentId?' is-current':'')+(point.sceneId===hoveredSceneId?' is-hover':'')} src={url} alt="" aria-hidden="true" draggable={false}/>;
+    })}
     {dragOverPos&&<div className="nv-plan-reticle" style={{left:dragOverPos.x+'%',top:dragOverPos.y+'%'}}>
       <div className="nv-plan-reticle-ring"/>
       <div className="nv-plan-reticle-crosshair"/>
@@ -81,8 +123,9 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
       const current=scene.id===currentId;
       const isMoving=movingPointId===point.sceneId;
       const isHovered=hoveredSceneId===point.sceneId&&!movingPointId;
+      const showMarker=!visitor||(roomsReady&&!rooms[point.sceneId]);
       return <Fragment key={point.sceneId}>
-        <button type="button" className={'nv-plan-point nv-no-fx'+(current?' is-current':'')+(isMoving?' is-moving':'')} style={{left:point.x+'%',top:point.y+'%'}}
+        {showMarker&&<button type="button" className={'nv-plan-point nv-no-fx'+(current?' is-current':'')+(isMoving?' is-moving':'')} style={{left:point.x+'%',top:point.y+'%'}}
           aria-label={(onPlace?ui('select',lang):ui('goTo',lang))+pick(scene.name,scene.nameTranslations,lang)} aria-current={current?'location':undefined} title={pick(scene.name,scene.nameTranslations,lang)}
           onMouseEnter={()=>setHoveredSceneId(point.sceneId)}
           onMouseLeave={()=>setHoveredSceneId(id=>id===point.sceneId?null:id)}
@@ -90,10 +133,10 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
           onPointerMove={onMove?e=>{if(!drag.current)return;if(Math.hypot(e.clientX-drag.current.x,e.clientY-drag.current.y)>4)drag.current.moved=true;if(drag.current.moved){const p=position(e.clientX-drag.current.dx,e.clientY-drag.current.dy,e.currentTarget.parentElement!.getBoundingClientRect());e.currentTarget.style.left=p.x+'%';e.currentTarget.style.top=p.y+'%';}}:undefined}
           onPointerUp={onMove?e=>{if(!drag.current)return;const {moved,dx,dy}=drag.current;drag.current=null;setMovingPointId(null);suppressClick.current=moved;if(moved){const p=position(e.clientX-dx,e.clientY-dy,e.currentTarget.parentElement!.getBoundingClientRect());setRipple({x:p.x,y:p.y,id:Date.now()});onMove(point.sceneId,p.x,p.y);}}:undefined}
           onPointerCancel={e=>{drag.current=null;setMovingPointId(null);e.currentTarget.style.left=point.x+'%';e.currentTarget.style.top=point.y+'%';}}
-          onClick={e=>{e.stopPropagation();if(suppressClick.current){suppressClick.current=false;return;}onPick(point.sceneId);}}><span>{index+1}</span></button>
+          onClick={e=>{e.stopPropagation();if(suppressClick.current){suppressClick.current=false;return;}onPick(point.sceneId);}}><span>{index+1}</span></button>}
         {onRemove&&<button type="button" className="nv-plan-remove nv-no-fx" style={{left:`calc(${point.x}% + 16px)`,top:`calc(${point.y}% - 16px)`}}
           aria-label={'Retirer le point : '+scene.name} title={'Retirer le point : '+scene.name} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onRemove(point.sceneId);}}><X size={13}/></button>}
-        {isHovered&&<div className="nv-plan-point-tooltip" style={{left:point.x+'%',top:point.y+'%'}}>
+        {isHovered&&<div className={'nv-plan-point-tooltip'+(point.y<22?' is-below':'')} style={{left:point.x+'%',top:point.y+'%'}}>
           {thumbs?.[point.sceneId]&&<img src={thumbs[point.sceneId]} alt="" draggable={false}/>}
           <strong>{pick(scene.name,scene.nameTranslations,lang)}</strong>
         </div>}
@@ -104,9 +147,11 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
 
 
 /** Galerie publique de plans : l'étage actif est prioritaire si le panorama courant y figure. */
-export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,lang='fr'}:{
+export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,lang='fr',shortcuts,onShortcut}:{
   plans:FloorPlan[];scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onClose:()=>void;
   thumbs?:Record<string,string>;lang?:string;
+  /** Raccourcis de la barre du bas affichés sous le plan (option « Intégrer les raccourcis dans le plan »). */
+  shortcuts?:{id:string;label:string;icon?:string}[];onShortcut?:(id:string)=>void;
 }){
   const [selectedIndex,setSelectedIndex]=useState(()=>{
     const index=plans.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
@@ -126,6 +171,10 @@ export function FloorPlanDialog({plans,scenes,currentId,onPick,onClose,thumbs,la
         <div className="nv-plan-view"><PlanImage key={plan.id??index} plan={plan} scenes={scenes}
           currentId={currentId} onPick={onPick} thumbs={thumbs} lang={lang}/></div>
         {!points.length&&<small className="nv-plan-immersive-empty">{ui('noPlanPoint',lang)}</small>}
+        {shortcuts&&shortcuts.length>0&&onShortcut&&<nav className="nv-plan-shortcuts" aria-label="Raccourcis">
+          {shortcuts.map(s=><button type="button" key={s.id} title={s.label} onClick={()=>onShortcut(s.id)}>
+            {s.icon?<img src={s.icon} alt="" draggable={false}/>:<span aria-hidden="true">●</span>}<span>{s.label}</span></button>)}
+        </nav>}
       </div>
       {plans.length>1&&<aside className="nv-plan-immersive-rail" aria-label="Changer de plan">
         <button type="button" className="nv-plan-rail-arrow" onClick={()=>change(-1)} aria-label="Plan précédent">‹</button>
@@ -162,8 +211,10 @@ async function importPlan(file:File):Promise<string>{
 }
 
 
-export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview}:{
+export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton,onPreview,thumbs={},renderPreview,onSceneChange}:{
   renderPreview?:(id:string)=>ReactNode;thumbs?:Record<string,string>;
+  /** Renomme un panorama ou règle sa superficie (m²) directement depuis le plan. */
+  onSceneChange?:(id:string,patch:{name?:string;surfaceM2?:number|null})=>void;
   plans:FloorPlan[];scenes:Scene[];onChange:(plans:FloorPlan[])=>void;
   hasPlanButton:boolean;onAddButton:()=>void;onPreview:()=>void;
 }){
@@ -173,6 +224,36 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
   const [expanded,setExpanded]=useState(false);
   const [previewId,setPreviewId]=useState<string|null>(null);
   const [draggingSceneId,setDraggingSceneId]=useState<string|null>(null);
+  type ReadRow={sceneId:string;room:number;apply:boolean;name:string;surface:string};
+  const [reading,setReading]=useState<{rooms:PlanRoom[];rows:ReadRow[];place:boolean}|null>(null);
+  const [readBusy,setReadBusy]=useState(false);
+  const readPlan=async()=>{
+    if(!plan||readBusy)return;
+    setReadBusy(true);setError('');
+    try{
+      const result=await readPlanImage(plan.imageDataUrl);
+      if(!result.rooms.length){setError('Aucune pièce lisible sur ce plan : essaie une image plus nette, avec les noms des pièces écrits.');return;}
+      const proposal=proposePlanLayout(available,result.entrance??undefined);
+      const points=available.map(sc=>plan.points.find(pt=>pt.sceneId===sc.id)??proposal.find(pt=>pt.sceneId===sc.id)).filter((pt):pt is NonNullable<typeof pt>=>!!pt);
+      const match=matchScenesToRooms(points,result.rooms);
+      const rows=available.map(sc=>{const room=match.get(sc.id)??-1,r=result.rooms[room];
+        return {sceneId:sc.id,room,apply:room>=0,name:r?.label??sc.name,surface:r?.surfaceM2!=null?String(r.surfaceM2).replace('.',','):''};});
+      setReading({rooms:result.rooms,rows,place:true});
+    }catch(e){setError(e instanceof Error?e.message:'Lecture du plan impossible.');}
+    finally{setReadBusy(false);}
+  };
+  const applyReading=()=>{
+    if(!reading)return;
+    const chosen=reading.rows.filter(r=>r.apply&&r.room>=0);
+    for(const r of chosen){
+      const n=Number(r.surface.replace(',','.'));
+      const surfaceM2=r.surface.trim()!==''&&Number.isFinite(n)&&n>0&&n<=100000?n:undefined;
+      onSceneChange?.(r.sceneId,{name:r.name.trim()||undefined,...(surfaceM2!==undefined?{surfaceM2}:{})});
+    }
+    if(reading.place)updatePlan(item=>({...item,points:[...item.points.filter(pt=>!chosen.some(r=>r.sceneId===pt.sceneId)),...chosen.map(r=>({sceneId:r.sceneId,x:reading.rooms[r.room].x,y:reading.rooms[r.room].y}))]}));
+    setError(chosen.length+' panorama'+(chosen.length>1?'s':'')+' mis à jour depuis le plan.');
+    setReading(null);
+  };
   const fileInput=useRef<HTMLInputElement>(null),importing=useRef(false);
   const importMode=useRef<'append'|'replace'>('append');
   const available=scenes.filter(scene=>!scene.excluded);
@@ -214,7 +295,17 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
     {plan&&<div className="nv-plan-workspace">
       <div className="nv-plan-workspace-map">
         <div className="nv-plan-pane-heading"><strong>{plan.name||'Plan '+(index+1)}</strong>
-          <small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small></div>
+          <small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small>
+          {available.length>0&&<button type="button" className="nv-plan-autoplace" title="Propose un placement : l’entrée d’abord, puis les panoramas reliés. À corriger à la souris."
+            onClick={async()=>{
+              if(plan.points.length&&!await confirmAsk('Remplacer les '+plan.points.length+' repères de ce plan par une proposition automatique ? (Tu peux annuler avec la flèche retour.)'))return;
+              updatePlan(item=>({...item,points:proposePlanLayout(available)}));
+              setError('Proposition appliquée : l’entrée est en bas du plan, ajuste chaque repère à la souris.');
+            }}>✨ Placer automatiquement</button>}
+          {available.length>0&&onSceneChange&&<button type="button" className="nv-plan-autoplace" disabled={readBusy}
+            title="Lit les noms de pièces et les superficies écrits sur le plan (IA) et te propose de renommer et placer les panoramas."
+            onClick={()=>void readPlan()}>{readBusy?'Lecture du plan…':'🔎 Lire le plan (noms + m²)'}</button>}
+        </div>
         <div className="nv-plan-edit-canvas">
           <div className="nv-plan-map-surface" style={{visibility:previewScene?'hidden':undefined}}>
             <PlanImage key={plan.id??index} plan={plan} scenes={available} currentId={selected?.id}
@@ -231,8 +322,44 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
           </section>}
         </div>
       </div>
+      {reading&&<div className="nv-plan-read" role="dialog" aria-modal="true" aria-label="Lecture du plan">
+        <div className="nv-plan-read-card">
+          <header><strong>Pièces lues sur le plan ({reading.rooms.length})</strong>
+            <button type="button" aria-label="Fermer" onClick={()=>setReading(null)}><X size={18}/></button></header>
+          <p>Vérifie chaque panorama : choisis sa pièce, corrige le nom et la superficie si besoin. Rien n’est modifié avant « Appliquer ».</p>
+          <div className="nv-plan-read-rows">
+            {reading.rows.map((row,i)=>{const sc=available.find(x=>x.id===row.sceneId);if(!sc)return null;
+              const set=(patch:Partial<ReadRow>)=>setReading(r=>r&&({...r,rows:r.rows.map((x,k)=>k===i?{...x,...patch}:x)}));
+              return <div key={row.sceneId} className="nv-plan-read-row">
+                <input type="checkbox" checked={row.apply} aria-label={'Appliquer à '+sc.name} onChange={e=>set({apply:e.target.checked})}/>
+                <span className="nv-plan-read-scene" title={sc.name}>{sc.name}</span>
+                <select value={row.room} onChange={e=>{const room=Number(e.target.value),r=reading.rooms[room];set({room,apply:room>=0,name:r?.label??sc.name,surface:r?.surfaceM2!=null?String(r.surfaceM2).replace('.',','):''});}}>
+                  <option value={-1}>— aucune pièce —</option>
+                  {reading.rooms.map((r,k)=><option key={k} value={k}>{r.label}{r.surfaceM2!=null?' · '+r.surfaceM2+' m²':''}</option>)}
+                </select>
+                <input type="text" value={row.name} maxLength={150} aria-label="Nom" onChange={e=>set({name:e.target.value})}/>
+                <input type="text" inputMode="decimal" value={row.surface} placeholder="m²" aria-label="Superficie en m²" onChange={e=>set({surface:e.target.value})}/>
+              </div>;})}
+          </div>
+          <label className="nv-plan-read-place"><input type="checkbox" checked={reading.place} onChange={e=>setReading(r=>r&&({...r,place:e.target.checked}))}/> Placer aussi les panoramas cochés au centre de leur pièce</label>
+          <footer><button type="button" onClick={()=>setReading(null)}>Annuler</button>
+            <button type="button" className="primary" onClick={applyReading}>Appliquer</button></footer>
+        </div>
+      </div>}
       <aside className="nv-plan-panorama-pane" aria-label="Panoramas à placer">
         <strong>Panoramas ({available.length})</strong>
+        {onSceneChange&&selected&&<div className="nv-plan-scene-edit" key={selected.id}>
+          <span className="nv-plan-scene-edit-title">Panorama sélectionné</span>
+          <label>Nom<input type="text" maxLength={150} value={selected.name} onChange={e=>onSceneChange(selected.id,{name:e.target.value})}/></label>
+          <label>Superficie (m²)<input type="text" inputMode="decimal" placeholder="ex. 25" defaultValue={selected.surfaceM2!==undefined?String(selected.surfaceM2):''}
+            onChange={e=>{
+              const raw=e.target.value.trim().replace(',','.');
+              if(raw===''){onSceneChange(selected.id,{surfaceM2:null});return;}
+              const n=Number(raw);
+              if(Number.isFinite(n)&&n>0&&n<=100000)onSceneChange(selected.id,{surfaceM2:n});
+            }}/></label>
+          <small>Le nom et la superficie s’affichent dans la visite.</small>
+        </div>}
         <div className="nv-plan-source-list" role="group">{available.map(scene=>{
           const pointIndex=visiblePoints(plan,available).findIndex(point=>point.sceneId===scene.id);
           return <div className="nv-plan-source-row" key={scene.id}>
@@ -304,6 +431,15 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
       <label>Nom du plan sélectionné
         <input type="text" maxLength={200} value={plan.name}
           onChange={event=>updatePlan(item=>({...item,name:event.target.value}))}/>
+      </label>
+      <label>Étage de ce plan <small>(affiché à gauche dans le casque)</small>
+        <select value={plan.level===undefined?'':String(plan.level)}
+          onChange={event=>updatePlan(item=>{const {level:_old,...rest}=item;return event.target.value===''?rest:{...rest,level:Number(event.target.value)};})}>
+          <option value="">Non précisé</option>
+          <option value="-1">Sous-sol</option>
+          <option value="0">Rez-de-chaussée</option>
+          {[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n===1?'1er étage':n+'e étage'}</option>)}
+        </select>
       </label>
       <div className="nv-plans-editor-actions">
         <button type="button" onClick={()=>reorder(-1)} disabled={index===0}>↑ Monter le plan</button>

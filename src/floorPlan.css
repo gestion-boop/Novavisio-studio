@@ -36,14 +36,17 @@
 
 /* Infobulle de survol (hover card avec aperçu) */
 .nv-plan-point-tooltip{
-  position:absolute;bottom:calc(100% + 14px);left:50%;transform:translateX(-50%);z-index:35;pointer-events:none;
+  /* Ancré sur le point (left/top) puis remonté au-dessus du cercle : l'aperçu ne recouvre jamais le point à cliquer. */
+  position:absolute;left:50%;translate:-50% calc(-100% - 30px);transform-origin:50% 100%;z-index:35;pointer-events:none;
   display:flex;flex-direction:column;gap:5px;padding:6px;border-radius:10px;background:rgba(8,27,39,.95);border:1px solid #4bebde88;
   backdrop-filter:blur(8px);box-shadow:0 10px 28px rgba(0,0,0,.7);color:#effbff;width:max-content;max-width:180px;text-align:center;
   animation:nv-tooltip-in .15s cubic-bezier(.2,0,0,1);
 }
 .nv-plan-point-tooltip img{width:100%;height:74px;object-fit:cover;border-radius:6px;display:block}
 .nv-plan-point-tooltip strong{font:700 12px/1.2 system-ui;padding:2px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@keyframes nv-tooltip-in{from{opacity:0;transform:translate(-50%,4px) scale(.92)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes nv-tooltip-in{from{opacity:0;transform:translateY(4px) scale(.92)}to{opacity:1;transform:none}}
+/* Point près du haut du plan : l'aperçu passe en dessous du cercle. */
+.nv-plan-point-tooltip.is-below{translate:-50% 30px;transform-origin:50% 0}
 .nv-plan-point:focus-visible,.nv-plan-dialog button:focus-visible,.nv-plan-editor button:focus-visible{outline:3px solid #54e9d6;outline-offset:3px}
 .nv-plan-destinations{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px;border-top:1px solid #436372}
 .nv-plan-destinations button[aria-current]{border-color:#f6bf56;color:#ffda94}
@@ -264,3 +267,35 @@
  .nv-plan-immersive-thumbs img{width:36px;height:27px}
  .nv-plan-dialog .nv-plan-immersive-rail .nv-plan-rail-arrow{min-width:37px;min-height:34px}
 }
+.nv-plan-scene-edit{display:flex;flex-direction:column;gap:8px;padding:12px;margin:8px 0 12px;border:1px solid #4aa9c0;border-radius:12px;background:#0f3340}
+.nv-plan-scene-edit-title{font:800 11px/1 system-ui;letter-spacing:.14em;text-transform:uppercase;color:#7fe6d8}
+.nv-plan-scene-edit label{display:flex;flex-direction:column;gap:4px;font:600 12px system-ui;color:#cfe7ec}
+.nv-plan-scene-edit input{padding:9px;border:1px solid #3c6f7e;border-radius:8px;background:#081f2d;color:#fff;font:inherit;min-width:0}
+.nv-plan-scene-edit small{font:500 11px/1.3 system-ui;color:#94b6bf}
+.nv-plan-shortcuts{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:12px 8px 4px}
+.nv-plan-shortcuts button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:999px;border:1px solid var(--nv-button-outline,#4aa9c0);background:var(--nv-button-bg,#12485a);color:var(--nv-icon-color,#e9fbff);font:700 14px system-ui;cursor:pointer;transition:filter .2s,transform .2s}
+.nv-plan-shortcuts button:hover{filter:brightness(1.2);transform:translateY(-2px)}
+.nv-plan-shortcuts img{width:24px;height:24px;object-fit:contain}
+
+.nv-plan-autoplace{font:700 12px system-ui;padding:6px 10px;border-radius:9px;border:1px solid var(--nv-accent,#2bb3d6);background:transparent;color:inherit;cursor:pointer}.nv-plan-autoplace:hover{background:rgba(43,179,214,.16)}
+
+.nv-plan-read{position:fixed;inset:0;z-index:2000;background:rgba(5,12,18,.66);display:grid;place-items:center;padding:16px}
+.nv-plan-read-card{width:min(860px,100%);max-height:92vh;overflow:auto;background:#0d2230;color:#eaf4f8;border:1px solid rgba(255,255,255,.16);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.nv-plan-read-card header{display:flex;justify-content:space-between;align-items:center}
+.nv-plan-read-card header button{background:transparent;border:0;color:inherit;cursor:pointer}
+.nv-plan-read-card p{margin:0;font-size:13px;opacity:.8}
+.nv-plan-read-rows{display:flex;flex-direction:column;gap:6px}
+.nv-plan-read-row{display:grid;grid-template-columns:22px minmax(80px,1fr) minmax(120px,1.1fr) minmax(100px,1.1fr) 70px;gap:6px;align-items:center}
+.nv-plan-read-scene{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;opacity:.85}
+.nv-plan-read-row input[type=text],.nv-plan-read-row select{min-width:0;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:13px}
+.nv-plan-read-place{font-size:13px;display:flex;gap:8px;align-items:center}
+.nv-plan-read-card footer{display:flex;justify-content:flex-end;gap:8px}
+
+/* Pièces en surbrillance : jaune léger sous les repères, plus marqué pour la pièce où l'on se trouve. */
+.nv-plan-image>img.nv-plan-room{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:fill;pointer-events:none;opacity:.75;mix-blend-mode:multiply}
+.nv-plan-image>img.nv-plan-room.is-current{opacity:1}
+
+/* Visite : pièces allumées au survol, clic = aller au panorama. */
+.nv-plan-image.is-visitor>img.nv-plan-room{mix-blend-mode:normal;opacity:.35;transition:opacity .15s ease}
+.nv-plan-image.is-visitor>img.nv-plan-room.is-hover{opacity:1}
+.nv-plan-image.is-visitor.is-room-hover{cursor:pointer}

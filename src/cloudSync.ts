@@ -263,8 +263,13 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
       // Save precisely the snapshot chosen by the user, even when they keep editing.
       // No follow-up autosave of newer, still-unsaved edits.
       const target=snapshot??projectRef.current;
-      if(target!==syncedRef.current&& !blockedRef.current)await runRef.current(target);
-      await wait();
+      // Si un envoi automatique était déjà en cours, runRef() rend la main sans rien envoyer : on attend la fin
+      // puis on relance avec CE snapshot (avant : « synchronisation non confirmée » alors que rien n'avait échoué).
+      for(let round=0;round<4&&target!==syncedRef.current&&!blockedRef.current;round++){
+        await runRef.current(target);
+        await wait();
+      }
+      if(target!==syncedRef.current&&blockedRef.current&&!lastErrorRef.current)lastErrorRef.current='le Cloud est bloqué (configuration ou conflit) : ouvre le panneau Cloud.';
       return target===syncedRef.current&&!!readLink();
     }
     for(let round=0;round<6&&projectRef.current!==syncedRef.current&&!blockedRef.current;round++){

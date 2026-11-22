@@ -1,3 +1,4 @@
+import {isReturnLink,displayPitch} from './returnLink';
 import {isPopupMedia,popupMediaMarkerHtml} from './mediaDisplay';
 import {framedPhotoSource} from './photoFrame';
 import {useEffect,useRef,useState} from 'react';
@@ -78,7 +79,7 @@ export type PanoramaProps = {
 };
 /** Panorama de départ : le premier qui est coché (un panorama décoché ne doit jamais servir de point d'entrée). */
 export const startSceneId=(scenes:{id:string;excluded?:boolean}[])=>(scenes.find(sc=>!sc.excluded)??scenes[0])?.id??'';
-export function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false):MarkerConfig {
+export function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false,all:readonly Hotspot[]=[]):MarkerConfig {
   // Image and video layers are rendered ON the sphere, not as HTML billboards.
   // Every pixel stays anchored to its four world-coordinate corners at any zoom or yaw.
   if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
@@ -91,11 +92,12 @@ export function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selec
   }
   const isMedia=(h.type==='image'||h.type==='video')&&!isPopupMedia(h);
   const isSphere=h.type==='navigation'&&!!h.sphere&&!!h.target;
-  const sz=isSphere?Math.max(40,Math.min(120,h.iconSize??90)):isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.max(16,Math.min(80,h.iconSize??28));
+  const back=isReturnLink(h);
+  const sz=(back?.8:1)*(isSphere?Math.max(40,Math.min(120,h.iconSize??90)):isPopupMedia(h)?Math.min(80,Math.max(16,h.iconSize??42)):Math.max(16,Math.min(80,h.iconSize??28)));
   const scaled=isMedia?responsiveFrameSize(h,viewerHeight,zoom):null;
   const width=scaled?.width??sz;
   const height=scaled?.height??sz;
-  const symbol=h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
+  const symbol=back?'↩':h.type==='navigation'?'➜':h.type==='lien'?'↗':'i';
   const iconHtml=iconStateHtml(icons,h.iconId,h.hoverIconId,h.pressedIconId);
   const content=isSphere?'<span class="nv-sphere-hit"></span>':isPopupMedia(h)?popupMediaMarkerHtml(h,icons):h.type==='image'?imageMarkerHtml(undefined,h.frameCorners??defaultFrameCorners(),width,height,h.title):
     h.type==='video'?videoMarkerHtml(h,width,height):
@@ -106,8 +108,8 @@ export function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selec
   const html=autoArrow?'<span class="nv-drag-target nv-nav-auto-marker" data-nv-marker-id="'+h.id+'">'+content+redCross+'</span>':
     editing?'<span class="nv-drag-target" data-nv-marker-id="'+h.id+'">'+content+
       '<button type="button" class="nv-marker-move-grip" aria-label="Déplacer ce point" title="Glisser pour déplacer ce point">✥</button>'+redCross+'</span>':content;
-  return {id:h.id,position:{yaw:h.yaw,pitch:h.pitch},
-    html,
+  return {id:h.id,position:{yaw:h.yaw,pitch:displayPitch(h,all)},
+    html,...(back?{className:'nv-return-marker'}:{}),
     size:{width,height},anchor:'center center',tooltip:h.title,
     ...(isSphere?{data:{nvSphere:{size:sz,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
@@ -115,7 +117,7 @@ export function markersForScene(scene:Scene,icons:CustomIcon[],height:number,sel
   const all:MarkerConfig[]=[];
   if(night&&preview)return all; // aperçu en mode nuit : panorama seul, sans bouton
   for(const h of (preview?visibleVideoFrames(scene.hotspots):scene.hotspots).filter(point=>!night||point.type!=='navigation')){
-    all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation));
+    all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation,scene.hotspots));
     if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
       h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;

@@ -1,5 +1,6 @@
-import {CanvasTexture, Color, LinearFilter, DoubleSide, Group, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
-import {getFloorPlans,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
+import {BackSide, CanvasTexture, Color, LinearFilter, DoubleSide, Group, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
+import {roomHighlights} from './planRooms';
+import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
 import {resolveLink} from './mediaLinks';
@@ -8,6 +9,7 @@ import {getPrefs,effectiveLang,setSound} from './visitorPrefs';
 import {ui as uiText,pick,type UiKey} from './i18n';
 import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
 import {layoutColumns,vrMenuOf} from './vrMenu';
+import {isReturnLink,displayPitch} from './returnLink';
 import {setVrMusicPlaying} from './vrAudioBridge';
 
 /**
@@ -16,7 +18,8 @@ import {setVrMusicPlaying} from './vrAudioBridge';
  * Dans le casque : points d'information (texte en pages, ou pages d'un mini-site via /vr.json), photos, vidéos MP4/WebM, galerie de photos de la barre.
  * Les cadres photo/vidéo en perspective dans le panorama ne sont pas encore affichés ; la musique continue de jouer via la page.
  */
-export const VR_MAX_TEXTURE=4096;
+// 8192 px = définition maximale des panoramas importés ; un casque dont la limite GPU est plus basse retombe automatiquement dessous (voir maxTex).
+export const VR_MAX_TEXTURE=8192;
 const SPHERE_R=10,HOTSPOT_R=6;
 
 export async function vrSupported():Promise<boolean>{
@@ -219,17 +222,21 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }};
     return mesh;
   };
-  const makeHotspot=async(h:Hotspot):Promise<Mesh|null>=>{
+  const makeHotspot=async(h:Hotspot,all:readonly Hotspot[]=[]):Promise<Mesh|null>=>{
+    const back=isReturnLink(h),k=back?.8:1,shownPitch=displayPitch(h,all); // flèche retour : plus petite et descendue si proche d'une flèche avant
     if((h.type==='image'||h.type==='video')&&h.mediaDisplay!=='popup'){const f=await makeFrame(h);if(f)return f;}
     if(h.type!=='navigation'&&h.type!=='information'&&h.type!=='lien'&&h.type!=='image'&&h.type!=='video')return null;
     if(h.type==='navigation'&&!h.target)return null;
     const iconUrl=getIconUrl(h.iconId);
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
-      const radius=Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
+      const radius=k*Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
       const mesh=new Mesh(new SphereGeometry(radius,32,20),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
-      const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
+      const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
+      // Contour jaune (couleur du thème) autour de la sphère : on repère d'un coup d'œil les destinations.
+      const outline=new Mesh(new SphereGeometry(radius*1.09,32,20),new MeshBasicMaterial({color:new Color(/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f6bb34'),side:BackSide,transparent:true,opacity:.95,depthTest:false,depthWrite:false}));
+      outline.renderOrder=1;mesh.add(outline);
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
       mesh.userData={baseScale:1,hoverScale:1,spin:true,dir:pos.clone().normalize(),dist:HOTSPOT_R,onSelect:()=>void goTo(h.target,h)};
@@ -258,13 +265,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       c.fillStyle='rgba(20,20,24,.72)';c.beginPath();c.arc(128,128,120,0,Math.PI*2);c.fill();
       c.lineWidth=10;c.strokeStyle='#ffffff';c.stroke();
       c.strokeStyle='#ffffff';c.lineWidth=22;c.lineCap='round';c.lineJoin='round';
-      if(h.type==='navigation'){c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();}
+      if(back){c.font='bold 150px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('↩',128,130);}
+      else if(h.type==='navigation'){c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();}
       else {c.font='bold 144px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(h.type==='information'?'i':h.type==='lien'?'↗':h.type==='video'?'▶':'▣',128,130);}
     });
-    const size=Math.min(.30,Math.max(.12,(h.iconSize??28)/48*.20));
+    const size=k*Math.min(.30,Math.max(.12,(h.iconSize??28)/48*.20));
     const mesh=new Mesh(new PlaneGeometry(size,size),new MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false,side:DoubleSide}));
     mesh.renderOrder=1;
-    const pos=new Vector3(-Math.cos(h.pitch)*Math.sin(h.yaw),Math.sin(h.pitch),Math.cos(h.pitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
+    const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
     mesh.position.copy(pos);
     mesh.userData={baseScale:1,hoverScale:1,onSelect:()=>{
       if(h.type==='navigation')void goTo(h.target,h);
@@ -336,7 +344,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     alignPending=true;
     clearGroup(hotspotGroup);
     for(const h of target.hotspots){
-      const m=await makeHotspot(h);
+      const m=await makeHotspot(h,target.hotspots);
       if(m){hotspotGroup.add(m);clickables.push(m as Clickable);}
     }
     opts.onSceneChange?.(id);
@@ -492,26 +500,35 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     }
     if(referenceMode){
     clearGroup(barGroup);clearGroup(vrShellGroup);
+    const menu=vrMenuOf(project());
+    const grid=layoutColumns(menu.left,menu.right);
+    // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
+    const hexOk=(c?:string)=>!!c&&/^#[0-9a-f]{6}$/i.test(c);
+    const themed=!!menu.themed&&hexOk(theme?.button)&&hexOk(theme?.icon);
+    const ctrlColors=themed?{button:theme.button,icon:theme.icon}:undefined;
+    const shellFill=themed&&hexOk(theme.background)?theme.background+'e6':'rgba(30,31,35,.79)';
+    const shellLine=themed&&hexOk(theme.outline)?theme.outline:'rgba(238,180,52,.72)';
+    const labelBg=themed?theme.button:'#25262a',labelLine=themed?theme.icon:'#d6a13d',labelInk=themed?theme.icon:'#ffffff';
     // Une plaque commune (fond + bord fin) soude les trois colonnes,
     // au lieu de les laisser flotter à des profondeurs indépendantes.
     addPlane(vrShellGroup,2.13,1.15,canvasTexture(1200,650,ctx=>{
       roundRect(ctx,7,7,1186,636,54);
-      ctx.fillStyle='rgba(30,31,35,.79)';ctx.fill();
-      ctx.lineWidth=7;ctx.strokeStyle='rgba(238,180,52,.72)';ctx.stroke();
+      ctx.fillStyle=shellFill;ctx.fill();
+      ctx.lineWidth=7;ctx.strokeStyle=shellLine;ctx.stroke();
     }),3,0,0,-.03);
     const button=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
-      const normal=makeVrControlTexture(icon,'normal');
-      const hover=makeVrControlTexture(icon,'hover');
-      const pressed=makeVrControlTexture(icon,'pressed');
+      const normal=makeVrControlTexture(icon,'normal',ctrlColors);
+      const hover=makeVrControlTexture(icon,'hover',ctrlColors);
+      const pressed=makeVrControlTexture(icon,'pressed',ctrlColors);
       const mesh=addButton(barGroup,.124,.124,normal,x,y,onSelect,9);
       mesh.userData.vrIconStates={normal,hover,pressed,pressedUntil:0};
       mesh.userData.referenceUi=true;
       return mesh;
     };
     const floorLabel=(label:string)=>canvasTexture(280,180,ctx=>{
-      roundRect(ctx,8,8,264,164,36);ctx.fillStyle='#25262a';ctx.fill();
-      ctx.strokeStyle='#d6a13d';ctx.lineWidth=7;ctx.stroke();
-      ctx.fillStyle='#ffffff';ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      roundRect(ctx,8,8,264,164,36);ctx.fillStyle=labelBg;ctx.fill();
+      ctx.strokeStyle=labelLine;ctx.lineWidth=7;ctx.stroke();
+      ctx.fillStyle=labelInk;ctx.font='bold 56px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(label,140,90);
     });
     const scenes=project().scenes.filter(scene=>!scene.excluded);
@@ -522,8 +539,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const plan=project().bottomBar.find(item=>item.type==='plan');
     const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
     // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
-    const menu=vrMenuOf(project());
-    const grid=layoutColumns(menu.left,menu.right);
     const iconOfItem=(item:BottomBarItem):VrControlIcon=>
       item.type==='plan'?'plan':item.type==='photos'?'photos':item.type==='lien'?'link':item.type==='information'?'info':'gallery';
     const toggleSound=()=>{
@@ -574,7 +589,28 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const slot of [...grid.left,...grid.right]){
       if(slot.id==='counter'){addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,slot.x,slot.y);continue;}
       const action=actionOf(slot.id);
-      if(action)button(slot.x,slot.y,action.icon,action.run);
+      if(!action)continue;
+      const mesh=button(slot.x,slot.y,action.icon,action.run);
+      // Seul le raccourci « Lien » avec une icône personnalisée (ex. logo Immosphera) affiche son image ;
+      // tous les autres boutons restent plats, comme avant.
+      const barItem=slot.id.startsWith('bar:')?project().bottomBar.find(b=>b.id===slot.id.slice(4)):undefined;
+      const iconOf=(id?:string)=>id?project().icons?.find(i=>i.id===id)?.dataUrl:undefined;
+      const normalSrc=iconOf(barItem?.iconId);
+      if(barItem&&barItem.type==='lien'&&normalSrc){
+        void (async()=>{
+          const glyph=GLYPH[barItem.builtinIcon??'info']??'i',zoom=barItem.iconZoom??100;
+          const normal=await barCircleTexture(normalSrc,glyph,zoom);
+          const hoverSrc=iconOf(barItem.hoverIconId),pressedSrc=iconOf(barItem.pressedIconId);
+          const hover=hoverSrc?await barCircleTexture(hoverSrc,glyph,zoom):null;
+          const pressed=pressedSrc?await barCircleTexture(pressedSrc,glyph,zoom):null;
+          const mat=(mesh as unknown as Mesh).material as MeshBasicMaterial;
+          if(ended||!mesh.parent){normal.dispose();hover?.dispose();pressed?.dispose();return;}
+          const old=mesh.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null};
+          for(const t of [old?.normal,old?.hover,old?.pressed])t?.dispose();
+          mesh.userData.vrIconStates={normal,hover,pressed,pressedUntil:0};
+          mat.map=normal;mat.needsUpdate=true;
+        })();
+      }
     }
     // Premier affichage : une seule pose pour le bloc complet.
     if(!panelAnchor){
@@ -1081,7 +1117,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   // ne doit jamais laisser revenir un ancien étage au-dessus du nouveau.
   let floorPlanRequest=0;
   const showFloorPlan=async(item:BottomBarItem,requestedIndex?:number)=>{
-    const plans=getFloorPlans(project()).filter(plan=>!!plan.imageDataUrl);
+    const plans=plansByLevel(getFloorPlans(project()).filter(plan=>!!plan.imageDataUrl));
     if(!plans.length){
       showText(pick(item.title,item.titleTranslations,vlang())||tt('plan'),tt('planUnset'));
       return;
@@ -1107,9 +1143,21 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     addPlane(panelGroup,imageW,imageH,imageTex,6,0,-.025);
     addPlane(panelGroup,Math.min(1.4,W-.12),.11,canvasTexture(1000,115,ctx=>{
       ctx.fillStyle=iconColor;ctx.textAlign='center';ctx.textBaseline='middle';
-      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+'  ·  '+(index+1)+' / '+plans.length,920,43,27);
+      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),920,43,27);
       ctx.fillText(title,500,57);
     }),7,0,H/2-.068);
+    // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
+    // closePanels() a déjà fait avancer panelGen : on compare à la valeur actuelle, sinon la surbrillance serait toujours écartée.
+    const panelNow=panelGen;
+    try{
+      const found=await roomHighlights(plan,plan.points.filter(point=>{const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;}),/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f5b324');
+      if(ended||req!==floorPlanRequest||panelNow!==panelGen)return;
+      for(const [sceneId,canvas] of Object.entries(found)){
+        const tex=new CanvasTexture(canvas);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
+        const m=addPlane(panelGroup,imageW,imageH,tex,6.5,0,-.025);
+        (m.material as MeshBasicMaterial).opacity=sceneId===currentId?1:.8;
+      }
+    }catch{/* sans surbrillance, le plan reste utilisable */}
     const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,ctx=>{
       ctx.beginPath();ctx.arc(90,90,76,0,Math.PI*2);
       ctx.fillStyle=current?iconColor:btnBg;ctx.fill();
@@ -1127,13 +1175,18 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       addPanelButton(.095,.095,pointTexture(String(pointIndex+1),target.id===currentId),
         x,y,()=>{void goTo(target.id);},9);
     });
-    // Même logique galerie que sur écran : précédent / suivant.
+    // Plusieurs plans / étages : colonne à gauche (escalier + un bouton par étage), le plan affiché est en surbrillance.
     if(plans.length>1){
-      const previous=(index-1+plans.length)%plans.length,next=(index+1)%plans.length;
-      addPanelButton(.10,.17,sideArrowTexture('◀'),-W/2+.075,-.025,
-        ()=>{void showFloorPlan(item,previous);},8);
-      addPanelButton(.10,.17,sideArrowTexture('▶'),W/2-.075,-.025,
-        ()=>{void showFloorPlan(item,next);},8);
+      const step=.105,top=((plans.length-1)*step)/2+.07;
+      const x=-W/2+.08;
+      addPlane(panelGroup,.095,.095,canvasTexture(180,180,ctx=>{
+        ctx.strokeStyle=iconColor;ctx.lineWidth=14;ctx.lineJoin='round';ctx.lineCap='round';
+        ctx.beginPath();ctx.moveTo(26,148);ctx.lineTo(26,118);ctx.lineTo(62,118);ctx.lineTo(62,88);ctx.lineTo(98,88);ctx.lineTo(98,58);ctx.lineTo(134,58);ctx.lineTo(134,28);ctx.lineTo(160,28);ctx.stroke();
+      }),8,x,top-.0);
+      // L'étage le plus haut est en haut de la colonne : on « monte » en cliquant vers le haut.
+      plans.forEach((other,i)=>{
+        addPanelButton(.095,.095,pointTexture(planLevelLabel(other,i),i===index),x,top-.105-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
+      });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
     placePanel(PANEL_DIST,0);
@@ -1370,7 +1423,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           const active=sceneOf(currentId);
           if(active){
             clearGroup(hotspotGroup);
-            for(const h of active.hotspots){const m=await makeHotspot(h);if(m){hotspotGroup.add(m);clickables.push(m as Clickable);}}
+            for(const h of active.hotspots){const m=await makeHotspot(h,active.hotspots);if(m){hotspotGroup.add(m);clickables.push(m as Clickable);}}
           }
         })().finally(()=>{refreshBusy=false;});
       }
