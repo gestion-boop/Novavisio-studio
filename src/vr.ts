@@ -1149,13 +1149,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
     // closePanels() a déjà fait avancer panelGen : on compare à la valeur actuelle, sinon la surbrillance serait toujours écartée.
     const panelNow=panelGen;
+    const roomIds=new Set<string>();
     try{
       const found=await roomHighlights(plan,plan.points.filter(point=>{const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;}),/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f5b324');
       if(ended||req!==floorPlanRequest||panelNow!==panelGen)return;
       for(const [sceneId,canvas] of Object.entries(found)){
         const tex=new CanvasTexture(canvas);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
         const m=addPlane(panelGroup,imageW,imageH,tex,6.5,0,-.025);
-        (m.material as MeshBasicMaterial).opacity=sceneId===currentId?1:.8;
+        // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
+        (m.material as MeshBasicMaterial).opacity=0;
+        const targetId=sceneId;
+        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,panel:true,onSelect:()=>{void goTo(targetId);}});
+        clickables.push(m as unknown as Clickable);
+        roomIds.add(sceneId);
       }
     }catch{/* sans surbrillance, le plan reste utilisable */}
     const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,ctx=>{
@@ -1170,6 +1176,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;
     });
     visible.forEach((point,pointIndex)=>{
+      // Pas de pastille quand la pièce est en surbrillance (vue classique). Secours seulement si elle n'a pas été détectée.
+      if(roomIds.has(point.sceneId))return;
       const target=sceneOf(point.sceneId)!;
       const x=(point.x/100-.5)*imageW,y=(.5-point.y/100)*imageH-.025;
       addPanelButton(.095,.095,pointTexture(String(pointIndex+1),target.id===currentId),
@@ -1493,6 +1501,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const isPressed=(m.userData.pressedUntil??0)>now;
       const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
       // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
+      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial)rm.opacity=hovered.has(m)?.8:0;continue;}
       if(m.userData.spin&&m.userData.dir){const want=isPressed?HOTSPOT_R-4.2:hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
