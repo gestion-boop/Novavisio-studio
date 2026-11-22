@@ -5,9 +5,12 @@ import { describe, expect, it } from 'vitest';
 const readSrc = (rel: string) => readFileSync(resolve(process.cwd(), 'src', rel), 'utf8');
 
 describe('PC & Tablet UI Regression Guards', () => {
-  it('uses Lucide vector pills and unified settings button without tiny 24px gears in CreationToolbar', () => {
+  it('uses circular Lucide glass-orb dock and unified settings button without tiny 24px gears in CreationToolbar', () => {
     const toolbar = readSrc('CreationToolbar.tsx');
     expect(toolbar).toContain('nv-tool-pill');
+    expect(toolbar).toContain('nv-tool-orb');
+    expect(toolbar).toContain('nv-orb-circle');
+    expect(toolbar).toContain('nv-orb-lbl');
     expect(toolbar).toContain('nv-tool-settings-btn');
     expect(toolbar).toContain('SlidersHorizontal');
     expect(toolbar).not.toContain('nv-tool-gear');
@@ -46,5 +49,10 @@ describe('PC & Tablet UI Regression Guards', () => {
     expect(floorPlan).toContain('touchPreview');
     expect(floorPlan).toContain('nv-plan-touch-go');
     expect(floorPlanCss).toContain('.nv-plan-touch-go');
+
+    const visitorCss = readSrc('visitor.css');
+    const styleCss = readSrc('style.css');
+    expect(visitorCss).not.toMatch(/\.tour-bottom-bar\{[^}]*height:auto!important/);
+    expect(styleCss).not.toMatch(/\.visitor-bottom-bar\{[^}]*height:auto!important/);
   });
 });

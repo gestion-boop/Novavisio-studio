@@ -33,70 +33,75 @@
 .nv-media-icon-selector{display:flex;align-items:center;gap:10px;margin:10px 0;min-width:0}.nv-media-icon-selector>label{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;font-size:12px}.nv-media-icon-preview{display:grid;place-items:center;flex:none;width:40px;height:40px;color:#b9f3e9}.nv-media-icon-selector select{width:100%;min-width:0;background:#102b39;color:#d4efef;border:1px solid #3b6878;padding:8px;border-radius:7px}
 .bar-items-list{position:relative}.bar-items-list>.nv-sortable-item.is-dragging{opacity:.28;outline:2px dashed #65cfc3;outline-offset:0;border-radius:9px;background:#17434b}.nv-sort-ghost{opacity:.97;background:#1d4451;border:1px solid #78e5d1;border-radius:10px;box-shadow:0 12px 30px #00131db0,0 0 0 1px #62c7bb;padding:0;box-sizing:border-box}.nv-sort-ghost *{pointer-events:none!important}.nv-is-sorting,.nv-is-sorting *{cursor:grabbing!important;user-select:none!important}
 
-/* Barre des outils de création : boutons tactiles dynamiques (Lucide + signature colorée), défilement fluide sur écrans étroits */
-.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar{
-  padding:8px 12px;min-height:66px;background:linear-gradient(180deg,#0c212c,#091922);border-top:1px solid #244857;
+/* Barre des outils de création : orbes circulaires vitrés façon studio pro 3D avec libellé centré dessous */
+.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar.nv-orb-dock{
+  height:auto!important;min-height:74px!important;padding:8px 14px 6px!important;
+  background:linear-gradient(180deg,#081822,#06131c)!important;border-top:0!important;
 }
-.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar .nv-toolbar-center{
-  display:flex!important;flex-wrap:nowrap!important;justify-content:center;align-items:center;gap:8px!important;
-  overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;padding:2px 4px;
-  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
-  mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
+.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar.nv-orb-dock .nv-toolbar-center{
+  display:flex!important;flex-wrap:nowrap!important;justify-content:center!important;align-items:flex-start!important;gap:14px!important;
+  overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity;padding:2px 6px 0!important;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 12px),transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 12px),transparent 100%);
 }
-.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar .nv-toolbar-center::-webkit-scrollbar{display:none}
-.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar .nv-toolbar-group{display:flex!important;flex-wrap:nowrap!important;gap:7px;flex:none}
+.nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar.nv-orb-dock .nv-toolbar-center::-webkit-scrollbar{display:none}
 .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-creation-tool,.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-auto-toolbar,.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-settings-btn{flex:none;scroll-snap-align:center}
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-pill{
-  display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:6px 13px 6px 8px!important;
-  border-radius:14px;border:1px solid color-mix(in srgb,var(--nv-tool-accent,#4bebde) 28%,#274b59);
-  background:linear-gradient(160deg,#133240,#0d232e);color:#e4f7fa;font:700 12.5px/1.1 system-ui,sans-serif!important;
-  white-space:nowrap;cursor:pointer;
-  box-shadow:0 3px 10px #0004,inset 0 1px 0 #ffffff14;
-  transition:transform .14s cubic-bezier(.22,1,.36,1),border-color .16s ease,background .16s ease,box-shadow .16s ease;
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb{
+  position:relative;display:inline-flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;gap:5px!important;
+  min-width:52px!important;padding:0!important;margin:0!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+  color:#bdd4dc!important;font:600 11px/1.1 system-ui,-apple-system,sans-serif!important;
+  cursor:pointer;white-space:nowrap;
+  transition:transform .14s cubic-bezier(.22,1,.36,1),color .15s ease;
 }
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-pill:hover{
-  transform:translateY(-2px);border-color:color-mix(in srgb,var(--nv-tool-accent,#4bebde) 70%,#fff);
-  background:linear-gradient(160deg,color-mix(in srgb,var(--nv-tool-accent,#4bebde) 18%,#163c4c),#102b38);
-  box-shadow:0 6px 16px #0006,0 0 0 1px color-mix(in srgb,var(--nv-tool-accent,#4bebde) 35%,transparent);
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb::after{content:"";position:absolute;inset:-4px -6px}
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-orb-circle{
+  display:grid;place-items:center;width:48px;height:48px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 35% 24%,rgba(44,104,122,.46),rgba(10,27,37,.92) 78%);
+  border:1.5px solid rgba(90,175,188,.34);
+  color:var(--nv-tool-accent,#38d8cd);
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.16),0 4px 12px rgba(0,0,0,.45);
+  transition:transform .15s cubic-bezier(.22,1,.36,1),border-color .16s ease,box-shadow .16s ease,background .16s ease,color .16s ease;
 }
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-pill:active{
-  transform:translateY(1px) scale(.94)!important;
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-orb-lbl{
+  font:600 11px/1.1 system-ui,-apple-system,sans-serif;color:inherit;letter-spacing:.01em;
 }
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-pill.selected{
-  border-color:var(--nv-tool-accent,#4bebde);
-  background:linear-gradient(160deg,color-mix(in srgb,var(--nv-tool-accent,#4bebde) 28%,#143947),#0e2b37);
-  color:#fff;
-  box-shadow:0 0 0 2px color-mix(in srgb,var(--nv-tool-accent,#4bebde) 42%,transparent),0 6px 18px #0007;
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb:hover{
+  transform:translateY(-2px)!important;color:#fff!important;background:transparent!important;box-shadow:none!important;
 }
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-ico{
-  display:grid;place-items:center;width:30px;height:30px;border-radius:10px;flex:none;
-  background:color-mix(in srgb,var(--nv-tool-accent,#4bebde) 18%,#091b24);
-  color:var(--nv-tool-accent,#7fe6d8);
-  border:1px solid color-mix(in srgb,var(--nv-tool-accent,#4bebde) 34%,transparent);
-  transition:transform .14s ease,background .14s ease,color .14s ease;
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb:hover .nv-orb-circle{
+  border-color:rgba(92,228,214,.78);
+  background:radial-gradient(circle at 35% 24%,rgba(56,162,175,.48),rgba(12,35,48,.94) 78%);
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.22),0 0 14px rgba(56,216,205,.28),0 6px 16px rgba(0,0,0,.5);
 }
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-pill.selected .nv-tool-ico{
-  background:var(--nv-tool-accent,#4bebde);color:#06171e;border-color:transparent;transform:scale(1.06);
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb:active{
+  transform:scale(.92)!important;background:transparent!important;box-shadow:none!important;
+}
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb.selected{
+  color:#fff!important;background:transparent!important;box-shadow:none!important;
+}
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb.selected .nv-orb-circle{
+  border:2px solid #f3bb37!important;
+  color:#4bebde;
+  background:radial-gradient(circle at 35% 24%,rgba(48,150,152,.5),rgba(11,34,44,.95) 78%);
+  box-shadow:0 0 18px rgba(243,187,55,.45),inset 0 0 12px rgba(56,216,205,.22),0 4px 12px rgba(0,0,0,.5);
+  transform:scale(1.04);
+}
+.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb.is-utility .nv-orb-circle{
+  width:42px;height:42px;margin-top:3px;border-color:rgba(130,175,188,.28);color:#9cc7d1;
 }
 .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-auto-toolbar{
-  padding:6px 14px 6px 8px!important;
+  position:static!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+  transform:none!important;z-index:auto!important;margin:0!important;
+  padding:0!important;min-height:0!important;min-width:52px!important;line-height:1.1!important;
 }
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-settings-btn{
-  display:inline-flex;align-items:center;gap:7px;min-height:46px;min-width:46px;padding:6px 12px!important;
-  border-radius:14px;border:1px solid #35606f;background:#102b38;color:#c7e7ee;font:700 12px/1 system-ui,sans-serif;
-  cursor:pointer;margin-left:2px;transition:transform .14s ease,background .15s ease,border-color .15s ease,color .15s ease;
-}
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-settings-btn:hover{
-  transform:translateY(-2px);background:#184556;border-color:#68d5c9;color:#fff;
-}
-.nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-settings-btn:active{transform:scale(.94)!important}
 @media(max-width:1024px){
-  .nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar .nv-toolbar-center{justify-content:flex-start}
+  .nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar.nv-orb-dock .nv-toolbar-center{justify-content:center!important;gap:10px!important}
 }
-@media(max-width:680px){
-  .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-pill{min-height:48px;padding:6px 10px 6px 6px!important;gap:6px}
-  .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-settings-btn .nv-tool-lbl{display:none}
-  .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-settings-btn{padding:0!important;justify-content:center;width:48px}
+@media(max-width:560px){
+  .nv-studio-pro .toolbar.nv-compact-actions.nv-sortable-toolbar.nv-orb-dock .nv-toolbar-center{justify-content:flex-start!important;gap:10px!important}
+  .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-orb-circle{width:44px;height:44px}
+  .nv-studio-pro .toolbar.nv-sortable-toolbar .nv-tool-orb.is-utility .nv-orb-circle{width:40px;height:40px;margin-top:2px}
 }
 
 /* Refonte panneau de droite : onglets fixes, éditeur rapide compact, options avancées repliées */
