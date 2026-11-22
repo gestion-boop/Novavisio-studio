@@ -131,6 +131,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   // --- Simulation
   const scenes = project.scenes.filter((s) => !s.excluded);
   const [sceneIdx, setSceneIdx] = useState(0);
+  const [galleryPage, setGalleryPage] = useState(0);
   const [panel, setPanel] = useState<Panel>(null);
   const [soundOn, setSoundOn] = useState(true);
   const [menuOpen, setMenuOpen] = useState(true);
@@ -156,7 +157,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const runSim = (id: string) => {
     setFlash(id); window.setTimeout(() => setFlash((f) => (f === id ? '' : f)), 260);
     switch (id) {
-      case 'gallery': setPanel((p) => (p?.kind === 'gallery' ? null : {kind: 'gallery'})); return;
+      case 'gallery': setGalleryPage(0); setPanel((p) => (p?.kind === 'gallery' ? null : {kind: 'gallery'})); return;
       case 'up': setSceneIdx((i) => Math.max(0, i - 1)); setPanel(null); return;
       case 'down': setSceneIdx((i) => Math.min(scenes.length - 1, i + 1)); setPanel(null); return;
       case 'home': setSceneIdx(0); setPanel(null); return;
@@ -167,7 +168,10 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     }
     if (id.startsWith('bar:')) {
       const item = project.bottomBar.find((b) => b.id === id.slice(4));
-      if (item) setPanel((p) => (p?.kind === 'bar' && p.item.id === item.id ? null : {kind: 'bar', item}));
+      if (item) {
+        setGalleryPage(0);
+        setPanel((p) => (p?.kind === 'bar' && p.item.id === item.id ? null : {kind: 'bar', item}));
+      }
     }
   };
   const simGrid = layoutColumns(menu.left, menu.right);
@@ -176,10 +180,27 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const centerContent = (): ReactNode => {
     if (!panel) return null;
     if (panel.kind === 'gallery' || (panel.kind === 'bar' && panel.item.type === 'gallery')) {
-      return <div className="nv-vrx-panel"><strong>Panoramas</strong><div className="nv-vrx-thumbs">
-        {scenes.map((sc, i) => <button type="button" key={sc.id} className={i === sceneIdx ? 'is-on' : ''} onClick={() => {setSceneIdx(i); setPanel(null);}}>
-          <img src={sc.dataUrl} alt=""/><span>{sc.name}</span></button>)}
-      </div></div>;
+      const perPage = 6;
+      const pages = Math.max(1, Math.ceil(scenes.length / perPage));
+      const p = Math.min(galleryPage, pages - 1);
+      const slice = scenes.slice(p * perPage, p * perPage + perPage);
+      return <div className="nv-vrx-panel">
+        <div className="nv-vrx-panel-head">
+          <strong>Panoramas ({scenes.length})</strong>
+          {pages > 1 && <div className="nv-vrx-pager">
+            <button type="button" onClick={() => setGalleryPage((p - 1 + pages) % pages)}>‹ Précédent</button>
+            <span>{p + 1} / {pages}</span>
+            <button type="button" onClick={() => setGalleryPage((p + 1) % pages)}>Suivant ›</button>
+          </div>}
+        </div>
+        <div className="nv-vrx-thumbs nv-vrx-thumbs-3x2">
+          {slice.map((sc, idx) => {
+            const globalIdx = p * perPage + idx;
+            return <button type="button" key={sc.id} className={globalIdx === sceneIdx ? 'is-on' : ''} onClick={() => {setSceneIdx(globalIdx); setPanel(null);}}>
+              <img src={sc.dataUrl} alt=""/><span>{sc.name}</span></button>;
+          })}
+        </div>
+      </div>;
     }
     if (panel.kind === 'plan' || (panel.kind === 'bar' && panel.item.type === 'plan')) {
       return <div className="nv-vrx-panel"><strong>{plan?.name || 'Plan'}</strong>
@@ -193,7 +214,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     }
     if (panel.kind === 'help') {
       return <div className="nv-vrx-panel"><strong>Navigation VR</strong>
-        <p>Droite : laser et gâchette. Gauche : joystick et gâchette. A/B ou X/Y : ouvrir / fermer le menu. Clic joystick : tout masquer.</p></div>;
+        <p>Gauche et droite : laser et gâchette. Joystick gauche : navigation. A/B ou X/Y : ouvrir / fermer le menu. Clic joystick : tout masquer.</p></div>;
     }
     const item = panel.item;
     if (item.type === 'photos') {
