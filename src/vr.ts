@@ -256,7 +256,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           ctx.fillText(fitCanvasLabel(ctx,destinationName,580,60,28),320,62);
         });
         const label=new Sprite(new SpriteMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false}));
-        label.scale.set(.9,.17,1);label.position.set(0,-radius*1.9-.12,0);label.renderOrder=3;
+        label.scale.set(.3,.056,1);label.position.set(0,-radius*1.7-.06,0);label.renderOrder=3;
         visual.add(label);
       }
       // Le collider reste strictement fixe à 6 m (aucun saut radial sous le rayon) : la sphère visuelle grossit sur place autour de son centre.
@@ -1832,7 +1832,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
         // Va-et-vient : la sphère visuelle avance et recule vers le spectateur (le collider reste à 6 m).
         const toViewer=m.userData.toViewer as Vector3|undefined;
-        if(toViewer)visual.position.copy(toViewer).multiplyScalar((1+Math.sin(now/520))*.42);
+        // Léger va-et-vient au repos ; au pointeur, la sphère s'avance vers nous (sans saut).
+        const pushTarget=(isPressed?.7:hovered.has(m)?.45:0)+(1+Math.sin(now/520))*.05;
+        m.userData.pushOut=((m.userData.pushOut as number|undefined)??0)+(pushTarget-((m.userData.pushOut as number|undefined)??0))*.18;
+        if(toViewer)visual.position.copy(toViewer).multiplyScalar(m.userData.pushOut as number);
         const rim=m.userData.rimOutline as Mesh|undefined;
         const baseRim=(m.userData.rimOpacity as number|undefined)??.15;
         const vs=isPressed?.92:hovered.has(m)?1.22:1;
