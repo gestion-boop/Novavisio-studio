@@ -365,8 +365,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(!ok)setNotice(tt('unavailable'));
     else{
       renderRoomHeader();
-      // Arrivée : seule la barre reste ; l'interface jaune ne s'ouvre plus toute seule (galerie à la demande).
-      if(referenceMode)void buildBar();
+      // Arrivée sur le nouveau panorama : l'interface jaune se ferme entièrement (A/B la rouvre).
+      if(referenceMode){referenceMode=false;remoteTarget=null;panelAnchor=null;updateVrPalette();}
+      clearGroup(barGroup);clearGroup(vrShellGroup);clearGroup(panelGroup);
     }
   }
 
