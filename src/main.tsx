@@ -2,7 +2,7 @@ import {barUsesIconImage} from './storage';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
-import {FloorPlanEditor,FloorPlanDialog} from './FloorPlan';
+import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
 import {MediaIconSelector} from './MediaIconSettings';
 import {BarSmartCard,barKind,recommendedType} from './BarSmartCard';
 import {InformationEditor,informationFont} from './InformationEditor';
@@ -4832,6 +4832,7 @@ function App(){
             </div>}
           </div>}
           {active && <ContinuousMusic project={project} scene={active} paused={!preview||(!!videoZoom&&videoZoom.videoMasterSound!==false)||introVisible} showToggle={false}/>}
+          {preview&&!floorPlanOpen&&!introVisible&&active&&<PlanMiniMap lang={visitorLang} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active.id} onPick={id=>selectScene(id)} onExpand={()=>setFloorPlanOpen(true)}/>}
           {preview&&floorPlanOpen&&<FloorPlanDialog lang={visitorLang} plans={plansInSpace(project,currentSpace)} scenes={visibleScenes} currentId={active?.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{selectScene(id);setFloorPlanOpen(false);}} thumbs={sceneThumbs}/>}
           {preview&&photoGalleryId&&(()=>{
             const item=project.bottomBar.find(b=>b.id===photoGalleryId&&b.type==='photos');
