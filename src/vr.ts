@@ -813,8 +813,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Pagination de la maquette, en bas uniquement : Précédent / Suivant encadrent le compteur « n / N ».
       const yBottom=-H/2+.1;
       if(pages>1){
-        addPanelButton(.3,.09,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
-        addPanelButton(.3,.09,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
+        addPanelButton(.26,.08,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
+        addPanelButton(.26,.08,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
         const counterTexture=canvasTexture(400,140,c=>{c.fillStyle='#ffffff';c.font='bold 56px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,200,70);});
         addPlane(panelGroup,.2,.07,counterTexture,6,0,yBottom);
       }
