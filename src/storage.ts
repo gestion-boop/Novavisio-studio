@@ -338,7 +338,7 @@ export function validateProject(value:unknown):StudioProject {
   }
   if(p.vrMenu!==undefined){
     const m=p.vrMenu as Partial<VrMenuConfig>;
-    const column=(list:unknown)=>Array.isArray(list)&&list.length<=8&&list.every(id=>typeof id==='string'&&id.length>0&&id.length<=80);
+    const column=(list:unknown)=>Array.isArray(list)&&list.length<=8&&list.every(id=>typeof id==='string'&&id.length<=80);
     if(typeof m!=='object'||m===null||!column(m.left)||!column(m.right)||(m.autoOpen!==undefined&&typeof m.autoOpen!=='boolean'))throw new Error('Menu du casque invalide');
   }
   if(p.mediaLibrary!==undefined){
