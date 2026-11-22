@@ -118,19 +118,6 @@ function readStudioLayout(){
   }catch{/* Private browsing or storage disabled. */}
   return {leftHidden:false,rightHidden:true,density:'comfortable' as const}; // les réglages s'ouvrent à la demande (icône en haut à droite)
 }
-// Aperçu « Avant / Après » dans le panneau « Prochaine cible » : même direction de visée sur le panorama actuel et sur le suivant.
-function AimCompare({readYaw,before,beforeName,after,afterName}:{readYaw:()=>number;before?:string;beforeName:string;after?:string;afterName:string}){
-  const [yaw,setYaw]=useState(0);
-  useEffect(()=>{const t=setInterval(()=>setYaw(readYaw()),120);return()=>clearInterval(t);},[readYaw]);
-  // Une image équirectangulaire couvre 360° : on affiche un quart de tour centré sur la direction de visée.
-  const frac=((yaw/(2*Math.PI))%1+1)%1;
-  const left=`calc(50% - ${(frac*400).toFixed(2)}%)`;
-  return <div className="nv-next-compare">
-    <figure><div className="nv-next-view">{before&&<img src={before} alt="" draggable={false} style={{left}}/>}</div><figcaption>Avant · {beforeName}</figcaption></figure>
-    <figure><div className="nv-next-view">{after&&<img src={after} alt="" draggable={false} style={{left}}/>}</div><figcaption>Après · {afterName}</figcaption></figure>
-  </div>;
-}
-
 function App(){
   const studioRef=useRef<HTMLDivElement>(null);
   const topMenusRef=useRef<HTMLDivElement>(null);
@@ -2106,11 +2093,66 @@ function App(){
   function mediaPickerEl(){
     return mediaPicker?<MediaPicker kind={mediaPicker.type} project={project} version={mediaVersion} onPick={pickFromLibrary} onDeleteLibrary={id=>setProject(p=>({...p,mediaLibrary:(p.mediaLibrary??[]).filter(m=>m.id!==id)}))} onImport={importFromPicker} onClose={closeMediaPicker} banner={issueFocus?<IssueBanner focus={issueFocus}/>:undefined}/>:null;
   }
+  const [splitTargetId,setSplitTargetId]=useState<string>('');
+  const defaultSplitTarget=(sourceId:string):Scene|undefined=>{
+    const idx=visibleScenes.findIndex(sc=>sc.id===sourceId);
+    if(idx>=0&&visibleScenes[idx+1])return visibleScenes[idx+1];
+    const sg=suggestDestinations(sourceId).find(s=>s.id!==sourceId);
+    return (sg?visibleScenes.find(sc=>sc.id===sg.id):undefined)??visibleScenes.find(sc=>sc.id!==sourceId);
+  };
+  function cycleSplitTarget(delta:number){
+    if(!active)return;
+    const others=visibleScenes.filter(sc=>sc.id!==active.id);
+    if(!others.length)return;
+    const curIdx=others.findIndex(sc=>sc.id===splitTargetId);
+    const next=others[((curIdx<0?0:curIdx)+delta+others.length)%others.length];
+    if(next)setSplitTargetId(next.id);
+  }
+  function placeSplitArrow(yaw:number,pitch:number,advance:boolean){
+    if(!active)return;
+    const dest=visibleScenes.find(sc=>sc.id===splitTargetId&&sc.id!==active.id)??defaultSplitTarget(active.id);
+    if(!dest){stopAutoNavigation();return;}
+    const arrival=galleryOrientationRef.current[dest.id]??{
+      yaw:dest.arrivalYaw??0,pitch:dest.arrivalPitch??0,zoom:panoramaArrivalZoom(dest)
+    };
+    const favorite=defaultNavigationIconSet();
+    const twoPi=2*Math.PI;
+    const norm=(v:number)=>((v%twoPi)+twoPi)%twoPi;
+    const forward:Hotspot={
+      id:uid(),type:'navigation',title:'Aller vers '+dest.name,text:'',
+      target:dest.id,yaw,pitch,
+      arrivalYaw:arrival.yaw,arrivalPitch:arrival.pitch,arrivalZoom:arrival.zoom,
+      arrivalZoomModel:'wide',arrivalCustom:true,
+      ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
+    };
+    const makeReturn=autoReturn&&!dest.hotspots.some(h=>h.type==='navigation'&&h.target===active.id);
+    const backPoint:Hotspot|null=makeReturn?{
+      id:uid(),type:'navigation',title:'Retour vers '+active.name,text:'',target:active.id,
+      yaw:norm(arrival.yaw+Math.PI),pitch:-0.12,
+      arrivalYaw:norm(yaw+Math.PI),arrivalPitch:0,arrivalZoom:panoramaArrivalZoom(active),arrivalZoomModel:'wide',arrivalCustom:true,
+      ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{})
+    }:null;
+    setProject(p=>({...p,scenes:p.scenes.map(sc=>{
+      if(backPoint&&sc.id===dest.id)return {...sc,hotspots:[...sc.hotspots,backPoint]};
+      if(sc.id!==active.id)return sc;
+      return {...sc,hotspots:[...sc.hotspots,forward]};
+    })}));
+    if(advance){
+      nextArrivalRef.current={sceneId:dest.id,yaw:arrival.yaw,pitch:arrival.pitch,zoom:arrival.zoom};
+      setArrivedVia({sceneId:dest.id,hotspotId:forward.id,fromSceneId:active.id});
+      setActiveId(dest.id);setSelectedId('');setSelectedBarId('');
+      setSplitTargetId(defaultSplitTarget(dest.id)?.id??'');
+      setStatus('✓ Flèche vers « '+dest.name+' »'+(makeReturn?' + retour 180°':'')+' · Panorama suivant prêt.');
+    }else{
+      cycleSplitTarget(1);
+      setStatus('✓ Flèche vers « '+dest.name+' » posée'+(makeReturn?' + retour 180°':'')+' · Vise une autre porte.');
+    }
+  }
   function stopAutoNavigation(){
     setAutoPending(null);setAutoNavigation(false);setGuide(null);setNavigationDraft(null);setDestinationEditId(null);
     setClassicDestinationOpen(false);setFullscreenGalleryOpen(false);
     setFullscreenCommandDrawerOpen(false);setGalleryPreviewSceneId(null);
-    setGalleryPreviewPinned(false);setMode(null);setSelectedId('');
+    setGalleryPreviewPinned(false);setMode(null);setSelectedId('');setSplitTargetId('');
     setStatus('Mode Auto arrêté · Modifications non enregistrées à sauvegarder avec la disquette.');
   }
   function toggleAutoNavigation(){
@@ -2118,8 +2160,9 @@ function App(){
     if(!active||preview)return;
     setAutoNavigation(true);setMode('navigation');setClassicDestinationOpen(false);
     setDestinationEditId(null);setNavigationDraft(null);
+    setSplitTargetId(defaultSplitTarget(active.id)?.id??'');
     setGuide({phase:'forward',fwdYaw:cameraRef.current.yaw,fwdPitch:cameraRef.current.pitch});
-    setStatus('Parcours guidé · Vise avec la cible puis clique sur + : passage direct au panorama suivant.');
+    setStatus('Double affichage Auto · Vise à gauche, vérifie la destination à droite, puis clique Poser & Passer au suivant.');
   }
   function selectScene(id:string){
     if(currentSpace&&!visibleIds.has(id)){setStatus('Ce panorama n’appartient pas à l’espace sélectionné');return;}
@@ -3331,7 +3374,7 @@ function App(){
     setFullscreenToolsOpen(true);setMode(null);
     setStatus('Retour créé dans '+destination.name+' : déplace la flèche si nécessaire puis enregistre.');
   }
-  async function addImages(list:FileList|null,targetSpaceId?:string|null,onProgress?:(done:number,total:number)=>void){
+  async function addImages(list:FileList|null,targetSpaceId?:string|null){
     if(!list?.length)return;
     const next:Scene[]=[];
     const errors:string[]=[];
@@ -3347,7 +3390,6 @@ function App(){
       try {
         next.push({id:uid(),name:file.name.replace(/\.[^.]+$/,'').slice(0,100),dataUrl:await readPanorama(file),hotspots:[]});
       } catch(e) { errors.push(file.name+' : '+(e instanceof Error?e.message:'lecture impossible')); }
-      onProgress?.(imported,list.length);
     }
     if(next.length){
       const spaceId=targetSpaceId===undefined?activeSpaceId:targetSpaceId;
@@ -4158,8 +4200,11 @@ function App(){
           </div>
         </section>}
       <main className="editor">
-        <div className={'view-area'+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
-          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+        {(()=>{const splitAuto=autoNavigation&&!preview&&!!active&&visibleScenes.length>=2;const splitTarget=splitAuto?(visibleScenes.find(sc=>sc.id===splitTargetId&&sc.id!==active.id)??defaultSplitTarget(active.id)):undefined;return (
+        <div className={'view-area'+(splitAuto?' nv-split-active':'')+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
+          <div className={splitAuto?'nv-split-pane nv-split-left':'nv-viewer-host'}>
+          {splitAuto&&<div className="nv-split-head"><span className="nv-split-badge">1. DÉPART · {active.name}</span></div>}
+          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else if(splitAuto)placeSplitArrow(y,p,true);else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -4197,32 +4242,58 @@ function App(){
             <button type="button" className="nv-guide-ok" onClick={guidedBack}>✓ Valider le retour</button>
             <button type="button" onClick={guidedSkipBack}>Passer</button>
           </div>}
-          {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
-            <span>➜ <b>Prochaine cible</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
-            {(()=>{const listScenes=project.scenes.filter(sc=>!sc.excluded);const listIndex=active?listScenes.findIndex(sc=>sc.id===active.id):-1;const nextId=listIndex>=0?listScenes[(listIndex+1)%listScenes.length]?.id:undefined;const next=nextId?project.scenes.find(sc=>sc.id===nextId&&!sc.excluded):undefined;
-              return <AimCompare readYaw={()=>cameraRef.current.yaw} before={active?(sceneThumbs[active.id]??active.dataUrl):undefined} beforeName={active?.name??''} after={next?(sceneThumbs[next.id]??next.dataUrl):undefined} afterName={next?.name??'Aucun panorama suivant'}/>;})()}
+          {autoNavigation&&!preview&&!splitAuto&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
+            <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
           </div>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
               <span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/>
               {autoNavigation&&guide?.phase!=='back'&&!fullscreenGalleryOpen&&!classicDestinationOpen&&!navigationDraft&&mode==='navigation'&&
                 <button type="button" className="nv-auto-crosshair-place nv-no-fx" aria-label="Placer la flèche sur la cible au centre"
-                  title="Placer la flèche ici"
+                  title="Placer la flèche ici et passer au suivant"
                   onPointerDown={e=>e.stopPropagation()}
                   onClick={e=>{
                     e.preventDefault();e.stopPropagation();
                     if(!active)return;
                     const v=cameraRef.current;
-                    // Si le panorama vient de changer, la caméra peut encore
-                    // porter l'ID précédent : ne jamais ignorer le clic.
-                    // Le + avance directement vers le panorama suivant dans l'ordre visible.
-                    // La galerie de choix reste disponible par les autres commandes de navigation.
-                    guidedForward(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),
-                      v.sceneId===active.id?v.pitch:(active.arrivalPitch??0));
+                    const sy=v.sceneId===active.id?v.yaw:(active.arrivalYaw??0);
+                    const sp=v.sceneId===active.id?v.pitch:(active.arrivalPitch??0);
+                    if(splitAuto)placeSplitArrow(sy,sp,true);
+                    else guidedForward(sy,sp);
                   }}>
                   <span aria-hidden="true">+</span>
                 </button>}
             </div>}
+          </div>
+          {splitAuto&&splitTarget&&<div className="nv-split-pane nv-split-right" key={splitTarget.id}>
+            <FullscreenGalleryHoverPreview scene={splitTarget} thumb={sceneThumbs[splitTarget.id]}
+              onOrientation={view=>{galleryOrientationRef.current[splitTarget.id]=view;}}/>
+            <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
+            <div className="nv-split-head">
+              <span className="nv-split-badge">2. ARRIVÉE · {splitTarget.name}</span>
+              <div className="nv-split-controls">
+                <button type="button" onClick={()=>cycleSplitTarget(-1)} title="Panorama précédent" aria-label="Panorama précédent">‹</button>
+                <select aria-label="Panorama de destination" value={splitTarget.id} onChange={e=>setSplitTargetId(e.target.value)}>
+                  {visibleScenes.filter(sc=>sc.id!==active.id).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+                </select>
+                <button type="button" onClick={()=>cycleSplitTarget(1)} title="Panorama suivant" aria-label="Panorama suivant">›</button>
+                <button type="button" className={'nv-split-return'+(autoReturn?' is-on':'')} aria-pressed={autoReturn}
+                  title="Créer automatiquement la flèche de retour à 180° dans le panorama d’arrivée"
+                  onClick={()=>setAutoReturn(!autoReturn)}>⇄ Retour 180° {autoReturn?'ON':'OFF'}</button>
+              </div>
+            </div>
+          </div>}
+          {splitAuto&&splitTarget&&<div className="nv-split-bar">
+            <button type="button" className="nv-split-go" onClick={()=>{
+              const v=cameraRef.current;
+              placeSplitArrow(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),v.sceneId===active.id?v.pitch:(active.arrivalPitch??0),true);
+            }}>✓ Poser la flèche &amp; Passer au suivant →</button>
+            <button type="button" className="nv-split-stay" title="Pose la flèche sans changer de panorama (pour poser plusieurs portes dans la même pièce)" onClick={()=>{
+              const v=cameraRef.current;
+              placeSplitArrow(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),v.sceneId===active.id?v.pitch:(active.arrivalPitch??0),false);
+            }}>+ Poser ici</button>
+            <button type="button" className="nv-split-quit" onClick={stopAutoNavigation}>✕ Quitter</button>
+          </div>}
           {creationFullscreen&&mediaPickerEl()}
           {creationFullscreen&&<div className="nv-fs-topbar" ref={fsToolsRef}>
             {modeSwitch(true)}
@@ -4789,6 +4860,7 @@ function App(){
             </div>
           </div>}
         </div>
+        );})()}
         {active && !preview && <CreationToolbar selected={mode??(panel==='bar'?'bar':null)} auto={autoNavigation} onAuto={toggleAutoNavigation}
           onSettings={tool=>{
             if(tool==='bar'){setPanel('bar');setMode(null);setSelectedId('');setRightHidden(false);return;}
