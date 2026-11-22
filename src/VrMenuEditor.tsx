@@ -134,6 +134,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   const [sceneIdx, setSceneIdx] = useState(0);
   const [galleryPage, setGalleryPage] = useState(0);
   const [panel, setPanel] = useState<Panel>({kind: 'gallery'});
+  const [planBack, setPlanBack] = useState<Panel>(null);
   const [soundOn, setSoundOn] = useState(true);
   const [menuOpen, setMenuOpen] = useState(true);
   const [flash, setFlash] = useState('');
@@ -155,6 +156,17 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simKey]);
+  const isPlanPanel = (p: Panel) => !!p && (p.kind === 'plan' || (p.kind === 'bar' && p.item.type === 'plan'));
+  const openPlanPanel = (next: Panel) => {
+    setPanel((cur) => {
+      if (!isPlanPanel(cur)) setPlanBack(cur);
+      return isPlanPanel(cur) ? planBack : next;
+    });
+  };
+  const closePlanPanel = () => {
+    setPanel(planBack);
+    setPlanBack(null);
+  };
   const runSim = (id: string) => {
     setFlash(id); window.setTimeout(() => setFlash((f) => (f === id ? '' : f)), 260);
     switch (id) {
@@ -163,13 +175,14 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
       case 'down': setSceneIdx((i) => Math.min(scenes.length - 1, i + 1)); setPanel(null); return;
       case 'home': setSceneIdx(0); setPanel(null); return;
       case 'sound': setSoundOn((s) => !s); return;
-      case 'plan': setPanel((p) => (p?.kind === 'plan' ? null : {kind: 'plan'})); return;
+      case 'plan': openPlanPanel({kind: 'plan'}); return;
       case 'help': setPanel((p) => (p?.kind === 'help' ? null : {kind: 'help'})); return;
       case 'exit': setPanel(null); setMenuOpen(false); return;
     }
     if (id.startsWith('bar:')) {
       const item = project.bottomBar.find((b) => b.id === id.slice(4));
       if (item) {
+        if (item.type === 'plan') { openPlanPanel({kind: 'bar', item}); return; }
         setGalleryPage(0);
         setPanel((p) => (p?.kind === 'bar' && p.item.id === item.id ? null : {kind: 'bar', item}));
       }
@@ -177,6 +190,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
   };
   const simGrid = layoutColumns(menu.left, menu.right);
   const current = scenes[Math.min(sceneIdx, Math.max(0, scenes.length - 1))];
+  const planFullscreen = mode === 'sim' && isPlanPanel(panel);
 
   const centerContent = (): ReactNode => {
     if (!panel) return null;
@@ -204,9 +218,13 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
         </div>}
       </div>;
     }
-    if (panel.kind === 'plan' || (panel.kind === 'bar' && panel.item.type === 'plan')) {
-      return <div className="nv-vrx-panel"><strong>{plan?.name || 'Plan'}</strong>
-        {plan ? <div className="nv-vrx-plan-row">
+    if (isPlanPanel(panel)) {
+      return <div className="nv-vrx-panel is-plan-full">
+        <div className="nv-vrx-panel-head">
+          <strong>{plan?.name || 'Plan'}{plans.length > 1 ? ` · ${planIdx + 1} / ${plans.length}` : ''}</strong>
+          <button type="button" className="nv-vrx-plan-close" onClick={closePlanPanel} aria-label="Fermer le plan et revenir à l’interface précédente" title="Fermer le plan"><X size={20}/></button>
+        </div>
+        {plan ? <div className="nv-vrx-plan-row is-full">
           {plans.length > 1 && <div className="nv-vrx-levels" aria-label="Étages">
             <span className="nv-vrx-stairs" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20v-4h4v-4h4V8h4V4h6"/></svg></span>
             {plans.map((p, i) => [p, i] as const).reverse().map(([p, i]) => <button type="button" key={p.id ?? i} className={plans[Math.min(planIdx, plans.length - 1)] === p ? 'is-on' : ''} title={p.name} onClick={() => setPlanIdx(i)}>{planLevelLabel(p, i)}</button>)}
@@ -218,6 +236,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
       return <div className="nv-vrx-panel"><strong>Navigation VR</strong>
         <p>Gauche et droite : laser et gâchette. Joystick gauche : navigation. A/B ou X/Y : ouvrir / fermer le menu. Clic joystick : tout masquer.</p></div>;
     }
+    if (panel.kind !== 'bar') return null;
     const item = panel.item;
     if (item.type === 'photos') {
       const photos = (item.photos ?? []).map((m) => ({m, r: resolveLink(m)}));
@@ -253,9 +272,9 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
         }))}
       </div>
     : <div className="nv-vrx-sim" style={current ? {backgroundImage: `url("${current.dataUrl}")`} : undefined}>
-        {menuOpen ? <div className="nv-vrx-shell is-sim" role="group" aria-label="Simulation de l’interface du casque">
-          <div className="nv-vrx-center">{centerContent() ?? <div className="nv-vrx-center-hint is-sim">{current?.name ?? 'Aucun panorama'}<br/><small>Clique sur les boutons comme avec la manette</small></div>}</div>
-          {[...simGrid.left, ...simGrid.right].map((slot) => {
+        {menuOpen ? <div className={'nv-vrx-shell is-sim' + (planFullscreen ? ' is-plan-shell' : '')} role="group" aria-label="Simulation de l’interface du casque">
+          <div className={'nv-vrx-center' + (planFullscreen ? ' is-plan-center' : '')}>{centerContent() ?? <div className="nv-vrx-center-hint is-sim">{current?.name ?? 'Aucun panorama'}<br/><small>Clique sur les boutons comme avec la manette</small></div>}</div>
+          {!planFullscreen && [...simGrid.left, ...simGrid.right].map((slot) => {
             const side = slot.x < 0 ? 'left' : 'right';
             return slot.id === 'counter'
             ? <div key={slot.id} className="nv-vrx-slot is-full is-counter is-sim" style={posStyle(slot, true)}><span className="nv-vrx-btn">{(scenes.length ? sceneIdx + 1 : 0) + ' / ' + scenes.length}</span></div>
