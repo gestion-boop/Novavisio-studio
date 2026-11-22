@@ -5342,6 +5342,8 @@ function App(){
               <button type="button" className="import" onClick={()=>audioInput.current?.click()}>＋ Importer une musique</button>
               <button type="button" className="style-reset" onClick={()=>setPanel('music')}>Gérer la bibliothèque musicale</button>
                   </>},
+                  {key:'visit-colors',title:'Couleurs',hint:'Barre, Paramètres, croix',icon:<Palette size={26}/>,tone:'#e86aa8',content:visitColorsCard()},
+                  {key:'visit-icons',title:'Mes icônes',hint:'Flèches, croix, Paramètres…',icon:<Images size={26}/>,tone:'#f0903c',onClick:()=>{setLibraryFor(null);setPanel('icons');}},
                   // Raccourcis : un bouton par icône de la barre du bas, pour ouvrir ses réglages sans changer de menu.
                   ...project.bottomBar.map((item,itemIndex)=>{
                     const img=project.icons.find(i=>i.id===item.iconId)?.dataUrl;
