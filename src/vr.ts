@@ -583,12 +583,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const action=actionOf(slot.id);
       if(!action)continue;
       const mesh=button(slot.x,slot.y,action.icon,action.run);
-      // Bouton de la barre avec une icône personnalisée (ex. logo Immosphera) : on dessine cette image
-      // dans le disque à la place du pictogramme.
+      // Seul le raccourci « Lien » avec une icône personnalisée (ex. logo Immosphera) affiche son image ;
+      // tous les autres boutons restent plats, comme avant.
       const barItem=slot.id.startsWith('bar:')?project().bottomBar.find(b=>b.id===slot.id.slice(4)):undefined;
       const iconOf=(id?:string)=>id?project().icons?.find(i=>i.id===id)?.dataUrl:undefined;
       const normalSrc=iconOf(barItem?.iconId);
-      if(barItem&&normalSrc){
+      if(barItem&&barItem.type==='lien'&&normalSrc){
         void (async()=>{
           const glyph=GLYPH[barItem.builtinIcon??'info']??'i',zoom=barItem.iconZoom??100;
           const normal=await barCircleTexture(normalSrc,glyph,zoom);

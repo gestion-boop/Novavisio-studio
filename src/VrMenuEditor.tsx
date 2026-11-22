@@ -19,7 +19,7 @@ function ActionIcon({id, project, sound = true, size = 22}: {id: string; project
     const barItem = project.bottomBar.find((b) => b.id === id.slice(4));
     const type = barItem?.type;
     const custom = project.icons?.find((i) => i.id === barItem?.iconId)?.dataUrl;
-    if (custom) return <img className="nv-vrx-icon-img" src={custom} alt="" style={{width: size + 8, height: size + 8}}/>;
+    if (custom && type === 'lien') return <img className="nv-vrx-icon-img" src={custom} alt="" style={{width: size + 8, height: size + 8}}/>;
     const I = type === 'lien' ? ExternalLink : type === 'information' ? Info : type === 'photos' ? Images : type === 'plan' ? MapIcon : LayoutGrid;
     return <I size={size} strokeWidth={2.2}/>;
   }
