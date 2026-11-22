@@ -220,10 +220,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
     }
     if (isPlanPanel(panel)) {
       return <div className="nv-vrx-panel is-plan-full">
-        <div className="nv-vrx-panel-head">
-          <strong>{plan?.name || 'Plan'}{plans.length > 1 ? ` · ${planIdx + 1} / ${plans.length}` : ''}</strong>
-          <button type="button" className="nv-vrx-plan-close" onClick={closePlanPanel} aria-label="Fermer le plan et revenir à l’interface précédente" title="Fermer le plan"><X size={20}/></button>
-        </div>
+        <button type="button" className="nv-vrx-plan-close" onClick={closePlanPanel} aria-label="Fermer le plan et revenir à l’interface précédente" title="Fermer le plan"><X size={20}/></button>
         {plan ? <div className="nv-vrx-plan-row is-full">
           {plans.length > 1 && <div className="nv-vrx-levels" aria-label="Étages">
             <span className="nv-vrx-stairs" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20v-4h4v-4h4V8h4V4h6"/></svg></span>

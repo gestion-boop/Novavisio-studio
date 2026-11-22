@@ -111,12 +111,11 @@
 .nv-vrx-slot-tip{opacity:0;transition:opacity .12s;font-size:12px;padding:4px 11px;box-shadow:0 4px 14px #0008}
 .nv-vrx-slot.is-sim:hover .nv-vrx-slot-tip{opacity:1}
 
-.nv-vrx-center.is-plan-center{left:14px;right:14px;top:12px;bottom:12px}
-.nv-vrx-panel.is-plan-full{height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;gap:8px;background:transparent;border:0;padding:6px 10px}
-.nv-vrx-panel.is-plan-full .nv-vrx-panel-head{flex:none;margin:0}
-.nv-vrx-plan-close{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:50%;border:2px solid var(--vr-accent,#f5b324);background:var(--vr-btn,#1c1d20);color:var(--vr-accent,#f5b324);cursor:pointer;transition:transform .15s,background .15s}
+.nv-vrx-center.is-plan-center{left:10px;right:10px;top:6px;bottom:6px}
+.nv-vrx-panel.is-plan-full{position:relative;height:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;gap:0;background:transparent;border:0;padding:4px 8px}
+.nv-vrx-plan-close{position:absolute;top:8px;right:10px;z-index:6;display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:50%;border:2px solid var(--vr-accent,#f5b324);background:var(--vr-btn,#1c1d20);color:var(--vr-accent,#f5b324);cursor:pointer;transition:transform .15s,background .15s;box-shadow:0 4px 16px #0009}
 .nv-vrx-plan-close:hover{transform:scale(1.08);background:var(--vr-accent,#f5b324);color:#111}
-.nv-vrx-plan-row.is-full{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;gap:16px;overflow:hidden}
+.nv-vrx-plan-row.is-full{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;gap:12px;overflow:hidden}
 .nv-vrx-plan-stage{flex:1;min-width:0;min-height:0;height:100%;display:grid;place-items:center;container-type:size;overflow:hidden}
 .nv-vrx-plan-row.is-full .nv-vrx-plan-wrap{position:relative;display:inline-block;line-height:0}
 .nv-vrx-plan-row.is-full .nv-vrx-plan{max-width:100cqw;max-height:100cqh;width:auto;height:auto;display:block;object-fit:contain;background:#fff;border-radius:8px}

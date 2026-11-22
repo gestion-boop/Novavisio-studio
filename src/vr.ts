@@ -1218,10 +1218,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(back)void showGallery(back);
     };
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const leftReserve=referenceMode?(plans.length>1?.30:.08):.16;
-    const rightReserve=referenceMode?.10:.16;
-    const topReserve=referenceMode?.24:.20;
-    const bottomReserve=referenceMode?.06:.14;
+    const leftReserve=referenceMode?(plans.length>1?.22:.04):.16;
+    const rightReserve=referenceMode?.04:.16;
+    const topReserve=referenceMode?.035:.20;
+    const bottomReserve=referenceMode?.035:.14;
     const W=referenceMode?VR_SHELL.w:Math.min(1.72,1.2*ratio)+.32;
     const H=referenceMode?VR_SHELL.h:Math.min(1.2,1.72/ratio)+.33;
     const maxW=referenceMode?(W-leftReserve-rightReserve):1.72;
@@ -1233,13 +1233,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const imageTex=new CanvasTexture(bitmap);imageTex.generateMipmaps=true;imageTex.minFilter=LinearMipmapLinearFilter;imageTex.anisotropy=16;
     imageTex.colorSpace=SRGBColorSpace;
     addPlane(panelGroup,imageW,imageH,imageTex,6,imgX,imgY);
-    addPlane(panelGroup,Math.min(1.8,W-.35),.11,canvasTexture(1200,115,ctx=>{
-      ctx.fillStyle=referenceMode?'#ffffff':iconColor;
-      ctx.textAlign=referenceMode?'left':'center';ctx.textBaseline='middle';
-      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),1100,46,28);
-      ctx.fillText(title,referenceMode?28:600,57);
-    }),7,referenceMode?(-W/2+Math.min(1.8,W-.35)/2+.08):0,H/2-.085);
-    if(referenceMode)addPanelButton(.13,.13,closeIconTexture(),W/2-.11,H/2-.10,closePlan,10);
+    if(!referenceMode){
+      addPlane(panelGroup,Math.min(1.8,W-.35),.11,canvasTexture(1200,115,ctx=>{
+        ctx.fillStyle=iconColor;
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),1100,46,28);
+        ctx.fillText(title,600,57);
+      }),7,0,H/2-.085);
+    }
+    if(referenceMode)addPanelButton(.13,.13,closeIconTexture(),W/2-.10,H/2-.10,closePlan,10);
     // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
     // closePanels() a déjà fait avancer panelGen : on compare à la valeur actuelle, sinon la surbrillance serait toujours écartée.
     const panelNow=panelGen;
@@ -1606,7 +1608,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     barGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
     vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
     panelGroup.visible=!uiHidden;
-    headerGroup.visible=!uiHidden;
+    headerGroup.visible=!uiHidden&&!fullscreenPlan;
     noticeGroup.visible=!uiHidden;
     const remoteHand: 'left'|'right'=activeLaserHand==='right'?'left':'right';
     const remoteList=remoteCandidates();
