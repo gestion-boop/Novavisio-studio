@@ -1261,6 +1261,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const back=planReturnGallery;
       planReturnGallery=null;
       closePanels();
+      // Retour à l'interface jaune complète : cadre et toutes les icônes sont reconstruits.
+      if(referenceMode)void buildBar();
       if(back)void showGallery(back);
     };
     const ratio=bitmap.width/Math.max(1,bitmap.height);
