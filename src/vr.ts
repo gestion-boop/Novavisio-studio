@@ -711,8 +711,12 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
   let panelGen=0; // change à chaque fermeture / remplacement de fenêtre : un chargement en cours ne peut plus rien ajouter après coup
   let activePanelKey='';
+  let fullscreenPlan=false;
+  let lastGalleryItem:BottomBarItem|null=null;
+  let planReturnGallery:BottomBarItem|null=null;
   function closePanels(){
     activePanelKey='';
+    fullscreenPlan=false;
     panelGen++;
     panelReplace=panelGroup.children.length>0;
     stopVideo();
@@ -1103,6 +1107,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   };
 
   const showGallery=async(item:BottomBarItem)=>{
+    lastGalleryItem=item;
     closePanels();
     const configured=galleryEntries(item,project().scenes,project().spaces);
     // Un bouton galerie présent mais non configuré ne doit pas empêcher
@@ -1177,25 +1182,41 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     try{bitmap=await loadReduced(plan.imageDataUrl,8192);}
     catch{if(req===floorPlanRequest)setNotice(tt('planFail'));return;}
     if(ended||req!==floorPlanRequest||gen!==panelGen)return;
+    const wasGallery=!fullscreenPlan&&activePanelKey==='gallery';
+    const savedReturn=fullscreenPlan?planReturnGallery:(wasGallery?lastGalleryItem:null);
     closePanels();
+    planReturnGallery=savedReturn;
     activePanelKey='plan';
+    fullscreenPlan=referenceMode;
+    const closePlan=()=>{
+      const back=planReturnGallery;
+      planReturnGallery=null;
+      closePanels();
+      if(back)void showGallery(back);
+    };
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const maxW=referenceMode?1.95:1.72,maxH=referenceMode?1.08:1.2;
+    const leftReserve=referenceMode?(plans.length>1?.28:.08):.16;
+    const rightReserve=referenceMode?.08:.16;
+    const topReserve=referenceMode?.18:.20;
+    const bottomReserve=referenceMode?.06:.14;
+    const W=referenceMode?VR_SHELL.w:Math.min(1.72,1.2*ratio)+.32;
+    const H=referenceMode?VR_SHELL.h:Math.min(1.2,1.72/ratio)+.33;
+    const maxW=referenceMode?(W-leftReserve-rightReserve):1.72;
+    const maxH=referenceMode?(H-topReserve-bottomReserve):1.2;
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
-    const W=imageW+.32,H=imageH+(referenceMode?.22:.33);
-    const planBg=referenceMode?canvasTexture(Math.round(W*600),Math.round(H*600),c=>{
-      roundRect(c,6,6,Math.round(W*600)-12,Math.round(H*600)-12,36);
-      c.fillStyle='rgba(12,15,20,.74)';c.fill();c.lineWidth=3;c.strokeStyle='rgba(225,165,37,.35)';c.stroke();
-    }):backdrop(W,H);
-    addPlane(panelGroup,W,H,planBg,5,0,0);
+    const imgX=referenceMode?(leftReserve-rightReserve)/2:0;
+    const imgY=referenceMode?-(topReserve-bottomReserve)/2:-.025;
+    addPlane(panelGroup,W,H,backdrop(W,H),5,0,0).userData.blocker=true;
     const imageTex=new CanvasTexture(bitmap);imageTex.generateMipmaps=true;imageTex.minFilter=LinearMipmapLinearFilter;imageTex.anisotropy=16;
     imageTex.colorSpace=SRGBColorSpace;
-    addPlane(panelGroup,imageW,imageH,imageTex,6,0,referenceMode?-.04:-.025);
-    addPlane(panelGroup,Math.min(1.4,W-.12),.11,canvasTexture(1000,115,ctx=>{
-      ctx.fillStyle=iconColor;ctx.textAlign='center';ctx.textBaseline='middle';
-      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),920,43,27);
-      ctx.fillText(title,500,57);
-    }),7,0,H/2-.068);
+    addPlane(panelGroup,imageW,imageH,imageTex,6,imgX,imgY);
+    addPlane(panelGroup,Math.min(1.8,W-.35),.11,canvasTexture(1200,115,ctx=>{
+      ctx.fillStyle=referenceMode?'#ffffff':iconColor;
+      ctx.textAlign=referenceMode?'left':'center';ctx.textBaseline='middle';
+      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),1100,46,28);
+      ctx.fillText(title,referenceMode?28:600,57);
+    }),7,referenceMode?(-W/2+Math.min(1.8,W-.35)/2+.08):0,H/2-.085);
+    if(referenceMode)addPanelButton(.13,.13,closeIconTexture(),W/2-.11,H/2-.10,closePlan,10);
     // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
     // closePanels() a déjà fait avancer panelGen : on compare à la valeur actuelle, sinon la surbrillance serait toujours écartée.
     const panelNow=panelGen;
@@ -1205,7 +1226,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(ended||req!==floorPlanRequest||panelNow!==panelGen)return;
       for(const [sceneId,canvas] of Object.entries(found)){
         const tex=new CanvasTexture(canvas);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
-        const m=addPlane(panelGroup,imageW,imageH,tex,6.5,0,referenceMode?-.04:-.025);
+        const m=addPlane(panelGroup,imageW,imageH,tex,6.5,imgX,imgY);
         // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
         (m.material as MeshBasicMaterial).opacity=0;
         const targetId=sceneId;
@@ -1230,21 +1251,21 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Pas de pastille quand la pièce est en surbrillance (vue classique). Secours seulement si elle n'a pas été détectée.
       if(roomIds.has(point.sceneId))return;
       const target=sceneOf(point.sceneId)!;
-      const x=(point.x/100-.5)*imageW,y=(.5-point.y/100)*imageH+(referenceMode?-.04:-.025);
+      const x=imgX+(point.x/100-.5)*imageW,y=imgY+(.5-point.y/100)*imageH;
       addPanelButton(.12,.12,pointTexture(String(pointIndex+1),target.id===currentId),
         x,y,()=>{void goTo(target.id);},9);
     });
-    // Plusieurs plans / étages : colonne à gauche (escalier + un bouton par étage), le plan affiché est en surbrillance.
+    // Plusieurs plans / étages : colonne à gauche (escalier + numéros 1, 2, 3...), le plan affiché est en surbrillance.
     if(plans.length>1){
-      const step=.135,top=((plans.length-1)*step)/2+.08;
-      const x=-W/2+.085;
-      addPlane(panelGroup,.11,.11,canvasTexture(180,180,ctx=>{
+      const step=.16,top=((plans.length-1)*step)/2+.04;
+      const x=-W/2+.14;
+      addPlane(panelGroup,.12,.12,canvasTexture(180,180,ctx=>{
         ctx.strokeStyle=iconColor;ctx.lineWidth=14;ctx.lineJoin='round';ctx.lineCap='round';
         ctx.beginPath();ctx.moveTo(26,148);ctx.lineTo(26,118);ctx.lineTo(62,118);ctx.lineTo(62,88);ctx.lineTo(98,88);ctx.lineTo(98,58);ctx.lineTo(134,58);ctx.lineTo(134,28);ctx.lineTo(160,28);ctx.stroke();
-      }),8,x,top-.0);
+      }),8,x,top+.06);
       // L'étage le plus haut est en haut de la colonne : on « monte » en cliquant vers le haut.
       plans.forEach((other,i)=>{
-        addPanelButton(.125,.125,pointTexture(planLevelLabel(other,i),i===index),x,top-.125-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
+        addPanelButton(.14,.14,pointTexture(planLevelLabel(other,i),i===index),x,top-.10-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
       });
     }
     if(!referenceMode)addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
@@ -1474,8 +1495,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }).finally(()=>{switchingReference=false;});
     }
     faceButtonDown=facesPressed;
-    barGroup.visible=referenceMode&&!uiHidden&&!activeVideo;
-    vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo;
+    barGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
+    vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
     panelGroup.visible=!uiHidden;
     headerGroup.visible=!uiHidden;
     noticeGroup.visible=!uiHidden;
@@ -1573,7 +1594,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }else{L.line.visible=false;L.dot.visible=false;L.hoveredLast=null;L.candidate=null;}
     }
     const tipTarget=activeLaserHover??remoteTarget;
-    const tipLabel=tipTarget&&referenceMode&&!uiHidden?(tipTarget.userData.vrTooltip as string|undefined):undefined;
+    const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan?(tipTarget.userData.vrTooltip as string|undefined):undefined;
     if(tipTarget&&tipLabel&&tipTarget.parent===barGroup){
       if(hoverTooltip.parent!==vrInterfaceGroup)vrInterfaceGroup.add(hoverTooltip);
       if(lastTooltipText!==tipLabel){
