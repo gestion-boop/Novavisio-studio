@@ -231,11 +231,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
       const radius=k*Math.max(.09,Math.min(.18,(h.iconSize??48)/90*.15));
-      const mesh=new Mesh(new SphereGeometry(radius,32,20),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
+      const mesh=new Mesh(new SphereGeometry(radius,64,40),new MeshBasicMaterial({color:0xd4edf5,transparent:true,opacity:.94,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
-      // Contour jaune (couleur du thème) autour de la sphère : on repère d'un coup d'œil les destinations.
-      const outline=new Mesh(new SphereGeometry(radius*1.45,32,20),new MeshBasicMaterial({color:new Color(/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f6bb34'),side:BackSide,transparent:true,opacity:1,depthTest:false,depthWrite:false}));
+      // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
+      const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
+      const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
+      const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
       outline.renderOrder=1;mesh.add(outline);
       // Dans un casque, un changement d'échelle sous le rayon de la manette
       // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
@@ -246,7 +248,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
           const url=sceneOf(h.target)?.dataUrl;
           if(url){
             try{
-              const pano=await loadReduced(url,512);
+              const pano=await loadReduced(url,1024);
               if(ended||!mesh.parent)return;
               const texture=new CanvasTexture(pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
               const material=mesh.material as MeshBasicMaterial;
@@ -1160,7 +1162,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         (m.material as MeshBasicMaterial).opacity=0;
         const targetId=sceneId;
         // Chaque pièce est un quad plein plan : on garde son masque pour ne la viser que sur ses pixels.
-        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;void goTo(targetId);}});
+        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;closePanels();void goTo(targetId);}});
         clickables.push(m as unknown as Clickable);
         roomIds.add(sceneId);
       }
@@ -1509,7 +1511,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const isPressed=(m.userData.pressedUntil??0)>now;
       const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
       // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
-      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity=isPressed?.95:hovered.has(m)?.8:0;}continue;}
+      // Surbrillance de pièce : fondu progressif (pas de saut entre 0 et 0,8) pour éviter le scintillement au survol.
+      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:hovered.has(m)?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
       if(m.userData.spin&&m.userData.dir){const want=isPressed?HOTSPOT_R-4.2:hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
