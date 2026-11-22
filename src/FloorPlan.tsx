@@ -55,6 +55,8 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
   const [ripple,setRipple]=useState<{x:number;y:number;id:number}|null>(null);
   const [movingPointId,setMovingPointId]=useState<string|null>(null);
   const [hoveredSceneId,setHoveredSceneId]=useState<string|null>(null);
+  const [touchPreview,setTouchPreview]=useState(false);
+  const lastPointerType=useRef<string>('mouse');
   // Pièces en surbrillance (jaune léger) autour de chaque panorama placé : on voit d'un coup d'œil où l'on peut aller.
   const [rooms,setRooms]=useState<Record<string,string>>({});
   const [roomsReady,setRoomsReady]=useState(false);
@@ -87,10 +89,27 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[roomsKey]);
   const position=(clientX:number,clientY:number,rect:DOMRect)=>({x:Math.max(0,Math.min(100,(clientX-rect.left)/rect.width*100)),y:Math.max(0,Math.min(100,(clientY-rect.top)/rect.height*100))});
+  const hoveredScene=hoveredSceneId?scenes.find(s=>s.id===hoveredSceneId):undefined;
   return <div className={'nv-plan-image'+(onPlace?' is-editing':'')+(dragOverPos?' is-drag-over':'')+(visitor?' is-visitor':'')+(visitor&&hoveredSceneId&&rooms[hoveredSceneId]?' is-room-hover':'')}
-    onPointerMove={visitor?e=>{const id=roomAt(e.clientX,e.clientY,e.currentTarget.getBoundingClientRect());setHoveredSceneId(cur=>cur===id?cur:id);}:undefined}
-    onPointerLeave={visitor?()=>setHoveredSceneId(null):undefined}
-    onClickCapture={visitor?e=>{const id=roomAt(e.clientX,e.clientY,e.currentTarget.getBoundingClientRect());if(id){e.stopPropagation();onPick(id);}}:undefined}
+    onPointerDownCapture={e=>{lastPointerType.current=e.pointerType||'mouse';if(e.pointerType!=='touch')setTouchPreview(false);}}
+    onPointerMove={visitor?e=>{if(e.pointerType==='touch')return;const id=roomAt(e.clientX,e.clientY,e.currentTarget.getBoundingClientRect());setHoveredSceneId(cur=>cur===id?cur:id);}:undefined}
+    onPointerLeave={visitor?()=>{if(lastPointerType.current!=='touch')setHoveredSceneId(null);}:undefined}
+    onClickCapture={visitor?e=>{
+      if((e.target as HTMLElement).closest('.nv-plan-touch-go'))return;
+      const id=roomAt(e.clientX,e.clientY,e.currentTarget.getBoundingClientRect());
+      if(!id){
+        if(lastPointerType.current==='touch'){setHoveredSceneId(null);setTouchPreview(false);}
+        return;
+      }
+      e.stopPropagation();
+      if(lastPointerType.current==='touch'&&id!==hoveredSceneId&&id!==currentId){
+        setHoveredSceneId(id);
+        setTouchPreview(true);
+        return;
+      }
+      setTouchPreview(false);
+      onPick(id);
+    }:undefined}
     onDragOver={onMove?e=>{e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDragOverPos(position(e.clientX,e.clientY,rect));}:undefined}
     onDragLeave={onMove?e=>{if(e.currentTarget.contains(e.relatedTarget as Node))return;setDragOverPos(null);}:undefined}
     onDrop={onMove?e=>{
@@ -127,21 +146,34 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
       return <Fragment key={point.sceneId}>
         {showMarker&&<button type="button" className={'nv-plan-point nv-no-fx'+(current?' is-current':'')+(isMoving?' is-moving':'')} style={{left:point.x+'%',top:point.y+'%'}}
           aria-label={(onPlace?ui('select',lang):ui('goTo',lang))+pick(scene.name,scene.nameTranslations,lang)} aria-current={current?'location':undefined} title={pick(scene.name,scene.nameTranslations,lang)}
-          onMouseEnter={()=>setHoveredSceneId(point.sceneId)}
-          onMouseLeave={()=>setHoveredSceneId(id=>id===point.sceneId?null:id)}
+          onMouseEnter={()=>{if(lastPointerType.current!=='touch')setHoveredSceneId(point.sceneId);}}
+          onMouseLeave={()=>{if(lastPointerType.current!=='touch')setHoveredSceneId(id=>id===point.sceneId?null:id);}}
           onPointerDown={onMove?e=>{if(e.button!==0)return;e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,moved:false,dx:e.clientX-rect.left-rect.width/2,dy:e.clientY-rect.top-rect.height/2};suppressClick.current=false;setMovingPointId(point.sceneId);e.currentTarget.setPointerCapture(e.pointerId);onPick(point.sceneId);}:undefined}
           onPointerMove={onMove?e=>{if(!drag.current)return;if(Math.hypot(e.clientX-drag.current.x,e.clientY-drag.current.y)>4)drag.current.moved=true;if(drag.current.moved){const p=position(e.clientX-drag.current.dx,e.clientY-drag.current.dy,e.currentTarget.parentElement!.getBoundingClientRect());e.currentTarget.style.left=p.x+'%';e.currentTarget.style.top=p.y+'%';}}:undefined}
           onPointerUp={onMove?e=>{if(!drag.current)return;const {moved,dx,dy}=drag.current;drag.current=null;setMovingPointId(null);suppressClick.current=moved;if(moved){const p=position(e.clientX-dx,e.clientY-dy,e.currentTarget.parentElement!.getBoundingClientRect());setRipple({x:p.x,y:p.y,id:Date.now()});onMove(point.sceneId,p.x,p.y);}}:undefined}
           onPointerCancel={e=>{drag.current=null;setMovingPointId(null);e.currentTarget.style.left=point.x+'%';e.currentTarget.style.top=point.y+'%';}}
-          onClick={e=>{e.stopPropagation();if(suppressClick.current){suppressClick.current=false;return;}onPick(point.sceneId);}}><span>{index+1}</span></button>}
+          onClick={e=>{
+            e.stopPropagation();
+            if(suppressClick.current){suppressClick.current=false;return;}
+            if(visitor&&lastPointerType.current==='touch'&&point.sceneId!==hoveredSceneId&&!current){
+              setHoveredSceneId(point.sceneId);setTouchPreview(true);return;
+            }
+            setTouchPreview(false);
+            onPick(point.sceneId);
+          }}><span>{index+1}</span></button>}
         {onRemove&&<button type="button" className="nv-plan-remove nv-no-fx" style={{left:`calc(${point.x}% + 16px)`,top:`calc(${point.y}% - 16px)`}}
           aria-label={'Retirer le point : '+scene.name} title={'Retirer le point : '+scene.name} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onRemove(point.sceneId);}}><X size={13}/></button>}
-        {isHovered&&<div className="nv-plan-point-tooltip">
+        {isHovered&&!touchPreview&&<div className="nv-plan-point-tooltip">
           {thumbs?.[point.sceneId]&&<img src={thumbs[point.sceneId]} alt="" draggable={false}/>}
           <strong>{pick(scene.name,scene.nameTranslations,lang)}</strong>
         </div>}
       </Fragment>;
     })}
+    {visitor&&touchPreview&&hoveredScene&&<button type="button" className="nv-plan-touch-go"
+      onClick={e=>{e.stopPropagation();setTouchPreview(false);onPick(hoveredScene.id);}}>
+      {thumbs?.[hoveredScene.id]&&<img src={thumbs[hoveredScene.id]} alt="" draggable={false}/>}
+      <span><small>Pièce sélectionnée</small><strong>{pick(hoveredScene.name,hoveredScene.nameTranslations,lang)} →</strong></span>
+    </button>}
   </div>;
 }
 

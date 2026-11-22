@@ -78,7 +78,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer,ArrowLeftRight,SlidersHorizontal} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -1900,6 +1900,7 @@ function App(){
   },[ready,lock,project.preparationComplete,project.scenes.length]);
   const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const liveBarSort=useHorizontalSort(project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
+  const [barReorderMode,setBarReorderMode]=useState(false);
   const spaceSort=useHorizontalSort((project.spaces??[]).map(sp=>sp.id),(from,to)=>setProject(p=>({...p,spaces:reorderItems(p.spaces??[],from,to,sp=>sp.id)})));
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
@@ -4794,19 +4795,23 @@ function App(){
             <div className="mode-active-pill">
               <span className="mode-active-dot" />
               <span>Cliquez dans le 360° pour placer : <strong>{mode==='navigation'?'Point Navigation':mode==='information'?'Point Information':mode==='lien'?'Lien web':mode==='image'?'Photo':clientVideoPlacement?.name??'Vidéo'}</strong></span>
-              <button type="button" className="nv-cancel-placement" onClick={()=>setMode(null)}>✕ Annuler la pose (Échap)</button>
+              <button type="button" className="nv-mode-settings" onClick={()=>{setToolSettings(mode==='video'?'video':mode);setPanel('tool');setSelectedId('');setRightHidden(false);}}><SlidersHorizontal size={14}/> Réglages</button>
+              <button type="button" className="nv-cancel-placement" onClick={()=>setMode(null)}>✕ Annuler (Échap)</button>
             </div>
           )}
           {/* BARRE DU BAS CONSERVÉE INTACTE */}
-          {active && !autoNavigation && project.bottomBar.length>0 && <nav className="visitor-bottom-bar" data-hsort={!preview?'':undefined} aria-label="Barre interactive de la visite" style={barCss}>
+          {active && !autoNavigation && project.bottomBar.length>0 && <nav className={'visitor-bottom-bar'+(barReorderMode&&!preview?' is-reorder':'')} data-hsort={!preview?'':undefined} aria-label="Barre interactive de la visite" style={barCss}>
             {project.bottomBar.map(item=>{
               const icon=barUsesIconImage(project.barStyle,item)&&project.icons.find(i=>i.id===item.iconId);
               const isUnavailable=preview && item.type==='lien' && !safeLink(item.url);
-              return <div key={item.id} data-hsort-id={!preview?item.id:undefined} className={liveBarSort.drag===item.id?'nv-live-bar-dragging':undefined}><div className="nv-bar-sort-item">{!preview&&project.bottomBar.length>1&&liveBarSort.grip(item.id,item.title)}<button type="button" style={{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
+              const label=pick(item.title,item.titleTranslations,visitorLang);
+              return <div key={item.id} data-hsort-id={!preview?item.id:undefined} className={'visitor-bar-item'+(liveBarSort.drag===item.id?' nv-live-bar-dragging':'')}><div className="nv-bar-sort-item">{!preview&&project.bottomBar.length>1&&liveBarSort.grip(item.id,item.title)}<button type="button" style={{'--nv-bar-btn':barIconSize(item)+'px'} as CSSProperties} className={'visitor-bar-button '+(icon?'has-custom-png ':'')+(selectedBarId===item.id&&!preview?'is-selected':'')} onClick={()=>triggerBar(item)} disabled={isUnavailable} title={isUnavailable?'Lien à configurer':item.title} aria-label={item.title}>
                 <span className="visitor-bar-icon">{icon?<IconStateVisual icons={project.icons} normal={item.iconId} hover={item.hoverIconId} pressed={item.pressedIconId} size={barIconSize(item)} zoom={(item.iconZoom??100)/100} trim={project.barIconTrim!==false}/>:<BarGlyph name={item.builtinIcon??'info'}/>}</span>
-                <span className="visitor-bar-label">{pick(item.title,item.titleTranslations,visitorLang)}</span>
-              </button></div></div>;
+              </button></div><span className="visitor-bar-label" aria-hidden="true">{label}</span></div>;
             })}
+            {!preview&&project.bottomBar.length>1&&<button type="button" className={'nv-bar-reorder-toggle'+(barReorderMode?' is-on':'')} aria-pressed={barReorderMode} onClick={()=>setBarReorderMode(v=>!v)} title={barReorderMode?'Terminer la réorganisation':'Réorganiser les boutons'} aria-label={barReorderMode?'Terminer la réorganisation':'Réorganiser les boutons'}>
+              <ArrowLeftRight size={15}/><span>{barReorderMode?'OK':'Ordre'}</span>
+            </button>}
           </nav>}
           {introVisible && project.introEnabled && project.introUrl && <div className={"intro-overlay"+(introEnding?" is-ending":"")}>
             <iframe title="Introduction de la visite" src={project.introUrl} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="strict-origin-when-cross-origin"/>

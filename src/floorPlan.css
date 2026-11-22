@@ -306,3 +306,18 @@
 .nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point.is-current{background:transparent;border-color:transparent;box-shadow:none;color:transparent;font-size:0}
 .nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point:hover,
 .nv-plan-immersive-stage .nv-plan-image>button.nv-plan-point:focus-visible{background:rgba(75,235,222,.22);border-color:#54e9d6;color:transparent;box-shadow:0 0 0 3px rgba(75,235,222,.35)}
+
+/* Tablette / tactile : pastille d'aperçu avec bouton de confirmation direct au premier toucher */
+.nv-plan-touch-go{
+  position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:40;
+  display:inline-flex;align-items:center;gap:10px;min-height:48px;max-width:calc(100% - 20px);
+  padding:6px 14px 6px 8px;border-radius:14px;border:1.5px solid #f3bb37;
+  background:rgba(12,18,24,.94);color:#fff;box-shadow:0 10px 28px rgba(0,0,0,.65);
+  backdrop-filter:blur(8px);cursor:pointer;text-align:left;
+  animation:nv-tooltip-in .16s cubic-bezier(.2,0,0,1);
+}
+.nv-plan-touch-go img{width:54px;height:36px;object-fit:cover;border-radius:8px;flex:none;border:1px solid #f3bb3766}
+.nv-plan-touch-go span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nv-plan-touch-go small{font:600 10px/1 system-ui;letter-spacing:.04em;text-transform:uppercase;color:#f3bb37}
+.nv-plan-touch-go strong{font:700 13.5px/1.2 system-ui;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nv-plan-touch-go:active{transform:translateX(-50%) scale(.96)}

@@ -9,15 +9,20 @@ export const setTransitionMs = (ms?: number) => {
 };
 export const getTransitionMs = () => current;
 
-/** Précharge les panoramas voisins (adresses réseau) pour que le changement soit quasi instantané. */
+/** Précharge les panoramas voisins (adresses réseau) en priorité basse pour des transitions quasi instantanées sur PC et tablette. */
 const warmed = new Set<string>();
 export function warmPanoramas(urls: Array<string | undefined>): void {
   if (typeof Image === 'undefined') return;
   for (const url of urls) {
-    if (!url || warmed.has(url) || url.startsWith('data:') || warmed.size > 60) continue;
+    if (!url || warmed.has(url) || url.startsWith('data:')) continue;
+    if (warmed.size >= 80) {
+      const oldest = warmed.values().next().value;
+      if (oldest) warmed.delete(oldest);
+    }
     warmed.add(url);
-    const img = new Image();
+    const img = new Image() as HTMLImageElement & { fetchPriority?: string };
     img.decoding = 'async';
+    try { img.fetchPriority = 'low'; } catch { /* optionnel */ }
     img.src = url;
     void img.decode?.().catch(() => { /* ignoré : le chargement normal prendra le relais */ });
   }
