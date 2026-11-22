@@ -41,13 +41,23 @@ export const DEFAULT_VR_MENU: VrMenuConfig = {
   right: ['sound', 'plan', 'help', 'exit'],
 };
 
-/** Actions disponibles pour ce projet : intégrées + une par bouton de la barre du bas. */
+/** Actions disponibles pour ce projet : intégrées + boutons de la barre du bas sans doublons. */
 export function availableVrActions(project: Pick<StudioProject, 'bottomBar'>): VrAction[] {
+  const seenSig = new Set<string>();
+  const extra: VrAction[] = [];
   const excluded = excludedFromVr(project);
-  return [
-    ...VR_BUILTIN_ACTIONS,
-    ...project.bottomBar.filter((item) => !excluded.has(item.id)).map((item) => ({id: 'bar:' + item.id, label: 'Bouton « ' + (item.title || 'sans titre') + ' »'})),
-  ];
+  for (const item of project.bottomBar) {
+    if (excluded.has(item.id)) continue;
+    if (item.type === 'plan') continue;
+    if (item.type === 'gallery' && !item.gallerySpaceIds?.length) continue;
+    if (item.type === 'navigation' && !item.target) continue;
+    const label = item.title?.trim() || (item.type === 'gallery' ? 'Espaces' : 'Sans titre');
+    const sig = `${item.type}|${label.toLocaleLowerCase('fr')}|${item.url || item.target || ''}`;
+    if (seenSig.has(sig)) continue;
+    seenSig.add(sig);
+    extra.push({id: 'bar:' + item.id, label: 'Bouton « ' + label + ' »'});
+  }
+  return [...VR_BUILTIN_ACTIONS, ...extra];
 }
 
 /** Case vide d'une colonne : garde l'alignement des lignes entre les deux colonnes. */
@@ -56,6 +66,17 @@ export const VR_GAP = '';
 /** Dernier index occupé d'une colonne (-1 si vide). */
 const lastUsed = (list: string[]) => {for (let i = list.length - 1; i >= 0; i--) if (list[i]) return i; return -1;};
 const firstUsed = (list: string[]) => list.findIndex(Boolean);
+
+/** Normalise une action `bar:` en doublon vers son action intégrée équivalente. */
+function canonicalVrAction(id: string, project: Pick<StudioProject, 'bottomBar'>): string {
+  if (!id.startsWith('bar:')) return id;
+  const item = project.bottomBar.find((b) => b.id === id.slice(4));
+  if (!item) return id;
+  if (item.type === 'plan') return 'plan';
+  if (item.type === 'gallery' && !item.gallerySpaceIds?.length) return 'gallery';
+  if (item.type === 'navigation' && !item.target) return 'home';
+  return id;
+}
 
 /**
  * Configuration à utiliser : celle du projet, sinon l'interface actuelle.
@@ -70,8 +91,10 @@ export function vrMenuOf(project: Pick<StudioProject, 'vrMenu' | 'bottomBar'>): 
   const valid = (id: string) => VR_BUILTIN_ACTIONS.some((a) => a.id === id) || (id.startsWith('bar:') && barIds.has(id.slice(4)));
   const seen = new Set<string>();
   const clean = (list: string[]) => {
-    const out = (Array.isArray(list) ? list : []).slice(0, VR_MAX_PER_COLUMN).map((id) => {
-      if (typeof id !== 'string' || !id || !valid(id) || seen.has(id)) return VR_GAP;
+    const out = (Array.isArray(list) ? list : []).slice(0, VR_MAX_PER_COLUMN).map((raw) => {
+      if (typeof raw !== 'string' || !raw || !valid(raw)) return VR_GAP;
+      const id = canonicalVrAction(raw, project);
+      if (seen.has(id)) return VR_GAP;
       seen.add(id);
       return id;
     });
