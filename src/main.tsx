@@ -2222,6 +2222,15 @@ function App(){
   // Mode Auto : le clic sur la cible ouvre la galerie 360° pour choisir le panorama d'arrivée (suggestion par numéro de scan).
   const arrivalDraftRef=useRef<{id:string;yaw:number;pitch:number;zoom:number}|null>(null);
   const [autoPending,setAutoPending]=useState<{yaw:number;pitch:number}|null>(null);
+  // Destination choisie pour la prochaine flèche (par défaut : le panorama suivant dans l'ordre) + vue visée dans l'aperçu 360°.
+  const [autoDestId,setAutoDestId]=useState<string|null>(null);
+  const autoAimRef=useRef<{id:string;base:{yaw:number;pitch:number;zoom:number};touched:{yaw:number;pitch:number;zoom:number}|null}|null>(null);
+  useEffect(()=>{setAutoDestId(null);autoAimRef.current=null;},[active?.id,autoNavigation]);
+  const autoTarget=(()=>{
+    if(!autoNavigation||!active)return undefined;
+    const chosen=autoDestId?visibleScenes.find(sc=>sc.id===autoDestId&&sc.id!==active.id):undefined;
+    return chosen??visibleScenes[visibleScenes.findIndex(sc=>sc.id===active.id)+1];
+  })();
   function openAutoGallery(yaw:number,pitch:number){
     if(!active||!autoNavigation||preview)return;
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
@@ -2232,7 +2241,7 @@ function App(){
     setClassicDestinationPreviewId(suggestDestinations(active.id)[0]?.id??visibleScenes[index+1]?.id??visibleScenes.find(sc=>sc.id!==active.id)?.id??null);
     setClassicDestinationOpen(true);
   }
-  function guidedForward(yaw:number,pitch:number,destinationId?:string){
+  function guidedForward(yaw:number,pitch:number,destinationId?:string,aimMode:'gallery'|'auto'='gallery'){
     if(!active)return;
     const index=visibleScenes.findIndex(sc=>sc.id===active.id);
     const next=destinationId?visibleScenes.find(sc=>sc.id===destinationId):visibleScenes[index+1];
@@ -2241,7 +2250,7 @@ function App(){
     const prevId=active.id;
     const alreadyBack=next.hotspots.some(h=>h.type==='navigation'&&h.target===prevId);
     // Vue d'arrivée = la vue réellement visée dans l'aperçu de destination (cible + inclinaison), sinon le cap de la flèche.
-    const aim=destinationId?galleryOrientationRef.current[destinationId]:undefined;
+    const aim=!destinationId?undefined:aimMode==='auto'?(autoAimRef.current?.id===destinationId?autoAimRef.current.touched??undefined:undefined):galleryOrientationRef.current[destinationId];
     const arrival=aim?{yaw:aim.yaw,pitch:aim.pitch,zoom:aim.zoom??panoramaArrivalZoom(next)}:{yaw:existing?.yaw??yaw,pitch:0,zoom:panoramaArrivalZoom(next)};
     confirmNavigationDirection({
       sourceId:active.id,targetId:next.id,sourceYaw:existing?.yaw??yaw,sourcePitch:existing?.pitch??pitch,
@@ -4281,6 +4290,23 @@ function App(){
           {autoNavigation&&!preview&&guide?.phase==='forward'&&<div className="nv-guide-banner is-forward" role="status">
             <span>➜ <b>Aller</b> · vise avec la cible puis clique sur + : ouvre directement le panorama suivant.</span>
           </div>}
+          {autoNavigation&&!preview&&guide?.phase==='forward'&&autoTarget&&<aside className="nv-auto-dest" aria-label="Panorama de destination">
+            <header>
+              <span>Destination</span>
+              <select value={autoTarget.id} aria-label="Choisir le panorama de destination" onChange={e=>setAutoDestId(e.target.value)}>
+                {visibleScenes.filter(sc=>sc.id!==active?.id).map(sc=><option key={sc.id} value={sc.id}>{sc.name}</option>)}
+              </select>
+            </header>
+            <div className="nv-auto-dest-view" key={autoTarget.id}>
+              <FullscreenGalleryHoverPreview scene={autoTarget} thumb={sceneThumbs[autoTarget.id]} onOrientation={view=>{
+                const cur=autoAimRef.current;
+                if(!cur||cur.id!==autoTarget.id){autoAimRef.current={id:autoTarget.id,base:view,touched:null};return;}
+                if(Math.abs(view.yaw-cur.base.yaw)>1e-3||Math.abs(view.pitch-cur.base.pitch)>1e-3||Math.abs(view.zoom-cur.base.zoom)>1e-3)cur.touched=view;
+              }}/>
+              <div className="nv-target-center" aria-hidden="true"><span/><span/><i/></div>
+            </div>
+            <small>Glisse pour regarder à 360° : la vue visée sera l’arrivée.</small>
+          </aside>}
           {((autoNavigation&&!preview)||(creationFullscreen&&showArrivalCrosshair&&!preview))&&
             <div className={'nv-arrival-crosshair'+(autoNavigation?' nv-auto-crosshair':'')} aria-label="Cible centrale du panorama de départ">
               <span className="nv-cross-h"/><span className="nv-cross-v"/><span className="nv-cross-dot"/>
@@ -4297,7 +4323,7 @@ function App(){
                     // Le + avance directement vers le panorama suivant dans l'ordre visible.
                     // La galerie de choix reste disponible par les autres commandes de navigation.
                     guidedForward(v.sceneId===active.id?v.yaw:(active.arrivalYaw??0),
-                      v.sceneId===active.id?v.pitch:(active.arrivalPitch??0));
+                      v.sceneId===active.id?v.pitch:(active.arrivalPitch??0),autoTarget?.id,'auto');
                   }}>
                   <span aria-hidden="true">+</span>
                 </button>}
