@@ -276,3 +276,5 @@
 .nv-plan-shortcuts button{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:999px;border:1px solid var(--nv-button-outline,#4aa9c0);background:var(--nv-button-bg,#12485a);color:var(--nv-icon-color,#e9fbff);font:700 14px system-ui;cursor:pointer;transition:filter .2s,transform .2s}
 .nv-plan-shortcuts button:hover{filter:brightness(1.2);transform:translateY(-2px)}
 .nv-plan-shortcuts img{width:24px;height:24px;object-fit:contain}
+
+.nv-plan-autoplace{font:700 12px system-ui;padding:6px 10px;border-radius:9px;border:1px solid var(--nv-accent,#2bb3d6);background:transparent;color:inherit;cursor:pointer}.nv-plan-autoplace:hover{background:rgba(43,179,214,.16)}

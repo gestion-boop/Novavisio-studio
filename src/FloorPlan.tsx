@@ -1,3 +1,4 @@
+import {proposePlanLayout} from './planAutoPlace';
 import {confirmAsk} from './confirmDialog';
 import {createPortal} from 'react-dom';
 import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
@@ -222,7 +223,14 @@ export function FloorPlanEditor({plans,scenes,onChange,hasPlanButton,onAddButton
     {plan&&<div className="nv-plan-workspace">
       <div className="nv-plan-workspace-map">
         <div className="nv-plan-pane-heading"><strong>{plan.name||'Plan '+(index+1)}</strong>
-          <small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small></div>
+          <small>{visiblePoints(plan,available).length} / {available.length} panoramas placés</small>
+          {available.length>0&&<button type="button" className="nv-plan-autoplace" title="Propose un placement : l’entrée d’abord, puis les panoramas reliés. À corriger à la souris."
+            onClick={async()=>{
+              if(plan.points.length&&!await confirmAsk('Remplacer les '+plan.points.length+' repères de ce plan par une proposition automatique ? (Tu peux annuler avec la flèche retour.)'))return;
+              updatePlan(item=>({...item,points:proposePlanLayout(available)}));
+              setError('Proposition appliquée : l’entrée est en bas du plan, ajuste chaque repère à la souris.');
+            }}>✨ Placer automatiquement</button>}
+        </div>
         <div className="nv-plan-edit-canvas">
           <div className="nv-plan-map-surface" style={{visibility:previewScene?'hidden':undefined}}>
             <PlanImage key={plan.id??index} plan={plan} scenes={available} currentId={selected?.id}
