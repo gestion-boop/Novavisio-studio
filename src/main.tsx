@@ -103,6 +103,7 @@ import './style.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
 import {applyCloseColor} from './closeColor';
+import {useEffectiveBarTheme} from './barImageTheme';
 import {setTransitionMs} from './transitionPrefs';
 initWindowAnimOrigin();
 import './media.css';
@@ -1901,6 +1902,8 @@ function App(){
   const barSort=useGripSort('visit-bar',project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const liveBarSort=useHorizontalSort(project.bottomBar.map(item=>item.id),(from,to)=>setProject(p=>({...p,bottomBar:reorderItems(p.bottomBar,from,to,item=>item.id)})));
   const spaceSort=useHorizontalSort((project.spaces??[]).map(sp=>sp.id),(from,to)=>setProject(p=>({...p,spaces:reorderItems(p.spaces??[],from,to,sp=>sp.id)})));
+  // Couleurs RÉELLES de la barre du bas (images du pack d'icônes comprises), pas seulement barStyle.
+  const effectiveBar=useEffectiveBarTheme(project,project.barStyle);
   const barCss = {
     '--nv-close-icon-image':closeIcon?`url("${closeIcon.dataUrl}")`:'none',
     '--nv-close-icon-hover-image':project.closeIconHoverId?`url("${project.icons.find(i=>i.id===project.closeIconHoverId)?.dataUrl??''}")`:'none',
@@ -1908,9 +1911,9 @@ function App(){
     '--nv-bar-bg':project.barStyle.background,
     '--nv-daynight-color':project.barStyle.dayNightColor??'#2f72b4',
     '--nv-bar-outline':project.barStyle.outline,
-    '--nv-button-bg':project.barStyle.button,
-    '--nv-button-outline':project.barStyle.buttonOutline,
-    '--nv-icon-color':project.barStyle.icon,
+    '--nv-button-bg':effectiveBar.button,
+    '--nv-button-outline':effectiveBar.buttonOutline,
+    '--nv-icon-color':effectiveBar.icon,
     '--nv-bar-border-width':project.barStyle.outlineWidth+'px',
     '--nv-button-border-width':project.barStyle.buttonOutlineWidth+'px',
     '--nv-bar-roundness':project.barStyle.roundness+'px',
@@ -2731,7 +2734,7 @@ function App(){
   const activeLanguages:StudioLanguage[]=project.languages??STUDIO_LANGUAGES.map(lang=>lang.code);
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   const [windowDemo,setWindowDemo]=useState(false);
-  useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor);},[project.closeButtonColor,project.closeIconId]);
+  useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor,project.closeButtonInk);},[project.closeButtonColor,project.closeButtonInk,project.closeIconId]);
   useEffect(()=>{setTransitionMs(project.transitionMs);},[project.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
@@ -3218,15 +3221,16 @@ function App(){
     return null;
   }
   /** Couleur des croix de fermeture : couleurs de la barre, sélecteur libre, pipette. Choisir une couleur remplace une icône de croix personnalisée. */
-  function setCloseColor(color?:string){
-    setProject(p=>({...p,closeButtonColor:color,...(color?{closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined}:{})}));
+  function setCloseColor(color?:string,ink?:string){
+    setProject(p=>({...p,closeButtonColor:color,closeButtonInk:color?ink:undefined,...(color?{closeIconId:undefined,closeIconHoverId:undefined,closeIconPressedId:undefined}:{})}));
   }
   function closeColorControls(){
     const eyedropper=typeof window!=='undefined'&&'EyeDropper' in window;
-    const barColor=/^#[0-9a-f]{6}$/i.test(project.barStyle.button)?project.barStyle.button:undefined;
+    const barColor=/^#[0-9a-f]{6}$/i.test(effectiveBar.button)?effectiveBar.button:undefined;
+    const barInk=/^#[0-9a-f]{6}$/i.test(effectiveBar.icon)?effectiveBar.icon:undefined;
     return <div className="nv-close-config">
       <p className="hint">Une seule couleur pour les croix des photos, vidéos, informations, galeries et pages intégrées de tout le projet. Au survol, la croix s’éclaircit.</p>
-      <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={()=>{setCloseColor(barColor);setStatus('Croix de fermeture : couleur des boutons de la barre appliquée. Enregistre avec la disquette.');}}>
+      <button type="button" className="nv-close-barcolors" disabled={!barColor} onClick={()=>{setCloseColor(barColor,barInk);setStatus('Croix de fermeture : couleurs réelles des boutons de la barre appliquées (fond et pictogramme). Enregistre avec la disquette.');}}>
         <i style={{background:barColor??'#888'}}/> Appliquer les couleurs de la barre du bas</button>
       <div className="nv-close-colors">
         {([['Jaune','#f5b324'],['Blanc','#ffffff'],['Orange','#e18533'],['Rouge','#d93b3b'],['Bleu','#2f9fd8'],['Noir','#1c1c1c']] as const).map(([name,c])=>
