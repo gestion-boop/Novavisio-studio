@@ -37,7 +37,7 @@
 /* Infobulle de survol (hover card avec aperçu) */
 .nv-plan-point-tooltip{
   /* Ancré sur le point (left/top) puis remonté au-dessus du cercle : l'aperçu ne recouvre jamais le point à cliquer. */
-  position:absolute;left:50%;translate:-50% calc(-100% - 30px);transform-origin:50% 100%;z-index:35;pointer-events:none;
+  position:absolute;left:50%;translate:-50% calc(-100% - 46px);transform-origin:50% 100%;z-index:35;pointer-events:none;
   display:flex;flex-direction:column;gap:5px;padding:6px;border-radius:10px;background:rgba(8,27,39,.95);border:1px solid #4bebde88;
   backdrop-filter:blur(8px);box-shadow:0 10px 28px rgba(0,0,0,.7);color:#effbff;width:max-content;max-width:180px;text-align:center;
   animation:nv-tooltip-in .15s cubic-bezier(.2,0,0,1);
@@ -226,7 +226,7 @@
   flex:1;min-height:0;min-width:0;overflow:hidden;padding:0;margin:0;
 }
 .nv-plan-immersive-stage .nv-plan-image{
-  display:inline-block;width:auto;max-width:100%;max-height:100%;
+  display:inline-block;width:auto;max-width:100%;max-height:none;
   flex:0 1 auto;overflow:visible;line-height:0;
 }
 .nv-plan-immersive-stage .nv-plan-image>img{
