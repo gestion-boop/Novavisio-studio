@@ -1,4 +1,5 @@
 import {CanvasTexture, Color, LinearFilter, DoubleSide, Group, Line, LineBasicMaterial, BufferGeometry, Float32BufferAttribute, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, Quaternion, Raycaster, Scene as ThreeScene, SphereGeometry, SRGBColorSpace, Vector3, VideoTexture, WebGLRenderer, RepeatWrapping, type Object3D, type Texture, LinearMipmapLinearFilter} from 'three';
+import {roomHighlights} from './planRooms';
 import {getFloorPlans,plansByLevel,planLevelLabel,roomNameVisible,type StudioProject,type Scene,type Hotspot,type BottomBarItem} from './storage';
 import {galleryEntries} from './gallery';
 import {trimIcon} from './iconFit';
@@ -1142,6 +1143,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),920,43,27);
       ctx.fillText(title,500,57);
     }),7,0,H/2-.068);
+    // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
+    try{
+      const found=await roomHighlights(plan,plan.points.filter(point=>{const sc=sceneOf(point.sceneId);return !!sc&&!sc.excluded;}),/^#[0-9a-f]{6}$/i.test(iconColor)?iconColor:'#f5b324');
+      if(ended||req!==floorPlanRequest||gen!==panelGen)return;
+      for(const [sceneId,canvas] of Object.entries(found)){
+        const tex=new CanvasTexture(canvas);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearFilter;
+        const m=addPlane(panelGroup,imageW,imageH,tex,6.5,0,-.025);
+        (m.material as MeshBasicMaterial).opacity=sceneId===currentId?1:.8;
+      }
+    }catch{/* sans surbrillance, le plan reste utilisable */}
     const pointTexture=(label:string,current:boolean)=>canvasTexture(180,180,ctx=>{
       ctx.beginPath();ctx.arc(90,90,76,0,Math.PI*2);
       ctx.fillStyle=current?iconColor:btnBg;ctx.fill();

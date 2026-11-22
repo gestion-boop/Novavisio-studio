@@ -290,3 +290,7 @@
 .nv-plan-read-row input[type=text],.nv-plan-read-row select{min-width:0;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:inherit;font:inherit;font-size:13px}
 .nv-plan-read-place{font-size:13px;display:flex;gap:8px;align-items:center}
 .nv-plan-read-card footer{display:flex;justify-content:flex-end;gap:8px}
+
+/* Pièces en surbrillance : jaune léger sous les repères, plus marqué pour la pièce où l'on se trouve. */
+.nv-plan-image>img.nv-plan-room{position:absolute;inset:0;width:100%;height:100%;max-height:none;object-fit:fill;pointer-events:none;opacity:.75;mix-blend-mode:multiply}
+.nv-plan-image>img.nv-plan-room.is-current{opacity:1}

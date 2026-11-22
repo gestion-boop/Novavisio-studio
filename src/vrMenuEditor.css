@@ -95,3 +95,6 @@
 .nv-vrx-stairs{color:var(--vr-accent,#f5b324);display:flex}
 .nv-vrx-levels button{min-width:38px;height:38px;border-radius:50%;border:2px solid var(--vr-accent,#f5b324);background:transparent;color:var(--vr-accent,#f5b324);font-weight:700;cursor:pointer}
 .nv-vrx-levels button.is-on{background:var(--vr-accent,#f5b324);color:#111}
+
+.nv-vrx-plan-wrap{position:relative;display:inline-block;line-height:0}
+.nv-vrx-plan-room{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;mix-blend-mode:multiply;opacity:.85}

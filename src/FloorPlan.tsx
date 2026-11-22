@@ -1,3 +1,4 @@
+import {roomHighlights} from './planRooms';
 import {proposePlanLayout} from './planAutoPlace';
 import {readPlanImage,matchScenesToRooms,type PlanRoom} from './planRead';
 import {confirmAsk} from './confirmDialog';
@@ -54,6 +55,22 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
   const [ripple,setRipple]=useState<{x:number;y:number;id:number}|null>(null);
   const [movingPointId,setMovingPointId]=useState<string|null>(null);
   const [hoveredSceneId,setHoveredSceneId]=useState<string|null>(null);
+  // Pièces en surbrillance (jaune léger) autour de chaque panorama placé : on voit d'un coup d'œil où l'on peut aller.
+  const [rooms,setRooms]=useState<Record<string,string>>({});
+  const roomsKey=visiblePoints(plan,scenes).map(p=>p.sceneId+':'+p.x.toFixed(1)+','+p.y.toFixed(1)).join('|')+'#'+plan.imageDataUrl.length;
+  useEffect(()=>{
+    let alive=true;
+    const timer=window.setTimeout(()=>{
+      void roomHighlights(plan,visiblePoints(plan,scenes)).then(found=>{
+        if(!alive)return;
+        const urls:Record<string,string>={};
+        for(const [id,canvas] of Object.entries(found))urls[id]=canvas.toDataURL('image/png');
+        setRooms(urls);
+      }).catch(()=>{if(alive)setRooms({});});
+    },250);
+    return ()=>{alive=false;window.clearTimeout(timer);};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[roomsKey]);
   const position=(clientX:number,clientY:number,rect:DOMRect)=>({x:Math.max(0,Math.min(100,(clientX-rect.left)/rect.width*100)),y:Math.max(0,Math.min(100,(clientY-rect.top)/rect.height*100))});
   return <div className={'nv-plan-image'+(onPlace?' is-editing':'')+(dragOverPos?' is-drag-over':'')}
     onDragOver={onMove?e=>{e.preventDefault();e.dataTransfer.dropEffect='move';const rect=e.currentTarget.getBoundingClientRect();setDragOverPos(position(e.clientX,e.clientY,rect));}:undefined}
@@ -72,6 +89,7 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
       onPlace(p.x,p.y);
     }:undefined}>
     <img src={plan.imageDataUrl} alt={plan.name||'Plan de la visite'} draggable={false}/>
+    {visiblePoints(plan,scenes).map(point=>rooms[point.sceneId]?<img key={'room-'+point.sceneId} className={'nv-plan-room'+(point.sceneId===currentId?' is-current':'')} src={rooms[point.sceneId]} alt="" aria-hidden="true" draggable={false}/>:null)}
     {dragOverPos&&<div className="nv-plan-reticle" style={{left:dragOverPos.x+'%',top:dragOverPos.y+'%'}}>
       <div className="nv-plan-reticle-ring"/>
       <div className="nv-plan-reticle-crosshair"/>
