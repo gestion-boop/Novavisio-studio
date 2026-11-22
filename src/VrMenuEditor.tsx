@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState, type CSSProperties, type Dispatch, type DragEvent, type ReactNode, type SetStateAction} from 'react';
 import {createPortal} from 'react-dom';
-import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, LayoutGrid, Map as MapIcon, Pencil, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
+import {ChevronDown, ChevronUp, ExternalLink, Eye, HelpCircle, Home, Images, Info, LayoutGrid, Map as MapIcon, Pencil, Phone, Play, RotateCcw, Trash2, Volume2, VolumeX, X} from 'lucide-react';
+import {barKind} from './barKind';
 import {roomHighlights} from './planRooms';
 import {getFloorPlans, plansByLevel, planLevelLabel, type BottomBarItem, type StudioProject} from './storage';
 import {DEFAULT_VR_MENU, VR_BTN, VR_GAP, VR_MAX_PER_COLUMN, VR_SHELL, availableVrActions, layoutColumns, vrMenuOf, type VrSlot} from './vrMenu';
@@ -21,7 +22,8 @@ function ActionIcon({id, project, sound = true, size = 22}: {id: string; project
     const type = barItem?.type;
     const custom = project.icons?.find((i) => i.id === barItem?.iconId)?.dataUrl;
     if (custom && type === 'lien') return <img className="nv-vrx-icon-img" src={custom} alt="" style={{width: size + 8, height: size + 8}}/>;
-    const I = type === 'lien' ? ExternalLink : type === 'information' ? Info : type === 'photos' ? Images : type === 'plan' ? MapIcon : LayoutGrid;
+    const kind = barItem ? barKind(barItem) : 'other';
+    const I = kind === 'photos' ? Images : kind === 'phone' ? Phone : kind === 'map' || type === 'plan' ? MapIcon : kind === 'gallery' ? LayoutGrid : kind === 'web' || type === 'lien' ? ExternalLink : kind === 'info' || kind === 'menu' || type === 'information' ? Info : LayoutGrid;
     return <I size={size} strokeWidth={2.2}/>;
   }
   switch (id) {

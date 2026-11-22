@@ -11,6 +11,7 @@ import {makeVrControlTexture,type VrControlIcon} from './vrInterfaceIcons';
 import {layoutColumns,vrMenuOf,VR_SHELL} from './vrMenu';
 import {isReturnLink,displayPitch} from './returnLink';
 import {setVrMusicPlaying} from './vrAudioBridge';
+import {barKind} from './barKind';
 
 /**
  * Mode VR de base (WebXR) pour casque Meta Quest : panorama 360° autour du spectateur, flèches de navigation cliquables
@@ -544,8 +545,16 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const plan=project().bottomBar.find(item=>item.type==='plan');
     const planAction={id:'vr-menu-plan',title:getFloorPlans(project())[0]?.name||'Plans',type:'plan'} as BottomBarItem;
     // Colonnes configurables (onglet « Vue casque » de l'éditeur) : mêmes marges au cadre, même écart, lignes alignées.
-    const iconOfItem=(item:BottomBarItem):VrControlIcon=>
-      item.type==='plan'?'plan':item.type==='photos'?'photos':item.type==='lien'?'link':item.type==='information'?'info':'gallery';
+    // Pictogramme d'après ce que fait le bouton (photo, téléphone, carte…), comme dans l'éditeur.
+    const iconOfItem=(item:BottomBarItem):VrControlIcon=>{
+      const kind=barKind(item);
+      if(kind==='photos')return 'photos';
+      if(kind==='map'||item.type==='plan')return 'plan';
+      if(kind==='phone'||kind==='web'||item.type==='lien')return 'link';
+      if(kind==='info'||kind==='menu'||item.type==='information')return 'info';
+      if(kind==='gallery')return 'gallery';
+      return 'gallery';
+    };
     const toggleSound=()=>{
       // "undecided" est traité comme éteint : le premier clic démarre la musique.
       // play() doit être appelé dans cet événement XR avant toute opération await.
