@@ -231,16 +231,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const iconUrl=getIconUrl(h.iconId);
     const img=iconUrl?await loadImage(iconUrl):null;
     if(h.type==='navigation'&&h.sphere&&h.target){
-      const radius=k*Math.max(.12,Math.min(.24,(h.iconSize??48)/90*.2));
-      // Couleur du contour (même réglage que l'éditeur) : sert aussi de teinte avant le chargement du panorama.
+      const radius=k*Math.max(.13,Math.min(.22,(h.iconSize??48)/90*.2));
+      // Couleur du contour (réglage de l'éditeur) : teinte la sphère avant le chargement du panorama.
       const rimColor=/^#[0-9a-f]{6}$/i.test(h.sphereRimColor??'')?h.sphereRimColor!:'#9fe3ff';
-      const mesh=new Mesh(new SphereGeometry(radius,128,80),new MeshBasicMaterial({color:new Color(rimColor),transparent:true,opacity:1,depthTest:false,depthWrite:false}));
+      const hitRadius=Math.max(.15,radius*1.38);
+      const mesh=new Mesh(new SphereGeometry(hitRadius,16,12),new MeshBasicMaterial({transparent:true,opacity:0,depthTest:false,depthWrite:false}));
       const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
       mesh.position.copy(pos);mesh.renderOrder=2;
+      const visual=new Mesh(new SphereGeometry(radius,128,80),new MeshBasicMaterial({color:new Color(rimColor),transparent:true,opacity:1,depthTest:false,depthWrite:false}));
+      visual.renderOrder=2;mesh.add(visual);
       // Contour extérieur identique au mode édition : même couleur, même intensité, même épaisseur (1,09 × le rayon).
       const rimOpacity=Math.min(1,Math.max(0,(h.sphereRimIntensity??7)/100));
       const outline=new Mesh(new SphereGeometry(radius*1.09,64,40),new MeshBasicMaterial({color:new Color(rimColor),side:BackSide,transparent:true,opacity:rimOpacity,depthTest:false,depthWrite:false}));
-      outline.renderOrder=1;mesh.add(outline);
+      outline.renderOrder=1;visual.add(outline);
       // Nom de la pièce juste sous la sphère : on sait où l'on va sans viser.
       const destination=sceneOf(h.target);
       const destinationName=destination?pick(destination.name,destination.nameTranslations,vlang()):'';
@@ -254,25 +257,24 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         });
         const label=new Sprite(new SpriteMaterial({map:labelTexture,transparent:true,depthTest:false,depthWrite:false}));
         label.scale.set(.9,.17,1);label.position.set(0,-radius*1.9-.12,0);label.renderOrder=3;
-        mesh.add(label);
+        visual.add(label);
       }
-      // Dans un casque, un changement d'échelle sous le rayon de la manette
-      // déplace la cible à chaque frame et donne l'impression qu'elle clignote.
-      mesh.userData={baseScale:1,hoverScale:1,spin:true,dir:pos.clone().normalize(),dist:HOTSPOT_R,onSelect:()=>void goTo(h.target,h)};
+      // Le collider reste strictement fixe à 6 m (aucun saut radial sous le rayon) : la sphère visuelle grossit sur place autour de son centre.
+      mesh.userData={baseScale:1,hoverScale:1,spin:true,visualSphere:visual,rimOutline:outline,rimOpacity,toViewer:pos.clone().normalize().multiplyScalar(-1),onSelect:()=>void goTo(h.target,h)};
       opts.ensureScene?.(h.target);
       const loadSphere=async()=>{
         for(let attempt=0;attempt<30&&!ended;attempt++){
           const url=sceneOf(h.target)?.dataUrl;
           if(url){
             try{
-              const pano=await loadReduced(url,1024);
+              const pano=await loadReduced(url,2048);
               if(ended||!mesh.parent)return;
               // Couleurs plus vives : la sphère reste lisible sur les murs blancs.
               const vivid=document.createElement('canvas');vivid.width=pano.width;vivid.height=pano.height;
               const vividCtx=vivid.getContext('2d');
               if(vividCtx){vividCtx.filter='saturate(1.8) contrast(1.12)';vividCtx.drawImage(pano,0,0);}
               const texture=new CanvasTexture(vividCtx?vivid:pano);texture.colorSpace=SRGBColorSpace;texture.wrapS=RepeatWrapping;
-              const material=mesh.material as MeshBasicMaterial;
+              const material=visual.material as MeshBasicMaterial;
               material.map=texture;material.color.set(0xffffff);material.opacity=1;material.needsUpdate=true;
               return;
             }catch{}
@@ -292,7 +294,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       else if(h.type==='navigation'){c.beginPath();c.moveTo(88,148);c.lineTo(128,100);c.lineTo(168,148);c.stroke();}
       else {c.font='bold 144px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(h.type==='information'?'i':h.type==='lien'?'↗':h.type==='video'?'▶':'▣',128,130);}
     });
-    const size=k*Math.min(.30,Math.max(.12,(h.iconSize??28)/48*.20));
+    const size=k*Math.min(.32,Math.max(.14,(h.iconSize??28)/48*.20));
     const mesh=new Mesh(new PlaneGeometry(size,size),new MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false,side:DoubleSide}));
     mesh.renderOrder=1;
     const pos=new Vector3(-Math.cos(shownPitch)*Math.sin(h.yaw),Math.sin(shownPitch),Math.cos(shownPitch)*Math.cos(h.yaw)).multiplyScalar(HOTSPOT_R);
@@ -331,16 +333,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     return mesh;
   };
 
+  const disposeNode=(node:Object3D)=>{
+    for(const sub of [...node.children])disposeNode(sub);
+    const m=node as Mesh;
+    const mat=m.material as MeshBasicMaterial|undefined;
+    const states=m.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null}|undefined;
+    for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==mat?.map)texture.dispose();
+    mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
+    const vid=m.userData.video as HTMLVideoElement|null|undefined;
+    if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
+  };
   const clearGroup=(g:Group)=>{
     for(const child of [...g.children]){
       g.remove(child);
-      const m=child as Mesh;
-      const mat=m.material as MeshBasicMaterial|undefined;
-      const states=m.userData.vrIconStates as {normal?:Texture|null;hover?:Texture|null;pressed?:Texture|null}|undefined;
-      for(const texture of [states?.normal,states?.hover,states?.pressed])if(texture&&texture!==mat?.map)texture.dispose();
-      mat?.map?.dispose();mat?.dispose();m.geometry?.dispose();
-      const vid=m.userData.video as HTMLVideoElement|null|undefined;
-      if(vid){try{vid.pause();vid.removeAttribute('src');vid.load();}catch{/* déjà arrêtée */}}
+      disposeNode(child);
       const idx=clickables.indexOf(child as Clickable);if(idx>=0)clickables.splice(idx,1);
     }
   };
@@ -386,8 +392,14 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(!ok)setNotice(tt('unavailable'));
     else{
       renderRoomHeader();
+      remoteTarget=null;remoteEngagedInWorld=false;
       // Arrivée sur le nouveau panorama : l'interface jaune se ferme entièrement (A/B la rouvre).
-      if(referenceMode){referenceMode=false;remoteTarget=null;panelAnchor=null;updateVrPalette();}
+      if(referenceMode){
+        referenceMode=false;panelAnchor=null;updateVrPalette();
+        vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+        barGroup.position.set(0,0,0);barGroup.quaternion.identity();
+        panelGroup.position.set(0,0,0);panelGroup.quaternion.identity();
+      }
       clearGroup(barGroup);clearGroup(vrShellGroup);clearGroup(panelGroup);
     }
   }
@@ -460,7 +472,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const m=addPlane(parent,w,h,tex,order,x,y,0.002) as unknown as Clickable;
     // Les boutons restent géométriquement fixes : le rayon du contrôleur ne
     // peut plus les faire grossir/rétrécir et provoquer un scintillement.
-    m.userData={baseScale:1,hoverScale:1.14,onSelect};clickables.push(m);return m;
+    m.userData={baseScale:1,hoverScale:1,onSelect};clickables.push(m);return m;
   };
 
   const placeInFront=(g:Group,distance:number,drop:number)=>{
@@ -522,10 +534,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Le casque démarre sans barre. A/B ouvre ou ferme l'unique bloc VR.
     if(!referenceMode){
       clearGroup(barGroup);clearGroup(vrShellGroup);
+      vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+      barGroup.position.set(0,0,0);barGroup.quaternion.identity();
       return;
     }
     if(referenceMode){
     clearGroup(barGroup);clearGroup(vrShellGroup);
+    barGroup.position.set(0,0,0);barGroup.quaternion.identity();
     const menu=vrMenuOf(project());
     const grid=layoutColumns(menu.left,menu.right);
     // Couleurs du cadre et des boutons : jaune actuel, ou thème de la barre du bas si l'option est cochée.
@@ -546,7 +561,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const normal=makeVrControlTexture(icon,'normal',ctrlColors);
       const hover=makeVrControlTexture(icon,'hover',ctrlColors);
       const pressed=makeVrControlTexture(icon,'pressed',ctrlColors);
-      const mesh=addButton(barGroup,.124,.124,normal,x,y,onSelect,9);
+      const mesh=addButton(barGroup,.114,.114,normal,x,y,onSelect,9);
       mesh.userData.vrIconStates={normal,hover,pressed,pressedUntil:0};
       mesh.userData.referenceUi=true;
       return mesh;
@@ -592,7 +607,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const closeMenu=()=>{
       referenceMode=false;
       remoteTarget=null;
+      remoteEngagedInWorld=false;
       panelAnchor=null;
+      vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+      barGroup.position.set(0,0,0);barGroup.quaternion.identity();
+      panelGroup.position.set(0,0,0);panelGroup.quaternion.identity();
       updateVrPalette();
       closePanels();
       clearGroup(barGroup);
@@ -632,7 +651,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Plan ≠ galerie. Prend le floorPlan enregistré, même sans bouton 2D.
         case 'plan':return {icon:'plan',run:()=>togglePanel('plan',()=>{void showFloorPlan(plan??planAction);})};
         case 'help':return {icon:'help',run:()=>togglePanel('help',()=>showText('Navigation VR',
-          'Gauche et droite : laser jaune+bleu et gâchette. L’autre manette sert de télécommande agent immobilier. A/B ou X/Y : ouvrir/fermer.'))};
+          '1re gâchette utilisée : manette laser prioritaire (jaune + embout bleu). L’autre manette devient télécommande agent immobilier (joystick + gâchette sans prendre le contrôle). A/B ou X/Y : ouvrir/fermer.'))};
         case 'exit':return {icon:'exit',run:closeMenu};
       }
       if(id.startsWith('bar:')){
@@ -642,7 +661,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       return null;
     };
     for(const slot of [...grid.left,...grid.right]){
-      if(slot.id==='counter'){addPlane(barGroup,.15,.09,floorLabel((sceneIndex+1)+' / '+scenes.length),8,slot.x,slot.y);continue;}
+      if(slot.id==='counter'){addPlane(barGroup,.13,.076,floorLabel((sceneIndex+1)+' / '+scenes.length),8,slot.x,slot.y);continue;}
       const action=actionOf(slot.id);
       if(!action)continue;
       const mesh=button(slot.x,slot.y,action.icon,action.run);
@@ -723,13 +742,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
       return;
     }
+    vrInterfaceGroup.position.set(0,0,0);
+    vrInterfaceGroup.quaternion.identity();
     if(panelReplace&&panelAnchor){
-      vrInterfaceGroup.position.copy(panelAnchor.pos);
-      vrInterfaceGroup.quaternion.copy(panelAnchor.quat);
+      panelGroup.position.copy(panelAnchor.pos);
+      panelGroup.quaternion.copy(panelAnchor.quat);
       return;
     }
-    placeInFront(vrInterfaceGroup,distance,drop);
-    panelAnchor={pos:vrInterfaceGroup.position.clone(),quat:vrInterfaceGroup.quaternion.clone()};
+    placeInFront(panelGroup,distance,drop);
+    panelAnchor={pos:panelGroup.position.clone(),quat:panelGroup.quaternion.clone()};
   };
   let activeVideo:{el:HTMLVideoElement;tex:VideoTexture}|null=null;
   const stopVideo=()=>{
@@ -740,11 +761,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let panelGen=0; // change à chaque fermeture / remplacement de fenêtre : un chargement en cours ne peut plus rien ajouter après coup
   let activePanelKey='';
   let fullscreenPlan=false;
+  let fullscreenMedia=false;
   let lastGalleryItem:BottomBarItem|null=null;
   let planReturnGallery:BottomBarItem|null=null;
   function closePanels(){
     activePanelKey='';
     fullscreenPlan=false;
+    fullscreenMedia=false;
     panelGen++;
     panelReplace=panelGroup.children.length>0;
     stopVideo();
@@ -752,7 +775,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
   }
   const addPanelButton=(w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void,order=6)=>{
-    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,order);m.userData={...m.userData,hoverScale:1.08};(m as Object3D).userData.panel=true;return m;
+    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,order);m.userData={...m.userData,hoverScale:1};(m as Object3D).userData.panel=true;return m;
   };
   // Vignettes : la tuile s'affiche tout de suite, l'image arrive ensuite (mise en cache, jamais rechargée).
   const thumbCache=new Map<string,Promise<HTMLCanvasElement|null>>();
@@ -822,33 +845,35 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     c.fillStyle=iconColor;c.font='bold 62px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,55,120);
   });
   const galleryChrome=(W:number,H:number,title:string,count:string,pages:number,page:number,onPrev:()=>void,onNext:()=>void)=>{
-    addPlane(panelGroup,W,H,canvasTexture(W*1000,H*1000,c=>{
-      roundRect(c,6,6,W*1000-12,H*1000-12,48);
+    const cw=Math.round(W*1000),ch=Math.round(H*1000);
+    const headY=referenceMode?54:92;
+    addPlane(panelGroup,W,H,canvasTexture(cw,ch,c=>{
+      roundRect(c,6,6,cw-12,ch-12,48);
       c.fillStyle=referenceMode?'rgba(12,15,20,.74)':panelBg;c.fill();
       c.lineWidth=referenceMode?3:8;c.strokeStyle=referenceMode?'rgba(225,165,37,.35)':panelLine;c.stroke();
-      const rightEdge=referenceMode?(W*1000-64):(W*1000-180);
+      const rightEdge=referenceMode?(cw-50):(cw-180);
       const metadata=count+(pages>1?'  ·  '+tt('page')+' '+(page+1)+'/'+pages:'');
-      const metaWidth=Math.min(440,Math.max(250,W*1000*.31));
+      const metaWidth=Math.min(440,Math.max(250,cw*.31));
       c.fillStyle=referenceMode?'#e8bf65':'#4a4a52';
       c.textAlign='right';c.textBaseline='middle';
-      const meta=fitCanvasLabel(c,metadata,metaWidth,34,25);
-      c.fillText(meta,rightEdge,92);
+      const meta=fitCanvasLabel(c,metadata,metaWidth,referenceMode?28:34,22);
+      c.fillText(meta,rightEdge,headY);
       c.fillStyle=referenceMode?'#ffffff':'#1b1b1f';
       c.textAlign='left';
-      const titleWidth=Math.max(160,rightEdge-metaWidth-90);
-      const name=fitCanvasLabel(c,title,titleWidth,56,34);
-      c.fillText(name,64,92);
+      const titleWidth=Math.max(160,rightEdge-metaWidth-70);
+      const name=fitCanvasLabel(c,title,titleWidth,referenceMode?44:56,28);
+      c.fillText(name,50,headY);
     }),5,0,0).userData.blocker=true;
     // Dans l'interface jaune unifiée, la croix est déjà sur la colonne droite : pas de 2e croix redondante.
     if(!referenceMode)addPanelButton(.1,.1,closeIconTexture(),W/2-.095,H/2-.095,closePanels);
     if(referenceMode){
-      // Pagination de la maquette, en bas uniquement : Précédent / Suivant encadrent le compteur « n / N ».
-      const yBottom=-H/2+.1;
+      // Pagination tout en bas : Précédent / Suivant bien lisibles encadrant « n / N ».
+      const yBottom=-H/2+.046;
       if(pages>1){
-        addPanelButton(.26,.08,navTexture('‹ Précédent',280),-(W/2-.2),yBottom,onPrev);
-        addPanelButton(.26,.08,navTexture('Suivant ›',280),W/2-.2,yBottom,onNext);
-        const counterTexture=canvasTexture(400,140,c=>{c.fillStyle='#ffffff';c.font='bold 56px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,200,70);});
-        addPlane(panelGroup,.2,.07,counterTexture,6,0,yBottom);
+        addPanelButton(.27,.066,navTexture('‹ Précédent',280),-(W/2-.17),yBottom,onPrev);
+        addPanelButton(.27,.066,navTexture('Suivant ›',280),W/2-.17,yBottom,onNext);
+        const counterTexture=canvasTexture(360,120,c=>{c.fillStyle='#ffffff';c.font='bold 48px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText((page+1)+' / '+pages,180,60);});
+        addPlane(panelGroup,.18,.06,counterTexture,6,0,yBottom);
       }
     }else if(pages>1){
       addPanelButton(.1,.21,sideArrowTexture('◀'),-(W/2-.075),-.04,onPrev);
@@ -1003,46 +1028,55 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     try{bitmap=await loadReduced(src,2048);}
     catch{setNotice(tt('photoFail'));return;}
     if(ended||shownFor!==currentId||gen!==panelGen||req!==imageReq)return;
+    const prevKey=activePanelKey;
     closePanels();
+    activePanelKey=prevKey;
+    fullscreenMedia=referenceMode;
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const maxW=1.42,maxH=.92;
+    const W=referenceMode?VR_SHELL.w:Math.max(1.2,Math.min(1.86,1.12*ratio)+.08);
+    const H=referenceMode?VR_SHELL.h:Math.min(1.12,1.86/ratio)+.16;
+    const maxW=referenceMode?(W-.06):1.82;
+    const maxH=referenceMode?(H-.145):1.06;
     const w=Math.min(maxW,maxH*ratio);
     const hgt=Math.min(maxH,maxW/ratio);
-    const W=Math.max(.95,w+.1),H=hgt+.24;
-    const frame=canvasTexture(1024,1024,c=>{
-      roundRect(c,8,8,1008,1008,56);c.fillStyle=panelBg;c.fill();
-      c.lineWidth=8;c.strokeStyle=panelLine;c.stroke();
-    });
-    addPlane(panelGroup,W,H,frame,5,0,0);
+    const imgY=referenceMode?.052:.045;
+    addPlane(panelGroup,W,H,backdrop(W,H),5,0,0).userData.blocker=true;
     const photoTex=new CanvasTexture(bitmap);photoTex.colorSpace=SRGBColorSpace;
     photoTex.generateMipmaps=true;photoTex.minFilter=LinearMipmapLinearFilter;photoTex.anisotropy=16;
-    addPlane(panelGroup,w,hgt,photoTex,6,0,.055);
-    const titleTex=canvasTexture(960,120,c=>{
-      c.fillStyle='#17232b';c.font='bold 36px sans-serif';c.textAlign='center';c.textBaseline='middle';
-      const label=nav?title+'  ·  '+(nav.index+1)+'/'+nav.count:title;
-      let t=label;while(c.measureText(t).width>900&&t.length>3)t=t.slice(0,-2);
-      c.fillText(t===label?t:t+'…',480,60);
-    });
-    addPlane(panelGroup,Math.min(W-.10,1.0),.07,titleTex,7,0,H/2-.06);
+    addPlane(panelGroup,w,hgt,photoTex,6,0,imgY);
+    const yBottom=-H/2+.048;
+    const pillBtn=(text:string,bw:number,x:number,onSelect:()=>void)=>{
+      addPanelButton(bw,.068,navTexture(text,Math.round(bw*1150)),x,yBottom,onSelect,9);
+    };
     if(nav){
-      // Flèches près de l'image (de part et d'autre), « Retour » à la galerie en bas.
       if(nav.count>1){
-        addPanelButton(.13,.2,navTexture('◀',130),-(w/2+.1),0,nav.prev);
-        addPanelButton(.13,.2,navTexture('▶',130),(w/2+.1),0,nav.next);
+        pillBtn('‹ Précédent',.29,-(W/2-.185),nav.prev);
+        pillBtn('Suivant ›',.29,W/2-.43,nav.next);
       }
-      addPanelButton(.34,.11,canvasTexture(340,110,c=>{
-        roundRect(c,6,6,328,98,40);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-        c.fillStyle=iconColor;c.font='bold 42px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('Galerie',170,58);
-      }),-.2,-H/2+.08,nav.back);
-      addPanelButton(.24,.11,closeButtonTexture(),.2,-H/2+.08,closePanels);
-    }else addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.08,closePanels);
+      pillBtn('Galerie',.22,-.14,nav.back);
+      const countTex=canvasTexture(360,120,c=>{
+        c.fillStyle='#ffffff';c.font='bold 48px sans-serif';c.textAlign='center';c.textBaseline='middle';
+        c.fillText((nav.index+1)+' / '+nav.count,180,60);
+      });
+      addPlane(panelGroup,.18,.062,countTex,7,.13,yBottom);
+      pillBtn('✕ Fermer',.22,W/2-.145,closePanels);
+    }else{
+      const labelTex=canvasTexture(900,110,c=>{
+        c.fillStyle='#ffeab5';c.textAlign='left';c.textBaseline='middle';
+        c.fillText(fitCanvasLabel(c,title,860,40,26),16,56);
+      });
+      if(title)addPlane(panelGroup,.76,.058,labelTex,7,-W/2+.42,yBottom);
+      pillBtn('✕ Fermer',.26,title?.trim()?W/2-.17:0,closePanels);
+    }
     placePanel(PANEL_DIST,0);
   };
   const showPhoto=(h:Hotspot)=>showImagePanel(h.imageDataUrl||h.imageUrl,pick(h.title,h.titleTranslations,vlang())||'Photo');
 
-  // Galerie de photos / vidéos d'un bouton de la barre (type « photos ») : vignettes puis image en grand.
+  // Galerie de photos / vidéos d'un bouton de la barre (type « photos ») : vignettes grand format puis image plein écran.
   const showPhotoGallery=async(item:BottomBarItem)=>{
+    const keepKey='bar:'+item.id;
     closePanels();
+    activePanelKey=keepKey;
     const entries=(item.photos??[]).map(m=>({m,r:resolveLink(m)})).filter(e=>e.r.image||e.r.video||e.r.embed);
     if(!entries.length){showText(pick(item.title,item.titleTranslations,vlang())||tt('photos'),tt('noPhoto'));return;}
     let page=0;
@@ -1056,25 +1090,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     };
     const renderGrid=async()=>{
       closePanels();
-      const cols=4,rows=2,cw=.34,ch=.30,gx=.04,gy=.05;
+      activePanelKey=keepKey;
+      const cols=referenceMode?3:4,rows=2;
+      const cw=referenceMode?.68:.34,ch=referenceMode?.52:.30,gx=referenceMode?.024:.04,gy=referenceMode?.024:.05;
       const perPageP=cols*rows;
       const slice=entries.slice(page*perPageP,page*perPageP+perPageP);
-      const W=cols*cw+(cols-1)*gx+.32,H=.17+rows*ch+(rows-1)*gy+.1;
       const pages=Math.max(1,Math.ceil(entries.length/perPageP));
+      const W=referenceMode?2.22:cols*cw+(cols-1)*gx+.32;
+      const H=referenceMode?1.34:.17+rows*ch+(rows-1)*gy+.1;
       galleryChrome(W,H,pick(item.title,item.titleTranslations,vlang())||tt('photos'),entries.length+' '+tt('items'),pages,page,
         ()=>{page=(page-1+pages)%pages;void renderGrid();},()=>{page=(page+1)%pages;void renderGrid();});
       for(let k=0;k<slice.length;k++){
         const e=slice[k];
         const col=k%cols,row=Math.floor(k/cols);
-        const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
-        thumbTile('media:'+e.m.id,e.m.kind==='photo'?(e.r.thumb??e.r.image):undefined,340,300,(c,thumb)=>{
-          roundRect(c,5,5,330,290,28);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
-          c.save();roundRect(c,16,16,308,196,20);c.clip();
-          if(thumb)c.drawImage(thumb,16,16,308,196);else{c.fillStyle='#222';c.fillRect(16,16,308,196);if(e.m.kind!=='photo'){c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',170,116);}}
+        const x=(col-(cols-1)/2)*(cw+gx),y=(referenceMode?H/2-.102:H/2-.17)-ch/2-row*(ch+gy);
+        const tw=referenceMode?680:340,th=referenceMode?520:300;
+        thumbTile('media:'+e.m.id,e.m.kind==='photo'?(e.r.thumb??e.r.image):undefined,tw,th,(c,thumb)=>{
+          roundRect(c,5,5,tw-10,th-10,24);c.fillStyle=btnBg;c.fill();c.lineWidth=6;c.strokeStyle=btnLine;c.stroke();
+          const imgH=e.m.name?th-68:th-24;
+          c.save();roundRect(c,12,12,tw-24,imgH,18);c.clip();
+          if(thumb)c.drawImage(thumb,12,12,tw-24,imgH);else{c.fillStyle='#222';c.fillRect(12,12,tw-24,imgH);if(e.m.kind!=='photo'){c.fillStyle='#fff';c.font='bold 80px sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('▶',tw/2,12+imgH/2);}}
           c.restore();
-          c.fillStyle=iconColor;c.font='bold 30px sans-serif';c.textAlign='center';c.textBaseline='alphabetic';
-          let t=e.m.name;while(c.measureText(t).width>300&&t.length>2)t=t.slice(0,-2);
-          c.fillText(t===e.m.name?t:t.trimEnd()+'…',170,258);
+          if(e.m.name){
+            c.fillStyle=referenceMode?'#ffe3a1':iconColor;c.textAlign='center';c.textBaseline='alphabetic';
+            c.fillText(fitCanvasLabel(c,e.m.name,tw-44,referenceMode?30:26,20),tw/2,th-20);
+          }
         },cw,ch,x,y,()=>{void open(page*perPageP+k);});
       }
       placePanel(PANEL_DIST,-.0);
@@ -1086,7 +1126,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   const showVideoPanel=async(src:string|undefined,title:string)=>{
     if(!src){setNotice(tt('videoClassic'));return;}
     // Un seul clic sur la télé : on passe en interface jaune (sans appuyer sur A/B) et on affiche l'interface.
-    if(!referenceMode){referenceMode=true;updateVrPalette();void buildBar();}
+    if(!referenceMode){referenceMode=true;panelAnchor=null;remoteEngagedInWorld=false;updateVrPalette();void buildBar();}
     uiHidden=false;
     closePanels();
     const el=document.createElement('video');
@@ -1094,14 +1134,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     el.preload='auto';el.muted=true;
     const tex=new VideoTexture(el);tex.colorSpace=SRGBColorSpace;tex.minFilter=LinearMipmapLinearFilter;tex.generateMipmaps=true;tex.anisotropy=16;
     activeVideo={el,tex};
-    // Panneau jaune centré : vidéo au milieu, colonnes d'icônes à gauche et à droite (même présentation que l'interface classique).
-    const videoW=referenceMode?2.2:1.6,Hv=videoW*9/16;
-    const W=videoW+.9;
-    const H=Math.max(1.2,Hv+.5);
+    const W=VR_SHELL.w,H=VR_SHELL.h;
+    const videoW=2.12,Hv=videoW*9/16;
     galleryChrome(W,H,title,'',1,0,()=>{},()=>{});
-    const vy=H/2-.17-Hv/2-.05;
+    const vy=.02;
     addPlane(panelGroup,videoW,Hv,tex,6,0,vy);
-    addPanelButton(.3,.11,navTexture('❚❚ / ▶',300),0,-H/2+.1,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    addPanelButton(.28,.072,navTexture('❚❚ / ▶',280),-.17,-H/2+.048,()=>{if(el.paused)void el.play().catch(()=>setNotice(tt('playFail')));else el.pause();});
+    addPanelButton(.24,.072,navTexture('✕ Fermer',260),.17,-H/2+.048,closePanels);
     // Colonnes latérales : mêmes actions que l'interface classique (galerie, haut, libellé, bas, accueil ; plan à droite).
     const scenesNow=project().scenes.filter(scene=>!scene.excluded);
     const idx=Math.max(0,scenesNow.findIndex(scene=>scene.id===currentId));
@@ -1110,7 +1149,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       gallery:scenesNow.map(scene=>({sceneId:scene.id,label:scene.name}))} as BottomBarItem;
     const sideButton=(x:number,y:number,icon:VrControlIcon,onSelect:()=>void)=>{
       const tex2=makeVrControlTexture(icon,'normal');
-      addButton(panelGroup,.124,.124,tex2,x,y,onSelect,9);
+      addButton(panelGroup,.114,.114,tex2,x,y,onSelect,9);
     };
     // Mêmes colonnes que l'interface jaune : mêmes marges au cadre du panneau, lignes alignées.
     const planFirst=getFloorPlans(project())[0];
@@ -1123,7 +1162,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       ctx.fillText((idx+1)+' / '+scenesNow.length,140,90);
     });
     for(const slot of [...cols.left,...cols.right]){
-      if(slot.id==='counter'){addPlane(panelGroup,.15,.09,counterTex,8,slot.x,slot.y);continue;}
+      if(slot.id==='counter'){addPlane(panelGroup,.13,.076,counterTex,8,slot.x,slot.y);continue;}
       if(slot.id==='gallery')sideButton(slot.x,slot.y,'gallery',()=>{void showGallery(galleryItem??galleryFallback);});
       if(slot.id==='up')sideButton(slot.x,slot.y,'up',()=>{const target=scenesNow[Math.max(0,idx-1)];if(target)void goTo(target.id);});
       if(slot.id==='down')sideButton(slot.x,slot.y,'down',()=>{const target=scenesNow[Math.min(scenesNow.length-1,idx+1)];if(target)void goTo(target.id);});
@@ -1156,32 +1195,34 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       closePanels();
       activePanelKey='gallery';
       const slice=entries.slice(page*perPage,page*perPage+perPage);
-      const cw=referenceMode?.46:.62,ch=referenceMode?.29:.34,gx=referenceMode?.04:.06,gy=referenceMode?.04:.05;
+      const cw=referenceMode?.68:.62,ch=referenceMode?.355:.34,gx=referenceMode?.024:.06,gy=referenceMode?.022:.05;
       const menuNow=vrMenuOf(project());
       const placedIds=new Set([...menuNow.left,...menuNow.right]);
       const photoCandidate=referenceMode?project().bottomBar.find(b=>b.type==='photos'&&!!b.photos?.length):undefined;
       // Pas de deuxième bouton Photos si Photos est déjà présent sur une colonne du menu VR.
       const photoItem=photoCandidate&&!placedIds.has('bar:'+photoCandidate.id)?photoCandidate:undefined;
-      const W=cols*cw+(cols-1)*gx+.32;
-      const H=referenceMode?.17+rows*ch+(rows-1)*gy+.16+(photoItem?.19:0):.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
+      const W=referenceMode?2.22:cols*cw+(cols-1)*gx+.32;
+      const H=referenceMode?1.34:.17+rows*ch+(rows-1)*gy+(photoItem?.19:.1);
       const pages=Math.max(1,Math.ceil(entries.length/perPage));
       galleryChrome(W,H,item.galleryTitle||pick(item.title,item.titleTranslations,vlang())||tt('panoramas'),entries.length+' '+tt('panoramaCount'),pages,page,
         ()=>{page=(page-1+pages)%pages;void render();},()=>{page=(page+1)%pages;void render();});
-      if(photoItem)addPanelButton(.28,.085,navTexture('Photos',280),0,-H/2+.068,()=>{void showPhotoGallery(photoItem);});
+      if(photoItem)addPanelButton(.24,.064,navTexture('Photos',260),pages>1?-W/2+.56:0,-H/2+.046,()=>{void showPhotoGallery(photoItem);});
       for(let i=0;i<slice.length;i++){
         const e=slice[i];
         const col=i%cols,row=Math.floor(i/cols);
-        const x=(col-(cols-1)/2)*(cw+gx),y=H/2-.17-ch/2-row*(ch+gy);
+        const x=(col-(cols-1)/2)*(cw+gx),y=(referenceMode?H/2-.10:H/2-.17)-ch/2-row*(ch+gy);
         opts.ensureScene?.(e.sceneId);
-        thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,620,340,(c,thumb)=>{
-          roundRect(c,6,6,608,328,30);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=7;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
-          c.save();roundRect(c,18,18,584,218,20);c.clip();
-          if(thumb)c.drawImage(thumb,18,18,584,218);else{c.fillStyle='#333';c.fillRect(18,18,584,218);}
+        const tw=referenceMode?680:620,th=referenceMode?360:340;
+        const imgW=tw-20,imgH=th-72;
+        thumbTile('scene:'+e.sceneId,sceneOf(e.sceneId)?.dataUrl,tw,th,(c,thumb)=>{
+          roundRect(c,5,5,tw-10,th-10,24);c.fillStyle=e.sceneId===currentId?btnLine:btnBg;c.fill();c.lineWidth=6;c.strokeStyle=e.sceneId===currentId?iconColor:btnLine;c.stroke();
+          c.save();roundRect(c,10,10,imgW,imgH,18);c.clip();
+          if(thumb)c.drawImage(thumb,10,10,imgW,imgH);else{c.fillStyle='#333';c.fillRect(10,10,imgW,imgH);}
           c.restore();
           c.fillStyle=referenceMode?'#ffe3a1':iconColor;
           c.textAlign='center';c.textBaseline='alphabetic';
-          const label=fitCanvasLabel(c,e.label,548,32,23);
-          c.fillText(label,310,303);
+          const label=fitCanvasLabel(c,e.label,tw-44,32,22);
+          c.fillText(label,tw/2,th-20);
         },cw,ch,x,y,()=>{void goTo(e.sceneId);},()=>sceneOf(e.sceneId)?.dataUrl||undefined);
       }
       placePanel(PANEL_DIST,-.0);
@@ -1223,10 +1264,10 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(back)void showGallery(back);
     };
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const leftReserve=referenceMode?(plans.length>1?.30:.08):.16;
-    const rightReserve=referenceMode?.10:.16;
-    const topReserve=referenceMode?.24:.20;
-    const bottomReserve=referenceMode?.06:.14;
+    const leftReserve=referenceMode?(plans.length>1?.22:.04):.16;
+    const rightReserve=referenceMode?.04:.16;
+    const topReserve=referenceMode?.035:.20;
+    const bottomReserve=referenceMode?.035:.14;
     const W=referenceMode?VR_SHELL.w:Math.min(1.72,1.2*ratio)+.32;
     const H=referenceMode?VR_SHELL.h:Math.min(1.2,1.72/ratio)+.33;
     const maxW=referenceMode?(W-leftReserve-rightReserve):1.72;
@@ -1238,13 +1279,15 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const imageTex=new CanvasTexture(bitmap);imageTex.generateMipmaps=true;imageTex.minFilter=LinearMipmapLinearFilter;imageTex.anisotropy=16;
     imageTex.colorSpace=SRGBColorSpace;
     addPlane(panelGroup,imageW,imageH,imageTex,6,imgX,imgY);
-    addPlane(panelGroup,Math.min(1.8,W-.35),.11,canvasTexture(1200,115,ctx=>{
-      ctx.fillStyle=referenceMode?'#ffffff':iconColor;
-      ctx.textAlign=referenceMode?'left':'center';ctx.textBaseline='middle';
-      const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),1100,46,28);
-      ctx.fillText(title,referenceMode?28:600,57);
-    }),7,referenceMode?(-W/2+Math.min(1.8,W-.35)/2+.08):0,H/2-.085);
-    if(referenceMode)addPanelButton(.13,.13,closeIconTexture(),W/2-.11,H/2-.10,closePlan,10);
+    if(!referenceMode){
+      addPlane(panelGroup,Math.min(1.8,W-.35),.11,canvasTexture(1200,115,ctx=>{
+        ctx.fillStyle=iconColor;
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        const title=fitCanvasLabel(ctx,(plan.name||'Plan')+(plans.length>1?'  ·  '+(index+1)+' / '+plans.length:''),1100,46,28);
+        ctx.fillText(title,600,57);
+      }),7,0,H/2-.085);
+    }
+    if(referenceMode)addPanelButton(.13,.13,closeIconTexture(),W/2-.10,H/2-.10,closePlan,10);
     // Pièces en surbrillance (jaune léger) sous les repères ; la pièce où l'on se trouve est plus marquée.
     // closePanels() a déjà fait avancer panelGen : on compare à la valeur actuelle, sinon la surbrillance serait toujours écartée.
     const panelNow=panelGen;
@@ -1258,8 +1301,11 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
         (m.material as MeshBasicMaterial).opacity=0;
         const targetId=sceneId;
+        const pt=plan.points.find(p=>p.sceneId===sceneId);
+        const remotePos=pt?new Vector3(imgX+(pt.x/100-.5)*imageW,imgY+(.5-pt.y/100)*imageH,0):new Vector3(imgX,imgY,0);
+        const maskData=canvas.getContext('2d')?.getImageData(0,0,canvas.width,canvas.height).data;
         // Chaque pièce est un quad plein plan : on garde son masque pour ne la viser que sur ses pixels.
-        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;closePanels();void goTo(targetId);}});
+        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,roomMask:canvas,roomMaskData:maskData,roomMaskW:canvas.width,roomMaskH:canvas.height,remotePos,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;closePanels();void goTo(targetId);}});
         clickables.push(m as unknown as Clickable);
         roomIds.add(sceneId);
       }
@@ -1327,34 +1373,35 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     setNotice(tt('buttonClassic'));
   }
 
-  // ---- télécommande gauche + laser de pointage droit --------------------------
-  // Joystick gauche : télécommande sans rayon. Laser précis seulement à droite.
+  // ---- manette prioritaire (1re gâchette) + télécommande agent immobilier --------
   const controllers=[0,1].map(i=>{
     const controller=renderer.xr.getController(i);
     scene.add(controller);
     return controller;
   });
-  // Une seule manette affiche le laser (par défaut la droite, ou celle dont on actionne la gâchette) ;
-  // l'autre manette sert automatiquement de télécommande à l'agent immobilier (sans laser).
+  // La 1re manette dont on actionne la gâchette devient prioritaire (laser jaune + embout bleu) ;
+  // l'autre manette devient automatiquement la télécommande agent immobilier (sans laser, sans jamais reprendre le contrôle).
   let activeLaserHand:'left'|'right'='right';
+  let priorityChosen=false;
+  let remoteEngagedInWorld=false;
   const laserRaycaster=new Raycaster();
   const makeLaser=()=>{
     // Cylindre fin bien visible en WebXR (contrairement à Line qui reste à 1 px sous WebGL2)
-    const geo=new CylinderGeometry(.0022,.003,1,10);
+    const geo=new CylinderGeometry(.0018,.0024,1,12);
     geo.rotateX(Math.PI/2);
     geo.translate(0,0,-.5);
-    const mat=new MeshBasicMaterial({color:0xffd43b,transparent:true,opacity:.95,depthTest:false,depthWrite:false});
+    const mat=new MeshBasicMaterial({color:0xffd43b,transparent:true,opacity:.96,depthTest:false,depthWrite:false});
     const line=new Mesh(geo,mat);
-    line.renderOrder=9;
+    line.renderOrder=25;
     // Embout bleu lumineux toujours visible au bout du rayon (coeur bleu vif + halo cyan)
     const dot=new Group();
-    const coreGeo=new SphereGeometry(.016,16,12),coreMat=new MeshBasicMaterial({color:0x009eff,depthTest:false,depthWrite:false});
-    const core=new Mesh(coreGeo,coreMat);core.renderOrder=12;
-    const haloGeo=new SphereGeometry(.028,16,12),haloMat=new MeshBasicMaterial({color:0x4ce3ff,transparent:true,opacity:.5,depthTest:false,depthWrite:false});
-    const halo=new Mesh(haloGeo,haloMat);halo.renderOrder=11;
+    const coreGeo=new SphereGeometry(.0075,16,12),coreMat=new MeshBasicMaterial({color:0x009eff,depthTest:false,depthWrite:false});
+    const core=new Mesh(coreGeo,coreMat);core.renderOrder=27;
+    const haloGeo=new SphereGeometry(.014,16,12),haloMat=new MeshBasicMaterial({color:0x4ce3ff,transparent:true,opacity:.55,depthTest:false,depthWrite:false});
+    const halo=new Mesh(haloGeo,haloMat);halo.renderOrder=26;
     dot.add(core,halo);dot.visible=false;
     disposables.push(geo,mat,coreGeo,coreMat,haloGeo,haloMat);
-    return {line,dot,hoveredLast:null as Clickable|null,candidate:null as Clickable|null,candidateSince:0};
+    return {line,dot,hoveredLast:null as Clickable|null,lastHapticTarget:null as Clickable|null,lastHapticAt:0};
   };
   const handLasers={left:makeLaser(),right:makeLaser()};
   const tooltipTextures=new Map<string,Texture>();
@@ -1365,17 +1412,33 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   vrInterfaceGroup.add(hoverTooltip);
   let lastTooltipText='';
   disposables.push(hoverTooltipGeo,hoverTooltipMat);
-  const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null}=>{
+  const controllerOfHand=(hand:'left'|'right')=>
+    controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
+  const hideLaser=(hand:'left'|'right')=>{
+    const L=handLasers[hand];
+    L.line.visible=false;L.dot.visible=false;L.hoveredLast=null;
+  };
+  const shownInScene=(item:Object3D)=>{let p:Object3D|null=item;while(p){if(!p.visible)return false;p=p.parent;}return true;};
+  const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null;distance:number|null}=>{
     const pos=new Vector3(),dir=new Vector3(0,0,-1);
     controller.updateMatrixWorld(true);
+    vrInterfaceGroup.updateMatrixWorld(true);
+    hotspotGroup.updateMatrixWorld(true);
     controller.getWorldPosition(pos);
-    dir.transformDirection(controller.matrixWorld);
+    dir.transformDirection(controller.matrixWorld).normalize();
     laserRaycaster.set(pos,dir);
-    const shown=(item:Object3D)=>{let p:Object3D|null=item;while(p){if(!p.visible)return false;p=p.parent;}return true;};
-    const buttons=clickables.filter(item=>item.parent&&shown(item)&&!!item.userData.onSelect);
+    const buttons=clickables.filter(item=>item.parent&&shownInScene(item)&&!!item.userData.onSelect);
     // La plaque commune ne doit pas laisser le laser sélectionner un hotspot derrière elle.
-    const blockers=[...panelGroup.children,...barGroup.children,...vrShellGroup.children].filter(item=>shown(item)&&!item.userData.onSelect);
+    const blockers=[...panelGroup.children,...barGroup.children,...vrShellGroup.children].filter(item=>shownInScene(item)&&!item.userData.onSelect);
     const maskFilter=(hit:{object:Object3D;uv?:{x:number;y:number}})=>{
+      const data=hit.object.userData.roomMaskData as Uint8ClampedArray|undefined;
+      const w=hit.object.userData.roomMaskW as number|undefined;
+      const h=hit.object.userData.roomMaskH as number|undefined;
+      if(data&&w&&h&&hit.uv){
+        const x=Math.min(w-1,Math.max(0,Math.floor(hit.uv.x*w)));
+        const y=Math.min(h-1,Math.max(0,Math.floor((1-hit.uv.y)*h)));
+        return data[(y*w+x)*4+3]>0;
+      }
       const mask=hit.object.userData.roomMask as HTMLCanvasElement|undefined;
       if(!mask||!hit.uv)return true;
       const x=Math.min(mask.width-1,Math.max(0,Math.floor(hit.uv.x*mask.width)));
@@ -1386,13 +1449,25 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const blkHits=laserRaycaster.intersectObjects(blockers,false);
     // Priorité stricte aux boutons : un fond coplanaire ne vole jamais le clic ; seul un panneau nettement devant (> 3 cm) bloque.
     if(btnHits.length&&(!blkHits.length||blkHits[0].distance>=btnHits[0].distance-.03)){
-      return {target:btnHits[0].object as Clickable,point:btnHits[0].point};
+      return {target:btnHits[0].object as Clickable,point:btnHits[0].point,distance:btnHits[0].distance};
     }
-    if(blkHits.length)return {target:null,point:blkHits[0].point};
-    return {target:null,point:null};
+    if(blkHits.length)return {target:null,point:blkHits[0].point,distance:blkHits[0].distance};
+    if(!referenceMode){
+      const oc=pos.clone().sub(root.position);
+      const b=oc.dot(dir);
+      const c=oc.dot(oc)-HOTSPOT_R*HOTSPOT_R;
+      const disc=b*b-c;
+      if(disc>=0){
+        const t=Math.max(.5,-b+Math.sqrt(disc));
+        return {target:null,point:pos.clone().addScaledVector(dir,t),distance:t};
+      }
+    }
+    return {target:null,point:null,distance:null};
   };
   let remoteTarget:Clickable|null=null;
   let remoteAxisArmed=true;
+  let remoteAxisHeldSince=0;
+  let remoteAxisLastStep=0;
   // Cadre doré autour du contrôle sélectionné. La bordure suit la cible,
   // elle n'est pas un laser et ne dépend pas de l'orientation de la manette.
   const remoteFocus=new Mesh(new PlaneGeometry(1,1),new MeshBasicMaterial({
@@ -1401,19 +1476,44 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   remoteFocus.visible=false;ui.add(remoteFocus);
   disposables.push(remoteFocus.geometry,remoteFocus.material as MeshBasicMaterial);
   const remoteCandidates=():Clickable[]=>{
-    if(!referenceMode||uiHidden)return [];
-    const shown=(obj:Object3D)=>{let x:Object3D|null=obj;while(x){if(!x.visible)return false;x=x.parent;}return true;};
-    const panel=clickables.filter(m=>m.parent===panelGroup&&shown(m)&&!!m.userData.onSelect);
-    const sides=clickables.filter(m=>m.parent===barGroup&&shown(m)&&!!m.userData.onSelect);
-    return [...panel,...sides];
+    if(uiHidden)return [];
+    const panel=clickables.filter(m=>m.parent===panelGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    const sides=clickables.filter(m=>m.parent===barGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    if(referenceMode||panel.length)return [...panel,...sides];
+    const hotspots=clickables.filter(m=>m.parent===hotspotGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    return [...hotspots,...sides];
   };
   const remotePositions=(items:Clickable[])=>{
+    vrInterfaceGroup.updateMatrixWorld(true);
+    hotspotGroup.updateMatrixWorld(true);
+    const allUi=items.every(m=>m.parent===panelGroup||m.parent===barGroup);
+    if(allUi){
+      return items.map(mesh=>{
+        const p=new Vector3();
+        if(mesh.userData.remotePos instanceof Vector3&&mesh.parent){
+          p.copy(mesh.userData.remotePos);
+          mesh.parent.localToWorld(p);
+        }else mesh.getWorldPosition(p);
+        vrInterfaceGroup.worldToLocal(p);
+        return {mesh,x:p.x,y:p.y};
+      });
+    }
     const xrCamera=renderer.xr.getCamera();
-    const eye=xrCamera.cameras[0]??xrCamera;
-    eye.updateMatrixWorld();
+    const camPos=new Vector3(),camDir=new Vector3(),camUp=new Vector3(),camRight=new Vector3();
+    xrCamera.getWorldPosition(camPos);
+    xrCamera.getWorldDirection(camDir).normalize();
+    camUp.set(0,1,0).applyQuaternion(xrCamera.quaternion).normalize();
+    camRight.crossVectors(camDir,camUp).normalize();
     return items.map(mesh=>{
-      const point=new Vector3();mesh.getWorldPosition(point);point.project(eye);
-      return {mesh,x:point.x,y:point.y};
+      const p=new Vector3();
+      if(mesh.userData.remotePos instanceof Vector3&&mesh.parent){
+        p.copy(mesh.userData.remotePos);
+        mesh.parent.localToWorld(p);
+      }else mesh.getWorldPosition(p);
+      const v=p.sub(camPos).normalize();
+      const x=Math.atan2(v.dot(camRight),v.dot(camDir));
+      const y=Math.asin(Math.max(-1,Math.min(1,v.dot(camUp))));
+      return {mesh,x,y};
     });
   };
   const navigateRemote=(horizontal:number,vertical:number)=>{
@@ -1421,16 +1521,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(!items.length){remoteTarget=null;return;}
     const coords=remotePositions(items);
     let current=coords.find(p=>p.mesh===remoteTarget);
-    if(!current){current=[...coords].sort((a,b)=>b.y-a.y||a.x-b.x)[0];remoteTarget=current.mesh;return;}
+    if(!current){
+      // En vue libre (sans panneau), partir de l'élément le plus proche du centre du regard ; en interface, haut-gauche.
+      current=referenceMode||panelGroup.children.length
+        ?[...coords].sort((a,b)=>b.y-a.y||a.x-b.x)[0]
+        :[...coords].sort((a,b)=>Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y))[0];
+      remoteTarget=current.mesh;
+      return;
+    }
     const xdir=Math.abs(horizontal)>=Math.abs(vertical)?Math.sign(horizontal):0;
     const ydir=xdir?0:-Math.sign(vertical);
     const options=coords.filter(p=>p!==current).map(p=>{
       const dx=p.x-current.x,dy=p.y-current.y;
       const forward=dx*xdir+dy*ydir,side=Math.abs(dx*ydir-dy*xdir);
-      return {...p,forward,score:forward+side*2.5};
-    }).filter(p=>p.forward>.015&&p.forward>Math.abs(p.x*ydir-p.y*xdir-(current.x*ydir-current.y*xdir))*.18);
+      return {...p,forward,score:forward+side*2.2};
+    }).filter(p=>p.forward>.012&&p.forward>Math.abs(p.x*ydir-p.y*xdir-(current.x*ydir-current.y*xdir))*.05);
     const next=options.sort((a,b)=>a.score-b.score)[0];
     if(next)remoteTarget=next.mesh;
+  };
+  const readStick=(axes?:readonly number[]):[number,number]=>{
+    if(!axes||axes.length<2)return [0,0];
+    if(axes.length>=4){
+      const m2=Math.hypot(axes[2]??0,axes[3]??0),m0=Math.hypot(axes[0]??0,axes[1]??0);
+      return m2>=m0||m2>.05?[axes[2]??0,axes[3]??0]:[axes[0]??0,axes[1]??0];
+    }
+    return [axes[0]??0,axes[1]??0];
   };
   /** Vibration de la manette (impulsion courte). Ignorée si le casque ne la prend pas en charge. */
   const pulse=(c:Object3D,intensity:number,ms:number)=>{
@@ -1446,21 +1561,34 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     controller.addEventListener('connected',event=>{
       controller.userData.source=(event as unknown as {data?:unknown}).data;
     });
+    controller.addEventListener('disconnected',()=>{
+      controller.userData.source=undefined;
+    });
     controller.addEventListener('selectstart',()=>{
-      const source=controller.userData.source as {handedness?:string}|undefined;
       if(uiHidden)return;
-      // Si cette manette est la main laser active, elle clique sur le rayon.
-      // Sinon, elle sert de télécommande agent (joystick + gâchette), sauf si aucun bouton n'est sélectionné et qu'elle vise un bouton (elle prend alors le laser).
-      const hand=source?.handedness==='left'?'left':'right';
-      const remoteItem=referenceMode?remoteCandidates().find(item=>item===remoteTarget):undefined;
+      const source=controller.userData.source as {handedness?:string}|undefined;
+      const detectedHand=source?.handedness==='left'?'left':source?.handedness==='right'?'right':undefined;
+      const choices=remoteCandidates();
       let target:Clickable|null=null;
-      if(hand===activeLaserHand){
+      if(!priorityChosen&&detectedHand){
+        // Premier clic de gâchette : cette manette devient prioritaire (laser), l'autre devient télécommande.
+        activeLaserHand=detectedHand;
+        priorityChosen=true;
+        hideLaser(detectedHand==='left'?'right':'left');
         target=pointable(controller).target;
-      }else if(remoteItem){
-        target=remoteItem;
+        if(!target?.userData.onSelect){pulse(controller,.28,35);return;}
+      }else if(!detectedHand||detectedHand===activeLaserHand){
+        target=pointable(controller).target;
       }else{
-        const hit=pointable(controller).target;
-        if(hit){activeLaserHand=hand;target=hit;}
+        // Télécommande agent immobilier : la gâchette sélectionne un élément SANS jamais prendre le contrôle du laser.
+        const remoteItem=choices.find(item=>item===remoteTarget)??null;
+        if(remoteItem){
+          target=remoteItem;
+        }else{
+          const hit=pointable(controller).target;
+          if(hit)target=hit;
+          else if(choices.length)target=remotePositions(choices).sort((a,b)=>Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y))[0].mesh;
+        }
       }
       if(!target?.userData.onSelect)return;
       target.userData.pressedUntil=performance.now()+260;
@@ -1471,7 +1599,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }
       pulse(controller,.75,60);
       target.userData.onSelect();
-      remoteTarget=null;
     });
     // Prise latérale : recentrer le panneau sans en modifier l'état.
     controller.addEventListener('squeezestart',()=>{
@@ -1489,9 +1616,13 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let lastTick=performance.now();
   const tick=()=>{
     const tnow=performance.now();const dt=Math.min(.1,(tnow-lastTick)/1000);lastTick=tnow;
-    // Rotation instantanée d'un quart de tour pour réduire le mal des yeux.
-    // Une nouvelle impulsion exige d'abord le retour du joystick au neutre.
-    const inputs=renderer.xr.getSession()?.inputSources??[];
+    const inputs=Array.from(renderer.xr.getSession()?.inputSources??[]);
+    if(!priorityChosen){
+      const hasRight=inputs.some(s=>s.handedness==='right');
+      const hasLeft=inputs.some(s=>s.handedness==='left');
+      if(!hasRight&&hasLeft)activeLaserHand='left';
+      else if(hasRight)activeLaserHand='right';
+    }
     for(const source of inputs){
       const pressed=!!source.gamepad?.buttons?.[3]?.pressed;
       const key=source.handedness||'x';
@@ -1502,14 +1633,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     // Les touches de façade occupent les mêmes indices WebXR (4 et 5).
     // Une seule détection globale évite deux inversions si les deux manettes
     // sont pressées simultanément. Il faut relâcher pour changer à nouveau.
-    const facesPressed=Array.from(inputs).some(source=>
+    const facesPressed=inputs.some(source=>
       (source.handedness==='right'||source.handedness==='left')&&
       (!!source.gamepad?.buttons?.[4]?.pressed||!!source.gamepad?.buttons?.[5]?.pressed));
     if(facesPressed&&!faceButtonDown&&!switchingReference){
       switchingReference=true;
       referenceMode=!referenceMode;
       remoteTarget=null;
+      remoteEngagedInWorld=false;
       panelAnchor=null;
+      if(!referenceMode){
+        vrInterfaceGroup.position.set(0,0,0);vrInterfaceGroup.quaternion.identity();
+        barGroup.position.set(0,0,0);barGroup.quaternion.identity();
+        panelGroup.position.set(0,0,0);panelGroup.quaternion.identity();
+      }
       updateVrPalette();
       closePanels();
       uiHidden=false;
@@ -1524,33 +1661,42 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       }).finally(()=>{switchingReference=false;});
     }
     faceButtonDown=facesPressed;
-    barGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
-    vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!fullscreenPlan;
+    const shellHidden=fullscreenPlan||fullscreenMedia;
+    barGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!shellHidden;
+    vrShellGroup.visible=referenceMode&&!uiHidden&&!activeVideo&&!shellHidden;
     panelGroup.visible=!uiHidden;
-    headerGroup.visible=!uiHidden;
+    headerGroup.visible=!uiHidden&&!shellHidden;
     noticeGroup.visible=!uiHidden;
+    const remoteHand: 'left'|'right'=activeLaserHand==='right'?'left':'right';
+    const remoteList=remoteCandidates();
     let turn=0;
     for(const source of inputs){
-      const axes=source.gamepad?.axes;
-      if(!axes||axes.length<2)continue;
-      const horizontal=axes.length>=4?axes[2]:axes[0];
-      const vertical=axes.length>=4?axes[3]:axes[1];
-      // L'autre manette (non-laser) sert de télécommande agent immobilier (navigation sans rayon).
-      // La manette laser garde la rotation du panorama au joystick.
-      const remoteHand=activeLaserHand==='right'?'left':'right';
-      if(source.handedness===remoteHand&&referenceMode&&!uiHidden){
-        const magnitude=Math.hypot(horizontal,vertical);
-        if(magnitude<.3)remoteAxisArmed=true;
-        else if(magnitude>.65&&remoteAxisArmed){
-          const before=remoteTarget;
-          navigateRemote(horizontal,vertical);
-          if(remoteTarget!==before){
-            const c=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness===remoteHand);
-            if(c)pulse(c,.2,25);
+      const [horizontal,vertical]=readStick(source.gamepad?.axes);
+      // Télécommande agent immobilier (manette non prioritaire) : joystick pour choisir un élément et gâchette pour le valider.
+      if(source.handedness===remoteHand){
+        if(remoteList.length&&!uiHidden){
+          const magnitude=Math.hypot(horizontal,vertical);
+          if(magnitude<.25){remoteAxisArmed=true;remoteAxisHeldSince=0;}
+          else if(magnitude>.48){
+            const firstStep=remoteAxisArmed;
+            const heldRepeat=!firstStep&&remoteAxisHeldSince>0&&tnow-remoteAxisHeldSince>360&&tnow-remoteAxisLastStep>=170;
+            if(firstStep||heldRepeat){
+              remoteEngagedInWorld=true;
+              const before=remoteTarget;
+              navigateRemote(horizontal,vertical);
+              if(remoteTarget!==before){
+                const c=controllerOfHand(remoteHand);
+                if(c)pulse(c,.2,25);
+              }
+              remoteAxisArmed=false;
+              if(firstStep)remoteAxisHeldSince=tnow;
+              remoteAxisLastStep=tnow;
+            }
           }
-          remoteAxisArmed=false;
+        }else if(Math.abs(horizontal)>Math.abs(turn)){
+          turn=horizontal;
         }
-      }else if(source.handedness===activeLaserHand&&typeof horizontal==='number'){
+      }else if(source.handedness===activeLaserHand){
         if(Math.abs(horizontal)>Math.abs(turn))turn=horizontal;
       }
     }
@@ -1592,38 +1738,42 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const m of hotspotGroup.children)if(!m.userData.isFrame)m.lookAt(camPos);
     // Sphères : la texture (le panorama) défile en continu, la sphère tourne sur elle-même sans bouger de place.
     for(const m of hotspotGroup.children){
-      const mat=(m as Mesh).material as MeshBasicMaterial|undefined;
+      const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
+      const mat=visual.material as MeshBasicMaterial|undefined;
       if(m.userData.spin&&mat?.map)mat.map.offset.x=(mat.map.offset.x+dt*.05)%1;
     }
     // Le monobloc reste ancré dans l'espace : il ne suit pas chaque mouvement de tête.
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(!referenceMode&&Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
-    // Seule la main laser active affiche le rayon jaune + embout bleu ; l'autre sert de télécommande agent immobilier.
+    // Seule la manette prioritaire affiche le rayon jaune + embout bleu ; l'autre sert de télécommande sans rayon.
     const hovered=new Set<Clickable>();
     let activeLaserHover:Clickable|null=null;
     for(const hand of ['left','right'] as const){
-      const ctrl=controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
+      const ctrl=controllerOfHand(hand);
       const L=handLasers[hand];
       if(ctrl&&hand===activeLaserHand){
         if(L.line.parent!==ctrl)ctrl.add(L.line);
         if(L.dot.parent!==ctrl)ctrl.add(L.dot);
         const impact=pointable(ctrl);
-        if(impact.target!==L.candidate){L.candidate=impact.target;L.candidateSince=now;}
-        if(L.candidate!==L.hoveredLast&&now-L.candidateSince>=90){
-          L.hoveredLast=L.candidate;
-          if(L.hoveredLast&&!uiHidden)pulse(ctrl,.12,18);
+        L.hoveredLast=!uiHidden?impact.target:null;
+        if(L.hoveredLast&&L.hoveredLast!==L.lastHapticTarget&&now-L.lastHapticAt>=45){
+          L.lastHapticTarget=L.hoveredLast;L.lastHapticAt=now;
+          pulse(ctrl,.12,18);
+        }else if(!L.hoveredLast){
+          L.lastHapticTarget=null;
         }
-        if(L.hoveredLast&&!uiHidden){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
-        const dist=impact.point?Math.max(.08,ctrl.worldToLocal(impact.point.clone()).length()):2.3;
+        if(L.hoveredLast){hovered.add(L.hoveredLast);activeLaserHover=L.hoveredLast;}
+        const dist=impact.distance!==null?Math.max(.08,impact.distance):(referenceMode?2.6:HOTSPOT_R);
         L.line.scale.set(1,1,dist);
         L.dot.position.set(0,0,-dist);
+        L.dot.scale.setScalar(Math.max(.75,Math.min(2.2,dist/2.2)));
         L.line.visible=!uiHidden;
         L.dot.visible=!uiHidden;
-      }else{L.line.visible=false;L.dot.visible=false;L.hoveredLast=null;L.candidate=null;}
+      }else{hideLaser(hand);}
     }
     const tipTarget=activeLaserHover??remoteTarget;
-    const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan?(tipTarget.userData.vrTooltip as string|undefined):undefined;
+    const tipLabel=tipTarget&&referenceMode&&!uiHidden&&!fullscreenPlan&&!fullscreenMedia?(tipTarget.userData.vrTooltip as string|undefined):undefined;
     if(tipTarget&&tipLabel&&tipTarget.parent===barGroup){
       if(hoverTooltip.parent!==vrInterfaceGroup)vrInterfaceGroup.add(hoverTooltip);
       if(lastTooltipText!==tipLabel){
@@ -1644,21 +1794,31 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       hoverTooltip.position.set(tipTarget.position.x+side*.26,tipTarget.position.y,.03);
       hoverTooltip.visible=true;
     }else hoverTooltip.visible=false;
-    // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
-    const choices=remoteCandidates();
+    // Le joystick de la télécommande choisit un élément : halo doré sur la cible, aucun laser.
+    const choices=remoteList;
     if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
-    if(!remoteTarget&&choices.length)remoteTarget=remotePositions(choices).sort((a,b)=>b.y-a.y||a.x-b.x)[0].mesh;
+    const panelHasControls=clickables.some(m=>m.parent===panelGroup&&shownInScene(m)&&!!m.userData.onSelect);
+    if(!remoteTarget&&choices.length&&(referenceMode||panelHasControls||remoteEngagedInWorld)){
+      const sorted=remotePositions(choices).sort((a,b)=>(referenceMode||panelHasControls)?(b.y-a.y||a.x-b.x):(Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y)));
+      remoteTarget=sorted[0].mesh;
+    }
     if(remoteTarget){
       hovered.add(remoteTarget);
-      const mesh=remoteTarget as Mesh;
-      const geometry=mesh.geometry as PlaneGeometry;
-      const w=geometry.parameters.width,h=geometry.parameters.height;
-      mesh.getWorldPosition(remoteFocus.position);
-      mesh.getWorldQuaternion(remoteFocus.quaternion);
-      remoteFocus.translateZ(-.004);
-      remoteFocus.scale.set(w+.027,h+.027,1);
-      remoteFocus.renderOrder=mesh.renderOrder-.15;
-      remoteFocus.visible=!uiHidden&&referenceMode;
+      if(remoteTarget.userData.roomHighlight){
+        remoteFocus.visible=false;
+      }else{
+        const mesh=remoteTarget as Mesh;
+        const params=(mesh.geometry as {parameters?:{width?:number;height?:number;radius?:number}}).parameters;
+        const w=params?.width??((params?.radius??.14)*2.2);
+        const h=params?.height??((params?.radius??.14)*2.2);
+        const pad=remoteTarget.parent===hotspotGroup?.08:.028;
+        mesh.getWorldPosition(remoteFocus.position);
+        mesh.getWorldQuaternion(remoteFocus.quaternion);
+        remoteFocus.translateZ(-.004);
+        remoteFocus.scale.set(w+pad,h+pad,1);
+        remoteFocus.renderOrder=mesh.renderOrder-.15;
+        remoteFocus.visible=!uiHidden;
+      }
     }else remoteFocus.visible=false;
     for(const m of clickables){
       const isPressed=(m.userData.pressedUntil??0)>now;
@@ -1666,10 +1826,22 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
       // Surbrillance de pièce : fondu progressif (pas de saut entre 0 et 0,8) pour éviter le scintillement au survol.
       if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){const goal=isPressed?.95:hovered.has(m)?.8:0;rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity+=(goal-rm.opacity)*.25;if(Math.abs(goal-rm.opacity)<.005)rm.opacity=goal;}continue;}
-      if(m.userData.spin&&m.userData.dir){
-        // Va-et-vient : la sphère avance et recule vers le spectateur.
-        const bob=Math.sin(now/520)*.55;
-        const want=isPressed?HOTSPOT_R-4.2:(hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R)+bob;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
+      if(m.userData.spin){
+        const visual=(m.userData.visualSphere as Mesh|undefined)??(m as Mesh);
+        // Va-et-vient : la sphère visuelle avance et recule vers le spectateur (le collider reste à 6 m).
+        const toViewer=m.userData.toViewer as Vector3|undefined;
+        if(toViewer)visual.position.copy(toViewer).multiplyScalar((1+Math.sin(now/520))*.42);
+        const rim=m.userData.rimOutline as Mesh|undefined;
+        const baseRim=(m.userData.rimOpacity as number|undefined)??.15;
+        const vs=isPressed?.92:hovered.has(m)?1.22:1;
+        visual.scale.setScalar(visual.scale.x+(vs-visual.scale.x)*.28);
+        const vm=visual.material;
+        if(vm instanceof MeshBasicMaterial)vm.color.setScalar(isPressed?.7:hovered.has(m)?1.25:1);
+        if(rim&&rim.material instanceof MeshBasicMaterial){
+          rim.material.opacity=hovered.has(m)?Math.max(baseRim,.85):baseRim;
+        }
+        continue;
+      }
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
         const mm=(m as Mesh).material as MeshBasicMaterial;
