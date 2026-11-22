@@ -693,7 +693,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     for(const c of [...clickables]){if((c as Object3D).userData.panel){const i=clickables.indexOf(c);if(i>=0)clickables.splice(i,1);}}
   }
   const addPanelButton=(w:number,h:number,tex:Texture,x:number,y:number,onSelect:()=>void,order=6)=>{
-    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,order);m.userData={...m.userData};(m as Object3D).userData.panel=true;return m;
+    const m=addButton(panelGroup,w,h,tex,x,y,onSelect,order);m.userData={...m.userData,hoverScale:1.08};(m as Object3D).userData.panel=true;return m;
   };
   // Vignettes : la tuile s'affiche tout de suite, l'image arrive ensuite (mise en cache, jamais rechargée).
   const thumbCache=new Map<string,Promise<HTMLCanvasElement|null>>();
@@ -1185,20 +1185,20 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       if(roomIds.has(point.sceneId))return;
       const target=sceneOf(point.sceneId)!;
       const x=(point.x/100-.5)*imageW,y=(.5-point.y/100)*imageH-.025;
-      addPanelButton(.095,.095,pointTexture(String(pointIndex+1),target.id===currentId),
+      addPanelButton(.12,.12,pointTexture(String(pointIndex+1),target.id===currentId),
         x,y,()=>{void goTo(target.id);},9);
     });
     // Plusieurs plans / étages : colonne à gauche (escalier + un bouton par étage), le plan affiché est en surbrillance.
     if(plans.length>1){
-      const step=.105,top=((plans.length-1)*step)/2+.07;
-      const x=-W/2+.08;
-      addPlane(panelGroup,.095,.095,canvasTexture(180,180,ctx=>{
+      const step=.135,top=((plans.length-1)*step)/2+.08;
+      const x=-W/2+.085;
+      addPlane(panelGroup,.11,.11,canvasTexture(180,180,ctx=>{
         ctx.strokeStyle=iconColor;ctx.lineWidth=14;ctx.lineJoin='round';ctx.lineCap='round';
         ctx.beginPath();ctx.moveTo(26,148);ctx.lineTo(26,118);ctx.lineTo(62,118);ctx.lineTo(62,88);ctx.lineTo(98,88);ctx.lineTo(98,58);ctx.lineTo(134,58);ctx.lineTo(134,28);ctx.lineTo(160,28);ctx.stroke();
       }),8,x,top-.0);
       // L'étage le plus haut est en haut de la colonne : on « monte » en cliquant vers le haut.
       plans.forEach((other,i)=>{
-        addPanelButton(.095,.095,pointTexture(planLevelLabel(other,i),i===index),x,top-.105-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
+        addPanelButton(.125,.125,pointTexture(planLevelLabel(other,i),i===index),x,top-.125-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
       });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
@@ -1238,19 +1238,19 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     scene.add(controller);
     return controller;
   });
-  // Le contrôleur droit peut pointer et sélectionner directement les boutons,
-  // même lorsque l'agent préfère la télécommande gauche.
+  // Les deux contrôleurs (gauche et droit) peuvent pointer et sélectionner directement les boutons.
   const laserRaycaster=new Raycaster();
-  const rightLaserGeometry=new BufferGeometry();
-  rightLaserGeometry.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-2.3],3));
-  const rightLaserLine=new Line(rightLaserGeometry,new LineBasicMaterial({
-    color:0xbad9e9,transparent:true,opacity:.67,depthTest:false,depthWrite:false
-  }));
-  rightLaserLine.renderOrder=9;
-  const rightLaserDot=new Mesh(new SphereGeometry(.004,12,8),
-    new MeshBasicMaterial({color:0x5ccaff,depthTest:false,depthWrite:false}));
-  rightLaserDot.visible=false;rightLaserDot.renderOrder=11;scene.add(rightLaserDot);
-  disposables.push(rightLaserGeometry,rightLaserLine.material as LineBasicMaterial,rightLaserDot.geometry,rightLaserDot.material as MeshBasicMaterial);
+  const makeLaser=(color:number)=>{
+    const geo=new BufferGeometry();
+    geo.setAttribute('position',new Float32BufferAttribute([0,0,0,0,0,-2.3],3));
+    const line=new Line(geo,new LineBasicMaterial({color,transparent:true,opacity:.75,depthTest:false,depthWrite:false}));
+    line.renderOrder=9;
+    const dot=new Mesh(new SphereGeometry(.005,12,8),new MeshBasicMaterial({color:0x66e3ff,depthTest:false,depthWrite:false}));
+    dot.visible=false;dot.renderOrder=11;scene.add(dot);
+    disposables.push(geo,line.material as LineBasicMaterial,dot.geometry,dot.material as MeshBasicMaterial);
+    return {geo,line,dot,hoveredLast:null as Clickable|null,candidate:null as Clickable|null,candidateSince:0};
+  };
+  const handLasers={left:makeLaser(0x9bdcff),right:makeLaser(0xbad9e9)};
   const pointable=(controller:Object3D):{target:Clickable|null;point:Vector3|null}=>{
     const pos=new Vector3(),dir=new Vector3(0,0,-1);
     controller.updateMatrixWorld(true);
@@ -1261,18 +1261,21 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const buttons=clickables.filter(item=>item.parent&&shown(item)&&!!item.userData.onSelect);
     // La plaque commune ne doit pas laisser le laser sélectionner un hotspot derrière elle.
     const blockers=[...panelGroup.children,...barGroup.children,...vrShellGroup.children].filter(item=>shown(item)&&!item.userData.onSelect);
-    // Une pièce compte comme touchée seulement si le laser passe sur un pixel de son masque coloré.
-    const intersections=laserRaycaster.intersectObjects([...buttons,...blockers],false).filter(hit=>{
+    const maskFilter=(hit:{object:Object3D;uv?:{x:number;y:number}})=>{
       const mask=hit.object.userData.roomMask as HTMLCanvasElement|undefined;
       if(!mask||!hit.uv)return true;
       const x=Math.min(mask.width-1,Math.max(0,Math.floor(hit.uv.x*mask.width)));
       const y=Math.min(mask.height-1,Math.max(0,Math.floor((1-hit.uv.y)*mask.height)));
       return (mask.getContext('2d')?.getImageData(x,y,1,1).data[3]??0)>0;
-    });
-    if(!intersections.length)return {target:null,point:null};
-    // Surface interactive la plus proche ; le laser ne traverse pas les panneaux.
-    const hit=intersections[0];
-    return {target:hit.object.userData.onSelect?hit.object as Clickable:null,point:hit.point};
+    };
+    const btnHits=laserRaycaster.intersectObjects(buttons,false).filter(maskFilter);
+    const blkHits=laserRaycaster.intersectObjects(blockers,false);
+    // Priorité stricte aux boutons : un fond coplanaire ne vole jamais le clic ; seul un panneau nettement devant (> 3 cm) bloque.
+    if(btnHits.length&&(!blkHits.length||blkHits[0].distance>=btnHits[0].distance-.03)){
+      return {target:btnHits[0].object as Clickable,point:btnHits[0].point};
+    }
+    if(blkHits.length)return {target:null,point:blkHits[0].point};
+    return {target:null,point:null};
   };
   let remoteTarget:Clickable|null=null;
   let remoteAxisArmed=true;
@@ -1332,9 +1335,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     controller.addEventListener('selectstart',()=>{
       const source=controller.userData.source as {handedness?:string}|undefined;
       if(uiHidden)return;
-      // À droite : gâchette sur le rayon. À gauche : sélection au joystick.
-      const target=source?.handedness==='right'?pointable(controller).target:
-        source?.handedness==='left'&&referenceMode?remoteCandidates().find(item=>item===remoteTarget):null;
+      // Gâchette sur le rayon (gauche ou droite) ; sinon à gauche sélection au joystick.
+      const laserHit=pointable(controller).target;
+      const target=laserHit??(source?.handedness==='left'&&referenceMode?remoteCandidates().find(item=>item===remoteTarget):null);
       if(!target?.userData.onSelect)return;
       target.userData.pressedUntil=performance.now()+260;
       const states=target.userData.vrIconStates as {pressed?:Texture|null;pressedUntil:number}|undefined;
@@ -1352,8 +1355,6 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     });
   });
   // ---- boucle de rendu --------------------------------------------------------------------------------------
-  let hoveredRightLast:Clickable|null=null;
-  let laserCandidate:Clickable|null=null,laserCandidateSince=0;
   let lastRefreshCheck=0;
   let turnArmed=true;
   // Clic sur le joystick : masque toute l'interface (barre, fenêtres, repères) ; un second clic la fait réapparaître.
@@ -1473,35 +1474,32 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     const hf=headForward();
     let diff=hf.phi-barPlacedPhi;diff=Math.atan2(Math.sin(diff),Math.cos(diff));
     if(!referenceMode&&Math.abs(diff)>1.1&&barGroup.children.length&&!panelGroup.children.length){void buildBar();}
-    // Laser visible exclusivement depuis la manette droite. Son extrémité
-    // est placée au point d'intersection réel, sans dépasser le bouton.
-    const right=controllers.find(ctrl=>(ctrl.userData.source as {handedness?:string}|undefined)?.handedness==='right');
-    let hoveredRight:Clickable|null=null;
-    if(right){
-      if(rightLaserLine.parent!==right)right.add(rightLaserLine);
-      const impact=pointable(right);
-      // Une cible n'est adoptée qu'après 90 ms de stabilité : le tremblement de la main
-      // au bord d'une pièce ne provoque plus une succession de changements et de vibrations.
-      if(impact.target!==laserCandidate){laserCandidate=impact.target;laserCandidateSince=now;}
-      if(laserCandidate!==hoveredRightLast&&now-laserCandidateSince>=90){
-        hoveredRightLast=laserCandidate;
-        // Une seule impulsion par nouvelle cible.
-        if(hoveredRightLast&&!uiHidden)pulse(right,.12,18);
-      }
-      hoveredRight=hoveredRightLast;
-      const tip=impact.point?right.worldToLocal(impact.point.clone()):new Vector3(0,0,-2.3);
-      const attr=rightLaserGeometry.getAttribute('position') as Float32BufferAttribute;
-      attr.setXYZ(1,tip.x,tip.y,tip.z);attr.needsUpdate=true;rightLaserGeometry.computeBoundingSphere();
-      rightLaserLine.visible=!uiHidden;
-      rightLaserDot.visible=!uiHidden&&!!impact.point;
-      if(impact.point)rightLaserDot.position.copy(impact.point);
-    }else{rightLaserLine.visible=false;rightLaserDot.visible=false;hoveredRightLast=null;laserCandidate=null;}
+    // Lasers actifs sur les deux manettes (gauche et droite), avec stabilisation 90 ms anti-tremblement.
+    const hovered=new Set<Clickable>();
+    for(const hand of ['left','right'] as const){
+      const ctrl=controllers.find(c=>(c.userData.source as {handedness?:string}|undefined)?.handedness===hand);
+      const L=handLasers[hand];
+      if(ctrl){
+        if(L.line.parent!==ctrl)ctrl.add(L.line);
+        const impact=pointable(ctrl);
+        if(impact.target!==L.candidate){L.candidate=impact.target;L.candidateSince=now;}
+        if(L.candidate!==L.hoveredLast&&now-L.candidateSince>=90){
+          L.hoveredLast=L.candidate;
+          if(L.hoveredLast&&!uiHidden)pulse(ctrl,.12,18);
+        }
+        if(L.hoveredLast&&!uiHidden)hovered.add(L.hoveredLast);
+        const tip=impact.point?ctrl.worldToLocal(impact.point.clone()):new Vector3(0,0,-2.3);
+        const attr=L.geo.getAttribute('position') as Float32BufferAttribute;
+        attr.setXYZ(1,tip.x,tip.y,tip.z);attr.needsUpdate=true;L.geo.computeBoundingSphere();
+        L.line.visible=!uiHidden;
+        L.dot.visible=!uiHidden&&!!impact.point;
+        if(impact.point)L.dot.position.copy(impact.point);
+      }else{L.line.visible=false;L.dot.visible=false;L.hoveredLast=null;L.candidate=null;}
+    }
     // Le joystick choisit un bouton : halo doré sur la cible, aucun laser.
     const choices=remoteCandidates();
     if(remoteTarget&&!choices.includes(remoteTarget))remoteTarget=null;
     if(!remoteTarget&&choices.length)remoteTarget=remotePositions(choices).sort((a,b)=>b.y-a.y||a.x-b.x)[0].mesh;
-    const hovered=new Set<Clickable>();
-    if(hoveredRight&&!uiHidden)hovered.add(hoveredRight);
     if(remoteTarget){
       hovered.add(remoteTarget);
       const mesh=remoteTarget as Mesh;
