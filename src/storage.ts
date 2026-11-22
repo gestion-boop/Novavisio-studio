@@ -567,7 +567,7 @@ export async function readPanorama(file:File):Promise<string> {
       const ctx = canvas.getContext('2d');
       if (!ctx) return await readImage(file);
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.86);
+      return canvas.toDataURL('image/jpeg', 0.92);
     } finally { bitmap.close(); }
   } catch {
     return readImage(file);

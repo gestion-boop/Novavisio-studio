@@ -1,4 +1,4 @@
-import {CanvasTexture,LinearFilter,SRGBColorSpace} from 'three';
+import {CanvasTexture,LinearFilter,LinearMipmapLinearFilter,SRGBColorSpace} from 'three';
 
 /** Icônes vectorielles dédiées au casque : même tracé dans les trois états. */
 export type VrControlIcon='gallery'|'up'|'down'|'home'|'sound'|'mute'|'plan'|'help'|'exit'|'info'|'link'|'photos';
@@ -83,9 +83,11 @@ export type VrControlColors={button:string;icon:string};
 const HEX6=/^#[0-9a-f]{6}$/i;
 export function makeVrControlTexture(icon:VrControlIcon,state:VrControlState,colors?:VrControlColors):CanvasTexture{
   const canvas=document.createElement('canvas');
-  canvas.width=320;canvas.height=320;
+  // 640 px (×2) avec mipmaps et anisotropie : même définition que les boutons des panneaux (photos, plan).
+  canvas.width=640;canvas.height=640;
   const c=canvas.getContext('2d');
   if(!c)throw new Error('Canvas 2D indisponible');
+  c.scale(2,2);
   const themed=!!colors&&HEX6.test(colors.button)&&HEX6.test(colors.icon);
   const color=themed?(state==='pressed'?mixHex(colors!.icon,'#ffffff',.65):state==='hover'?mixHex(colors!.icon,'#ffffff',.35):colors!.icon)
     :state==='pressed'?'#fff4c7':state==='hover'?'#ffe19b':'#f3bb37';
@@ -103,6 +105,9 @@ export function makeVrControlTexture(icon:VrControlIcon,state:VrControlState,col
   drawIcon(c,icon);
   const texture=new CanvasTexture(canvas);
   texture.colorSpace=SRGBColorSpace;
-  texture.minFilter=LinearFilter;
+  texture.generateMipmaps=true;
+  texture.minFilter=LinearMipmapLinearFilter;
+  texture.magFilter=LinearFilter;
+  texture.anisotropy=16;
   return texture;
 }
