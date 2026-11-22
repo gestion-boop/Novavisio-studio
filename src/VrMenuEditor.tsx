@@ -170,7 +170,7 @@ export function VrMenuEditor({project, setProject, onClose}: {project: StudioPro
         {plan ? <div className="nv-vrx-plan-row">
           {plans.length > 1 && <div className="nv-vrx-levels" aria-label="Étages">
             <span className="nv-vrx-stairs" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20v-4h4v-4h4V8h4V4h6"/></svg></span>
-            {plans.map((p, i) => <button type="button" key={p.id ?? i} className={plans[Math.min(planIdx, plans.length - 1)] === p ? 'is-on' : ''} title={p.name} onClick={() => setPlanIdx(i)}>{planLevelLabel(p, i)}</button>)}
+            {plans.map((p, i) => [p, i] as const).reverse().map(([p, i]) => <button type="button" key={p.id ?? i} className={plans[Math.min(planIdx, plans.length - 1)] === p ? 'is-on' : ''} title={p.name} onClick={() => setPlanIdx(i)}>{planLevelLabel(p, i)}</button>)}
           </div>}
           <img className="nv-vrx-plan" src={plan.imageDataUrl} alt="Plan"/></div> : <p>Aucun plan dans cette visite.</p>}</div>;
     }

@@ -1167,8 +1167,9 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         ctx.strokeStyle=iconColor;ctx.lineWidth=14;ctx.lineJoin='round';ctx.lineCap='round';
         ctx.beginPath();ctx.moveTo(26,148);ctx.lineTo(26,118);ctx.lineTo(62,118);ctx.lineTo(62,88);ctx.lineTo(98,88);ctx.lineTo(98,58);ctx.lineTo(134,58);ctx.lineTo(134,28);ctx.lineTo(160,28);ctx.stroke();
       }),8,x,top-.0);
+      // L'étage le plus haut est en haut de la colonne : on « monte » en cliquant vers le haut.
       plans.forEach((other,i)=>{
-        addPanelButton(.095,.095,pointTexture(planLevelLabel(other,i),i===index),x,top-.105-i*step,()=>{void showFloorPlan(item,i);},8);
+        addPanelButton(.095,.095,pointTexture(planLevelLabel(other,i),i===index),x,top-.105-(plans.length-1-i)*step,()=>{void showFloorPlan(item,i);},8);
       });
     }
     addPanelButton(.24,.11,closeButtonTexture(),0,-H/2+.074,closePanels);
