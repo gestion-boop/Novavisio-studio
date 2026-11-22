@@ -1134,7 +1134,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
     if(ended||req!==floorPlanRequest||gen!==panelGen)return;
     closePanels();
     const ratio=bitmap.width/Math.max(1,bitmap.height);
-    const maxW=referenceMode?1.38:1.48,maxH=referenceMode?.76:1.02;
+    const maxW=referenceMode?1.55:1.72,maxH=referenceMode?.9:1.2;
     const imageW=Math.min(maxW,maxH*ratio),imageH=Math.min(maxH,maxW/ratio);
     const W=imageW+.32,H=imageH+(referenceMode?.29:.33);
     addPlane(panelGroup,W,H,backdrop(W,H),5,0,0);
@@ -1159,7 +1159,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
         // Comme la visite classique : la pièce n'est colorée qu'au survol ; cliquer dessus ouvre le panorama.
         (m.material as MeshBasicMaterial).opacity=0;
         const targetId=sceneId;
-        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,panel:true,onSelect:()=>{void goTo(targetId);}});
+        Object.assign(m.userData,{baseScale:1,hoverScale:1,roomHighlight:true,panel:true,onSelect:()=>{m.userData.pressedUntil=performance.now()+900;void goTo(targetId);}});
         clickables.push(m as unknown as Clickable);
         roomIds.add(sceneId);
       }
@@ -1501,7 +1501,7 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const isPressed=(m.userData.pressedUntil??0)>now;
       const base=m.userData.baseScale??1,wanted=isPressed?.9:hovered.has(m)?(m.userData.hoverScale??1):base;
       // Zoom avant des sphères au survol : elles s'avancent vers le spectateur.
-      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial)rm.opacity=hovered.has(m)?.8:0;continue;}
+      if(m.userData.roomHighlight){const rm=(m as Mesh).material;if(rm instanceof MeshBasicMaterial){rm.color.set(isPressed?'#ffd84a':'#ffffff');rm.opacity=isPressed?.95:hovered.has(m)?.8:0;}continue;}
       if(m.userData.spin&&m.userData.dir){const want=isPressed?HOTSPOT_R-4.2:hovered.has(m)?HOTSPOT_R-1.8:HOTSPOT_R;m.userData.dist+=(want-m.userData.dist)*.22;m.position.copy(m.userData.dir).multiplyScalar(m.userData.dist);}
       // Survol (plus clair) et pressé (plus sombre) pour tous les boutons de l'interface.
       if(!m.userData.isFrame&&(m as Mesh).material instanceof MeshBasicMaterial){
