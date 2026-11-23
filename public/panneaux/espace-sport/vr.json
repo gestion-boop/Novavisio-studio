@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Espace sport",
+   "pages": [
+    {
+     "title": "Espace sport",
+     "text": "Ici, venez vous détendre avec une bonne séance de sport.\nEn plein air, à votre rythme."
+    }
+   ]
+  },
+  "en": {
+   "title": "Sports area",
+   "pages": [
+    {
+     "title": "Sports area",
+     "text": "Come and unwind here with a good workout.\nOutdoors, at your own pace."
+    }
+   ]
+  },
+  "es": {
+   "title": "Zona deportiva",
+   "pages": [
+    {
+     "title": "Zona deportiva",
+     "text": "Venga a relajarse aquí con una buena sesión de deporte.\nAl aire libre, a su ritmo."
+    }
+   ]
+  },
+  "de": {
+   "title": "Sportbereich",
+   "pages": [
+    {
+     "title": "Sportbereich",
+     "text": "Entspannen Sie hier bei einer guten Sporteinheit.\nIm Freien, in Ihrem Tempo."
+    }
+   ]
+  },
+  "nl": {
+   "title": "Sportruimte",
+   "pages": [
+    {
+     "title": "Sportruimte",
+     "text": "Kom hier ontspannen met een goede sportsessie.\nIn de buitenlucht, in uw eigen tempo."
+    }
+   ]
+  }
+ }
+}
