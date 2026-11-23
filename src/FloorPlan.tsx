@@ -177,7 +177,7 @@ export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{
   const plan=usable[index];
   const toggle=()=>setHidden(value=>{const next=!value;try{localStorage.setItem('nv-minimap-hidden',next?'1':'0');}catch{/* stockage indisponible */}return next;});
   return <aside ref={root} className={'nv-minimap'+(hidden?' is-hidden':'')+(zoom>1?' is-zoomed':'')} aria-label="Plan de la visite" onMouseEnter={enter} onMouseLeave={leave}
-    style={{'--mm-pt':String(Math.min(1,1.9/zoom).toFixed(3)),'--mm-corner':String(Math.min(1,1.25/zoom).toFixed(3))} as CSSProperties}>
+    style={{'--mm-pt':String(Math.min(1,1.9/zoom).toFixed(3)),'--mm-corner':String(Math.min(1,1.25/zoom).toFixed(3)),'--mm-lvl':String(Math.min(1,1/zoom).toFixed(3))} as CSSProperties}>
     <button type="button" className="nv-minimap-eye" aria-pressed={!hidden} onClick={toggle}
       aria-label={hidden?'Afficher le plan':'Masquer le plan'} title={hidden?'Afficher le plan':'Masquer le plan'}>
       <Map size={20}/>

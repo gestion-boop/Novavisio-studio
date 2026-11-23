@@ -367,3 +367,7 @@
 .nv-plan-image>button.nv-plan-point:hover,.nv-plan-image>button.nv-plan-point:active{color:var(--nv-icon-color,#fff);box-shadow:0 0 0 3px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 45%,transparent),0 6px 18px #000c}
 .nv-plan-image>button.nv-plan-point:focus-visible,.nv-plan-point:focus-visible{outline:3px solid var(--nv-icon-color,#f6bf56);outline-offset:3px}
 .nv-plan-image>button.nv-plan-point.is-moving{background:var(--nv-button-bg,#241d1f)!important;box-shadow:0 0 0 4px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 65%,transparent),0 14px 30px #000e!important}
+
+/* Boutons d'étage : petits, en superposition dans le coin du plan, et compensés quand le plan est déplié. */
+.nv-minimap-head{position:absolute;top:6px;left:6px;z-index:3;margin:0;min-height:0;scale:var(--mm-lvl,1);transform-origin:0 0;transition:scale .42s cubic-bezier(.22,.8,.2,1)}
+.nv-minimap-levels button{min-width:22px;height:22px;padding:0 6px;font-size:11px;border-radius:7px;opacity:.92}
