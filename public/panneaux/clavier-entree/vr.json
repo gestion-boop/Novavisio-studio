@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Clavier ENTRÉE",
+   "pages": [
+    {
+     "title": "Clavier ENTRÉE",
+     "text": "Entrée par le clavier, la nuit.\n\n23h00 – 7h00"
+    }
+   ]
+  },
+  "en": {
+   "title": "Keyboard ENTRY",
+   "pages": [
+    {
+     "title": "Keyboard ENTRY",
+     "text": "Entry by keypad at night.\n\nFrom 11.00 PM to 7.00 AM"
+    }
+   ]
+  },
+  "es": {
+   "title": "Teclado de ENTRADA",
+   "pages": [
+    {
+     "title": "Teclado de ENTRADA",
+     "text": "Entrada con el teclado, por la noche.\n\nDe 23:00 a 7:00 h"
+    }
+   ]
+  },
+  "de": {
+   "title": "Tastatur EINFAHRT",
+   "pages": [
+    {
+     "title": "Tastatur EINFAHRT",
+     "text": "Einfahrt nachts über die Tastatur.\n\n23:00 – 7:00 Uhr"
+    }
+   ]
+  },
+  "nl": {
+   "title": "Toetsenbord INGANG",
+   "pages": [
+    {
+     "title": "Toetsenbord INGANG",
+     "text": "Ingang 's nachts met het toetsenbord.\n\nVan 23.00 tot 7.00 uur"
+    }
+   ]
+  }
+ }
+}
