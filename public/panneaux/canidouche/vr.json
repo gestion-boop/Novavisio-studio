@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Canidouche",
+   "pages": [
+    {
+     "title": "Canidouche",
+     "text": "Une douche pour chiens est disponible dans le camping.\nPour le bien-être de votre compagnon."
+    }
+   ]
+  },
+  "en": {
+   "title": "Dog shower",
+   "pages": [
+    {
+     "title": "Dog shower",
+     "text": "A dog shower is available at the campsite.\nFor your companion’s well-being."
+    }
+   ]
+  },
+  "es": {
+   "title": "Ducha para perros",
+   "pages": [
+    {
+     "title": "Ducha para perros",
+     "text": "Hay una ducha para perros disponible en el camping.\nPara el bienestar de su compañero."
+    }
+   ]
+  },
+  "de": {
+   "title": "Hundedusche",
+   "pages": [
+    {
+     "title": "Hundedusche",
+     "text": "Auf dem Campingplatz steht eine Hundedusche zur Verfügung.\nFür das Wohl Ihres Begleiters."
+    }
+   ]
+  },
+  "nl": {
+   "title": "Hondendouche",
+   "pages": [
+    {
+     "title": "Hondendouche",
+     "text": "Op de camping is een hondendouche beschikbaar.\nVoor het welzijn van uw viervoeter."
+    }
+   ]
+  }
+ }
+}
