@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Défibrillateur (DAE)",
+   "pages": [
+    {
+     "title": "En cas d’arrêt cardiaque",
+     "text": "1. Appelez les secours : 15 ou 112\n2. Prenez le défibrillateur\n3. Suivez les instructions vocales de l’appareil"
+    }
+   ]
+  },
+  "en": {
+   "title": "Defibrillator (AED)",
+   "pages": [
+    {
+     "title": "In case of cardiac arrest",
+     "text": "1. Call the emergency services: 15 or 112\n2. Take the defibrillator\n3. Follow the device’s voice instructions"
+    }
+   ]
+  },
+  "es": {
+   "title": "Desfibrilador (DEA)",
+   "pages": [
+    {
+     "title": "En caso de paro cardíaco",
+     "text": "1. Llame a los servicios de emergencia: 15 o 112\n2. Coja el desfibrilador\n3. Siga las instrucciones de voz del aparato"
+    }
+   ]
+  },
+  "de": {
+   "title": "Defibrillator (AED)",
+   "pages": [
+    {
+     "title": "Bei Herzstillstand",
+     "text": "1. Rufen Sie den Notruf an: 15 oder 112\n2. Holen Sie den Defibrillator\n3. Folgen Sie den Sprachanweisungen des Geräts"
+    }
+   ]
+  },
+  "nl": {
+   "title": "Defibrillator (AED)",
+   "pages": [
+    {
+     "title": "Bij hartstilstand",
+     "text": "1. Bel de hulpdiensten: 15 of 112\n2. Neem de defibrillator\n3. Volg de gesproken instructies van het apparaat"
+    }
+   ]
+  }
+ }
+}
