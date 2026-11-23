@@ -36,9 +36,23 @@ const friendly=(message:string)=>
     'Les liens publics ne sont pas encore activés : exécute le fichier SQL « 20261110010000_nvstudio_share_links » dans Supabase.':
   message;
 
+/**
+ * Enregistre une nouvelle révision. Si le cloud en contient déjà de plus récentes que la copie locale (autre fenêtre, autre appareil),
+ * l'action explicite « Publier » / « Créer un lien » ajoute simplement la révision suivante : les révisions existantes restent
+ * dans l'historique, rien n'est écrasé ni supprimé.
+ */
+async function saveRebased(project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void):Promise<CloudLink>{
+  try{return await saveToCloud(project,link,onProgress);}
+  catch(err){
+    const m=err instanceof Error?/révision (\d+) alors que cette copie/.exec(err.message):null;
+    if(m&&link)return await saveToCloud(project,{...link,revision:Number(m[1])},onProgress);
+    throw err;
+  }
+}
+
 export async function createShareLink(project:StudioProject,link:CloudLink|null,days:ShareDays,onProgress:(msg:string)=>void,storeMasterLink=true):Promise<{link:CloudLink;token:string;expires_at:string}>{
   // 1) La visite telle qu'elle est maintenant est enregistrée dans le cloud (nouvelle révision, rien n'est écrasé).
-  const saved=await saveToCloud(project,link,onProgress);
+  const saved=await saveRebased(project,link,onProgress);
   // On mémorise tout de suite le lien local ↔ cloud : si la création du lien échoue (ex. fonctions SQL pas encore installées),
   // la prochaine tentative ajoute une révision à la MÊME visite au lieu d'en créer une seconde en double.
   if(storeMasterLink)writeLink(saved);
@@ -71,7 +85,7 @@ export async function getPublication(projectId:string):Promise<Publication|null>
 }
 /** Enregistre la visite telle qu'elle est maintenant (nouvelle révision) puis fait pointer l'adresse permanente dessus. */
 export async function publishPermanent(project:StudioProject,link:CloudLink|null,onProgress:(msg:string)=>void,storeMasterLink=true):Promise<{link:CloudLink;publication:Publication}>{
-  const saved=await saveToCloud(project,link,onProgress);
+  const saved=await saveRebased(project,link,onProgress);
   if(storeMasterLink)writeLink(saved);
   onProgress('Publication…');
   const {data,error}=await supabase().rpc('nvstudio_publish',{p_project:saved.projectId,p_revision:saved.revision});
