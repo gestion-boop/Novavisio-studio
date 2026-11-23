@@ -371,3 +371,19 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 .nv-audio-layer{left:auto!important;right:16px!important;top:76px!important}
 .nv-audio-toggle.is-editing{position:relative}
 .nv-audio-edit-tag{position:absolute;right:-4px;bottom:-4px;width:18px;height:18px;border-radius:50%;background:#2f8fb5;color:#fff;font-size:11px;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}
+
+/* Choix du son : couleurs de la charte graphique de la visite (celles de la barre du bas). */
+.nv-sound-choice-dialog:not(#nv-x){
+  background:var(--nv-bar-bg,rgba(15,41,53,.97));
+  border:var(--nv-bar-border-width,1px) solid var(--nv-bar-outline,#71999d);
+  border-radius:max(14px,var(--nv-bar-roundness,18px));
+}
+.nv-sound-choice-dialog:not(#nv-x) h2{color:var(--nv-icon-color,#f2ffff)}
+.nv-sound-choice-dialog:not(#nv-x) p{color:color-mix(in srgb,var(--nv-icon-color,#bed4db) 82%,transparent)}
+.nv-sound-choice-button:not(#nv-x){
+  background:var(--nv-button-bg,#214757);
+  border:var(--nv-button-border-width,1px) solid var(--nv-button-outline,#65969f);
+  color:var(--nv-icon-color,#e6ffff);
+}
+.nv-sound-choice-button:not(#nv-x):hover{background:color-mix(in srgb,var(--nv-button-bg,#214757) 78%,#fff);border-color:var(--nv-icon-color,#66d9ca)}
+.nv-sound-choice-button:not(#nv-x):active{background:color-mix(in srgb,var(--nv-button-bg,#214757) 70%,#000)}
