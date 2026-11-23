@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Recharge électrique disponible",
+   "pages": [
+    {
+     "title": "Recharge électrique disponible",
+     "text": "Une borne de recharge pour véhicules électriques est à votre disposition.\n\nMerci de vous renseigner à l’accueil."
+    }
+   ]
+  },
+  "en": {
+   "title": "Electric charging available",
+   "pages": [
+    {
+     "title": "Electric charging available",
+     "text": "An electric vehicle charging point is available.\n\nPlease ask at reception for information."
+    }
+   ]
+  },
+  "es": {
+   "title": "Recarga eléctrica disponible",
+   "pages": [
+    {
+     "title": "Recarga eléctrica disponible",
+     "text": "Hay un punto de recarga para vehículos eléctricos a su disposición.\n\nPor favor, infórmese en la recepción."
+    }
+   ]
+  },
+  "de": {
+   "title": "Elektro-Ladestation verfügbar",
+   "pages": [
+    {
+     "title": "Elektro-Ladestation verfügbar",
+     "text": "Eine Ladestation für Elektrofahrzeuge steht Ihnen zur Verfügung.\n\nBitte erkundigen Sie sich an der Rezeption."
+    }
+   ]
+  },
+  "nl": {
+   "title": "Elektrisch opladen mogelijk",
+   "pages": [
+    {
+     "title": "Elektrisch opladen mogelijk",
+     "text": "Er is een oplaadpunt voor elektrische voertuigen beschikbaar.\n\nInformeer bij de receptie."
+    }
+   ]
+  }
+ }
+}
