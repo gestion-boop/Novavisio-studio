@@ -2,7 +2,7 @@ import {proposePlanLayout} from './planAutoPlace';
 import {readPlanImage,matchScenesToRooms,type PlanRoom} from './planRead';
 import {confirmAsk} from './confirmDialog';
 import {createPortal} from 'react-dom';
-import {Fragment,useEffect,useId,useRef,useState,type ReactNode} from 'react';
+import {Fragment,useEffect,useId,useRef,useState,type CSSProperties,type ReactNode} from 'react';
 import {Map,Maximize2,X,Eye} from 'lucide-react';
 import {isSafeFrameImage,type FloorPlan,type Scene} from './storage';
 import {ui,pick} from './i18n';
@@ -174,7 +174,8 @@ export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{
   const index=Math.max(0,Math.min(manual??(auto>=0?auto:0),usable.length-1));
   const plan=usable[index];
   const toggle=()=>setHidden(value=>{const next=!value;try{localStorage.setItem('nv-minimap-hidden',next?'1':'0');}catch{/* stockage indisponible */}return next;});
-  return <aside ref={root} className={'nv-minimap'+(hidden?' is-hidden':'')+(zoom>1?' is-zoomed':'')} aria-label="Plan de la visite" onMouseEnter={enter} onMouseLeave={leave}>
+  return <aside ref={root} className={'nv-minimap'+(hidden?' is-hidden':'')+(zoom>1?' is-zoomed':'')} aria-label="Plan de la visite" onMouseEnter={enter} onMouseLeave={leave}
+    style={{'--mm-pt':String(Math.min(1,1.9/zoom).toFixed(3)),'--mm-corner':String(Math.min(1,1.25/zoom).toFixed(3))} as CSSProperties}>
     <button type="button" className="nv-minimap-eye" aria-pressed={!hidden} onClick={toggle}
       aria-label={hidden?'Afficher le plan':'Masquer le plan'} title={hidden?'Afficher le plan':'Masquer le plan'}>
       <Map size={20}/>

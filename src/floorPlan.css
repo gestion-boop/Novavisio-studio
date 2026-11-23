@@ -357,3 +357,7 @@
 .nv-minimap-corner{width:24px;height:24px;right:4px;bottom:4px;border-radius:7px}
 .nv-minimap .nv-plan-image>button.nv-plan-point{width:15px;height:15px;min-width:15px;min-height:15px;font-size:8px}
 @media(max-width:700px){.nv-minimap{top:58px;right:8px}.nv-minimap-body{width:min(30vw,120px)!important}.nv-minimap-eye{width:32px;height:32px}}
+
+/* Plan déplié : les numéros et le bouton plein écran gardent une taille raisonnable (ils compensent le zoom du plan). */
+.nv-minimap .nv-plan-image>button.nv-plan-point{scale:var(--mm-pt,1);transition:scale .42s cubic-bezier(.22,.8,.2,1)}
+.nv-minimap-corner{scale:var(--mm-corner,1);transform-origin:100% 100%;transition:scale .42s cubic-bezier(.22,.8,.2,1)}
