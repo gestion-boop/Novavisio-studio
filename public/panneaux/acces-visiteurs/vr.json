@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Vitesse limitée à 10 km/h",
+   "pages": [
+    {
+     "title": "Vitesse limitée à 10 km/h",
+     "text": "Visiteurs et nouveaux arrivants, présentez-vous à l’accueil.\n\n23h00 – 7h00\nPROPRIÉTÉ PRIVÉE"
+    }
+   ]
+  },
+  "en": {
+   "title": "Speed limit 10 km/h",
+   "pages": [
+    {
+     "title": "Speed limit 10 km/h",
+     "text": "Visitors and new arrivals, please report to reception.\n\n11.00 PM – 7.00 AM\nPRIVATE PROPERTY"
+    }
+   ]
+  },
+  "es": {
+   "title": "Velocidad limitada a 10 km/h",
+   "pages": [
+    {
+     "title": "Velocidad limitada a 10 km/h",
+     "text": "Visitantes y recién llegados, preséntense en la recepción.\n\n23:00 – 7:00 h\nPROPIEDAD PRIVADA"
+    }
+   ]
+  },
+  "de": {
+   "title": "Höchstgeschwindigkeit 10 km/h",
+   "pages": [
+    {
+     "title": "Höchstgeschwindigkeit 10 km/h",
+     "text": "Besucher und Neuankömmlinge melden sich bitte an der Rezeption.\n\n23:00 – 7:00 Uhr\nPRIVATGELÄNDE"
+    }
+   ]
+  },
+  "nl": {
+   "title": "Maximumsnelheid 10 km/u",
+   "pages": [
+    {
+     "title": "Maximumsnelheid 10 km/u",
+     "text": "Bezoekers en nieuwe aankomers, meld u bij de receptie.\n\n23.00 – 7.00 uur\nPRIVÉTERREIN"
+    }
+   ]
+  }
+ }
+}
