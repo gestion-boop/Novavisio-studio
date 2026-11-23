@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Merci d’utiliser la raclette",
+   "pages": [
+    {
+     "title": "Merci d’utiliser la raclette",
+     "text": "Merci d’utiliser la raclette après votre passage.\nLa Direction"
+    }
+   ]
+  },
+  "en": {
+   "title": "Please use the squeegee",
+   "pages": [
+    {
+     "title": "Please use the squeegee",
+     "text": "Please use the squeegee before leaving.\nThe Management"
+    }
+   ]
+  },
+  "es": {
+   "title": "Gracias por usar la rasqueta",
+   "pages": [
+    {
+     "title": "Gracias por usar la rasqueta",
+     "text": "Gracias por usar la rasqueta después de su paso.\nLa Dirección"
+    }
+   ]
+  },
+  "de": {
+   "title": "Bitte benutzen Sie den Abzieher",
+   "pages": [
+    {
+     "title": "Bitte benutzen Sie den Abzieher",
+     "text": "Bitte benutzen Sie den Abzieher nach Ihrer Nutzung.\nDie Leitung"
+    }
+   ]
+  },
+  "nl": {
+   "title": "Gebruik de trekker",
+   "pages": [
+    {
+     "title": "Gebruik de trekker",
+     "text": "Gebruik de trekker na uw bezoek, alstublieft.\nDe directie"
+    }
+   ]
+  }
+ }
+}
