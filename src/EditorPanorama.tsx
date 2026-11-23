@@ -116,8 +116,8 @@ export function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selec
 }
 export function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false,night=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
-  // Aperçu : seuls les points du moment choisi (jour / nuit) sont affichés. Édition de nuit : tous les points, sauf les flèches du jour.
-  for(const h of (preview?visibleVideoFrames(scene.hotspots).filter(point=>inPhase(point,night)):scene.hotspots.filter(point=>!night||point.type!=='navigation'||inPhase(point,true)))){
+  // Aperçu comme édition : seuls les points du moment choisi (jour / nuit) sont affichés.
+  for(const h of (preview?visibleVideoFrames(scene.hotspots):scene.hotspots).filter(point=>inPhase(point,night))){
     all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation,scene.hotspots));
     if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
