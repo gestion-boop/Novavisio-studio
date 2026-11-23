@@ -19,6 +19,7 @@ Ces règles s'appliquent à toutes les sessions et à toutes les visites virtuel
 - Plans (casque, visite, éditeur) : AUCUNE couleur dans les pièces. Numéros affichés sur chaque panorama placé ; la pièce où l'on se trouve a un petit halo qui scintille autour de son numéro (décision du 22/11, remplace l'ancienne règle « pastilles masquées + pièce colorée »).
 - Sphères de destination : contour identique au mode édition (couleur et intensité de la sphère), panorama en 1024 px.
 - Une arrivée sur un panorama ferme l'interface jaune.
+- Sélection à la télécommande : cadre VERT (couleur par défaut) autour de ce que vise le rayon ou le joystick, avant d'appuyer sur la gâchette (panoramas, galeries photo, icônes, plans). Les numéros du plan visés s'avancent en relief. Constante `SELECT_COLOR` dans `src/vr.ts`.
 
 ## Git et déploiement
 - Pousser chaque changement sur `main` et sur la branche de travail `claude/gallant-davinci-3j0crn`.

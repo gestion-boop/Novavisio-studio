@@ -1421,6 +1421,8 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const x=imgX+(point.x/100-.5)*imageW,y=imgY+(.5-point.y/100)*imageH;
       const here=target.id===currentId;
       const dot=addPanelButton(.12,.12,pointTexture(String(pointIndex+1),here),x,y,()=>{void goTo(target.id);},9);
+      // Numéro visé : il s'avance (relief) en plus du cadre vert.
+      dot.userData={...dot.userData,hoverScale:1.4};
       if(here){
         const halo=new Mesh(new PlaneGeometry(.3,.3),new MeshBasicMaterial({map:haloTexture,transparent:true,opacity:.7,depthTest:false,depthWrite:false}));
         halo.renderOrder=8;halo.position.z=-.001;dot.add(halo);
@@ -1567,8 +1569,28 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
   let remoteAxisLastStep=0;
   // Cadre doré autour du contrôle sélectionné. La bordure suit la cible,
   // elle n'est pas un laser et ne dépend pas de l'orientation de la manette.
+  // Sélection VERTE par défaut (l'interface jaune est dorée : un survol jaune s'y confondrait).
+  const SELECT_COLOR='#35d27f';
+  const focusTextures=new Map<string,Texture>();
+  const focusTexture=(w:number,h:number):Texture=>{
+    const key=w.toFixed(2)+'x'+h.toFixed(2);
+    let tex=focusTextures.get(key);
+    if(!tex){
+      const pw=Math.max(64,Math.min(512,Math.round(w*900))),ph=Math.max(64,Math.min(512,Math.round(h*900)));
+      tex=canvasTexture(pw,ph,ctx=>{
+        const round=Math.abs(w-h)<.02*Math.max(w,h)&&Math.max(w,h)<.3;
+        const r=round?Math.min(pw,ph)/2:Math.min(pw,ph)*.2;
+        const lw=Math.max(6,Math.min(pw,ph)*.06);
+        ctx.shadowColor=SELECT_COLOR;ctx.shadowBlur=18;ctx.lineWidth=lw;ctx.strokeStyle=SELECT_COLOR;
+        roundRect(ctx,lw/2+10,lw/2+10,pw-lw-20,ph-lw-20,r);ctx.stroke();ctx.stroke();
+      });
+      focusTextures.set(key,tex);
+    }
+    return tex;
+  };
+  let lastFocusKey='';
   const remoteFocus=new Mesh(new PlaneGeometry(1,1),new MeshBasicMaterial({
-    color:0xf5ba32,side:DoubleSide,depthTest:false,depthWrite:false
+    color:0xffffff,transparent:true,side:DoubleSide,depthTest:false,depthWrite:false
   }));
   remoteFocus.visible=false;ui.add(remoteFocus);
   disposables.push(remoteFocus.geometry,remoteFocus.material as MeshBasicMaterial);
@@ -1903,23 +1925,26 @@ export async function startVr(opts:VrOptions):Promise<()=>void>{
       const sorted=remotePositions(choices).sort((a,b)=>(referenceMode||panelHasControls)?(b.y-a.y||a.x-b.x):(Math.hypot(a.x,a.y)-Math.hypot(b.x,b.y)));
       remoteTarget=sorted[0].mesh;
     }
-    if(remoteTarget){
-      hovered.add(remoteTarget);
-      if(remoteTarget.userData.roomHighlight||remoteTarget.userData.spin){
-        remoteFocus.visible=false;
-      }else{
-        const mesh=remoteTarget as Mesh;
-        const params=(mesh.geometry as {parameters?:{width?:number;height?:number;radius?:number}}).parameters;
-        const w=params?.width??((params?.radius??.14)*2.2);
-        const h=params?.height??((params?.radius??.14)*2.2);
-        const pad=remoteTarget.parent===hotspotGroup?.08:.028;
-        mesh.getWorldPosition(remoteFocus.position);
-        mesh.getWorldQuaternion(remoteFocus.quaternion);
-        remoteFocus.translateZ(-.004);
-        remoteFocus.scale.set(w+pad,h+pad,1);
-        remoteFocus.renderOrder=mesh.renderOrder-.15;
-        remoteFocus.visible=!uiHidden;
-      }
+    if(remoteTarget)hovered.add(remoteTarget);
+    // Cadre vert sur ce que la manette vise (rayon ou joystick) : on voit la sélection AVANT d'appuyer sur la gâchette.
+    const focusTarget=activeLaserHover??remoteTarget;
+    if(focusTarget&&!focusTarget.userData.roomHighlight&&!focusTarget.userData.spin&&!uiHidden){
+      const mesh=focusTarget as Mesh;
+      const params=(mesh.geometry as {parameters?:{width?:number;height?:number;radius?:number}}).parameters;
+      const sc=mesh.scale.x||1;
+      const w=(params?.width??((params?.radius??.14)*2.2))*sc;
+      const h=(params?.height??((params?.radius??.14)*2.2))*sc;
+      const pad=focusTarget.parent===hotspotGroup?.08:.04;
+      mesh.getWorldPosition(remoteFocus.position);
+      mesh.getWorldQuaternion(remoteFocus.quaternion);
+      remoteFocus.translateZ(.004);
+      remoteFocus.scale.set(w+pad,h+pad,1);
+      remoteFocus.renderOrder=mesh.renderOrder+.15;
+      const focusMat=remoteFocus.material as MeshBasicMaterial;
+      const key=(w+pad).toFixed(2)+'x'+(h+pad).toFixed(2);
+      if(key!==lastFocusKey){lastFocusKey=key;focusMat.map=focusTexture(w+pad,h+pad);focusMat.needsUpdate=true;}
+      focusMat.opacity=.85+.15*Math.sin(now/180);
+      remoteFocus.visible=true;
     }else remoteFocus.visible=false;
     for(const m of clickables){
       const haloMesh=m.userData.haloMesh as Mesh|undefined;
