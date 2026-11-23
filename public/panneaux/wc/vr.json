@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "WC",
+   "pages": [
+    {
+     "title": "WC",
+     "text": "Vidange de cassette WC interdite\n\nVeuillez laisser cet endroit aussi propre que vous l’avez trouvé."
+    }
+   ]
+  },
+  "en": {
+   "title": "WC",
+   "pages": [
+    {
+     "title": "WC",
+     "text": "No discharge of holding tanks\n\nPlease leave this area as you would wish to find it."
+    }
+   ]
+  },
+  "es": {
+   "title": "WC",
+   "pages": [
+    {
+     "title": "WC",
+     "text": "Prohibido vaciar cassettes de WC\n\nPor favor, deje este lugar tan limpio como lo encontró."
+    }
+   ]
+  },
+  "de": {
+   "title": "WC",
+   "pages": [
+    {
+     "title": "WC",
+     "text": "Entleeren von Toilettenkassetten verboten\n\nBitte verlassen Sie diesen Ort so sauber, wie Sie es vorgefunden haben."
+    }
+   ]
+  },
+  "nl": {
+   "title": "WC",
+   "pages": [
+    {
+     "title": "WC",
+     "text": "Het legen van toiletcassettes is verboden\n\nWilt u dit vertrek net zo schoon achterlaten als u het aangetroffen hebt."
+    }
+   ]
+  }
+ }
+}
