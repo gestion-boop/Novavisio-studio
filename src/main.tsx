@@ -6098,7 +6098,19 @@ function App(){
         <h2>⚠ Sauvegarde impossible</h2>
         <p>{saveWarning}</p>
         <p><strong>Aucune version cloud n’a été remplacée par cette tentative.</strong> Sauvegarde une copie locale avant de fermer cette fenêtre.</p>
-        <button type="button" className="primary" onClick={()=>setSaveWarning(null)}>J’ai compris</button>
+        <div className="nv-save-actions">
+          <button type="button" className="primary" onClick={()=>setSaveWarning(null)}>J’ai compris</button>
+          {cloud.hasConflict()&&<button type="button" className="nv-overwrite" title="Remplace la version Cloud plus récente par ta version. L’ancienne reste dans l’historique du Cloud." onClick={async()=>{
+            if(!await confirmAsk('Écraser la version Cloud plus récente par ta version ?\n\nLes modifications faites par l’autre personne seront remplacées. Cette version reste archivée dans l’historique du Cloud.'))return;
+            setSavingManually(true);setStatus('Écrasement de la version Cloud…');
+            try{
+              const snapshot=projectRef.current;
+              const ok=await cloud.overwriteNow(snapshot);
+              if(ok){savedRef.current=snapshot;setSaveWarning(null);setStatus('Version Cloud écrasée par la tienne (ancienne version archivée)');histRef.current.ops=0;setHistTick(t=>t+1);}
+              else setStatus('Écrasement impossible : '+(cloud.getLastError()??'vérifie la connexion et tes droits'));
+            }finally{setSavingManually(false);}
+          }}>Écraser la version Cloud</button>}
+        </div>
       </section>
     </div>}
     {help&&<div className="overlay" {...overlayClose(()=>setHelp(false))}><div className="modal" onClick={e=>e.stopPropagation()}>

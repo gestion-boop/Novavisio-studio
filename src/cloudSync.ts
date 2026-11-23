@@ -48,6 +48,8 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   const runningRef=useRef(false);
   const adoptingRef=useRef(false);
   const takeoverRef=useRef(false);
+  /** Version cloud plus récente détectée lors du dernier conflit (mode manuel) : permet d'écraser volontairement. */
+  const conflictVersionRef=useRef<number|null>(null);
   const timerRef=useRef<number|undefined>(undefined);
   const blockedRef=useRef<'setup'|null>(null);
   const attemptRef=useRef(0);
@@ -129,6 +131,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
       if(e instanceof CloudConflictError){
         if(manualOnly){
           // In manual mode, never silently replace an existing cloud version.
+          conflictVersionRef.current=e.cloudVersion;
           lastErrorRef.current='Conflit de version : une autre personne a enregistré une version plus récente. Ne recharge pas sans protéger tes modifications locales.';
           setState({kind:'error',message:'Le cloud a une version plus récente. Ouvre l’historique dans Cloud avant de décider.'});
         }else{
@@ -279,5 +282,14 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     return projectRef.current===syncedRef.current&&!!readLink();
   },[manualOnly]);
 
-  return {state,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,ensureSignedIn,syncNow,getLastError:()=>lastErrorRef.current};
+  /** Écrase VOLONTAIREMENT la version cloud plus récente (la version écrasée reste archivée côté Cloud). */
+  const overwriteNow=async(snapshot?:StudioProject):Promise<boolean>=>{
+    const link=readLink();
+    if(link&&conflictVersionRef.current!==null)writeLink({...link,version:conflictVersionRef.current});
+    takeoverRef.current=true;
+    const ok=await syncNow(snapshot);
+    if(ok)conflictVersionRef.current=null;else takeoverRef.current=false;
+    return ok;
+  };
+  return {state,overwriteNow,hasConflict:()=>conflictVersionRef.current!==null,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,ensureSignedIn,syncNow,getLastError:()=>lastErrorRef.current};
 }

@@ -143,3 +143,7 @@
 .nv-link-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;border:1px solid #2e536e;background:#0f1f2a}
 .nv-link-seg button:not(#nv-x){padding:10px 8px;border-radius:10px;border:0;background:transparent;color:#a9c3cf;font-weight:700;cursor:pointer}
 .nv-link-seg button[aria-pressed="true"]:not(#nv-x){background:linear-gradient(160deg,#3f9e8f,#2a7a6f);color:#fff}
+
+.nv-save-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.nv-overwrite:not(#nv-x){padding:10px 16px;border-radius:12px;border:1px solid #e0903f;background:#7a3b10;color:#fff;font-weight:700;cursor:pointer}
+.nv-overwrite:not(#nv-x):hover{background:#9a4d17}
