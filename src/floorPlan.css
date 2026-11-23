@@ -361,3 +361,9 @@
 /* Plan déplié : les numéros et le bouton plein écran gardent une taille raisonnable (ils compensent le zoom du plan). */
 .nv-minimap .nv-plan-image>button.nv-plan-point{scale:var(--mm-pt,1);transition:scale .42s cubic-bezier(.22,.8,.2,1)}
 .nv-minimap-corner{scale:var(--mm-corner,1);transform-origin:100% 100%;transition:scale .42s cubic-bezier(.22,.8,.2,1)}
+
+/* Choix d'un numéro : plus de bleu ; couleur des icônes de la barre du bas (or pour Immosphera). */
+.nv-plan-image>button.nv-plan-point{-webkit-tap-highlight-color:transparent}
+.nv-plan-image>button.nv-plan-point:hover,.nv-plan-image>button.nv-plan-point:active{color:var(--nv-icon-color,#fff);box-shadow:0 0 0 3px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 45%,transparent),0 6px 18px #000c}
+.nv-plan-image>button.nv-plan-point:focus-visible,.nv-plan-point:focus-visible{outline:3px solid var(--nv-icon-color,#f6bf56);outline-offset:3px}
+.nv-plan-image>button.nv-plan-point.is-moving{background:var(--nv-button-bg,#241d1f)!important;box-shadow:0 0 0 4px color-mix(in srgb,var(--nv-icon-color,#f6bf56) 65%,transparent),0 14px 30px #000e!important}
