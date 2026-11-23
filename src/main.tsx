@@ -1981,7 +1981,7 @@ function App(){
     const sceneId=placement?.sceneId??activeId,hotspotId=placement?.hotspotId??selectedId;
     if(!file||!sceneId||!hotspotId)return;
     if(!['video/mp4','video/webm'].includes(file.type)||file.size>VIDEO_MAX_BYTES){
-      setStatus('Vidéo : MP4/WebM, 45 Mo maximum');return;
+      setStatus('Vidéo : MP4/WebM, 250 Mo maximum');return;
     }
     try{
       const data=await readImage(file);
@@ -5084,7 +5084,7 @@ function App(){
                 <button type="button" className="import" onClick={()=>{setMediaPicker({sceneId:activeId,hotspotId:selectedId,type:'video',fresh:false});}}>🎞 Déjà utilisée</button>
                 <button type="button" className="import" onClick={()=>videoInput.current?.click()}>{selected.videoDataUrl?'Remplacer la vidéo':'＋ Importer MP4 / WebM'}</button>
                 </div>
-                <small className="hint-inline">45 Mo max en local, ou renseigne une URL HTTPS directe :</small>
+                <small className="hint-inline">250 Mo max en local, ou renseigne une URL HTTPS directe :</small>
                 <label>Ou URL HTTPS de la vidéo
                   <input type="url" placeholder="https://…/video.mp4" value={selected.videoUrl??''} onChange={e=>patchPoint({videoUrl:e.target.value,videoDataUrl:undefined})}/>
                 </label>

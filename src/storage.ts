@@ -1,4 +1,4 @@
-export const VIDEO_MAX_BYTES = 45*1024*1024;
+export const VIDEO_MAX_BYTES = 250*1024*1024;
 export type Corner = {x:number;y:number};
 export type FrameCorners = {tl:Corner;tr:Corner;br:Corner;bl:Corner};
 export type FrameSphericalCorners=[

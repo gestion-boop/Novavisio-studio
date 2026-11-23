@@ -24,10 +24,10 @@ export async function importNovaGenVideo(clientId:string,videoId:string,signal:A
   if(!video?.url)throw Error('Cette vidéo est introuvable. Actualise la liste NovaGen.');
   const url=new URL(video.url);
   if(url.protocol!=='https:'||url.username||url.password)throw Error('Adresse de vidéo invalide.');
-  if(video.size>VIDEO_MAX_BYTES)throw Error('Vidéo trop lourde : 45 Mo maximum.');
+  if(video.size>VIDEO_MAX_BYTES)throw Error('Vidéo trop lourde : 250 Mo maximum.');
   const response=await fetch(url.href,{signal,referrerPolicy:'no-referrer'});
   if(!response.ok)throw Error('Téléchargement impossible. Actualise les vidéos puis réessaie.');
-  if(Number(response.headers.get('content-length'))>VIDEO_MAX_BYTES)throw Error('Vidéo trop lourde : 45 Mo maximum.');
+  if(Number(response.headers.get('content-length'))>VIDEO_MAX_BYTES)throw Error('Vidéo trop lourde : 250 Mo maximum.');
   const mime=(response.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
   if(!['video/mp4','application/octet-stream'].includes(mime))throw Error('Le fichier reçu n’est pas une vidéo MP4.');
   const chunks:ArrayBuffer[]=[];
@@ -38,12 +38,12 @@ export async function importNovaGenVideo(clientId:string,videoId:string,signal:A
       while(true){
         const {value,done}=await reader.read();if(done)break;
         size+=value.byteLength;
-        if(size>VIDEO_MAX_BYTES){await reader.cancel();throw Error('Vidéo trop lourde : 45 Mo maximum.');}
+        if(size>VIDEO_MAX_BYTES){await reader.cancel();throw Error('Vidéo trop lourde : 250 Mo maximum.');}
         chunks.push(new Uint8Array(value).buffer);
       }
     }finally{reader.releaseLock();}
   }else{const blob=await response.blob();size=blob.size;chunks.push(await blob.arrayBuffer());}
-  if(!size||size>VIDEO_MAX_BYTES)throw Error('Vidéo vide ou trop lourde (45 Mo maximum).');
+  if(!size||size>VIDEO_MAX_BYTES)throw Error('Vidéo vide ou trop lourde (250 Mo maximum).');
   signal.throwIfAborted();
   const file=new File(chunks,video.name,{type:'video/mp4'});
   const dataUrl=await readImage(file);

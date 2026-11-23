@@ -48,7 +48,7 @@ export function MediaLibraryPanel({items,onChange,selected,onApply}:{
         if(/^image\/(jpeg|png|webp|heic|heif|gif)$/.test(file.type)||/\.(jpe?g|png|webp)$/i.test(file.name)){
           next.push({id:uid(),kind:'photo',name:base,url:'',provider:'local',data:await shrinkPhoto(file)});
         }else if(['video/mp4','video/webm'].includes(file.type)){
-          if(file.size>VIDEO_MAX_BYTES){problems.push(file.name+' : vidéo trop lourde (45 Mo maximum).');continue;}
+          if(file.size>VIDEO_MAX_BYTES){problems.push(file.name+' : vidéo trop lourde (250 Mo maximum).');continue;}
           next.push({id:uid(),kind:'video',name:base,url:'',provider:'local',data:await readImage(file)});
         }else if(/video\/quicktime/.test(file.type)||/\.mov$/i.test(file.name)){
           problems.push(file.name+' : format MOV non pris en charge, exporte-le en MP4.');
@@ -73,7 +73,7 @@ export function MediaLibraryPanel({items,onChange,selected,onApply}:{
       {busy||'⬆ Importer ou glisser ici (photos, vidéos)'}
     </button>
     <input ref={fileInput} type="file" multiple hidden accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,.jpg,.jpeg,.png,.webp,.mp4,.webm" onChange={e=>void importFiles(e.target.files)}/>
-    <small className="hint-inline">Photos : JPG, PNG, WebP (réduites à 2400 px). Vidéos : MP4 ou WebM, 45 Mo maximum.</small>
+    <small className="hint-inline">Photos : JPG, PNG, WebP (réduites à 2400 px). Vidéos : MP4 ou WebM, 250 Mo maximum.</small>
     <div className="nv-medialib-add">
       <div className="nv-vs-row">
         <button type="button" className={kind==='photo'?'is-on':''} onClick={()=>setKind('photo')}>▣ Photo</button>
