@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Bibliothèque",
+   "pages": [
+    {
+     "title": "Bibliothèque",
+     "text": "Ici, venez découvrir des livres et vous évader.\nPrenez le temps de lire."
+    }
+   ]
+  },
+  "en": {
+   "title": "Library",
+   "pages": [
+    {
+     "title": "Library",
+     "text": "Come and discover books here and escape for a while.\nTake the time to read."
+    }
+   ]
+  },
+  "es": {
+   "title": "Biblioteca",
+   "pages": [
+    {
+     "title": "Biblioteca",
+     "text": "Venga a descubrir libros y a evadirse.\nTómese el tiempo de leer."
+    }
+   ]
+  },
+  "de": {
+   "title": "Bibliothek",
+   "pages": [
+    {
+     "title": "Bibliothek",
+     "text": "Entdecken Sie hier Bücher und tauchen Sie ab.\nNehmen Sie sich Zeit zum Lesen."
+    }
+   ]
+  },
+  "nl": {
+   "title": "Bibliotheek",
+   "pages": [
+    {
+     "title": "Bibliotheek",
+     "text": "Kom hier boeken ontdekken en ontsnap even aan alles.\nNeem de tijd om te lezen."
+    }
+   ]
+  }
+ }
+}
