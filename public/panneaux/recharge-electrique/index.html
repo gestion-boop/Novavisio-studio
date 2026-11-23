@@ -43,7 +43,7 @@ p{margin:0;font-size:clamp(17px,2.6vw,22px);color:#fff}
   if(!avail.length)avail=Object.keys(NAMES);
   var lang=q.get('lang');
   if(!NAMES[lang]||avail.indexOf(lang)<0){try{lang=localStorage.getItem('nvstudio-visitor-lang');}catch(e){}}
-  if(!NAMES[lang]||avail.indexOf(lang)<0)lang=avail[0];
+  if(!NAMES[lang]||avail.indexOf(lang)<0)lang=avail.indexOf('fr')>-1?'fr':avail[0];
   var box=document.getElementById('langs');
   function set(l){
     lang=l;document.documentElement.lang=l;
