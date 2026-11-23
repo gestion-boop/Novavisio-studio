@@ -1779,7 +1779,10 @@ function App(){
             catch(err){
               // Une autre personne (ou un autre appareil) a ajouté une révision entre-temps : publier ajoute simplement la suivante, rien n'est écrasé.
               const m=err instanceof Error?/révision (\d+) alors que cette copie/.exec(err.message):null;
-              if(publishing&&m&&target.link)result=await run({...target.link,revision:Number(m[1])});else throw err;
+              if(m&&target.link&&(publishing||(!silent&&await confirmAsk(
+                'Le lien public de « '+target.name+' » a reçu des versions plus récentes (jusqu’à la révision '+m[1]+') depuis ta copie.\n\nPublier ta version par-dessus, comme révision '+(Number(m[1])+1)+' ? Les révisions précédentes restent dans l’historique du Cloud : rien n’est supprimé.'))))
+                result=await run({...target.link,revision:Number(m[1])});
+              else throw err;
             }
             if(!result){
               if(publishing)report.push({ok:false,text:target.name+' : aucune publication active à mettre à jour (clique sur « Publier la visite » dans « Lien public »).'});
