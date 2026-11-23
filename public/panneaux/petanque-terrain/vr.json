@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Terrain de pétanque",
+   "pages": [
+    {
+     "title": "Terrain de pétanque",
+     "text": "Venez jouer une partie ! Le terrain est juste à côté de l’aire de service camping-car."
+    }
+   ]
+  },
+  "en": {
+   "title": "Pétanque court",
+   "pages": [
+    {
+     "title": "Pétanque court",
+     "text": "Come and play a game! The court is right next to the motorhome service area."
+    }
+   ]
+  },
+  "es": {
+   "title": "Pista de petanca",
+   "pages": [
+    {
+     "title": "Pista de petanca",
+     "text": "¡Venga a jugar una partida! La pista está justo al lado del área de servicio para autocaravanas."
+    }
+   ]
+  },
+  "de": {
+   "title": "Boulebahn",
+   "pages": [
+    {
+     "title": "Boulebahn",
+     "text": "Spielen Sie eine Partie! Die Bahn liegt direkt neben der Service-Station für Wohnmobile."
+    }
+   ]
+  },
+  "nl": {
+   "title": "Jeu-de-boulesbaan",
+   "pages": [
+    {
+     "title": "Jeu-de-boulesbaan",
+     "text": "Kom een partijtje spelen! De baan ligt vlak naast het servicepunt voor campers."
+    }
+   ]
+  }
+ }
+}
