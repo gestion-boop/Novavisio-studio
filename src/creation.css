@@ -150,3 +150,8 @@
 
 .nv-phase-pick{display:flex;flex-direction:column;gap:6px}.nv-phase-pick small{font-weight:600;opacity:.75}
 .nv-phase-seg{grid-template-columns:repeat(3,1fr)}
+
+/* Message d'état : dans la barre du haut (plus de bandeau au centre de la vue). */
+.nv-top-status:not(#nv-x){flex:1 1 auto;min-width:0;max-width:420px;height:40px;padding:0 12px;border-radius:12px;border:1px solid #4a8a97;background:#12323d;color:#e3fff6;font:600 12px/1 system-ui,sans-serif;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.nv-top-status.is-error:not(#nv-x){border-color:#ff8a80;background:#5a1f1b;color:#ffe3e0}
+@media(max-width:900px){.nv-top-status:not(#nv-x){display:none}}

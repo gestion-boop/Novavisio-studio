@@ -6265,3 +6265,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-right-panorama-gallery .scenes{min-width:0;max-width:100%}
 .nv-right-panorama-gallery .nv-panorama-list-grid{min-width:0;max-width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
 .nv-right-panorama-gallery .scene-slot{min-width:0;max-width:100%}
+
+/* Disquette : vert = enregistré, orange = modifications en attente (moins de 5), orange foncé clignotant = 5 et plus, rouge = enregistrement en cours. */
+.nv-v3-save.is-clean{opacity:1!important;background:#1f8f4e!important;border-color:#7ddca0!important;color:#fff!important}
+.nv-v3-save.is-dirty{background:#e08a1e!important;border-color:#ffd08a!important;color:#fff!important}
+.nv-v3-save.is-urgent{background:#b8560a!important;border-color:#ffb066!important;color:#fff!important}
+.nv-v3-save.is-saving{opacity:1!important;background:#d6281f!important;border-color:#ff9a92!important;color:#fff!important}
