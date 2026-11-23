@@ -137,7 +137,8 @@ function PlanImage({plan,scenes,currentId,onPick,onPlace,onMove,onRemove,thumbs,
  * et le numéro de la pièce où l'on se trouve a son halo qui scintille. Le bouton « agrandir » ouvre le grand plan.
  */
 export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{plans:FloorPlan[];scenes:Scene[];currentId?:string;onPick:(id:string)=>void;onExpand?:()=>void;lang?:string}){
-  const usable=plans.filter(plan=>plan.imageDataUrl&&visiblePoints(plan,scenes).length>0);
+  // Le mini-plan s'affiche dès qu'un plan existe (même si aucun panorama n'y est encore placé : on voit alors le plan sans numéros).
+  const usable=plans.filter(plan=>!!plan.imageDataUrl);
   const [hidden,setHidden]=useState(()=>{try{return localStorage.getItem('nv-minimap-hidden')==='1';}catch{return false;}});
   const [manual,setManual]=useState<number|null>(null);
   // Survol (souris) : le plan grandit, depuis le coin haut droit ; il y revient dès que l'on sort ou que l'on choisit un numéro.
@@ -171,7 +172,8 @@ export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{
   const enter=()=>{if(canHover)unfold();};
   const leave=()=>{if(canHover)setZoom(1);};
   const auto=usable.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
-  const index=Math.max(0,Math.min(manual??(auto>=0?auto:0),usable.length-1));
+  const firstWithPoints=usable.findIndex(plan=>visiblePoints(plan,scenes).length>0);
+  const index=Math.max(0,Math.min(manual??(auto>=0?auto:Math.max(0,firstWithPoints)),usable.length-1));
   const plan=usable[index];
   const toggle=()=>setHidden(value=>{const next=!value;try{localStorage.setItem('nv-minimap-hidden',next?'1':'0');}catch{/* stockage indisponible */}return next;});
   return <aside ref={root} className={'nv-minimap'+(hidden?' is-hidden':'')+(zoom>1?' is-zoomed':'')} aria-label="Plan de la visite" onMouseEnter={enter} onMouseLeave={leave}
