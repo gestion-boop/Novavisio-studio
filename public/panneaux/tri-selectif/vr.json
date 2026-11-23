@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Tri sélectif",
+   "pages": [
+    {
+     "title": "Tri sélectif",
+     "text": "JAUNE : Tous les papiers et tous les emballages\nVERT : Verres et bocaux"
+    }
+   ]
+  },
+  "en": {
+   "title": "Waste sorting",
+   "pages": [
+    {
+     "title": "Waste sorting",
+     "text": "YELLOW : All paper and all packaging\nGREEN : Glass bottles and jars"
+    }
+   ]
+  },
+  "es": {
+   "title": "Reciclaje",
+   "pages": [
+    {
+     "title": "Reciclaje",
+     "text": "AMARILLO : Todos los papeles y todos los envases\nVERDE : Vidrio: botellas y tarros"
+    }
+   ]
+  },
+  "de": {
+   "title": "Mülltrennung",
+   "pages": [
+    {
+     "title": "Mülltrennung",
+     "text": "GELB : Alle Papiere und alle Verpackungen\nGRÜN : Glasflaschen und Gläser"
+    }
+   ]
+  },
+  "nl": {
+   "title": "Afval scheiden",
+   "pages": [
+    {
+     "title": "Afval scheiden",
+     "text": "GEEL : Al het papier en alle verpakkingen\nGROEN : Glazen flessen en potten"
+    }
+   ]
+  }
+ }
+}
