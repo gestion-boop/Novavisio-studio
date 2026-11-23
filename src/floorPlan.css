@@ -376,3 +376,7 @@
 .nv-minimap-head{left:50%;right:auto;top:3px;translate:-50% 0;transform-origin:50% 0;padding:2px;border-radius:10px;background:rgba(40,42,46,.55);backdrop-filter:blur(3px)}
 .nv-minimap-levels{justify-content:center}
 .nv-minimap-levels button{min-width:26px;height:26px;padding:0 7px;font-size:12px;border-radius:8px}
+
+/* Boutons d'étage : encore un tout petit peu plus gros. */
+.nv-minimap-levels button{min-width:32px;height:32px;padding:0 9px;font-size:14px;border-radius:9px}
+.nv-minimap-head{padding:3px}
