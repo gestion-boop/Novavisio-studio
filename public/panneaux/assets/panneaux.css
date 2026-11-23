@@ -67,3 +67,7 @@ body.embed .top,body.embed .crumb,body.embed .nav,body.embed .head-extra{display
 body.embed main{padding:0}body.embed .panel{margin:0;border-radius:0;box-shadow:none;min-height:100vh}
 @media(max-width:600px){main{padding:10px 8px 30px}.phead,.pbody,.orig{padding-left:14px;padding-right:14px}.brand small{display:none}}
 @media print{.top,.nav,.langs{display:none}}
+
+/* Page d'un seul panneau (lien direct) : pas de navigation vers les autres panneaux */
+body[data-only] .nav,body[data-only] .crumb,body[data-only] .brand{display:none}
+body[data-only] .top{justify-content:flex-end}

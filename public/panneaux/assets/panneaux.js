@@ -1,7 +1,7 @@
 
 (function(){
   var D=window.PANNEAUX||{collections:[],panels:[]};
-  var body=document.body,COL=body.getAttribute('data-col')||'',BASE=body.getAttribute('data-base')||'./';
+  var body=document.body,COL=body.getAttribute('data-col')||'',ONLY=body.getAttribute('data-only')||'',BASE=body.getAttribute('data-base')||'./';
   var NAMES={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands'};
   var FLAGS={
     fr:'<svg viewBox="0 0 60 60" preserveAspectRatio="xMidYMid slice"><rect width="20" height="60" fill="#0055A4"/><rect x="20" width="20" height="60" fill="#fff"/><rect x="40" width="20" height="60" fill="#EF4135"/></svg>',
@@ -63,6 +63,7 @@
       return '<a class="tile coltile" href="'+BASE+c.id+'/index.html'+(location.search||'')+'"><div class="ph" style="background-image:url('+BASE+(cover?cover.thumb:'')+')"></div><div class="tx"><b>'+c.icon+' '+esc(tr(c.title))+'</b><small>'+esc(tr(c.desc))+'</small><small>'+n+' '+esc(T('n'))+'</small></div></a>';}).join('')+'</div>';
   }
   function render(){
+    if(ONLY){var one=byId(ONLY);document.documentElement.lang=lang;var se=document.getElementById('site');if(se)se.textContent=T('site');crumbEl.innerHTML='';if(one){root.innerHTML=panelHtml(one,{prev:'',next:''});}return;}
     var id=(location.hash||'').slice(1),col=D.collections.filter(function(c){return c.id===COL;})[0];
     var list=D.panels.filter(function(p){return !COL||p.col===COL;});
     document.documentElement.lang=lang;
