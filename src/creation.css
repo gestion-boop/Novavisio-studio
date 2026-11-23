@@ -132,3 +132,14 @@
 .nv-dock-auto.is-active{--dock:#f2c14b;background:#8c2438;border-color:#e0586f;box-shadow:0 0 0 1px #e0586f66}
 .nv-dock-auto.is-active .nv-dock-icon{background:#f2c14b;color:#3b1b00}
 @media(max-width:780px){.nv-dock-btn{height:40px;padding:0 10px 0 6px;font-size:13px}.nv-dock-icon{width:28px;height:28px}}
+
+/* Point « Lien » : formulaire simplifié (adresse + Tester, ouverture en deux choix) */
+.nv-link-form{display:flex;flex-direction:column;gap:12px}
+.nv-link-form label{display:flex;flex-direction:column;gap:5px}
+.nv-link-form label small{font-weight:500;opacity:.7}
+.nv-link-row{display:flex;gap:8px}.nv-link-row input{flex:1;min-width:0}
+.nv-link-test:not(#nv-x){flex:none;padding:0 16px;border-radius:12px;border:1px solid #5dc7b7;background:#1d7f78;color:#fff;font-weight:700;cursor:pointer}
+.nv-link-test:not(#nv-x):disabled{opacity:.45;cursor:not-allowed}
+.nv-link-seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;border:1px solid #2e536e;background:#0f1f2a}
+.nv-link-seg button:not(#nv-x){padding:10px 8px;border-radius:10px;border:0;background:transparent;color:#a9c3cf;font-weight:700;cursor:pointer}
+.nv-link-seg button[aria-pressed="true"]:not(#nv-x){background:linear-gradient(160deg,#3f9e8f,#2a7a6f);color:#fff}

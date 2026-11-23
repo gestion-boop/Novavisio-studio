@@ -5168,9 +5168,16 @@ function App(){
                 </div>
                 </>
               ) : selected.type==='lien' ? (
-                <><div className="nv-action-steps">1. Lien choisi → 2. Point placé → 3. Destination</div><label>Adresse (https://, tel:, mailto:)
-                  <input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
-                </label><label>Ouverture<select aria-label="Ouverture" value={selected.linkMode??'embed'} onChange={e=>patchPoint({linkMode:e.target.value as 'embed'|'tab'})}><option value="embed">Dans la visite (iframe prioritaire)</option><option value="tab">Nouvel onglet</option></select></label><button type="button" onClick={()=>selected.url&&openLinkInTour(selected.title,selected.url,selected.linkMode)}>Tester le lien</button></>
+                <div className="nv-link-form">
+                  <label>Adresse du lien<small>https://, tel: ou mailto:</small>
+                    <span className="nv-link-row"><input type="text" placeholder="https://exemple.fr" value={selected.url??''} onChange={e=>patchPoint({url:e.target.value})}/>
+                      <button type="button" className="nv-link-test" disabled={!selected.url} title="Ouvrir le lien pour le tester" onClick={()=>selected.url&&openLinkInTour(selected.title,selected.url,selected.linkMode)}>Tester</button></span>
+                  </label>
+                  <div className="nv-link-seg" role="group" aria-label="Ouverture">
+                    <button type="button" aria-pressed={(selected.linkMode??'embed')==='embed'} onClick={()=>patchPoint({linkMode:'embed'})}>Dans la visite</button>
+                    <button type="button" aria-pressed={selected.linkMode==='tab'} onClick={()=>patchPoint({linkMode:'tab'})}>Nouvel onglet</button>
+                  </div>
+                </div>
               ) : (
                 <>
                   <button type="button" className="import" onClick={()=>setInformationEdit({sceneId:activeId,pointId:selected.id})}>Rédiger le texte et choisir la police</button>
