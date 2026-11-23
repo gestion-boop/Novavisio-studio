@@ -196,3 +196,8 @@
 :root:not(#nv-x) .nv-photo-gallery :is(.nv-pg-nav,.nv-pg-exit,.nv-pg-close):active{background:color-mix(in srgb,var(--nv-button-bg,#311820) 70%,#000);transform:scale(.96)}
 :root:not(#nv-x) .nv-photo-gallery .nv-pg-tile[aria-current="true"],:root:not(#nv-x) .nv-photo-gallery .nv-pg-strip button[aria-current="true"]{outline:2px solid var(--nv-icon-color,#f6bf56);outline-offset:2px}
 :root:not(#nv-x) .nv-photo-gallery .nv-pg-tile:hover{outline:2px solid var(--nv-button-outline,#d3c1b6);outline-offset:2px}
+
+/* Croix un peu plus haut (le titre ne la touche plus) : toutes les fenêtres, même hauteur. */
+:root:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.nv-pg-close,.nv-pg-exit,.info-in-view .modal>.close,.modal>.close,.nv-gallery>header>button:last-child,.nv-photo-gallery>header>button:last-child,.tour-dialog>header>button:last-child,.nv-plan-dialog>header>button:last-child,.nv-preparation-dialog>header>button:last-child){top:4px!important}
+:root:not(#nv-x) .nv-gallery>header{padding-top:58px}
+:root:not(#nv-x) :is(.nv-photo-gallery,.nv-pg-lux)>header{padding-top:max(58px,var(--nv-close-pad,0px))}
