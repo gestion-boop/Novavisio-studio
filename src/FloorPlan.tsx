@@ -143,34 +143,44 @@ export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{
   // Survol (souris) : le plan grandit, depuis le coin haut droit ; il y revient dès que l'on sort ou que l'on choisit un numéro.
   const [zoom,setZoom]=useState(1);
   const body=useRef<HTMLDivElement>(null);
+  const root=useRef<HTMLElement>(null);
+  const canHover=typeof window!=='undefined'&&!!window.matchMedia?.('(hover:hover) and (pointer:fine)').matches;
   useEffect(()=>{setManual(null);setZoom(1);},[currentId]);
+  // Tablette / téléphone : un appui hors du plan le replie.
+  useEffect(()=>{
+    if(zoom<=1||canHover)return;
+    const outside=(event:PointerEvent)=>{if(!root.current?.contains(event.target as Node))setZoom(1);};
+    document.addEventListener('pointerdown',outside,true);
+    return ()=>document.removeEventListener('pointerdown',outside,true);
+  },[zoom,canHover]);
   if(!usable.length)return null;
-  const canHover=typeof window!=='undefined'&&window.matchMedia?.('(hover:hover) and (pointer:fine)').matches;
-  const enter=()=>{
-    if(!canHover||!body.current)return;
+  // Dépliage calibré sur l'écran : le plan part du coin haut droit et ne dépasse jamais le cadre de la visite (haut, bas, gauche).
+  const unfold=()=>{
+    if(!body.current)return;
     setZoom(z=>{
       if(z>1)return z;
       const rect=body.current!.getBoundingClientRect();
       if(!rect.width||!rect.height)return z;
-      // Calibré sur l'écran : le plan part du coin haut droit et ne dépasse jamais le cadre de la visite (haut, bas, gauche).
-      const frame=(body.current!.offsetParent as HTMLElement|null)?.getBoundingClientRect();
+      const frame=(root.current?.offsetParent as HTMLElement|null)?.getBoundingClientRect();
       const left=frame?frame.left:0,bottom=frame?Math.min(frame.bottom,window.innerHeight):window.innerHeight;
       const margin=14;
       const k=Math.min((rect.right-left-margin)/rect.width,(bottom-rect.top-margin)/rect.height);
       return Math.max(1,Math.min(k,7));
     });
   };
-  const leave=()=>setZoom(1);
+  const enter=()=>{if(canHover)unfold();};
+  const leave=()=>{if(canHover)setZoom(1);};
   const auto=usable.findIndex(plan=>plan.points.some(point=>point.sceneId===currentId));
   const index=Math.max(0,Math.min(manual??(auto>=0?auto:0),usable.length-1));
   const plan=usable[index];
   const toggle=()=>setHidden(value=>{const next=!value;try{localStorage.setItem('nv-minimap-hidden',next?'1':'0');}catch{/* stockage indisponible */}return next;});
-  return <aside className={'nv-minimap'+(hidden?' is-hidden':'')+(zoom>1?' is-zoomed':'')} aria-label="Plan de la visite" onMouseEnter={enter} onMouseLeave={leave}>
+  return <aside ref={root} className={'nv-minimap'+(hidden?' is-hidden':'')+(zoom>1?' is-zoomed':'')} aria-label="Plan de la visite" onMouseEnter={enter} onMouseLeave={leave}>
     <button type="button" className="nv-minimap-eye" aria-pressed={!hidden} onClick={toggle}
       aria-label={hidden?'Afficher le plan':'Masquer le plan'} title={hidden?'Afficher le plan':'Masquer le plan'}>
       <Map size={20}/>
     </button>
-    {!hidden&&<div className="nv-minimap-body" ref={body} style={zoom>1?{transform:'scale('+zoom.toFixed(3)+')'}:undefined}>
+    {!hidden&&<div className="nv-minimap-body" ref={body} style={zoom>1?{transform:'scale('+zoom.toFixed(3)+')'}:undefined}
+      onClickCapture={!canHover&&zoom===1?e=>{e.preventDefault();e.stopPropagation();unfold();}:undefined}>
       {usable.length>1&&<div className="nv-minimap-head"><div className="nv-minimap-levels" role="group" aria-label="Étages">
         {usable.map((item,i)=><button type="button" key={item.id??i} aria-pressed={i===index} title={item.name||'Plan '+(i+1)} onClick={()=>setManual(i)}>{i+1}</button>)}
       </div></div>}
