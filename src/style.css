@@ -6271,3 +6271,9 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-v3-save.is-dirty{background:#e08a1e!important;border-color:#ffd08a!important;color:#fff!important}
 .nv-v3-save.is-urgent{background:#b8560a!important;border-color:#ffb066!important;color:#fff!important}
 .nv-v3-save.is-saving{opacity:1!important;background:#d6281f!important;border-color:#ff9a92!important;color:#fff!important}
+
+/* « Organiser cet espace » : la fenêtre défile en entier (avant, le bas était coupé et inaccessible). */
+.nv-space-modal{overflow-y:auto!important;overflow-x:hidden;overscroll-behavior:contain}
+.nv-space-modal>*{flex-shrink:0}
+.nv-space-modal .nv-space-scene-picker{flex:none;max-height:min(280px,40dvh);min-height:70px}
+.nv-space-modal-head{position:sticky;top:-20px;z-index:5;background:#112334;margin:-20px -20px 0;padding:20px 20px 10px}
