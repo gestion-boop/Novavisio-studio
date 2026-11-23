@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Aire de service camping-car",
+   "pages": [
+    {
+     "title": "Aire de service camping-car",
+     "text": "Terrain de pétanque à proximité.\n◄ PÉTANQUE"
+    }
+   ]
+  },
+  "en": {
+   "title": "Motorhome service area",
+   "pages": [
+    {
+     "title": "Motorhome service area",
+     "text": "Pétanque court nearby.\n◄ PÉTANQUE"
+    }
+   ]
+  },
+  "es": {
+   "title": "Área de servicio para autocaravanas",
+   "pages": [
+    {
+     "title": "Área de servicio para autocaravanas",
+     "text": "Pista de petanca cerca.\n◄ PETANCA"
+    }
+   ]
+  },
+  "de": {
+   "title": "Service-Station für Wohnmobile",
+   "pages": [
+    {
+     "title": "Service-Station für Wohnmobile",
+     "text": "Boulebahn in der Nähe.\n◄ PÉTANQUE"
+    }
+   ]
+  },
+  "nl": {
+   "title": "Servicepunt voor campers",
+   "pages": [
+    {
+     "title": "Servicepunt voor campers",
+     "text": "Jeu-de-boulesbaan vlakbij.\n◄ JEU DE BOULES"
+    }
+   ]
+  }
+ }
+}
