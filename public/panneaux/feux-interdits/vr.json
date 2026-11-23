@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "INTERDITS",
+   "pages": [
+    {
+     "title": "INTERDITS",
+     "text": "Tous les feux sont formellement INTERDITS."
+    }
+   ]
+  },
+  "en": {
+   "title": "PROHIBITED",
+   "pages": [
+    {
+     "title": "PROHIBITED",
+     "text": "All fires are formally PROHIBITED."
+    }
+   ]
+  },
+  "es": {
+   "title": "PROHIBIDOS",
+   "pages": [
+    {
+     "title": "PROHIBIDOS",
+     "text": "Todos los fuegos están formalmente PROHIBIDOS."
+    }
+   ]
+  },
+  "de": {
+   "title": "VERBOTEN",
+   "pages": [
+    {
+     "title": "VERBOTEN",
+     "text": "Alle Feuer sind strengstens VERBOTEN."
+    }
+   ]
+  },
+  "nl": {
+   "title": "VERBODEN",
+   "pages": [
+    {
+     "title": "VERBODEN",
+     "text": "Alle open vuren zijn (strikt) VERBODEN."
+    }
+   ]
+  }
+ }
+}
