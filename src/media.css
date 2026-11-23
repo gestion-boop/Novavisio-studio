@@ -388,3 +388,29 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 }
 .nv-sound-choice-button:not(#nv-x):hover{background:color-mix(in srgb,var(--nv-button-bg,#214757) 78%,#fff);border-color:var(--nv-icon-color,#66d9ca)}
 .nv-sound-choice-button:not(#nv-x):active{background:color-mix(in srgb,var(--nv-button-bg,#214757) 70%,#000)}
+
+/* Jour / Nuit : charte graphique du projet (couleurs des boutons et de la barre du bas).
+   Repos = boutons de la barre ; actif = couleurs inversées (fond = pictogramme, texte = fond du bouton), enfoncé. */
+:root:not(#nv-x) .nv-daynight-switch{
+  background:var(--nv-bar-bg,#2f72b4)!important;
+  border:var(--nv-bar-border-width,2px) solid var(--nv-bar-outline,#86a9d7)!important;
+  box-shadow:0 7px 22px #0006!important;
+}
+:root:not(#nv-x) .nv-daynight-switch button,
+:root:not(#nv-x) .nv-daynight-switch button:first-child,
+:root:not(#nv-x) .nv-daynight-switch button:last-child{
+  background:var(--nv-button-bg,#311820)!important;
+  color:var(--nv-icon-color,#fff)!important;
+  border:var(--nv-button-border-width,1px) solid var(--nv-button-outline,#d3c1b6)!important;
+  box-shadow:0 2px 4px #0005!important;
+}
+:root:not(#nv-x) .nv-daynight-switch button:hover{background:color-mix(in srgb,var(--nv-button-bg,#311820) 80%,#fff)!important;filter:none!important}
+:root:not(#nv-x) .nv-daynight-switch button.is-active,
+:root:not(#nv-x) .nv-daynight-switch button:first-child.is-active,
+:root:not(#nv-x) .nv-daynight-switch button:last-child.is-active{
+  background:var(--nv-icon-color,#fff)!important;
+  color:var(--nv-button-bg,#311820)!important;
+  border-color:var(--nv-icon-color,#fff)!important;
+  box-shadow:inset 0 3px 7px #0006!important;
+  transform:translateY(1px);
+}
