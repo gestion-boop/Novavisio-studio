@@ -349,3 +349,11 @@
 .nv-minimap-corner{position:absolute;right:6px;bottom:6px;z-index:3;display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--nv-button-bg,#241d1f);border:1px solid var(--nv-button-outline,#e5c890);color:var(--nv-icon-color,#f6e6bf);cursor:pointer;opacity:.9}
 .nv-minimap-corner:hover{opacity:1;background:color-mix(in srgb,var(--nv-button-bg,#241d1f) 78%,#fff)}
 .nv-minimap-corner:active{background:color-mix(in srgb,var(--nv-button-bg,#241d1f) 70%,#000)}
+
+/* Repos : fenêtre encore plus petite, en haut à droite. Survol : se déplie à la taille de l'écran (calcul dans PlanMiniMap). */
+.nv-minimap{top:66px;right:14px;gap:6px}
+.nv-minimap-body{width:clamp(110px,11vw,160px)!important;padding:5px!important;border-radius:10px!important}
+.nv-minimap-eye{width:34px;height:34px}
+.nv-minimap-corner{width:24px;height:24px;right:4px;bottom:4px;border-radius:7px}
+.nv-minimap .nv-plan-image>button.nv-plan-point{width:15px;height:15px;min-width:15px;min-height:15px;font-size:8px}
+@media(max-width:700px){.nv-minimap{top:58px;right:8px}.nv-minimap-body{width:min(30vw,120px)!important}.nv-minimap-eye{width:32px;height:32px}}

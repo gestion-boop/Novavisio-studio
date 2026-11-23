@@ -152,8 +152,12 @@ export function PlanMiniMap({plans,scenes,currentId,onPick,onExpand,lang='fr'}:{
       if(z>1)return z;
       const rect=body.current!.getBoundingClientRect();
       if(!rect.width||!rect.height)return z;
-      const k=Math.min((window.innerWidth*.62-60)/rect.width,(window.innerHeight*.62)/rect.height);
-      return Math.max(1,Math.min(k,4));
+      // Calibré sur l'écran : le plan part du coin haut droit et ne dépasse jamais le cadre de la visite (haut, bas, gauche).
+      const frame=(body.current!.offsetParent as HTMLElement|null)?.getBoundingClientRect();
+      const left=frame?frame.left:0,bottom=frame?Math.min(frame.bottom,window.innerHeight):window.innerHeight;
+      const margin=14;
+      const k=Math.min((rect.right-left-margin)/rect.width,(bottom-rect.top-margin)/rect.height);
+      return Math.max(1,Math.min(k,7));
     });
   };
   const leave=()=>setZoom(1);
