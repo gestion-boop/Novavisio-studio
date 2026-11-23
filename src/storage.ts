@@ -28,6 +28,8 @@ export type Hotspot = {
   fontFamily?:string;linkMode?:'embed'|'tab';
   imageDataUrl?:string;
   imageBounce?:boolean;
+  /** Affichage du point : jour seulement (défaut), nuit seulement, ou les deux. */
+  phase?:'day'|'night'|'both';
   imageFrameStyle?:ImageFrameStyle;
   videoDataUrl?:string;videoUrl?:string;/** Volume de la vidéo en pourcentage (0 à 100, défaut 100). */videoVolume?:number;videoAutoplay?:boolean;videoLoop?:boolean;videoOpenFullscreen?:boolean;
   /** Son de la télé prioritaire : la musique de fond s'efface (fondu) pendant la vidéo agrandie, puis revient. Actif par défaut. */
@@ -459,6 +461,7 @@ export function validateProject(value:unknown):StudioProject {
         (h.url !== undefined && (typeof h.url !== 'string' || h.url.length > 2048)) ||
         (h.imageDataUrl !== undefined && (h.imageDataUrl.length > 12_000_000 || !isSafeFrameImage(h.imageDataUrl))) ||
         (h.fontFamily!==undefined&&(typeof h.fontFamily!=='string'||h.fontFamily.length>50)) ||
+        (h.phase!==undefined&&!['day','night','both'].includes(h.phase)) ||
         (h.linkMode!==undefined&&!['embed','tab'].includes(h.linkMode)) ||
         (h.mediaDisplay !== undefined && !['popup','inline'].includes(h.mediaDisplay)) ||
         (h.imageBounce !== undefined && typeof h.imageBounce !== 'boolean') ||

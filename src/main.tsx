@@ -1,5 +1,6 @@
 import {barUsesIconImage} from './storage';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
+import {phaseOf} from './phase';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
@@ -3431,6 +3432,7 @@ function App(){
     const h:Hotspot={
       id:uid(),type:mode,title:mode==='navigation'?'Aller vers…':mode==='lien'?'Ouvrir un lien':mode==='image'?'Photo':mode==='video'?'Vidéo':'Informations',
       text:'',target:'',yaw,pitch,
+      ...(nightActive?{phase:'night' as const}:{}),
       ...(favorite?{iconId:favorite.iconId,hoverIconId:favorite.hoverIconId,
         pressedIconId:favorite.pressedIconId,iconSize:favorite.iconSize}:{}),
       ...(commonSize!==undefined?{iconSize:commonSize}:{}),
@@ -5040,6 +5042,13 @@ function App(){
               {navigationEditor()}
 
               <label>Titre<input value={selected.title} placeholder="Nom du point…" onChange={e=>patchPoint({title:e.target.value})}/></label>
+              <div className="nv-phase-pick" role="group" aria-label="Affichage jour ou nuit">
+                <small>Affiché en mode</small>
+                <div className="nv-link-seg nv-phase-seg">
+                  {([['day','☀ Jour'],['night','☾ Nuit'],['both','Les deux']] as const).map(([value,label])=>
+                    <button type="button" key={value} aria-pressed={phaseOf(selected)===value} onClick={()=>patchPoint({phase:value})}>{label}</button>)}
+                </div>
+              </div>
 
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>

@@ -26,6 +26,7 @@ import {barIconSize,barHeightFor,defaultBarStyle,defaultFrameCorners,STUDIO_LANG
 import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
+import {inPhase} from './phase';
 import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
 import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
@@ -146,7 +147,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(current.scene.hotspots).flatMap(h=>[
+      syncMarkers(instance,visibleVideoFrames(current.scene.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[
         publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current,current.scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
@@ -176,7 +177,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>nightOnly()?[]:visibleVideoFrames(next.hotspots).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,next.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]);
+    const markersNow=()=>visibleVideoFrames(next.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,next.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const T=getTransitionMs();
     warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?handlers.current.sphereImage(h.target):undefined));
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),T);};
@@ -220,7 +221,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     const instance=viewer.current;
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
-    syncMarkers(instance,nightOnly()?[]:visibleVideoFrames(scene.hotspots).flatMap(h=>[
+    syncMarkers(instance,visibleVideoFrames(scene.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[
       publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
   },[scene.id,scene.hotspots,icons,lang,night,nightTexture]);
   return <div className="tour-panorama" ref={container}/>;

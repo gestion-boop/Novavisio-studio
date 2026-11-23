@@ -16,6 +16,7 @@ import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFr
 import {type Hotspot,type CustomIcon,type Scene,type StudioProject,defaultFrameCorners,type FrameSphericalCorners} from './storage';
 import {getTransitionMs,warmPanoramas} from './transitionPrefs';
 import {glyphs} from './glyphSet';
+import {inPhase} from './phase';
 
 export type EditMode = Hotspot['type'] | null;
 export type PanelTab = 'tool' | 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
@@ -115,8 +116,8 @@ export function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selec
 }
 export function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false,night=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
-  if(night&&preview)return all; // aperçu en mode nuit : panorama seul, sans bouton
-  for(const h of (preview?visibleVideoFrames(scene.hotspots):scene.hotspots).filter(point=>!night||point.type!=='navigation')){
+  // Aperçu : seuls les points du moment choisi (jour / nuit) sont affichés. Édition de nuit : tous les points, sauf les flèches du jour.
+  for(const h of (preview?visibleVideoFrames(scene.hotspots).filter(point=>inPhase(point,night)):scene.hotspots.filter(point=>!night||point.type!=='navigation'||inPhase(point,true)))){
     all.push(markerFor(h,icons,height,selectedId,preview,zoom,autoNavigation,scene.hotspots));
     if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:

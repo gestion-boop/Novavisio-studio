@@ -147,3 +147,6 @@
 .nv-save-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
 .nv-overwrite:not(#nv-x){padding:10px 16px;border-radius:12px;border:1px solid #e0903f;background:#7a3b10;color:#fff;font-weight:700;cursor:pointer}
 .nv-overwrite:not(#nv-x):hover{background:#9a4d17}
+
+.nv-phase-pick{display:flex;flex-direction:column;gap:6px}.nv-phase-pick small{font-weight:600;opacity:.75}
+.nv-phase-seg{grid-template-columns:repeat(3,1fr)}
