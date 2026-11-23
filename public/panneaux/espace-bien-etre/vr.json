@@ -1,0 +1,49 @@
+{
+ "languages": {
+  "fr": {
+   "title": "Espace bien-être",
+   "pages": [
+    {
+     "title": "Espace bien-être",
+     "text": "Sophrologie, hypnose et massages pour vous ressourcer, sur rendez-vous."
+    }
+   ]
+  },
+  "en": {
+   "title": "Wellness area",
+   "pages": [
+    {
+     "title": "Wellness area",
+     "text": "Sophrology, hypnosis and massages to help you recharge, by appointment."
+    }
+   ]
+  },
+  "es": {
+   "title": "Espacio de bienestar",
+   "pages": [
+    {
+     "title": "Espacio de bienestar",
+     "text": "Sofrología, hipnosis y masajes para recargar energías, con cita previa."
+    }
+   ]
+  },
+  "de": {
+   "title": "Wellnessbereich",
+   "pages": [
+    {
+     "title": "Wellnessbereich",
+     "text": "Sophrologie, Hypnose und Massagen zum Auftanken, nach Vereinbarung."
+    }
+   ]
+  },
+  "nl": {
+   "title": "Welzijnsruimte",
+   "pages": [
+    {
+     "title": "Welzijnsruimte",
+     "text": "Sofrologie, hypnose en massages om op te laden, op afspraak."
+    }
+   ]
+  }
+ }
+}
