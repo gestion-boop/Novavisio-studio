@@ -3,6 +3,7 @@ import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {phaseOf} from './phase';
 import {withClientAutomation} from './clientAutomation';
 import {AgentsDialog} from './AgentsDialog';
+import {StudioPreview} from './StudioPreview';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
@@ -250,6 +251,9 @@ function App(){
   const [aiAssistantOpen,setAiAssistantOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
   const [agentsOpen,setAgentsOpen]=useState(false);
+  /** Réglages en grande fenêtre (navigation, réglages, aperçu) ; désactivable pour revenir à l'ancienne colonne. */
+  const [wideSheet,setWideSheet]=useState(()=>{try{return window.localStorage.getItem('nvstudio-wide-sheet')!=='0';}catch{return true;}});
+  const toggleWideSheet=()=>setWideSheet(v=>{const n=!v;try{window.localStorage.setItem('nvstudio-wide-sheet',n?'1':'0');}catch{/* préférence non mémorisée */}return n;});
   const [vrMenuOpen,setVrMenuOpen]=useState(false);
   const [informationEdit,setInformationEdit]=useState<{sceneId:string;pointId:string}|null>(null);
   const [publishConfirm,setPublishConfirm]=useState(false);
@@ -3686,7 +3690,7 @@ function App(){
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
     (leftHidden?' nv-studio-hide-left':'')+
-    ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
+    ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(!rightHidden&&wideSheet?' nv-wide':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
     <header className="topbar nv-topbar-v3">
@@ -4898,13 +4902,14 @@ function App(){
       </main>
       <aside id="nv-panorama-inspector" className="right panel">
         <div className="nv-inspector-resize" onPointerDown={startInspectorResize} onDoubleClick={()=>setInspectorWidth(inspectorVw<58?66:40)} role="separator" aria-orientation="vertical" aria-label="Glisser pour élargir ou réduire la colonne (double-clic : agrandir / normal)" title="Glisser pour élargir · double-clic : agrandir / normal"><i/></div>
-        <div className="nv-inspector-top">{(()=>{const back=inspectorBack();return back?<button type="button" className="nv-inspector-back" onClick={back} aria-label="Retour à l’écran précédent" title="Retour"><ChevronLeft size={20}/><span>Retour</span></button>:null;})()}{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
+        <div className="nv-inspector-top">{(()=>{const back=inspectorBack();return back?<button type="button" className="nv-inspector-back" onClick={back} aria-label="Retour à l’écran précédent" title="Retour"><ChevronLeft size={20}/><span>Retour</span></button>:null;})()}{active&&panel==='points'&&!selected&&<strong className="nv-panorama-settings-title">Réglages du panorama</strong>}<button type="button" className="nv-wide-toggle" onClick={toggleWideSheet} aria-pressed={wideSheet} title={wideSheet?'Revenir à l’ancienne colonne étroite':'Ouvrir en grande fenêtre'}>{wideSheet?'Colonne étroite':'Grande fenêtre'}</button><button type="button" onClick={()=>{setRightHidden(true);backFrom();}} aria-label="Fermer les réglages" title="Fermer"><X size={20}/></button></div>
         <nav className="nv-right-tabs" aria-label="Navigation rapide du panneau">
           <button type="button" className={(panel==='points'&&!!selected)||panel==='elements'?'is-active':''} disabled={!active} onClick={()=>{setMode(null);if(active&&!selected&&active.hotspots.length){setSelectedId(active.hotspots[0].id);setPanel('points');}else if(active&&selected){setPanel('points');}else{setPanel('elements');}}}>Point{active&&active.hotspots.length?<small>{active.hotspots.length}</small>:null}</button>
           <button type="button" className={panel==='bar'?'is-active':''} onClick={()=>{setMode(null);setPanel('bar');if(!selectedBarId&&project.bottomBar.length)setSelectedBarId(project.bottomBar[0].id);}}>Barre<small>{project.bottomBar.length}</small></button>
           <button type="button" className={panel==='points'&&!selected?'is-active':''} onClick={()=>{setMode(null);setSelectedId('');setHubOpen(h=>({...h,scene:null}));setPanel('points');}}>Panorama</button>
           <button type="button" className={panel==='settings'?'is-active':''} onClick={()=>{setMode(null);setPanel('settings');}}>Visite</button>
         </nav>
+        <div className="nv-studio-body">
         {currentSpace&&<><SpaceCover name={currentSpace.name} value={currentSpace.coverDataUrl} onChange={coverDataUrl=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,coverDataUrl}:space)}))}/><SpaceRoomNameOptions space={currentSpace} onChange={v=>setProject(p=>({...p,spaces:p.spaces?.map(space=>space.id===currentSpace.id?{...space,...v}:space)}))}/></>}
         {panel==='client'&&<div className="properties nv-right-client-panel">{clientView}</div>}
         {panel==='panoramas'&&<div className="properties nv-right-panorama-gallery">
@@ -5895,6 +5900,8 @@ function App(){
             <small className="hint-inline">Clique ensuite sur « Enregistrer » pour conserver ce choix dans la visite.</small>
           </InspectorSection>
         </div>}
+        </div>
+        {wideSheet&&<StudioPreview project={project} scene={active??undefined} thumb={active?(sceneThumbs[active.id]||active.dataUrl):undefined} selectedBarId={panel==='bar'?selectedBarId:undefined} selectedPointId={panel==='points'?selectedId:undefined}/>}
       </aside>
     </div>
     {clientOpen&&<ClientsDirectory

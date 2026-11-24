@@ -172,3 +172,47 @@
 .nv-agents-form small,.nv-agent-picker small{font-weight:500;opacity:.7}
 .nv-agents-actions{display:flex;gap:8px;justify-content:flex-end}
 .nv-agent-picker{margin-top:12px}
+
+/* ===== Réglages en grande fenêtre : navigation à gauche, réglages au centre, aperçu en direct à droite ===== */
+.nv-studio-body{display:contents}
+.nv-studio-preview{display:none}
+.nv-wide-toggle{display:none}
+.nv-studio-pro.nv-sheet-open .nv-wide-toggle{display:inline-flex;align-items:center;height:36px;padding:0 12px;border-radius:10px;border:1px solid #35606f;background:#143543;color:#bfe3ea;font-size:12px;font-weight:700;cursor:pointer;margin-right:auto}
+@media(min-width:1100px){
+.nv-studio-pro.nv-sheet-open.nv-wide .workspace>.right.panel{
+  position:fixed!important;top:44px;bottom:34px;left:52px;right:52px;width:auto!important;max-width:none!important;height:auto!important;max-height:none!important;z-index:100001;
+  display:grid!important;grid-template-columns:250px minmax(0,1fr) 400px;grid-template-rows:auto minmax(0,1fr);gap:0!important;padding:0!important;overflow:hidden;
+  border-radius:22px;border:1px solid #2f5668;background:#0f2029;box-shadow:0 0 0 100vmax rgba(4,12,19,.62),0 30px 90px #000d}
+.nv-studio-pro.nv-wide .right.panel .nv-inspector-resize{display:none}
+.nv-studio-pro.nv-wide .right.panel .nv-inspector-top{grid-column:1/-1!important;grid-row:1;position:relative!important;top:0!important;margin:0!important;display:flex!important;justify-content:center!important;min-height:64px;padding:8px 18px!important;border:0!important;border-bottom:1px solid #26475a!important;border-radius:0!important;background:#0c1a22!important}
+.nv-studio-pro.nv-wide .right.panel .nv-inspector-top .nv-panorama-settings-title{position:absolute;left:50%;top:50%;translate:-50% -50%;pointer-events:none;opacity:0}
+.nv-studio-pro.nv-wide .right.panel .nv-inspector-top .nv-inspector-back{position:absolute;left:18px;top:50%;translate:0 -50%;width:auto;padding:0 14px 0 8px;gap:4px;display:inline-flex;align-items:center}
+.nv-studio-pro.nv-wide .right.panel .nv-inspector-top .nv-wide-toggle{position:absolute!important;right:18px;top:50%;translate:0 -50%;margin:0!important;width:auto!important;white-space:nowrap}
+.nv-studio-pro.nv-wide .right.panel .nv-inspector-top>button[aria-label="Fermer les réglages"]{width:46px;height:46px;border-radius:50%;background:var(--nv-button-bg,#311820);border:var(--nv-button-border-width,2px) solid var(--nv-button-outline,#d3c1b6);color:var(--nv-icon-color,#fff)}
+.nv-studio-pro.nv-wide .right.panel .nv-right-tabs{grid-column:1;grid-row:2;display:flex;flex-direction:column;gap:6px;margin:0;padding:16px 12px;border:0;border-right:1px solid #26475a;border-radius:0;background:#0c1a22}
+.nv-studio-pro.nv-wide .right.panel .nv-right-tabs button{justify-content:flex-start;min-height:48px;padding:0 16px;font-size:15px;border-radius:12px}
+.nv-studio-pro.nv-wide .right.panel .nv-right-tabs button small{margin-left:auto}
+.nv-studio-pro.nv-wide .right.panel .nv-studio-body{display:block;grid-column:2;grid-row:2;min-width:0;overflow-y:auto;padding:22px 28px 30px;overscroll-behavior:contain}
+.nv-studio-pro.nv-wide .right.panel .properties{grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.nv-studio-pro.nv-wide .nv-creation-fullscreen-enter{right:24px!important}
+.nv-studio-pro.nv-wide .nv-studio-preview{display:flex;flex-direction:column;gap:12px;grid-column:3;grid-row:2;min-width:0;overflow:auto;padding:18px;background:#0a161d;border-left:1px solid #26475a}
+}
+.nv-studio-preview h4{margin:0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#7fa6b6}
+.nv-sp-pano{position:relative;width:100%;aspect-ratio:2/1;border-radius:14px;border:1px solid #2f5668;background:#17262e center/cover no-repeat;overflow:hidden}
+.nv-sp-empty{position:absolute;inset:0;display:grid;place-items:center;font-size:12px;opacity:.6}
+.nv-sp-pt{position:absolute;width:14px;height:14px;border-radius:50%;translate:-50% -50%;background:var(--nv-button-bg,#224A95);border:2px solid var(--nv-icon-color,#98C05B);box-shadow:0 1px 4px #0008}
+.nv-sp-pt.is-selected{width:20px;height:20px;outline:3px solid #ffd166;outline-offset:2px;z-index:2}
+.nv-sp-screen{position:relative;flex:1;min-height:180px;border-radius:16px;border:1px solid #2f5668;background:linear-gradient(180deg,#1b3342,#0e1b24);overflow:hidden}
+.nv-sp-bar{position:absolute;left:50%;bottom:16px;translate:-50% 0;max-width:calc(100% - 20px);display:flex;gap:8px;padding:7px 10px;border-radius:var(--nv-bar-roundness,999px);background:var(--nv-bar-bg,#d8d8da);border:var(--nv-bar-border-width,3px) solid var(--nv-bar-outline,#224A95)}
+.nv-sp-btn{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--nv-button-bg,#224A95);border:var(--nv-button-border-width,2px) solid var(--nv-button-outline,#98C05B);color:var(--nv-icon-color,#98C05B);overflow:hidden}
+.nv-sp-btn img{width:100%;height:100%;object-fit:contain}
+.nv-sp-btn.is-selected{outline:3px solid #ffd166;outline-offset:2px}
+.nv-sp-cap{margin:0;font-size:12.5px;opacity:.75}
+
+/* Barre du bas en grande fenêtre : la liste des boutons à gauche, le réglage du bouton choisi à droite. */
+@media(min-width:1100px){
+.nv-studio-pro.nv-wide .nv-hub-detail-body:has(>.bar-items-list){display:grid;grid-template-columns:minmax(300px,400px) minmax(0,1fr);column-gap:18px;row-gap:10px;grid-template-rows:auto auto 1fr;align-items:start}
+.nv-studio-pro.nv-wide .nv-hub-detail-body:has(>.bar-items-list)>.bar-items-list{grid-column:1;grid-row:1}
+.nv-studio-pro.nv-wide .nv-hub-detail-body:has(>.bar-items-list)>.nv-qe-row{grid-column:1;grid-row:2}
+.nv-studio-pro.nv-wide .nv-hub-detail-body:has(>.bar-items-list)>.nv-qe{grid-column:2;grid-row:1 / span 3;position:sticky;top:0}
+}
