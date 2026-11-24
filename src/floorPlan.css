@@ -380,3 +380,9 @@
 /* Boutons d'étage : encore un tout petit peu plus gros. */
 .nv-minimap-levels button{min-width:32px;height:32px;padding:0 9px;font-size:14px;border-radius:9px}
 .nv-minimap-head{padding:3px}
+
+/* Bouton plan : en haut à droite, au-dessus du mini-plan ; barré quand le plan est masqué. */
+.nv-minimap{flex-direction:column!important;align-items:flex-end!important;gap:6px!important}
+.nv-minimap-eye{order:1!important;position:relative}
+.nv-minimap-body{order:2!important}
+.nv-minimap.is-hidden .nv-minimap-eye::after{content:"";position:absolute;left:50%;top:50%;width:64%;height:3px;border-radius:2px;background:currentColor;transform:translate(-50%,-50%) rotate(-45deg);box-shadow:0 0 0 2px var(--nv-button-bg,#241d1f);pointer-events:none}

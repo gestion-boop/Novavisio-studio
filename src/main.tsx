@@ -2,6 +2,7 @@ import {barUsesIconImage} from './storage';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {phaseOf} from './phase';
 import {withClientAutomation} from './clientAutomation';
+import {AgentsDialog} from './AgentsDialog';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
@@ -80,7 +81,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer} from 'lucide-react';
+import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer,UserRound} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -248,6 +249,7 @@ function App(){
   const [preparationOpen,setPreparationOpen]=useState(false);
   const [aiAssistantOpen,setAiAssistantOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
+  const [agentsOpen,setAgentsOpen]=useState(false);
   const [vrMenuOpen,setVrMenuOpen]=useState(false);
   const [informationEdit,setInformationEdit]=useState<{sceneId:string;pointId:string}|null>(null);
   const [publishConfirm,setPublishConfirm]=useState(false);
@@ -1056,7 +1058,7 @@ function App(){
     {key:'client',label:'Clients'}
   ];
   // Ordre des outils dans la fenêtre « quatre carrés » : réglable par glisser-déposer, mémorisé sur cet ordinateur.
-  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','skins','vrmenu','intro','elements','medialib','music','client','notes','comments'];
+  const TOOL_KEYS=['settings','plan','spaces','panoramas','points','bar','icons','skins','agents','vrmenu','intro','elements','medialib','music','client','notes','comments'];
   const [toolOrder,setToolOrder]=useState<string[]>(()=>{
     try{
       const saved=JSON.parse(localStorage.getItem('nvstudio-tools-order')||'[]') as unknown;
@@ -1075,6 +1077,8 @@ function App(){
       run:()=>toggleToolPanel('plan' as PanelTab)};
     // Même accès que « Skins » dans le menu principal : choix des thèmes glossy et des modèles.
     if(key==='skins')return {label:'Skins',icon:<Palette size={ic}/>,tone:'#2fbf8f',active:skinsOpen,run:()=>{leaveTools();setSkinsOpen(true);}};
+    // Annuaire des agents immobiliers (nom, téléphone, lien Info, intro) proposés à la création d'une visite.
+    if(key==='agents')return {label:'Agents immobiliers',icon:<UserRound size={ic}/>,tone:'#d98cff',active:agentsOpen,run:()=>{leaveTools();setAgentsOpen(true);}};
     // Interface jaune du casque : boutons et actions, enregistrés avec la visite.
     if(key==='vrmenu')return {label:'Vue casque',icon:<Eye size={ic}/>,tone:'#e1a525',active:vrMenuOpen,run:()=>{leaveTools();setVrMenuOpen(true);}};
     if(key==='notes')return {label:'Notes',icon:<StickyNote size={ic}/>,tone:'#e3b341',active:false,run:()=>{leaveTools();setRightHidden(true);setNotesOpen(true);}};
@@ -6069,6 +6073,7 @@ function App(){
     {preparationOpen&&<ProjectPreparation project={project} setProject={setProject} onImportPanoramas={addImages}
       onClose={()=>setPreparationOpen(false)} onFinish={()=>{setProject(p=>({...p,preparationComplete:true}));setPreparationOpen(false);setStatus('Projet préparé · Enregistre pour conserver tes réglages');}}/>}
     {skinsOpen&&<SkinLibrary project={project} setProject={setProject} onClose={()=>setSkinsOpen(false)}/>}
+    {agentsOpen&&<AgentsDialog onClose={()=>setAgentsOpen(false)}/>}
     {vrMenuOpen&&<VrMenuEditor project={project} setProject={setProject} onClose={()=>setVrMenuOpen(false)}/>}
     <input ref={placedMediaInput} hidden type="file" aria-label="Importer le média placé" onChange={e=>{
       const file=e.currentTarget.files?.[0],placement=pendingMediaPlacement.current;
