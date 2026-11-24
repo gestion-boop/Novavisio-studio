@@ -27,7 +27,7 @@ import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {inPhase} from './phase';
-import {InteriorLightFilter,interiorLifted,interiorLiftOf} from './interiorLight';
+import {InteriorLightFilter,interiorLifted,gradeOf} from './interiorLight';
 import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
 import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
@@ -465,7 +465,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     setMobileExpanded(true);
   };
   return <main className={'tour-app'+(interiorLifted(project,current)?' nv-interior-lift':'')+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={{...cssVars,...popupThemeVars(viewTheme)}} data-scene={vrSceneId||current.id}>
-    {interiorLiftOf(project)>0&&<InteriorLightFilter lift={interiorLiftOf(project)}/>}
+    {gradeOf(project)&&<InteriorLightFilter grade={gradeOf(project)!}/>}
     {!showIntro&&firstPanoramaReady&&roomNameVisible(project,current,'visit')&&<div className="nv-tour-room-heading" aria-label="Pièce actuellement visitée">
       <strong title={pick(current.name,current.nameTranslations,lang)}>{pick(current.name,current.nameTranslations,lang)}</strong>
       {current.surfaceM2!==undefined&&<span>{current.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})} m²</span>}

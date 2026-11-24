@@ -4,7 +4,7 @@ import {phaseOf} from './phase';
 import {withClientAutomation} from './clientAutomation';
 import {AgentsDialog} from './AgentsDialog';
 import {StudioPreview} from './StudioPreview';
-import {InteriorLightFilter,interiorLiftOf,interiorLifted,INTERIOR_LIFT_MAX} from './interiorLight';
+import {InteriorLightFilter,gradeOf,interiorLifted,GRADE_KEYS,GRADE_LABELS,RECOMMENDED_GRADE,type InteriorGrade} from './interiorLight';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
@@ -3694,7 +3694,7 @@ function App(){
     ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(!rightHidden&&wideSheet?' nv-wide':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
-    {interiorLiftOf(project)>0&&<InteriorLightFilter lift={interiorLiftOf(project)}/>}
+    {gradeOf(project)&&<InteriorLightFilter grade={gradeOf(project)!}/>}
     <header className="topbar nv-topbar-v3">
       <div className="nv-v3-left">
       <div className="nv-top-left">
@@ -5605,13 +5605,18 @@ function App(){
               </select>
             </label>
           </InspectorSection>
-          <InspectorSection title="Luminosité des intérieurs">
-            <p className="hint">Éclaircit les panoramas marqués « intérieur » en relevant les ombres et les tons moyens, sans blanchir les fenêtres ni les zones claires. Appliqué à l’affichage : aucune photo n’est modifiée.</p>
-            <label className="nv-interior-slider">Éclaircissement : <b>{interiorLiftOf(project)} %</b>
-              <input type="range" min="0" max={INTERIOR_LIFT_MAX} step="5" value={interiorLiftOf(project)} onChange={e=>{const v=Number(e.target.value);setProject(p=>({...p,interiorLift:v>0?v:undefined}));}}/></label>
+          <InspectorSection title="Retouche des intérieurs">
+            <p className="hint">Réglages de photo appliqués aux panoramas marqués « intérieur » : exposition, saturation, vibrance, température, contraste, points forts (−100 à +100). Appliqué à l’affichage : aucune photo n’est modifiée.</p>
+            {GRADE_KEYS.map(key=>{const g=project.interiorGrade;const value=g?g[key]:0;
+              return <label key={key} className="nv-interior-slider">{GRADE_LABELS[key]} : <b>{value>0?'+':''}{value}</b>
+                <input type="range" min="-100" max="100" step="1" value={value} onChange={e=>{const v=Number(e.target.value);setProject(p=>{const next:InteriorGrade={exposure:0,saturation:0,vibrance:0,temperature:0,contrast:0,highlights:0,...p.interiorGrade,[key]:v};return {...p,interiorGrade:next};});}}/></label>;})}
+            <div className="nv-interior-actions">
+              <button type="button" onClick={()=>{setProject(p=>({...p,interiorGrade:{...RECOMMENDED_GRADE}}));setStatus('Réglage appliqué : Exposition −10, Température −10, Points forts −10.');}}>Appliquer −10 / −10 / −10</button>
+              <button type="button" onClick={()=>{setProject(p=>({...p,interiorGrade:undefined}));setStatus('Retouche des intérieurs réinitialisée.');}}>Réinitialiser</button>
+            </div>
             <label className="toggle-row"><input type="checkbox" disabled={!active} checked={!!active?.interior} onChange={e=>{const on=e.target.checked;setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===active?.id?{...sc,interior:on||undefined}:sc)}));}}/> Ce panorama est un intérieur{active?' : « '+active.name+' »':''}</label>
             <div className="nv-interior-actions">
-              <button type="button" onClick={()=>{setProject(p=>({...p,interiorLift:p.interiorLift||25,scenes:p.scenes.map(sc=>({...sc,interior:true}))}));setStatus('Tous les panoramas sont marqués intérieurs (éclaircissement 25 % par défaut).');}}>Tout marquer comme intérieur</button>
+              <button type="button" onClick={()=>{setProject(p=>({...p,interiorGrade:p.interiorGrade&&gradeOf(p)?p.interiorGrade:{...RECOMMENDED_GRADE},scenes:p.scenes.map(sc=>({...sc,interior:true}))}));setStatus('Tous les panoramas sont marqués intérieurs (réglage −10 / −10 / −10 si aucun n’était défini).');}}>Tout marquer comme intérieur</button>
               <button type="button" onClick={()=>{setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,interior:undefined}))}));setStatus('Aucun panorama n’est marqué intérieur.');}}>Retirer partout</button>
             </div>
             <small className="hint-inline">{project.scenes.filter(sc=>sc.interior).length} panorama(s) marqué(s) sur {project.scenes.length}. Le mode casque n’est pas concerné.</small>
