@@ -414,3 +414,6 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
   box-shadow:inset 0 3px 7px #0006!important;
   transform:translateY(1px);
 }
+
+/* Panorama d'intérieur : courbe qui relève les ombres sans brûler les blancs (définie dans interiorLight.tsx). */
+.nv-interior-lift .psv-canvas-container canvas,.nv-interior-lift .psv-canvas{filter:url(#nv-interior-lift)}

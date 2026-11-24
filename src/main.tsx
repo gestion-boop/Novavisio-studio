@@ -4,6 +4,7 @@ import {phaseOf} from './phase';
 import {withClientAutomation} from './clientAutomation';
 import {AgentsDialog} from './AgentsDialog';
 import {StudioPreview} from './StudioPreview';
+import {InteriorLightFilter,interiorLiftOf,interiorLifted,INTERIOR_LIFT_MAX} from './interiorLight';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
@@ -3687,12 +3688,13 @@ function App(){
     onImportPhotos={items=>setProject(p=>({...p,mediaLibrary:[...items,...(p.mediaLibrary??[])].slice(0,300)}))}
     libraryNames={(project.mediaLibrary??[]).map(item=>item.name)} libraryRoom={Math.max(0,300-(project.mediaLibrary??[]).length)}/>;
   return <div ref={studioRef} className={
-    'app nv-studio-pro'+
+    'app nv-studio-pro'+(interiorLifted(project,active)?' nv-interior-lift':'')+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
     (leftHidden?' nv-studio-hide-left':'')+
     ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(!rightHidden&&wideSheet?' nv-wide':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
+    {interiorLiftOf(project)>0&&<InteriorLightFilter lift={interiorLiftOf(project)}/>}
     <header className="topbar nv-topbar-v3">
       <div className="nv-v3-left">
       <div className="nv-top-left">
@@ -5602,6 +5604,17 @@ function App(){
                 {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
             </label>
+          </InspectorSection>
+          <InspectorSection title="Luminosité des intérieurs">
+            <p className="hint">Éclaircit les panoramas marqués « intérieur » en relevant les ombres et les tons moyens, sans blanchir les fenêtres ni les zones claires. Appliqué à l’affichage : aucune photo n’est modifiée.</p>
+            <label className="nv-interior-slider">Éclaircissement : <b>{interiorLiftOf(project)} %</b>
+              <input type="range" min="0" max={INTERIOR_LIFT_MAX} step="5" value={interiorLiftOf(project)} onChange={e=>{const v=Number(e.target.value);setProject(p=>({...p,interiorLift:v>0?v:undefined}));}}/></label>
+            <label className="toggle-row"><input type="checkbox" disabled={!active} checked={!!active?.interior} onChange={e=>{const on=e.target.checked;setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===active?.id?{...sc,interior:on||undefined}:sc)}));}}/> Ce panorama est un intérieur{active?' : « '+active.name+' »':''}</label>
+            <div className="nv-interior-actions">
+              <button type="button" onClick={()=>{setProject(p=>({...p,interiorLift:p.interiorLift||25,scenes:p.scenes.map(sc=>({...sc,interior:true}))}));setStatus('Tous les panoramas sont marqués intérieurs (éclaircissement 25 % par défaut).');}}>Tout marquer comme intérieur</button>
+              <button type="button" onClick={()=>{setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,interior:undefined}))}));setStatus('Aucun panorama n’est marqué intérieur.');}}>Retirer partout</button>
+            </div>
+            <small className="hint-inline">{project.scenes.filter(sc=>sc.interior).length} panorama(s) marqué(s) sur {project.scenes.length}. Le mode casque n’est pas concerné.</small>
           </InspectorSection>
           <InspectorSection title="Rectangle avec le nom des pièces (en haut)">
             <p className="hint">Le petit cadre qui affiche le nom du panorama en haut de la visite. Ces deux cases le masquent partout, quel que soit le réglage des dossiers ou des panoramas.</p>

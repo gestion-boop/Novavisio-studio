@@ -216,3 +216,7 @@
 .nv-studio-pro.nv-wide .nv-hub-detail-body:has(>.bar-items-list)>.nv-qe-row{grid-column:1;grid-row:2}
 .nv-studio-pro.nv-wide .nv-hub-detail-body:has(>.bar-items-list)>.nv-qe{grid-column:2;grid-row:1 / span 3;position:sticky;top:0}
 }
+
+.nv-interior-slider{display:flex;flex-direction:column;gap:6px;font-weight:600;margin:6px 0}
+.nv-interior-actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.nv-interior-actions button{padding:9px 12px;border-radius:10px;border:1px solid #3a6577;background:#15303e;color:#e6f6f8;font-weight:600;cursor:pointer}
