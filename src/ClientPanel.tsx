@@ -8,11 +8,14 @@ import {cloudConfigured,supabase} from './cloud';
 import {NovaGenVideos} from './NovaGenVideos';
 import type {ImportedClientVideo} from './novagenVideos';
 
-type Field='name'|'category'|'address'|'city'|'phone'|'email'|'website'|'facebook'|'instagram'|'otherLinks'|'description'|'bookingUrl'|'openingHours'|'services';
+type Field='name'|'category'|'address'|'city'|'phone'|'email'|'website'|'facebook'|'instagram'|'otherLinks'|'description'|'bookingUrl'|'openingHours'|'services'|'agentFirstName'|'agentLastName'|'agentPhone'|'introUrl';
 const fields:Array<{key:Field;label:string;placeholder?:string}>=[
   {key:'name',label:'Établissement'},{key:'category',label:'Activité'},
   {key:'address',label:'Adresse'},{key:'city',label:'Ville'},
   {key:'phone',label:'Téléphone'},{key:'email',label:'E-mail'},
+  {key:'agentFirstName',label:'Agent immobilier · Prénom'},{key:'agentLastName',label:'Agent immobilier · Nom'},
+  {key:'agentPhone',label:'Agent · Téléphone direct (bouton Appeler)',placeholder:'06 12 34 56 78'},
+  {key:'introUrl',label:'Lien de l’intro (reporté automatiquement)',placeholder:'https://…'},
   {key:'website',label:'Site internet',placeholder:'https://…'},
   {key:'facebook',label:'Facebook',placeholder:'https://…'},
   {key:'instagram',label:'Instagram',placeholder:'https://…'},

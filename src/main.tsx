@@ -1,6 +1,7 @@
 import {barUsesIconImage} from './storage';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {phaseOf} from './phase';
+import {withClientAutomation} from './clientAutomation';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
@@ -3673,7 +3674,7 @@ function App(){
     setStatus('Clique dans le panorama pour placer « '+video.name+' »');
   }
   const clientView=<ClientPanel value={project.clientProfile}
-    onChange={clientProfile=>setProject(p=>({...p,clientProfile}))}
+    onChange={clientProfile=>setProject(p=>withClientAutomation({...p,clientProfile}))}
     onAddLink={addClientLink} canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
     onImportPhotos={items=>setProject(p=>({...p,mediaLibrary:[...items,...(p.mediaLibrary??[])].slice(0,300)}))}
     libraryNames={(project.mediaLibrary??[]).map(item=>item.name)} libraryRoom={Math.max(0,300-(project.mediaLibrary??[]).length)}/>;

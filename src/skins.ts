@@ -1,3 +1,4 @@
+import {withClientAutomation} from './clientAutomation';
 import {newProject,validateProject,type StudioProject,type BottomBarItem} from './storage';
 import {DEFAULT_VR_MENU} from './vrMenu';
 
@@ -8,7 +9,7 @@ export function captureSkin(project:StudioProject,name:string,id:string=crypto.r
   const appearances=project.bottomBar.map(item=>({id:item.id,title:item.title,type:item.type,...(item.type==='gallery'?{gallery:[]}:{}),...(item.type==='photos'?{photos:[]}:{}),text:'',url:'',target:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize}));
   const nav=project.defaultNavigationIcon??(project.iconPackId==='classic'?undefined:inferNavigation(project));
   const appearance:StudioProject={...newProject(),name:'Skin',vrEnabled:project.vrEnabled,defaultPhotoIcon:project.defaultPhotoIcon,defaultVideoIcon:project.defaultVideoIcon,barStyle:{...project.barStyle},bottomBar:appearances,
-    icons:project.icons,buttonSets:project.buttonSets,languages:project.languages,defaultNavigationIcon:nav,iconPackId:project.iconPackId,
+    icons:project.icons,buttonSets:project.buttonSets,languages:project.languages,introUrl:project.introUrl,introEnabled:project.introEnabled,introDuration:project.introDuration,defaultNavigationIcon:nav,iconPackId:project.iconPackId,
     barIconTrim:project.barIconTrim,settingsIconSize:project.settingsIconSize,settingsIconZoom:project.settingsIconZoom,
     settingsColor:project.settingsColor,settingsIconColor:project.settingsIconColor,closeButtonColor:project.closeButtonColor,closeButtonInk:project.closeButtonInk,glossyStyle:project.glossyStyle,vrMenu:project.vrMenu};
   for(const key of globalIcons)appearance[key]=project[key];
@@ -33,7 +34,7 @@ export function validateSkin(value:unknown):Skin {
   const source=skin.appearance;
   if(!source||!Array.isArray(source.icons)||!Array.isArray(source.bottomBar))throw Error('Présentation du skin invalide');
   const appearance=validateProject({...newProject(),name:'Skin',icons:source.icons,barStyle:source.barStyle,
-    vrEnabled:source.vrEnabled,
+    vrEnabled:source.vrEnabled,introUrl:source.introUrl,introEnabled:source.introEnabled,introDuration:source.introDuration,
     bottomBar:source.bottomBar.map(item=>({id:item.id,title:item.title,type:(['navigation','information','lien','gallery','plan','photos'] as const).find(t=>t===item.type)??'information',...(item.type==='gallery'?{gallery:[]}:{}),target:'',text:'',url:'',builtinIcon:item.builtinIcon,iconId:item.iconId,hoverIconId:item.hoverIconId,pressedIconId:item.pressedIconId,iconSize:item.iconSize})),
     defaultPhotoIcon:source.defaultPhotoIcon,defaultVideoIcon:source.defaultVideoIcon,languages:source.languages,buttonSets:source.buttonSets,defaultNavigationIcon:source.defaultNavigationIcon,iconPackId:source.iconPackId,
     barIconTrim:source.barIconTrim,settingsIconSize:source.settingsIconSize,settingsIconZoom:source.settingsIconZoom,
@@ -96,7 +97,9 @@ export function applySkin(project:StudioProject,skin:Skin):StudioProject {
     defaultNavigationIcon:nav?{...nav,iconId:remap(nav.iconId)!,hoverIconId:remap(nav.hoverIconId),pressedIconId:remap(nav.pressedIconId)}:undefined,
     favoriteNavigationIconSet:undefined};
   for(const key of globalIcons)next[key]=remap(source[key]);
-  return validateProject(next);
+  // L'intro du skin s'applique seulement si le projet n'a pas déjà la sienne.
+  if(!project.introUrl&&source.introUrl){next.introUrl=source.introUrl;next.introEnabled=source.introEnabled??true;next.introDuration=source.introDuration??project.introDuration;}
+  return withClientAutomation(validateProject(next));
 }
 
 const DEFAULT_SKIN_KEY='novavisio-default-skin-id';

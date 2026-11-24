@@ -1,4 +1,5 @@
 import {barKind} from './barKind';
+import {withClientAutomation} from './clientAutomation';
 import {cloudListSkins} from './cloudSkins';
 import {applyGlossyTheme, GLOSSY_THEMES} from './glossyThemes';
 import {applySkin, listSkins, type Skin} from './skins';
@@ -66,12 +67,12 @@ export async function applyImmospheraDefaults(
   );
   const currentMenu = next.vrMenu ? vrMenuOf({...next, bottomBar: normalizedBar}) : undefined;
   const upgradeMenu = !next.vrMenu || isLegacyDefaultVrMenu(next.vrMenu) || isLegacyDefaultVrMenu(currentMenu);
-  return {
+  return withClientAutomation({
     ...next,
     bottomBar: normalizedBar,
     vrEnabled: true,
     vrMenu: upgradeMenu
       ? {...DEFAULT_VR_MENU, themed: currentMenu?.themed ?? false, autoOpen: true}
       : {...currentMenu!, autoOpen: next.vrMenu?.autoOpen ?? true},
-  };
+  });
 }
