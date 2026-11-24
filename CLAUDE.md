@@ -23,5 +23,5 @@ Ces règles s'appliquent à toutes les sessions et à toutes les visites virtuel
 
 ## Git et déploiement
 - Pousser chaque changement sur `main` et sur la branche de travail `claude/gallant-davinci-3j0crn`.
-- Après chaque push sur `main`, déployer la production (projet Vercel `prj_DoDglHb9ubtymhaxvSMNr8pHOTSa`) et vérifier l'état du déploiement.
+- Après chaque push sur `main`, Vercel déploie la production tout seul (dépôt GitHub lié au projet `prj_DoDglHb9ubtymhaxvSMNr8pHOTSa`) : NE PAS lancer de déploiement manuel en plus (il double le déploiement et consomme le quota de 100 par jour). Vérifier l'état du déploiement automatique ; ne déployer à la main que s'il n'apparaît pas.
 - Avant de pousser : `npx tsc --noEmit -p .` et `npx vitest run` (tous les tests doivent passer).
