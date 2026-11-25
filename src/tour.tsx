@@ -27,7 +27,7 @@ import {imageMarkerHtml,responsiveFrameSize} from './imageFrame';
 import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type ZoomOrigin} from './media';
 import {ContinuousMusic} from './continuousMusic';
 import {inPhase} from './phase';
-import {InteriorLightFilter,interiorLifted,gradeOf} from './interiorLight';
+import {installPhotoGrade,type GradeHandle} from './photoGrade';
 import {occluderMarkers} from './frameOcclusion';
 import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
@@ -111,6 +111,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
   },[]);
   const viewer=useRef<Viewer|null>(null);
   const loadedScene=useRef<string|null>(null);
+  const gradeRef=useRef<GradeHandle|null>(null);
   const currentTexture=useRef(scene.dataUrl);
   const handlers=useRef({sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady,night,nightTexture});
   handlers.current={sphereImage,scene,icons,arrival,navigate,info,linked,image,video,onReady,night,nightTexture};
@@ -129,6 +130,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       plugins:[MarkersPlugin]
     });
     viewer.current=instance;
+    const photoGrade=installPhotoGrade(instance);gradeRef.current=photoGrade;photoGrade.set(handlers.current.scene.grade??null);
     loadedScene.current=scene.id;
     // Notify when the first 360° texture is decoded: only then dismiss the intro.
     instance.addEventListener('ready',()=>handlers.current.onReady(scene.id));
@@ -229,6 +231,8 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     syncMarkers(instance,visibleVideoFrames(scene.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[
       publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,scene.hotspots),...occluderMarkers(h,nightOnly()?undefined:scene.dataUrl),...(haloMarkers(h) as unknown as MarkerConfig[])]));
   },[scene.id,scene.hotspots,icons,lang,night,nightTexture,occTick]);
+  // Retouche de la photo du panorama (exposition, contraste, couleur…), seule : les incrustations ne sont pas touchées.
+  useEffect(()=>{gradeRef.current?.set(scene.grade??null);},[scene.id,scene.grade]);
   return <div className="tour-panorama" ref={container}/>;
 }
 /**
@@ -468,8 +472,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
     }
     setMobileExpanded(true);
   };
-  return <main className={'tour-app'+(interiorLifted(project,current)?' nv-interior-lift':'')+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={{...cssVars,...popupThemeVars(viewTheme)}} data-scene={vrSceneId||current.id}>
-    {gradeOf(project)&&<InteriorLightFilter grade={gradeOf(project)!}/>}
+  return <main className={'tour-app'+(popupCloseIcon?' nv-custom-close':'')+(mobileExpanded?' nv-tour-viewport-expanded':'')} ref={wrap} style={{...cssVars,...popupThemeVars(viewTheme)}} data-scene={vrSceneId||current.id}>
     {!showIntro&&firstPanoramaReady&&roomNameVisible(project,current,'visit')&&<div className="nv-tour-room-heading" aria-label="Pièce actuellement visitée">
       <strong title={pick(current.name,current.nameTranslations,lang)}>{pick(current.name,current.nameTranslations,lang)}</strong>
       {current.surfaceM2!==undefined&&<span>{current.surfaceM2.toLocaleString('fr-FR',{maximumFractionDigits:2})} m²</span>}

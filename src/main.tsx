@@ -4,7 +4,8 @@ import {phaseOf} from './phase';
 import {withClientAutomation} from './clientAutomation';
 import {AgentsDialog} from './AgentsDialog';
 import {StudioPreview} from './StudioPreview';
-import {InteriorLightFilter,gradeOf,interiorLifted,GRADE_KEYS,GRADE_LABELS,RECOMMENDED_GRADE,type InteriorGrade} from './interiorLight';
+import {GradePanel} from './GradePanel';
+import {normalizeGrade} from './photoGrade';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
 import {FloorPlanEditor,FloorPlanDialog,PlanMiniMap} from './FloorPlan';
@@ -83,7 +84,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer,UserRound} from 'lucide-react';
+import {SlidersHorizontal,Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer,UserRound} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -3691,13 +3692,12 @@ function App(){
     onImportPhotos={items=>setProject(p=>({...p,mediaLibrary:[...items,...(p.mediaLibrary??[])].slice(0,300)}))}
     libraryNames={(project.mediaLibrary??[]).map(item=>item.name)} libraryRoom={Math.max(0,300-(project.mediaLibrary??[]).length)}/>;
   return <div ref={studioRef} className={
-    'app nv-studio-pro'+(interiorLifted(project,active)?' nv-interior-lift':'')+
+    'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
     (leftHidden?' nv-studio-hide-left':'')+
     ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(!rightHidden&&wideSheet?' nv-wide':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
-    {gradeOf(project)&&<InteriorLightFilter grade={gradeOf(project)!}/>}
     <header className="topbar nv-topbar-v3">
       <div className="nv-v3-left">
       <div className="nv-top-left">
@@ -4236,7 +4236,7 @@ function App(){
         <div className={'view-area'+(splitAuto?' nv-split-active':'')+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
           <div className={splitAuto?'nv-split-pane nv-split-left':'nv-viewer-host'}>
           {splitAuto&&<div className="nv-split-head"><span className="nv-split-badge">1. DÉPART · {active.name}</span></div>}
-          {active?<Panorama maskDraft={maskDraw&&maskDraw.id===selectedId?maskDraw.points:undefined} onMaskClick={maskDraw&&maskDraw.id===selectedId?(yaw,pitch)=>setMaskDraw(d=>d&&{...d,points:[...d.points,[yaw,pitch]]}):undefined} sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else if(splitAuto)placeSplitArrow(y,p,true);else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama photoGrade={(tourActive??active)?.grade??null} maskDraft={maskDraw&&maskDraw.id===selectedId?maskDraw.points:undefined} onMaskClick={maskDraw&&maskDraw.id===selectedId?(yaw,pitch)=>setMaskDraw(d=>d&&{...d,points:[...d.points,[yaw,pitch]]}):undefined} sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else if(splitAuto)placeSplitArrow(y,p,true);else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -5312,6 +5312,12 @@ function App(){
                   <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
+                  {key:'grade',title:'Retouche de l’image',hint:active.grade?'✓ Réglée en direct':'Exposition, contraste, couleur',icon:<SlidersHorizontal size={26}/>,tone:'#f5a623',content:<GradePanel grade={active.grade}
+                    onChange={g=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===active.id?{...sc,grade:g}:sc)}))}
+                    spaceCount={visibleScenes.length} totalCount={project.scenes.length}
+                    onApplyTo={scope=>{const g=normalizeGrade(active.grade);const ids=new Set((scope==='space'?visibleScenes:project.scenes).map(sc=>sc.id));
+                      setProject(p=>({...p,scenes:p.scenes.map(sc=>ids.has(sc.id)?{...sc,grade:g??undefined}:sc)}));
+                      setStatus('Retouche appliquée à '+ids.size+' panorama'+(ids.size>1?'s':'')+'.');}}/>},
                   {key:'daynight',title:'Jour / nuit',hint:active.nightDataUrl||active.nightSourceSceneId?'✓ Configuré':'Non configuré',icon:<Moon size={26}/>,tone:'#7f8cff',content:nightSceneControls(active,true)},
                   {key:'sun',title:'Rayon de soleil',hint:active.sunFlare?'✓ Activé':'Désactivé',icon:<SunGlyph size={26}/>,tone:'#ffc53d',content:<SunFlareEditor value={active.sunFlare} defaultValue={project.sunFlareDefault} onChange={next=>patchScene(sc=>({...sc,sunFlare:next}))} onSaveDefault={()=>{if(!active.sunFlare){setStatus('Active d’abord le reflet sur ce panorama');return;}setProject(p=>({...p,sunFlareDefault:active.sunFlare}));setStatus('Réglage de soleil enregistré par défaut');}} onApplyAll={()=>{if(!active.sunFlare){setStatus('Active d’abord le reflet sur ce panorama');return;}const f=active.sunFlare;setProject(p=>({...p,sunFlareDefault:f,scenes:p.scenes.map(sc=>({...sc,sunFlare:f}))}));setStatus('Réglage de soleil appliqué à tous les panoramas');}}/>},
                   {key:'points',title:'Points interactifs',badge:active.hotspots.length,hint:'Flèches, infos, photos…',icon:<PinIcon size={26}/>,tone:'#ff8a3d',content:<>
@@ -5631,22 +5637,6 @@ function App(){
                 {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
             </label>
-          </InspectorSection>
-          <InspectorSection title="Retouche des intérieurs">
-            <p className="hint">Réglages de photo appliqués aux panoramas marqués « intérieur » : exposition, saturation, vibrance, température, contraste, points forts (−100 à +100). Appliqué à l’affichage : aucune photo n’est modifiée.</p>
-            {GRADE_KEYS.map(key=>{const g=project.interiorGrade;const value=g?g[key]:0;
-              return <label key={key} className="nv-interior-slider">{GRADE_LABELS[key]} : <b>{value>0?'+':''}{value}</b>
-                <input type="range" min="-100" max="100" step="1" value={value} onChange={e=>{const v=Number(e.target.value);setProject(p=>{const next:InteriorGrade={exposure:0,saturation:0,vibrance:0,temperature:0,contrast:0,highlights:0,...p.interiorGrade,[key]:v};return {...p,interiorGrade:next};});}}/></label>;})}
-            <div className="nv-interior-actions">
-              <button type="button" onClick={()=>{setProject(p=>({...p,interiorGrade:{...RECOMMENDED_GRADE}}));setStatus('Réglage appliqué : Exposition −10, Température −10, Points forts −10.');}}>Appliquer −10 / −10 / −10</button>
-              <button type="button" onClick={()=>{setProject(p=>({...p,interiorGrade:undefined}));setStatus('Retouche des intérieurs réinitialisée.');}}>Réinitialiser</button>
-            </div>
-            <label className="toggle-row"><input type="checkbox" disabled={!active} checked={!!active?.interior} onChange={e=>{const on=e.target.checked;setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===active?.id?{...sc,interior:on||undefined}:sc)}));}}/> Ce panorama est un intérieur{active?' : « '+active.name+' »':''}</label>
-            <div className="nv-interior-actions">
-              <button type="button" onClick={()=>{setProject(p=>({...p,interiorGrade:p.interiorGrade&&gradeOf(p)?p.interiorGrade:{...RECOMMENDED_GRADE},scenes:p.scenes.map(sc=>({...sc,interior:true}))}));setStatus('Tous les panoramas sont marqués intérieurs (réglage −10 / −10 / −10 si aucun n’était défini).');}}>Tout marquer comme intérieur</button>
-              <button type="button" onClick={()=>{setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,interior:undefined}))}));setStatus('Aucun panorama n’est marqué intérieur.');}}>Retirer partout</button>
-            </div>
-            <small className="hint-inline">{project.scenes.filter(sc=>sc.interior).length} panorama(s) marqué(s) sur {project.scenes.length}. Le mode casque n’est pas concerné.</small>
           </InspectorSection>
           <InspectorSection title="Rectangle avec le nom des pièces (en haut)">
             <p className="hint">Le petit cadre qui affiche le nom du panorama en haut de la visite. Ces deux cases le masquent partout, quel que soit le réglage des dossiers ou des panoramas.</p>

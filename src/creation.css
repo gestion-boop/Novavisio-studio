@@ -229,3 +229,12 @@
 .nv-mask-actions button:disabled{opacity:.45;cursor:not-allowed}
 .nv-mask-dot{display:block;width:12px;height:12px;border-radius:50%;background:#ff5a5a;border:2px solid #fff;box-shadow:0 1px 4px #000a}
 .nv-mask-dot.is-first{width:16px;height:16px;background:#ffd166}
+
+/* Retouche de l'image du panorama */
+.nv-grade-panel{display:flex;flex-direction:column;gap:10px}
+.nv-grade-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-weight:600}
+.nv-grade-row input{grid-column:1/-1;width:100%}
+.nv-grade-row b{font-variant-numeric:tabular-nums;opacity:.85}
+.nv-grade-actions{display:flex;gap:8px;flex-wrap:wrap}
+.nv-grade-actions button{padding:9px 12px;border-radius:10px;border:1px solid #3a6577;background:#15303e;color:#e6f6f8;font-weight:600;cursor:pointer}
+.nv-grade-actions button:disabled{opacity:.45;cursor:not-allowed}

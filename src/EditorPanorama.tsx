@@ -18,6 +18,7 @@ import {getTransitionMs,warmPanoramas} from './transitionPrefs';
 import {glyphs} from './glyphSet';
 import {inPhase} from './phase';
 import {occluderMarkers,maskDraftMarkers} from './frameOcclusion';
+import {installPhotoGrade,type GradeHandle,type PhotoGrade} from './photoGrade';
 
 export type EditMode = Hotspot['type'] | null;
 export type PanelTab = 'tool' | 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
@@ -63,6 +64,8 @@ export function launchLink(link:string) {
 export type PanoramaProps = {
   /** Détourage : points du contour en cours de tracé (yaw, pitch) et clic qui ajoute un point au lieu de créer un point interactif. */
   maskDraft?:[number,number][];onMaskClick?:(yaw:number,pitch:number)=>void;
+  /** Retouche en direct de la photo du panorama (jamais des incrustations). */
+  photoGrade?:PhotoGrade|null;
   sphereImage:(sceneId:string)=>string|undefined;
   scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean; autoNavigation:boolean; night:boolean; nightTexture?:string;
   onCreate: (yaw:number,pitch:number)=>void;
@@ -175,15 +178,17 @@ export function FullscreenGalleryHoverPreview({scene,thumb,onOrientation}:{scene
   </div>;
 }
 
-export function Panorama({maskDraft,onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
+export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
+  const gradeRef=useRef<GradeHandle|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
   const currentTextureRef=useRef(scene.dataUrl);
   const dayViewRef=useRef<{yaw:number;pitch:number;zoom:number}|null>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null);
   const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
   maskDraftNow=maskDraft;
+  const gradeNow=useRef<PhotoGrade|null|undefined>(photoGrade);gradeNow.current=photoGrade;
   const actions = useRef({onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
   actions.current = {onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
@@ -208,6 +213,7 @@ export function Panorama({maskDraft,onMaskClick,sphereImage,scene,icons,mode,pre
       plugins:[MarkersPlugin]
     });
     viewerRef.current = viewer;
+    const photoGradeHandle=installPhotoGrade(viewer);gradeRef.current=photoGradeHandle;photoGradeHandle.set(gradeNow.current??null);
     loadedSceneRef.current=scene.id;
     const reportCamera=()=>{
       const camera=viewer.getPosition();
@@ -709,6 +715,8 @@ export function Panorama({maskDraft,onMaskClick,sphereImage,scene,icons,mode,pre
       root.removeEventListener('drop',drop);
     };
   },[]);
+  // Retouche de la photo du panorama en direct (curseurs Exposition, Contraste, Couleur…) : ne touche pas aux incrustations.
+  useEffect(()=>{gradeRef.current?.set(photoGrade??null);},[photoGrade,scene.id]);
   // Détourage : le contour en cours se redessine à chaque point ajouté ; un calque prêt est ajouté aux marqueurs.
   useEffect(()=>{
     const v=viewerRef.current;
