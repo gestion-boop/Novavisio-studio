@@ -45,6 +45,8 @@ export type Hotspot = {
   frameSphericalCorners?:FrameSphericalCorners;
   /** Détourages : contours (yaw, pitch en radians) d'objets placés DEVANT l'écran incrusté (pancarte, poteau…) ; l'écran passe derrière. */
   frameMasks?:[number,number][][];
+  /** Découpe de l'écran incrusté : contour (yaw, pitch en radians, 3 à 40 points) de la partie VISIBLE. La photo / vidéo garde ses proportions : ce qui dépasse du contour est simplement coupé. */
+  frameShape?:[number,number][];
   /** Photo agrandie : décalage vertical de la croix de fermeture, en px (négatif = plus haut, jusqu'à sortir de l'image). 0 = position habituelle. */
   closeShiftY?:number;
   /** Flèche de retour : garde exactement la hauteur choisie (pas d'abaissement automatique près d'une flèche d'avancée). Posé dès que l'utilisateur la déplace. */
@@ -493,6 +495,8 @@ export function validateProject(value:unknown):StudioProject {
         )) ||
         (h.fadeOnClick !== undefined && typeof h.fadeOnClick !== 'boolean') ||
         (h.pitchFixed !== undefined && typeof h.pitchFixed !== 'boolean') ||
+        (h.frameShape !== undefined && (!Array.isArray(h.frameShape)||h.frameShape.length<3||h.frameShape.length>40||
+          !h.frameShape.every(pt=>Array.isArray(pt)&&pt.length===2&&Number.isFinite(pt[0])&&Number.isFinite(pt[1])&&Math.abs(pt[0])<100&&Math.abs(pt[1])<=Math.PI/2+0.001))) ||
         (h.closeShiftY !== undefined && (typeof h.closeShiftY !== 'number' || !Number.isFinite(h.closeShiftY) || h.closeShiftY < -120 || h.closeShiftY > 80)) ||
         (h.frameMasks !== undefined && (!Array.isArray(h.frameMasks)||h.frameMasks.length>8||
           !h.frameMasks.every(poly=>Array.isArray(poly)&&poly.length>=3&&poly.length<=80&&poly.every(pt=>Array.isArray(pt)&&pt.length===2&&Number.isFinite(pt[0])&&Number.isFinite(pt[1])&&Math.abs(pt[0])<100&&Math.abs(pt[1])<=Math.PI/2+0.001))))

@@ -17,7 +17,7 @@ import {type Hotspot,type CustomIcon,type Scene,type StudioProject,defaultFrameC
 import {getTransitionMs,warmPanoramas} from './transitionPrefs';
 import {glyphs} from './glyphSet';
 import {inPhase} from './phase';
-import {occluderMarkers,maskDraftMarkers} from './frameOcclusion';
+import {occluderMarkers,maskDraftMarkers,needsOccluder} from './frameOcclusion';
 import {installPhotoGrade,type GradeHandle,type PhotoGrade} from './photoGrade';
 
 export type EditMode = Hotspot['type'] | null;
@@ -135,7 +135,7 @@ export function markersForScene(scene:Scene,icons:CustomIcon[],height:number,sel
       all.push(...editingFrameControls(h));
     }
     // Détourage : le calque qui reprend l'objet de premier plan passe par-dessus l'écran incrusté.
-    if(!night&&isFrame(h)&&h.frameMasks?.length)all.push(...occluderMarkers(h,scene.dataUrl));
+    if(!night&&isFrame(h)&&needsOccluder(h))all.push(...occluderMarkers(h,scene.dataUrl));
   }
   if(maskDraftNow?.length)all.push(...maskDraftMarkers(maskDraftNow));
   return all;

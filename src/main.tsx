@@ -3339,6 +3339,7 @@ function App(){
     const hasMedia=h.type==='image'?!!h.imageDataUrl:h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;
     if(!hasMedia)return null;
     return <FrameLoupe hotspot={h} sceneUrl={active.dataUrl}
+      onShape={shape=>patchPoint({frameShape:shape})}
       onAdjusting={on=>window.dispatchEvent(new CustomEvent('nv-frame-dim',{detail:{id:h.id,opacity:on?0.03:0.3}}))}
       onCorners={c=>{
         const ref=c[0].yaw;

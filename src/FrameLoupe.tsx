@@ -62,8 +62,10 @@ function useSource(url:string){
   return {src,failed};
 }
 
-export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
+export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
   hotspot:Hotspot;sceneUrl:string;onCorners:(corners:FrameSphericalCorners)=>void;onAdjusting?:(on:boolean)=>void;
+  /** Découpe de l'écran : contour (yaw, pitch) de la partie visible ; undefined = pas de découpe. */
+  onShape?:(shape:[number,number][]|undefined)=>void;
 }){
   const {src,failed}=useSource(sceneUrl);
   const canvas=useRef<HTMLCanvasElement>(null);
@@ -76,6 +78,10 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   const [dragging,setDragging]=useState(false);
   const [snapped,setSnapped]=useState(false);
   const [hoverKey,setHoverKey]=useState<FrameKey|null>(null);
+  // Mode « Contour de découpe » : points ajoutés en cliquant sur un bord, glissés, supprimés depuis la liste.
+  const [mode,setMode]=useState<'corners'|'shape'>('corners');
+  const [sel,setSel]=useState(0);
+  const [hoverEdge,setHoverEdge]=useState<number|null>(null);
   const frozen=useRef<{yaw:number;pitch:number}|null>(null);
   const grad=useRef<{m:Float32Array;k:number}|null>(null);
   const rootRef=useRef<HTMLDivElement>(null);
@@ -163,10 +169,72 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
     const r=(e.currentTarget as SVGSVGElement).getBoundingClientRect();
     return [(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height] as const;
   };
+  const shapeNow=useMemo<[number,number][]>(()=>hotspot.frameShape&&hotspot.frameShape.length>=3?hotspot.frameShape:corners.map(c=>[c.yaw,c.pitch] as [number,number]),[hotspot.frameShape,corners]);
+  const shapeRef=useRef(shapeNow);shapeRef.current=shapeNow;
+  const spts=useMemo(()=>shapeNow.map(([y,p])=>project(b,y,p)),[b,shapeNow]);
+  const emitShape=(next:[number,number][])=>onShape?.(next.length>=3?next:undefined);
+  const placeVertex=(i:number,px:number,py:number,useSnap:boolean)=>{
+    let x=clamp(px,0,W),y=clamp(py,0,H);
+    const gr=grad.current,m=gr?.m,k=gr?.k??1,gw=Math.round(W*k),gh=Math.round(H*k);
+    let isSnapped=false;
+    if(useSnap&&m){
+      let best=0,bx=x,by=y;
+      for(let dy=-7;dy<=7;dy++)for(let dx=-7;dx<=7;dx++){
+        const xx=Math.round((x+dx)*k),yy=Math.round((y+dy)*k);
+        if(xx<1||yy<1||xx>=gw-1||yy>=gh-1)continue;
+        const score=m[yy*gw+xx]-0.9*(dx*dx+dy*dy)/2;
+        if(score>best){best=score;bx=x+dx;by=y+dy;}
+      }
+      if(best>38){x=x+(bx-x)*0.6;y=y+(by-y)*0.6;isSnapped=true;}
+    }
+    setSnapped(isSnapped);
+    const p=unproject(viewRef.current,x,y);
+    const next=shapeRef.current.map(q=>[q[0],q[1]] as [number,number]);
+    if(i<0||i>=next.length)return;
+    next[i]=[p.yaw,p.pitch];
+    emitShape(next);
+  };
+  /** Point du bord le plus proche de (x, y) en pixels de loupe : {segment, position, distance}. */
+  const nearestEdge=(x:number,y:number)=>{
+    let best:{i:number;x:number;y:number;d:number}|null=null;
+    for(let i=0;i<spts.length;i++){
+      const a=spts[i],c=spts[(i+1)%spts.length];if(!a||!c)continue;
+      const vx=c[0]-a[0],vy=c[1]-a[1],len2=vx*vx+vy*vy;if(len2<1)continue;
+      const t=clamp(((x-a[0])*vx+(y-a[1])*vy)/len2,0,1);
+      const qx=a[0]+t*vx,qy=a[1]+t*vy,d=Math.hypot(qx-x,qy-y);
+      if(!best||d<best.d)best={i,x:qx,y:qy,d};
+    }
+    return best;
+  };
+  const removeVertex=(i:number)=>{
+    if(shapeRef.current.length<=3)return;
+    const next=shapeRef.current.filter((_,j)=>j!==i).map(q=>[q[0],q[1]] as [number,number]);
+    setSel(Math.max(0,Math.min(i,next.length-1)));
+    emitShape(next);
+  };
   const pts=useMemo(()=>FRAME_KEYS.map(k=>project(b,corners[FRAME_KEYS.indexOf(k)].yaw,corners[FRAME_KEYS.indexOf(k)].pitch)),[b,corners]);
 
   function down(e:RPointerEvent<SVGSVGElement>){
     const [x,y]=local(e);
+    if(mode==='shape'){
+      let near=-1,dist=22;
+      spts.forEach((p,i)=>{if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<dist){dist=d;near=i;}});
+      if(near<0){
+        // Clic sur un bord : un nouveau point est inséré à cet endroit, puis se glisse aussitôt.
+        const edge=nearestEdge(x,y);
+        if(!edge||edge.d>14)return;
+        const p=unproject(viewRef.current,edge.x,edge.y);
+        const next=shapeRef.current.map(q=>[q[0],q[1]] as [number,number]);
+        next.splice(edge.i+1,0,[p.yaw,p.pitch]);
+        if(next.length>40)return;
+        shapeRef.current=next;near=edge.i+1;emitShape(next);
+      }
+      setSel(near);
+      e.currentTarget.setPointerCapture(e.pointerId);
+      frozen.current={yaw:view.yaw,pitch:view.pitch};
+      setDragging(true);onAdjusting?.(true);
+      return;
+    }
     let near:FrameKey|null=null,dist=22;
     FRAME_KEYS.forEach((k,i)=>{const p=pts[i];if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<dist){dist=d;near=k;}});
     const key=near??active;
@@ -179,6 +247,13 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   }
   function move(e:RPointerEvent<SVGSVGElement>){
     const [x,y]=local(e);
+    if(mode==='shape'){
+      if(dragging){placeVertex(sel,x,y,snap);return;}
+      const edge=nearestEdge(x,y);
+      const overPoint=spts.some(p=>p&&Math.hypot(p[0]-x,p[1]-y)<22);
+      setHoverEdge(!overPoint&&edge&&edge.d<=14?edge.i:null);
+      return;
+    }
     if(!dragging){
       let near:FrameKey|null=null,dist=22;
       FRAME_KEYS.forEach((k,i)=>{const p=pts[i];if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<dist){dist=d;near=k;}});
@@ -190,6 +265,10 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   function up(){frozen.current=null;setDragging(false);setSnapped(false);onAdjusting?.(false);}
   // Micro-ajustements : 1 px de loupe (ou 0,1 px) dans la direction demandée.
   function nudge(dx:number,dy:number){
+    if(mode==='shape'){
+      const q=spts[sel];if(!q)return;const st=fine?0.1:1;
+      onAdjusting?.(true);placeVertex(sel,q[0]+dx*st,q[1]+dy*st,false);window.setTimeout(()=>onAdjusting?.(false),500);return;
+    }
     const p=pts[FRAME_KEYS.indexOf(active)];if(!p)return;
     const s=fine?0.1:1;
     onAdjusting?.(true);setCorner(active,p[0]+dx*s,p[1]+dy*s,false);
@@ -207,6 +286,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
   const activeColor=snapped?'#4bebde':'#ffe9b0';
   const body=<div className={"nv-loupe"+(wide?" is-wide":"")+(full?" is-full":"")} ref={rootRef} onKeyDown={key}>
     <div className="nv-loupe-head"><strong>Zoom de précision</strong>
+      {onShape&&<span className="nv-loupe-mode" role="group" aria-label="Ce que je règle"><button type="button" className={mode==='corners'?'is-on':''} aria-pressed={mode==='corners'} onClick={()=>setMode('corners')}>Coins du cadre</button><button type="button" className={mode==='shape'?'is-on':''} aria-pressed={mode==='shape'} onClick={()=>setMode('shape')}>Contour de découpe</button></span>}
       <button type="button" className="nv-loupe-full" onClick={()=>setFull(f=>!f)} title={full?'Réduire (Échap)':'Plein écran pour plus de précision'}>{full?'✕ Réduire':'⛶ Plein écran'}</button>
       <span className="nv-loupe-zoom" role="group" aria-label="Niveau de zoom">{ZOOMS.map(z=><button key={z} type="button" className={zoom===z?'is-on':''} onClick={()=>setZoom(z)} aria-pressed={zoom===z}>×{z}</button>)}</span>
     </div>
@@ -215,9 +295,21 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
       {!src&&<div className="nv-loupe-wait">Chargement du panorama…</div>}
       <svg viewBox={`0 0 ${W} ${H}`} tabIndex={0} style={{cursor:dragging?'grabbing':hoverKey?'grab':'crosshair'}} aria-label="Loupe : glisse un coin ou clique pour le poser" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={()=>setHoverKey(null)}>
         <defs><pattern id="nv-loupe-grid" width="22" height="22" patternUnits="userSpaceOnUse"><path d="M22 0H0V22" fill="none" stroke="#fff" strokeOpacity=".16" strokeWidth=".6"/></pattern></defs>
-        {polygon&&<><polygon points={polygon} fill="url(#nv-loupe-grid)" stroke="#000" strokeOpacity=".6" strokeWidth="2.6"/>
+        {mode==='shape'&&spts.every(Boolean)&&(()=>{
+          const sp=spts.map(p=>p![0].toFixed(1)+','+p![1].toFixed(1)).join(' ');
+          return <>
+            {polygon&&<polygon points={polygon} fill="none" stroke="#fff" strokeOpacity=".45" strokeWidth="1" strokeDasharray="2 4"/>}
+            <polygon points={sp} fill="rgba(75,235,222,.14)" stroke="#000" strokeOpacity=".6" strokeWidth="2.8"/>
+            <polygon points={sp} fill="none" stroke="#4bebde" strokeWidth="1.4"/>
+            {hoverEdge!==null&&spts[hoverEdge]&&spts[(hoverEdge+1)%spts.length]&&<line x1={spts[hoverEdge]![0]} y1={spts[hoverEdge]![1]} x2={spts[(hoverEdge+1)%spts.length]![0]} y2={spts[(hoverEdge+1)%spts.length]![1]} stroke="#ffd98a" strokeWidth="3.4" strokeLinecap="round" opacity=".9"/>}
+            {spts.map((p,i)=>{if(!p)return null;const on=i===sel;
+              return <g key={i}><circle cx={p[0]} cy={p[1]} r={on?8:6} fill={on?'#ffd98a':'#4bebde'} stroke="#000" strokeOpacity=".7" strokeWidth="1.6"/>
+                <text x={p[0]+9} y={p[1]-8} fontSize="10" fontWeight="700" fill="#fff" stroke="#000" strokeWidth="2.4" paintOrder="stroke">{i+1}</text></g>;})}
+          </>;
+        })()}
+        {mode==='corners'&&polygon&&<><polygon points={polygon} fill="url(#nv-loupe-grid)" stroke="#000" strokeOpacity=".6" strokeWidth="2.6"/>
           <polygon points={polygon} fill="none" stroke={snapped?'#4bebde':'#ffd98a'} strokeWidth={snapped?'1.4':'1'} strokeDasharray="5 4"/></>}
-        {FRAME_KEYS.map((k,i)=>{const p=pts[i];if(!p)return null;const on=k===active;const hovered=k===hoverKey&&!on;
+        {mode==='corners'&&FRAME_KEYS.map((k,i)=>{const p=pts[i];if(!p)return null;const on=k===active;const hovered=k===hoverKey&&!on;
           return <g key={k} opacity={on?1:hovered?.85:.42}>
             <circle cx={p[0]} cy={p[1]} r={on?11:hovered?8:6} fill="none" stroke="#000" strokeOpacity=".55" strokeWidth={on?3.2:2.4}/>
             <circle cx={p[0]} cy={p[1]} r={on?11:hovered?8:6} fill="none" stroke={on?activeColor:hovered?'#9fdcf3':'#fff'} strokeWidth={on?1.6:1.1}/>
@@ -225,8 +317,19 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
           </g>;})}
       </svg>
     </div>
-    <div className="nv-loupe-corners" role="group" aria-label="Coin à régler">{ORDER.map((k,i)=><button key={k} type="button" className={k===active?'is-on':''} onClick={()=>{setActive(k);}}>{i+1}</button>)}
-      <span>Coin : <b>{LABEL[active]}</b>{snapped&&<em style={{marginLeft:6,color:'#4bebde',fontStyle:'normal',fontWeight:700}}>✦ Bord aimanté</em>}</span></div>
+    {mode==='shape'&&<div className="nv-loupe-shape">
+      <b>Points du contour <span className="nv-loupe-count">{shapeNow.length}</span></b>
+      <ul className="nv-loupe-pointlist">
+        {shapeNow.map((_,i)=><li key={i} className={i===sel?'is-on':''}>
+          <button type="button" className="nv-loupe-pick" onClick={()=>setSel(i)}>Point {i+1}</button>
+          <button type="button" className="nv-loupe-trash" aria-label={'Supprimer le point '+(i+1)} title={shapeNow.length<=3?'3 points minimum':'Supprimer ce point'} disabled={shapeNow.length<=3} onClick={()=>removeVertex(i)}>🗑</button>
+        </li>)}
+      </ul>
+      <button type="button" disabled={!hotspot.frameShape} onClick={()=>{setSel(0);onShape?.(undefined);}}>Retirer la découpe (écran entier)</button>
+      <small className="nv-loupe-note">Clique sur un bord du contour pour y ajouter un point, puis glisse-le. La photo ou la vidéo garde ses proportions : ce qui sort du contour est simplement coupé.</small>
+    </div>}
+    {mode==='corners'&&<div className="nv-loupe-corners" role="group" aria-label="Coin à régler">{ORDER.map((k,i)=><button key={k} type="button" className={k===active?'is-on':''} onClick={()=>{setActive(k);}}>{i+1}</button>)}
+      <span>Coin : <b>{LABEL[active]}</b>{snapped&&<em style={{marginLeft:6,color:'#4bebde',fontStyle:'normal',fontWeight:700}}>✦ Bord aimanté</em>}</span></div>}
     <div className="nv-loupe-nudge">
       <div className="nv-loupe-pad" aria-label="Micro-ajustement">
         <button type="button" onClick={()=>nudge(0,-1)} aria-label="Monter">↑</button>
@@ -239,12 +342,12 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onAdjusting}:{
         <label className="toggle-row"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Magnétisme sur les bords</label>
       </div>
     </div>
-    {guided?<div className="nv-loupe-guide" role="status">
+    {mode==='corners'&&(guided?<div className="nv-loupe-guide" role="status">
       <span>Étape {idx+1}/4 · place le coin <b>{LABEL[active]}</b></span>
       <button type="button" disabled={idx===0} onClick={()=>goStep(idx-1)}>← Précédent</button>
       {idx<3?<button type="button" className="is-primary" onClick={()=>goStep(idx+1)}>Suivant →</button>:<button type="button" className="is-primary" onClick={()=>{setGuided(false);setZoom(1);}}>✓ Terminer</button>}
-    </div>:<button type="button" className="nv-loupe-start" onClick={startGuided}>Ajuster coin par coin</button>}
-    <small className="nv-loupe-note">Clique dans la loupe pour poser le coin actif, ou glisse-le. Flèches du clavier = micro-réglage (Maj = ×5).</small>
+    </div>:<button type="button" className="nv-loupe-start" onClick={startGuided}>Ajuster coin par coin</button>)}
+    {mode==='corners'&&<small className="nv-loupe-note">Clique dans la loupe pour poser le coin actif, ou glisse-le. Flèches du clavier = micro-réglage (Maj = ×5).</small>}
   </div>;
   return full?createPortal(body,document.body):body;
 }

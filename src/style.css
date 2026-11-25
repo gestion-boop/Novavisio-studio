@@ -6277,3 +6277,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-space-modal>*{flex-shrink:0}
 .nv-space-modal .nv-space-scene-picker{flex:none;max-height:min(280px,40dvh);min-height:70px}
 .nv-space-modal-head{position:sticky;top:-20px;z-index:5;background:#112334;margin:-20px -20px 0;padding:20px 20px 10px}
+
+/* Loupe : mode « Contour de découpe » */
+.nv-loupe-mode{display:inline-flex;gap:3px;margin-left:auto;margin-right:8px}
+.nv-loupe-shape{display:flex;flex-direction:column;gap:8px;font-size:12px}
+.nv-loupe-count{display:inline-block;margin-left:6px;padding:0 8px;border-radius:99px;background:#1d4150;font-size:11px}
+.nv-loupe-pointlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:230px;overflow:auto}
+.nv-loupe-pointlist li{display:flex;gap:4px}
+.nv-loupe-pointlist li.is-on .nv-loupe-pick{background:#1f8aa8;border-color:#7ad6ee;color:#fff}
+.nv-loupe-pick{flex:1;text-align:left}
+.nv-loupe .nv-loupe-trash{width:36px;padding:5px 0;background:#48232b;border-color:#835461;color:#ffcad2}

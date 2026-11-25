@@ -75,16 +75,31 @@ async function readRegion(src:string,yawMin:number,yawMax:number,pitchMin:number
 }
 
 const cache=new Map<string,string|'pending'|'failed'>();
-const keyOf=(h:Hotspot,src:string)=>h.id+'|'+JSON.stringify(h.frameMasks)+'|'+JSON.stringify(frameWorldCorners(h))+'|'+src.length+'|'+src.slice(-48);
+/** Un calque de restitution du panorama est nécessaire : objet détouré devant l'écran, ou découpe de l'écran. */
+export const needsOccluder=(h:Hotspot):boolean=>!!(h.frameMasks?.length||h.frameShape?.length);
+const keyOf=(h:Hotspot,src:string)=>h.id+'|'+JSON.stringify(h.frameMasks)+'|'+JSON.stringify(h.frameShape)+'|'+JSON.stringify(frameWorldCorners(h))+'|'+src.length+'|'+src.slice(-48);
 
 async function build(h:Hotspot,src:string):Promise<string|null>{
-  const plane=framePlane(h);const masks=h.frameMasks;
-  if(!plane||!masks?.length)return null;
+  const plane=framePlane(h);const masks=h.frameMasks??[];const shape=h.frameShape;
+  if(!plane||!(masks.length||shape?.length))return null;
   const long=1024,Wt=plane.ratio>=1?long:Math.max(64,Math.round(long*plane.ratio)),Ht=plane.ratio>=1?Math.max(64,Math.round(long/plane.ratio)):long;
   // Contours projetés sur le plan du cadre (les droites restent des droites) → masque anti-crénelé
   const mask=document.createElement('canvas');mask.width=Wt;mask.height=Ht;
   const mg=mask.getContext('2d')!;mg.fillStyle='#fff';
   let yawMin=Infinity,yawMax=-Infinity,pitchMin=Infinity,pitchMax=-Infinity,any=false;
+  // Découpe : tout le cadre est « à restituer », sauf l'intérieur du contour (là, l'écran reste visible).
+  if(shape&&shape.length>=3){
+    mg.fillRect(0,0,Wt,Ht);
+    mg.save();mg.globalCompositeOperation='destination-out';
+    mg.beginPath();let ok=true;
+    shape.forEach(([yaw,pitch],i)=>{
+      const uv=planeCoords(plane,dirOf(yaw,pitch));
+      if(!uv){ok=false;return;}
+      const x=uv[0]*Wt,y=uv[1]*Ht;i?mg.lineTo(x,y):mg.moveTo(x,y);
+    });
+    if(ok){mg.closePath();mg.fill();any=true;}else{mg.restore();mg.clearRect(0,0,Wt,Ht);}
+    if(ok)mg.restore();
+  }
   for(const poly of masks){
     mg.beginPath();let ok=true;
     poly.forEach(([yaw,pitch],i)=>{
@@ -120,15 +135,24 @@ async function build(h:Hotspot,src:string):Promise<string|null>{
   return out.toDataURL('image/png');
 }
 
-/** Source (PNG) du calque de détourage, ou null tant qu'il se prépare ; l'événement `nv-occluder-ready` signale qu'il est prêt. */
+const timers=new Map<string,{timer:number;key:string}>();
+/** Source (PNG) du calque de restitution, ou null tant qu'il se prépare ; l'événement `nv-occluder-ready` signale qu'il est prêt.
+ *  Le calcul est différé de 140 ms : pendant qu'on glisse un coin ou un point du contour, seul le dernier état est calculé. */
 export function occluderSource(h:Hotspot,src:string|undefined):string|null{
-  if(!src||!h.frameMasks?.length||typeof document==='undefined')return null;
+  if(!src||!needsOccluder(h)||typeof document==='undefined')return null;
   const key=keyOf(h,src),hit=cache.get(key);
   if(hit&&hit!=='pending'&&hit!=='failed')return hit;
   if(hit)return null;
+  const older=timers.get(h.id);
+  if(older){window.clearTimeout(older.timer);if(cache.get(older.key)==='pending')cache.delete(older.key);}
   cache.set(key,'pending');
-  build(h,src).then(result=>{cache.set(key,result??'failed');if(result)window.dispatchEvent(new Event('nv-occluder-ready'));})
-    .catch(()=>cache.set(key,'failed'));
+  const snapshot={...h};
+  const timer=window.setTimeout(()=>{
+    timers.delete(h.id);
+    build(snapshot,src).then(result=>{cache.set(key,result??'failed');if(result)window.dispatchEvent(new Event('nv-occluder-ready'));})
+      .catch(()=>cache.set(key,'failed'));
+  },140);
+  timers.set(h.id,{timer,key});
   if(cache.size>40)cache.delete(cache.keys().next().value!);
   return null;
 }
