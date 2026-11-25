@@ -243,3 +243,6 @@
 .nv-zoom-scale{display:flex;justify-content:space-between;font-size:11px;opacity:.65;margin-top:-6px}
 
 .nv-cloud-counts{opacity:1!important;color:#9fe6d8}.nv-cloud-counts b{font-size:14px;color:#fff}
+
+.nv-cloud-rev{display:flex;gap:6px;align-items:stretch}.nv-cloud-rev>button:first-child{flex:1;text-align:left}
+.nv-cloud-rev-copy{white-space:nowrap;background:#1d7f78!important;border-color:#5dc7b7!important;color:#fff!important}

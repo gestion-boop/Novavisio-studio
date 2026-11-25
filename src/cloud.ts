@@ -406,13 +406,19 @@ export async function openCloudProject(projectId:string,onProgress:(msg:string)=
   return {project:loaded.project,link:{...loaded.link,version:0}};
 }
 
-export type CloudRevision={revision:number;created_at:string;name:string};
+export type CloudRevision={revision:number;created_at:string;name:string;scenes?:number;spaces?:number};
 export async function listCloudRevisions(projectId:string):Promise<CloudRevision[]>{
   const {data,error}=await supabase().from('nvstudio_revisions')
     .select('revision,created_at,name').eq('project_id',projectId)
     .order('revision',{ascending:false}).limit(100);
   if(error)throw new Error('Historique des sauvegardes indisponible : '+error.message);
-  return (data??[]) as CloudRevision[];
+  const rows=(data??[]) as CloudRevision[];
+  try{
+    const st=await supabase().rpc('nvstudio_revision_stats',{p_project:projectId});
+    if(!st.error){const by=new Map((st.data as {revision:number;scenes:number;spaces:number}[]).map(r=>[r.revision,r]));
+      for(const r of rows){const s=by.get(r.revision);if(s){r.scenes=s.scenes;r.spaces=s.spaces;}}}
+  }catch{/* fonction non installée : l'historique s'affiche sans les nombres */}
+  return rows;
 }
 /** Restaure en lecture seule une révision immuable, sans modifier le cloud. */
 export async function openCloudRevision(projectId:string,revision:number,onProgress:(msg:string)=>void):Promise<{project:StudioProject;link:CloudLink}>{

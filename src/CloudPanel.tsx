@@ -109,6 +109,16 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
     onClose();
   });
 
+  /** Copie une ancienne révision dans une NOUVELLE visite cloud, sans toucher au projet affiché dans l'éditeur ni à l'ancienne visite. */
+  const copyRevision=(item:CloudProject,revision:number)=>run('Copie de la révision '+revision+'…',async()=>{
+    if(!await confirmAsk('Créer une nouvelle visite cloud à partir de la révision '+revision+' de « '+item.name+' » ?\n\nL’ancienne visite et le projet affiché dans l’éditeur ne sont pas modifiés.'))return;
+    const loaded=await openCloudRevision(item.id,revision,setBusy);
+    const next=await saveToCloud(loaded.project,null,setBusy);
+    onStatus('Nouvelle visite cloud créée : « '+loaded.project.name+' » ('+loaded.project.scenes.length+' panoramas, '+(loaded.project.spaces?.length??0)+' espaces)');
+    setHistoryFor(null);setRevisions([]);
+    await refresh();
+    void next;
+  });
   return <div className="overlay nv-cloud-overlay" {...overlayClose(onClose)}><div className="modal cloud-panel nv-cloud-compact" onClick={e=>e.stopPropagation()}>
     <button className="close" onClick={onClose}><XMark/></button>
     <div className="nv-cloud-heading"><h2>Mes projets Cloud</h2><div className="nv-cloud-heading-actions">
@@ -168,9 +178,12 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
             </span>;})}
         </div>}
         {historyFor===item.id&&<div className="nv-cloud-history">
-          {revisions.map(rev=><button type="button" key={rev.revision} disabled={!!busy} onClick={()=>void openRevision(item,rev.revision)}>
-            Révision {rev.revision} · {new Date(rev.created_at).toLocaleString('fr-FR')} · Restaurer
-          </button>)}
+          {revisions.map(rev=><div key={rev.revision} className="nv-cloud-rev">
+            <button type="button" disabled={!!busy} onClick={()=>void openRevision(item,rev.revision)}>
+              Révision {rev.revision} · {new Date(rev.created_at).toLocaleString('fr-FR')}{typeof rev.scenes==='number'&&<> · <b>{rev.scenes} panoramas{typeof rev.spaces==='number'&&rev.spaces>0?' · '+rev.spaces+' espaces':''}</b></>} · Restaurer
+            </button>
+            {!item.shared&&<button type="button" className="nv-cloud-rev-copy" disabled={!!busy} title="Crée une nouvelle visite cloud à partir de cette révision, sans rien écraser" onClick={()=>void copyRevision(item,rev.revision)}>Copier en nouvelle visite</button>}
+          </div>)}
           {!revisions.length&&<small>Aucune révision disponible.</small>}
         </div>}
       </li>)}</ul></div>
