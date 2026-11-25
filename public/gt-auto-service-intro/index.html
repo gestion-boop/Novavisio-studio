@@ -13,7 +13,7 @@ h1{margin-top:4.5vmin;font-size:clamp(26px,5.2vmin,54px);color:#1f2322;font-fami
 .line{width:clamp(60px,9vmin,110px);height:3px;border-radius:3px;background:var(--gold);margin:2.6vmin 0 3vmin;opacity:0;animation:up .8s 2.55s forwards}
 .sig{display:flex;align-items:center;gap:16px;opacity:0;animation:up .8s 2.75s forwards}
 .sig .v{font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:#d8262f;font-size:clamp(12px,1.9vmin,20px)}
-.sig .n i{font-style:italic;font-weight:400;font-family:Georgia,serif;margin-right:.25em}.sig .n{font-weight:700;font-size:clamp(22px,3.4vmin,36px);background-image:linear-gradient(100deg,#2a2e2d 0%,#8f1d24 38%,#d8262f 50%,#8f1d24 62%,#2a2e2d 100%);background-size:320% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine2 1s ease 3.2s forwards}
+.sig .n i{font-style:italic;font-weight:400;font-family:Georgia,serif;margin-right:.25em}.sig .n{font-weight:700;font-size:clamp(22px,3.4vmin,36px);background-image:linear-gradient(100deg,#345C95 0%,#2B899D 38%,#A8DBE5 50%,#2B899D 62%,#125C68 100%);background-size:320% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine2 1s ease 3.2s forwards}
 @keyframes far{55%{opacity:1;filter:blur(2px)}80%{transform:translateZ(60px) rotateY(10deg);filter:blur(0)}100%{opacity:1;transform:none;filter:blur(0)}}
 @keyframes shine2{from{background-position:100% 0}to{background-position:0 0}}
 @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
@@ -29,9 +29,9 @@ body.fin{animation:fin .8s forwards}@keyframes fin{to{opacity:0}}
  <div class="sig"><span class="v" id="v">Visite immersive</span><span class="n"><i>by</i> NovaVisio</span></div>
 </div>
 <svg id="iris" style="position:fixed;inset:0;width:100%;height:100%;z-index:50;pointer-events:none"><defs>
-<linearGradient id="ng" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2e2d"/><stop offset=".55" stop-color="#8f1d24"/><stop offset="1" stop-color="#d8262f"/></linearGradient>
+<linearGradient id="ng" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#345C95"/><stop offset=".55" stop-color="#2B899D"/><stop offset="1" stop-color="#125C68"/></linearGradient>
 <mask id="mk"><rect id="mr" fill="#fff"/><polygon id="hole" fill="#000"/></mask></defs>
-<rect id="cov" fill="url(#ng)" mask="url(#mk)"/><polygon id="edge" fill="none" stroke="#e8d9b5" stroke-width="4"/><g id="blades" stroke="#e8d9b5" stroke-width="3" opacity=".8"></g></svg>
+<rect id="cov" fill="url(#ng)" mask="url(#mk)"/><polygon id="edge" fill="none" stroke="#A8DBE5" stroke-width="4"/><g id="blades" stroke="#A8DBE5" stroke-width="3" opacity=".8"></g></svg>
 <script>
 /* Langue du visiteur (?lang= ou langue du navigateur) */
 (function(){const L={
