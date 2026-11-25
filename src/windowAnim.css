@@ -199,7 +199,19 @@
 
 /* Croix un peu plus haut (le titre ne la touche plus) : toutes les fenêtres, même hauteur. */
 :root:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.nv-pg-close,.nv-pg-exit,.info-in-view .modal>.close,.modal>.close,.nv-gallery>header>button:last-child,.nv-photo-gallery>header>button:last-child,.tour-dialog>header>button:last-child,.nv-plan-dialog>header>button:last-child,.nv-preparation-dialog>header>button:last-child){top:4px!important}
-:root:not(#nv-x) .nv-gallery>header{padding-top:58px}
+/* La galerie réserve une colonne à droite pour que la croix ne recouvre pas le titre. */
+:root:not(#nv-x) .nv-gallery>header{
+  display:grid;grid-template-columns:minmax(44px,1fr) minmax(0,auto) minmax(44px,1fr);
+  column-gap:8px;padding:0;min-height:44px;
+}
+:root:not(#nv-x) .nv-gallery>header>h2{
+  grid-column:2;text-align:center;overflow-wrap:anywhere;
+}
+:root:not(#nv-x) .nv-gallery>header>.nv-gallery-close{
+  grid-column:3;justify-self:end;position:static!important;
+  left:auto!important;right:auto!important;translate:none!important;
+  min-width:44px;min-height:44px;
+}
 :root:not(#nv-x) :is(.nv-photo-gallery,.nv-pg-lux)>header{padding-top:max(58px,var(--nv-close-pad,0px))}
 
 /* Fenêtres d'éditeur (Lien public, Cloud, Réglages…) : la croix reste visible en haut, au centre, même quand le contenu défile.
