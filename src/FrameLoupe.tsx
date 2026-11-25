@@ -10,6 +10,9 @@ import {FRAME_KEYS,frameWorldCorners,type FrameKey} from './sphericalFrame';
  * ce que l'on voit ici est exactement ce qui sera posé sur le panorama.
  */
 const W=330,H=230;
+/** Demande d'ouverture immédiate en plein écran pour un cadre (juste après la pose d'une incrustation). */
+let pendingFull:string|null=null;
+export function requestLoupeFull(id:string){pendingFull=id;window.dispatchEvent(new CustomEvent('nv-loupe-full',{detail:{id}}));}
 const ORDER:FrameKey[]=['tl','tr','br','bl'];
 const LABEL:Record<FrameKey,string>={tl:'haut gauche',tr:'haut droit',br:'bas droit',bl:'bas gauche'};
 const ZOOMS=[1,2,3,4];
@@ -62,10 +65,12 @@ function useSource(url:string){
   return {src,failed};
 }
 
-export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
+export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onFit,onAdjusting}:{
   hotspot:Hotspot;sceneUrl:string;onCorners:(corners:FrameSphericalCorners)=>void;onAdjusting?:(on:boolean)=>void;
   /** Découpe de l'écran : contour (yaw, pitch) de la partie visible ; undefined = pas de découpe. */
   onShape?:(shape:[number,number][]|undefined)=>void;
+  /** Remet les coins au format réel du média (garde le bord gauche ou droit). */
+  onFit?:(anchor:'left'|'right')=>void;
 }){
   const {src,failed}=useSource(sceneUrl);
   const canvas=useRef<HTMLCanvasElement>(null);
@@ -86,9 +91,17 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
   const grad=useRef<{m:Float32Array;k:number}|null>(null);
   const rootRef=useRef<HTMLDivElement>(null);
   const [wide,setWide]=useState(false);
-  const [full,setFull]=useState(false);
+  const [full,setFull]=useState(()=>{if(pendingFull===hotspot.id){pendingFull=null;return true;}return false;});
+  useEffect(()=>{
+    const on=(e:Event)=>{if((e as CustomEvent<{id:string}>).detail?.id===hotspot.id){pendingFull=null;setFull(true);}};
+    window.addEventListener('nv-loupe-full',on);return()=>window.removeEventListener('nv-loupe-full',on);
+  },[hotspot.id]);
+  // Échelle réelle d'affichage de la loupe : les points et les traits gardent une taille d'écran constante, même en plein écran.
+  const [ratio,setRatio]=useState(1);
+  const stageRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(!full)return;const onKey=(e:KeyboardEvent)=>{if(e.key==='Escape'){e.stopPropagation();setFull(false);}};window.addEventListener('keydown',onKey,true);const prev=document.body.style.overflow;document.body.style.overflow='hidden';return ()=>{window.removeEventListener('keydown',onKey,true);document.body.style.overflow=prev;};},[full]);
   useEffect(()=>{const el=rootRef.current;if(!el||typeof ResizeObserver==='undefined')return;const ro=new ResizeObserver(([e])=>setWide(e.contentRect.width>=600));ro.observe(el);return ()=>ro.disconnect();},[full]);
+  useEffect(()=>{const el=stageRef.current;if(!el||typeof ResizeObserver==='undefined')return;const ro=new ResizeObserver(([e])=>{const w=e.contentRect.width;if(w>0)setRatio(w/W);});ro.observe(el);return()=>ro.disconnect();},[full,mode]);
   const cornersRef=useRef(corners);cornersRef.current=corners;
 
   // Centre de la frame (moyenne) et champ de vision « cadre entier ».
@@ -217,12 +230,12 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
   function down(e:RPointerEvent<SVGSVGElement>){
     const [x,y]=local(e);
     if(mode==='shape'){
-      let near=-1,dist=22;
+      let near=-1,dist=12/Math.max(ratio,0.5);
       spts.forEach((p,i)=>{if(!p)return;const d=Math.hypot(p[0]-x,p[1]-y);if(d<dist){dist=d;near=i;}});
       if(near<0){
         // Clic sur un bord : un nouveau point est inséré à cet endroit, puis se glisse aussitôt.
         const edge=nearestEdge(x,y);
-        if(!edge||edge.d>14)return;
+        if(!edge||edge.d>9/Math.max(ratio,0.5))return;
         const p=unproject(viewRef.current,edge.x,edge.y);
         const next=shapeRef.current.map(q=>[q[0],q[1]] as [number,number]);
         next.splice(edge.i+1,0,[p.yaw,p.pitch]);
@@ -250,8 +263,8 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
     if(mode==='shape'){
       if(dragging){placeVertex(sel,x,y,snap);return;}
       const edge=nearestEdge(x,y);
-      const overPoint=spts.some(p=>p&&Math.hypot(p[0]-x,p[1]-y)<22);
-      setHoverEdge(!overPoint&&edge&&edge.d<=14?edge.i:null);
+      const overPoint=spts.some(p=>p&&Math.hypot(p[0]-x,p[1]-y)<12/Math.max(ratio,0.5));
+      setHoverEdge(!overPoint&&edge&&edge.d<=9/Math.max(ratio,0.5)?edge.i:null);
       return;
     }
     if(!dragging){
@@ -290,7 +303,7 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
       <button type="button" className="nv-loupe-full" onClick={()=>setFull(f=>!f)} title={full?'Réduire (Échap)':'Plein écran pour plus de précision'}>{full?'✕ Réduire':'⛶ Plein écran'}</button>
       <span className="nv-loupe-zoom" role="group" aria-label="Niveau de zoom">{ZOOMS.map(z=><button key={z} type="button" className={zoom===z?'is-on':''} onClick={()=>setZoom(z)} aria-pressed={zoom===z}>×{z}</button>)}</span>
     </div>
-    <div className="nv-loupe-stage" style={{aspectRatio:W+'/'+H}}>
+    <div className="nv-loupe-stage" ref={stageRef} style={{aspectRatio:W+'/'+H}}>
       <canvas ref={canvas} width={W} height={H}/>
       {!src&&<div className="nv-loupe-wait">Chargement du panorama…</div>}
       <svg viewBox={`0 0 ${W} ${H}`} tabIndex={0} style={{cursor:dragging?'grabbing':hoverKey?'grab':'crosshair'}} aria-label="Loupe : glisse un coin ou clique pour le poser" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={()=>setHoverKey(null)}>
@@ -299,12 +312,12 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
           const sp=spts.map(p=>p![0].toFixed(1)+','+p![1].toFixed(1)).join(' ');
           return <>
             {polygon&&<polygon points={polygon} fill="none" stroke="#fff" strokeOpacity=".45" strokeWidth="1" strokeDasharray="2 4"/>}
-            <polygon points={sp} fill="rgba(75,235,222,.14)" stroke="#000" strokeOpacity=".6" strokeWidth="2.8"/>
-            <polygon points={sp} fill="none" stroke="#4bebde" strokeWidth="1.4"/>
+            <polygon points={sp} fill="rgba(75,235,222,.14)" stroke="#000" strokeOpacity=".6" strokeWidth={2.4/Math.max(ratio,0.5)}/>
+            <polygon points={sp} fill="none" stroke="#4bebde" strokeWidth={1.2/Math.max(ratio,0.5)}/>
             {hoverEdge!==null&&spts[hoverEdge]&&spts[(hoverEdge+1)%spts.length]&&<line x1={spts[hoverEdge]![0]} y1={spts[hoverEdge]![1]} x2={spts[(hoverEdge+1)%spts.length]![0]} y2={spts[(hoverEdge+1)%spts.length]![1]} stroke="#ffd98a" strokeWidth="3.4" strokeLinecap="round" opacity=".9"/>}
-            {spts.map((p,i)=>{if(!p)return null;const on=i===sel;
-              return <g key={i}><circle cx={p[0]} cy={p[1]} r={on?8:6} fill={on?'#ffd98a':'#4bebde'} stroke="#000" strokeOpacity=".7" strokeWidth="1.6"/>
-                <text x={p[0]+9} y={p[1]-8} fontSize="10" fontWeight="700" fill="#fff" stroke="#000" strokeWidth="2.4" paintOrder="stroke">{i+1}</text></g>;})}
+            {spts.map((p,i)=>{if(!p)return null;const on=i===sel;const u=1/Math.max(ratio,0.5);
+              return <g key={i}><circle cx={p[0]} cy={p[1]} r={(on?4.6:3.2)*u} fill={on?'#ffd98a':'#4bebde'} stroke="#000" strokeOpacity=".75" strokeWidth={1.1*u}/>
+                <text x={p[0]+6*u} y={p[1]-5*u} fontSize={9*u} fontWeight="700" fill="#fff" stroke="#000" strokeWidth={2.2*u} paintOrder="stroke">{i+1}</text></g>;})}
           </>;
         })()}
         {mode==='corners'&&polygon&&<><polygon points={polygon} fill="url(#nv-loupe-grid)" stroke="#000" strokeOpacity=".6" strokeWidth="2.6"/>
@@ -342,6 +355,12 @@ export function FrameLoupe({hotspot,sceneUrl,onCorners,onShape,onAdjusting}:{
         <label className="toggle-row"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Magnétisme sur les bords</label>
       </div>
     </div>
+    {mode==='corners'&&onFit&&<div className="nv-loupe-fit" role="group" aria-label="Format de l’écran">
+      <b>Format de la vidéo / photo</b>
+      <div><button type="button" onClick={()=>onFit('left')} title="Garde le bord gauche et étend l’écran vers la droite au vrai format">Respecter le format · garder le bord gauche</button>
+      <button type="button" onClick={()=>onFit('right')} title="Garde le bord droit et étend l’écran vers la gauche au vrai format">garder le bord droit</button></div>
+      <small className="nv-loupe-note">Si l’écran est écrasé, le média est déformé ou rogné. Remets les coins au vrai format, puis cache ce qui dépasse avec « Contour de découpe ».</small>
+    </div>}
     {mode==='corners'&&(guided?<div className="nv-loupe-guide" role="status">
       <span>Étape {idx+1}/4 · place le coin <b>{LABEL[active]}</b></span>
       <button type="button" disabled={idx===0} onClick={()=>goStep(idx-1)}>← Précédent</button>

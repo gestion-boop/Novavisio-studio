@@ -51,6 +51,22 @@ export function planeCoords(plane:{p0:V;eu:V;ev:V},dir:V):[number,number]|null{
   return [u,v];
 }
 
+/**
+ * Remet les 4 coins d'un écran au FORMAT RÉEL du média (largeur / hauteur de la photo ou de la vidéo), sans déformation.
+ * `anchor` : bord conservé tel quel — 'left' garde le bord gauche et étend vers la droite, 'right' garde le bord droit et étend vers la gauche.
+ * La hauteur du cadre ne change pas. Retourne null si le cadre est dégénéré.
+ */
+export function fitCornersToAspect(h:Hotspot,aspect:number,anchor:'left'|'right'):{yaw:number;pitch:number}[]|null{
+  const plane=framePlane(h);
+  if(!plane||!Number.isFinite(aspect)||aspect<=0)return null;
+  const {p0,eu,ev}=plane;
+  const lu=Math.hypot(...eu),lv=Math.hypot(...ev);
+  const along=mul(eu,(lv*aspect)/lu);                       // même direction que le bord haut, longueur = hauteur × format
+  const P0=anchor==='left'?p0:sub(add(p0,eu),along);        // 'right' : le coin haut-droit reste en place
+  const P1=add(P0,along),P3=add(P0,ev),P2=add(P1,ev);
+  return [P0,P1,P2,P3].map(v=>spherical(v));
+}
+
 type Region={x0:number;y0:number;w:number;h:number;cw:number;ch:number;data:Uint8ClampedArray;W:number;H:number};
 /** Lit un rectangle de l'équirectangulaire en pleine définition (borné à 2048 px de large). */
 async function readRegion(src:string,yawMin:number,yawMax:number,pitchMin:number,pitchMax:number):Promise<Region|null>{

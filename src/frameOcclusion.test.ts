@@ -26,3 +26,21 @@ describe('détourage : géométrie',()=>{
     expect(planeCoords(framePlane(frame())!,dirOf(0.325+Math.PI,0.11))).toBeNull();
   });
 });
+
+import {fitCornersToAspect} from './frameOcclusion';
+describe('remise au format réel',()=>{
+  const squeezed=frame();   // cadre 0,25 rad de large pour 0,18 de haut ≈ 1,4 : 1
+  const ratioOf=(c:{yaw:number;pitch:number}[])=>{const h=frame({frameSphericalCorners:c as never});const p=framePlane(h)!;return p.ratio;};
+  it('donne exactement le format demandé, en gardant le bord gauche',()=>{
+    const c=fitCornersToAspect(squeezed,16/9,'left')!;
+    expect(ratioOf(c)).toBeCloseTo(16/9,3);
+    expect(c[0].yaw).toBeCloseTo(0.2,6);expect(c[0].pitch).toBeCloseTo(0.2,6);   // coin haut-gauche inchangé
+    expect(c[3].pitch).toBeCloseTo(0.02,6);                                     // bas-gauche inchangé : même hauteur
+  });
+  it('garde le bord droit quand on le demande',()=>{
+    const c=fitCornersToAspect(squeezed,16/9,'right')!;
+    expect(ratioOf(c)).toBeCloseTo(16/9,3);
+    expect(c[1].yaw).toBeCloseTo(0.45,6);expect(c[1].pitch).toBeCloseTo(0.2,6);   // coin haut-droit inchangé
+  });
+  it('refuse un format invalide',()=>{expect(fitCornersToAspect(squeezed,0,'left')).toBeNull();});
+});

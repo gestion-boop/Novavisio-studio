@@ -142,7 +142,8 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     });
     plugin.addEventListener('select-marker',({marker})=>{
       const a=handlers.current;
-      const h=a.scene.hotspots.find(x=>x.id===marker.id);
+      const hid=marker.id.endsWith(':occ')?marker.id.slice(0,-4):marker.id;   // le calque de découpe représente son écran
+      const h=a.scene.hotspots.find(x=>x.id===hid);
       if(!h)return;
       if(h.type==='navigation'){if(h.target)a.navigate(h.target,h);}
       else if(h.type==='image'||(h.type==='information'&&h.imageDataUrl))a.image(h,lastPointer.current);

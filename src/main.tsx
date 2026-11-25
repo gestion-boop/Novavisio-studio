@@ -2,6 +2,9 @@ import {barUsesIconImage} from './storage';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {phaseOf} from './phase';
 import {isReturnLink} from './returnLink';
+import {requestLoupeFull} from './FrameLoupe';
+import {fitCornersToAspect} from './frameOcclusion';
+import type {FrameSphericalCorners} from './storage';
 import {withClientAutomation} from './clientAutomation';
 import {AgentsDialog} from './AgentsDialog';
 import {StudioPreview} from './StudioPreview';
@@ -128,6 +131,21 @@ function readStudioLayout(){
     };}
   }catch{/* Private browsing or storage disabled. */}
   return {leftHidden:false,rightHidden:true,density:'comfortable' as const}; // les réglages s'ouvrent à la demande (icône en haut à droite)
+}
+/** Format réel (largeur / hauteur) de la photo ou de la vidéo d'un écran incrusté, lu depuis le fichier. */
+function mediaAspect(h:Hotspot):Promise<number|null>{
+  return new Promise(resolve=>{
+    const done=(w:number,hh:number)=>resolve(w>0&&hh>0?w/hh:null);
+    if(h.type==='video'){
+      const url=h.videoDataUrl||h.videoUrl;if(!url){resolve(null);return;}
+      const v=document.createElement('video');v.preload='metadata';v.muted=true;
+      v.onloadedmetadata=()=>done(v.videoWidth,v.videoHeight);v.onerror=()=>resolve(null);v.src=url;
+    }else{
+      const url=h.imageDataUrl||h.imageUrl;if(!url){resolve(null);return;}
+      const i=new Image();i.onload=()=>done(i.naturalWidth,i.naturalHeight);i.onerror=()=>resolve(null);i.src=url;
+    }
+    window.setTimeout(()=>resolve(null),8000);
+  });
 }
 function App(){
   const studioRef=useRef<HTMLDivElement>(null);
@@ -2008,6 +2026,7 @@ function App(){
       if(!isSafeVideoData(data))throw Error('Fichier vidéo incompatible');
       setProject(p=>({...p,scenes:p.scenes.map(scene=>scene.id===sceneId?{...scene,hotspots:scene.hotspots.map(h=>h.id===hotspotId?{...h,videoDataUrl:data,videoUrl:'',...(placement?{title:file.name.replace(/\.[^.]+$/,'').slice(0,120)}:{})}:h)}:scene)}));
       setStatus('Vidéo ajoutée à l’écran');
+      {const added=project.scenes.find(sc=>sc.id===sceneId)?.hotspots.find(h=>h.id===hotspotId);if(!added||!isPopupMedia(added))requestLoupeFull(hotspotId);}   // incrustation : loupe en plein écran tout de suite
       void rememberMedia('video',file.name.replace(/\.[^.]+$/,''),data).then(()=>setMediaVersion(v=>v+1));
       setMediaPicker(null);
     }catch{setStatus('Impossible de lire la vidéo');}
@@ -2090,6 +2109,7 @@ function App(){
       })}));
       setPhotoFeedback('Photo importée avec succès.');
       setStatus('Photo ajoutée au panorama');
+      {const added=project.scenes.find(sc=>sc.id===sceneId)?.hotspots.find(h=>h.id===hotspotId);if(!added||!isPopupMedia(added))requestLoupeFull(hotspotId);}   // incrustation : loupe en plein écran tout de suite
       void rememberMedia('image',file.name.replace(/\.[^.]+$/,''),data).then(()=>setMediaVersion(v=>v+1));
       setMediaPicker(null);
     }catch(e){
@@ -3340,6 +3360,16 @@ function App(){
     if(!hasMedia)return null;
     return <FrameLoupe hotspot={h} sceneUrl={active.dataUrl}
       onShape={shape=>patchPoint({frameShape:shape})}
+      onFit={anchor=>{void (async()=>{
+        const aspect=await mediaAspect(h);
+        const fitted=aspect?fitCornersToAspect(h,aspect,anchor):null;
+        if(!aspect||!fitted){setStatus('Format du média introuvable : impossible de remettre les coins au bon format.');return;}
+        const c=fitted as FrameSphericalCorners;
+        const ref=c[0].yaw;
+        const yaw=c.reduce((n,p)=>n+p.yaw+2*Math.PI*Math.round((ref-p.yaw)/(2*Math.PI)),0)/4;
+        patchPoint({frameSphericalCorners:c,yaw,pitch:c.reduce((n,p)=>n+p.pitch,0)/4});
+        setStatus('Coins remis au format réel du média ('+aspect.toFixed(2).replace('.',',')+' : 1).');
+      })();}}
       onAdjusting={on=>window.dispatchEvent(new CustomEvent('nv-frame-dim',{detail:{id:h.id,opacity:on?0.03:0.3}}))}
       onCorners={c=>{
         const ref=c[0].yaw;

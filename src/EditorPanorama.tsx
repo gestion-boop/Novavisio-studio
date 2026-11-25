@@ -243,10 +243,11 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
     window.addEventListener('nv-frame-dim',onDim);
     markers.addEventListener('select-marker',({marker})=>{
       const a=actions.current;
-      const h=a.scene.hotspots.find(item=>item.id===marker.id);
+      const hid=marker.id.endsWith(':occ')?marker.id.slice(0,-4):marker.id;   // le calque de découpe représente son écran
+      const h=a.scene.hotspots.find(item=>item.id===hid);
       if (!h) return;
       if(a.onMaskClick)return;   // détourage en cours : un clic sur l'écran sert à placer un point du contour
-      if(suppressMarkerClick.current===marker.id){suppressMarkerClick.current=null;return;}
+      if(suppressMarkerClick.current===hid){suppressMarkerClick.current=null;return;}
       if (a.preview) {
         if(h.type==='navigation' && h.target && !a.night) a.onNavigate(h.target,h);
         else if(h.type==='information') {

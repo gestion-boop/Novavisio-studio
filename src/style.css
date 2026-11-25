@@ -6287,3 +6287,6 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-loupe-pointlist li.is-on .nv-loupe-pick{background:#1f8aa8;border-color:#7ad6ee;color:#fff}
 .nv-loupe-pick{flex:1;text-align:left}
 .nv-loupe .nv-loupe-trash{width:36px;padding:5px 0;background:#48232b;border-color:#835461;color:#ffcad2}
+
+.nv-loupe-fit{display:flex;flex-direction:column;gap:6px;font-size:12px}
+.nv-loupe-fit>div{display:flex;gap:6px;flex-wrap:wrap}
