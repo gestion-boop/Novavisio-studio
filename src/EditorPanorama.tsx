@@ -12,11 +12,12 @@ import {MarkersPlugin,type MarkerConfig} from '@photo-sphere-viewer/markers-plug
 import {syncMarkers,resetMarkers} from './markerSync';
 import {attachSunFlare} from './sunFlare';
 import {startPosterBounce} from './posterBounce';
-import {straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
+import {isFrame,straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import {type Hotspot,type CustomIcon,type Scene,type StudioProject,defaultFrameCorners,type FrameSphericalCorners} from './storage';
 import {getTransitionMs,warmPanoramas} from './transitionPrefs';
 import {glyphs} from './glyphSet';
 import {inPhase} from './phase';
+import {occluderMarkers,maskDraftMarkers} from './frameOcclusion';
 
 export type EditMode = Hotspot['type'] | null;
 export type PanelTab = 'tool' | 'medialib' | 'points' | 'panoramas' | 'bar' | 'icons' | 'intro' | 'elements' | 'music' | 'settings' | 'client' | 'plan';
@@ -60,6 +61,8 @@ export function launchLink(link:string) {
   return true;
 }
 export type PanoramaProps = {
+  /** Détourage : points du contour en cours de tracé (yaw, pitch) et clic qui ajoute un point au lieu de créer un point interactif. */
+  maskDraft?:[number,number][];onMaskClick?:(yaw:number,pitch:number)=>void;
   sphereImage:(sceneId:string)=>string|undefined;
   scene: Scene; icons: CustomIcon[]; mode: EditMode; preview: boolean; autoNavigation:boolean; night:boolean; nightTexture?:string;
   onCreate: (yaw:number,pitch:number)=>void;
@@ -114,6 +117,8 @@ export function markerFor(h:Hotspot,icons:CustomIcon[],viewerHeight:number,selec
     size:{width,height},anchor:'center center',tooltip:h.title,
     ...(isSphere?{data:{nvSphere:{size:sz,target:h.target,rim:h.sphereRimColor,glow:h.sphereRimIntensity}}}:{})};
 }
+/** Contour de détourage en cours de tracé, mis à jour par le composant avant chaque synchronisation des marqueurs. */
+let maskDraftNow:[number,number][]|undefined;
 export function markersForScene(scene:Scene,icons:CustomIcon[],height:number,selectedId:string,preview:boolean,zoom=60,autoNavigation=false,night=false):MarkerConfig[]{
   const all:MarkerConfig[]=[];
   // Aperçu comme édition : seuls les points du moment choisi (jour / nuit) sont affichés.
@@ -125,7 +130,10 @@ export function markersForScene(scene:Scene,icons:CustomIcon[],height:number,sel
     if(!preview&&selectedId===h.id&&hasMedia&&!isPopupMedia(h)){
       all.push(...editingFrameControls(h));
     }
+    // Détourage : le calque qui reprend l'objet de premier plan passe par-dessus l'écran incrusté.
+    if(!night&&isFrame(h)&&h.frameMasks?.length)all.push(...occluderMarkers(h,scene.dataUrl));
   }
+  if(maskDraftNow?.length)all.push(...maskDraftMarkers(maskDraftNow));
   return all;
 }
 /** Lightweight, read-only spherical preview for a hovered gallery entry.
@@ -167,7 +175,7 @@ export function FullscreenGalleryHoverPreview({scene,thumb,onOrientation}:{scene
   </div>;
 }
 
-export function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
+export function Panorama({maskDraft,onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
@@ -175,8 +183,9 @@ export function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,ni
   const dayViewRef=useRef<{yaw:number;pitch:number;zoom:number}|null>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null);
   const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
-  const actions = useRef({sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
+  maskDraftNow=maskDraft;
+  const actions = useRef({onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     const root=box.current;
@@ -249,6 +258,7 @@ export function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,ni
     });
     viewer.addEventListener('click',event=>{
       const a=actions.current;
+      if(a.onMaskClick&&!a.preview&&typeof event.data.yaw==='number'&&typeof event.data.pitch==='number'){a.onMaskClick(event.data.yaw,event.data.pitch);return;}
       if(!a.preview && a.mode && typeof event.data.yaw==='number' && typeof event.data.pitch==='number') {
         a.onCreate(event.data.yaw,event.data.pitch);
       }
@@ -698,6 +708,23 @@ export function Panorama({sphereImage,scene,icons,mode,preview,autoNavigation,ni
       root.removeEventListener('dragleave',leave);
       root.removeEventListener('drop',drop);
     };
+  },[]);
+  // Détourage : le contour en cours se redessine à chaque point ajouté ; un calque prêt est ajouté aux marqueurs.
+  useEffect(()=>{
+    const v=viewerRef.current;
+    if(!v||loadedSceneRef.current!==scene.id)return;
+    const a=actions.current;
+    syncMarkers(v,markersForScene(a.scene,a.icons,box.current?.clientHeight||550,a.selectedId,a.preview,v.getZoomLevel(),a.autoNavigation,a.night));
+  },[maskDraft]);
+  useEffect(()=>{
+    const on=()=>{
+      const v=viewerRef.current;if(!v)return;
+      const a=actions.current;
+      if(loadedSceneRef.current!==a.scene.id)return;
+      syncMarkers(v,markersForScene(a.scene,a.icons,box.current?.clientHeight||550,a.selectedId,a.preview,v.getZoomLevel(),a.autoNavigation,a.night));
+    };
+    window.addEventListener('nv-occluder-ready',on);
+    return ()=>window.removeEventListener('nv-occluder-ready',on);
   },[]);
   return <div ref={box} className="panorama" />;
 }

@@ -252,6 +252,8 @@ function App(){
   const [aiAssistantOpen,setAiAssistantOpen]=useState(false);
   const [skinsOpen,setSkinsOpen]=useState(false);
   const [agentsOpen,setAgentsOpen]=useState(false);
+  /** Détourage en cours : contour (yaw, pitch) tracé sur le panorama autour d'un objet placé devant l'écran incrusté. */
+  const [maskDraw,setMaskDraw]=useState<{id:string;points:[number,number][]}|null>(null);
   /** Réglages en grande fenêtre (navigation, réglages, aperçu) ; désactivable pour revenir à l'ancienne colonne. */
   const [wideSheet,setWideSheet]=useState(()=>{try{return window.localStorage.getItem('nvstudio-wide-sheet')!=='0';}catch{return true;}});
   const toggleWideSheet=()=>setWideSheet(v=>{const n=!v;try{window.localStorage.setItem('nvstudio-wide-sheet',n?'1':'0');}catch{/* préférence non mémorisée */}return n;});
@@ -381,6 +383,7 @@ function App(){
   const [editingSpaceName,setEditingSpaceName]=useState('');
   const cancelSpaceEditRef=useRef(false);
   const [selectedId,setSelectedId]=useState('');
+  useEffect(()=>{if(maskDraw&&maskDraw.id!==selectedId)setMaskDraw(null);},[selectedId,maskDraw]);
   const [selectedBarId,setSelectedBarId]=useState('');
   const [barGalleryTab,setBarGalleryTab]=useState<BarGalleryTab>('spaces');
   const [panel,setPanel]=useState<PanelTab>('points');
@@ -4233,7 +4236,7 @@ function App(){
         <div className={'view-area'+(splitAuto?' nv-split-active':'')+(creationFullscreenFallback?' nv-creation-fullscreen-fallback':'')+popupThemeClass} ref={viewAreaRef} style={barCss}>
           <div className={splitAuto?'nv-split-pane nv-split-left':'nv-viewer-host'}>
           {splitAuto&&<div className="nv-split-head"><span className="nv-split-badge">1. DÉPART · {active.name}</span></div>}
-          {active?<Panorama sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else if(splitAuto)placeSplitArrow(y,p,true);else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
+          {active?<Panorama maskDraft={maskDraw&&maskDraw.id===selectedId?maskDraw.points:undefined} onMaskClick={maskDraw&&maskDraw.id===selectedId?(yaw,pitch)=>setMaskDraw(d=>d&&{...d,points:[...d.points,[yaw,pitch]]}):undefined} sphereImage={sphereImage} scene={tourActive??active} icons={project.icons} mode={mode} preview={preview} autoNavigation={autoNavigation} night={nightActive} nightTexture={nightTexture} onCreate={autoNavigation&&mode==='navigation'?(y,p)=>{if(guide?.phase==='back')setStatus('Étape retour : tourne la vue puis clique sur « Valider le retour ».');else if(splitAuto)placeSplitArrow(y,p,true);else openAutoGallery(y,p);}:newPoint} turn={turnRequest} onPick={selectPointForEditing} arrival={active&&nextArrivalRef.current?.sceneId===active.id?nextArrivalRef.current:null} onNavigate={(id,via)=>{if(via&&active){goThroughArrow(via,active.id);return;}if(!visibleIds.has(id))return;selectScene(id);}} onInfo={h=>{setFrame(null);setInfoLanguage(activeLanguages[0]??'fr');setInfo(h);}} onLink={openLinkInTour} onImage={(h,from)=>{setZoomFrom(from??null);setImageZoom(h);setInfo(null);setFrame(null);}} onVideo={(h,from)=>{setZoomFrom(from??null);setVideoZoom(h);setInfo(null);setFrame(null);}} selectedId={selectedId}
             onWorldFrameChange={(id,corners,center)=>patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?
               {...h,frameSphericalCorners:corners,yaw:center?.yaw??h.yaw,pitch:center?.pitch??h.pitch}:h)}))}
             onMarkerMove={moveHotspot} onRemoveNavigation={removeAutoNavigationArrow} onAssetDrop={dropIcon}
@@ -5062,6 +5065,30 @@ function App(){
                     <button type="button" key={value} aria-pressed={phaseOf(selected)===value} onClick={()=>patchPoint({phase:value})}>{label}</button>)}
                 </div>
               </div>
+
+              {(selected.type==='image'||selected.type==='video')&&!isPopupMedia(selected)&&<div className="nv-mask-tool">
+                <b>Détourer (objet devant l’écran)</b>
+                {maskDraw&&maskDraw.id===selected.id?<>
+                  <p className="hint">Clique sur le panorama, point par point, tout autour de l’objet qui doit passer DEVANT l’écran (pancarte, poteau…). {maskDraw.points.length} point{maskDraw.points.length>1?'s':''} placé{maskDraw.points.length>1?'s':''}.</p>
+                  <div className="nv-mask-actions">
+                    <button type="button" className="primary" disabled={maskDraw.points.length<3} onClick={()=>{
+                      const pts=maskDraw.points;
+                      if(pts.length<3)return;
+                      if((selected.frameMasks?.length??0)>=8){setStatus('8 détourages maximum par écran.');return;}
+                      patchPoint({frameMasks:[...(selected.frameMasks??[]),pts]});
+                      setMaskDraw(null);setStatus('Détourage enregistré : l’écran passe maintenant derrière cet objet.');
+                    }}>Terminer le contour</button>
+                    <button type="button" disabled={!maskDraw.points.length} onClick={()=>setMaskDraw(d=>d&&{...d,points:d.points.slice(0,-1)})}>Annuler le dernier point</button>
+                    <button type="button" onClick={()=>setMaskDraw(null)}>Abandonner</button>
+                  </div>
+                </>:<>
+                  <p className="hint">Un objet est placé devant l’écran ? Trace son contour : l’écran passera derrière.{selected.frameMasks?.length?' '+selected.frameMasks.length+' détourage'+(selected.frameMasks.length>1?'s':'')+' enregistré'+(selected.frameMasks.length>1?'s':'')+'.':''}</p>
+                  <div className="nv-mask-actions">
+                    <button type="button" onClick={()=>{setMaskDraw({id:selected.id,points:[]});setMode(null);setStatus('Détourage : clique autour de l’objet, puis « Terminer le contour ».');}}>✂ Détourer un objet</button>
+                    {!!selected.frameMasks?.length&&<button type="button" onClick={()=>{patchPoint({frameMasks:undefined});setStatus('Détourages effacés.');}}>Effacer les détourages</button>}
+                  </div>
+                </>}
+              </div>}
 
               {selected.type==='image' ? <>
                 <MediaDisplayControl hotspot={selected} onChange={patchPoint}/>

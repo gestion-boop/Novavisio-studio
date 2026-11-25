@@ -220,3 +220,12 @@
 .nv-interior-slider{display:flex;flex-direction:column;gap:6px;font-weight:600;margin:6px 0}
 .nv-interior-actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
 .nv-interior-actions button{padding:9px 12px;border-radius:10px;border:1px solid #3a6577;background:#15303e;color:#e6f6f8;font-weight:600;cursor:pointer}
+
+/* Détourage d'un écran incrusté */
+.nv-mask-tool{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;border:1px solid #3a6577;background:#12303d}
+.nv-mask-actions{display:flex;gap:8px;flex-wrap:wrap}
+.nv-mask-actions button{padding:8px 12px;border-radius:10px;border:1px solid #3a6577;background:#15303e;color:#e6f6f8;font-weight:600;cursor:pointer}
+.nv-mask-actions button.primary{background:#1d7f78;border-color:#5dc7b7}
+.nv-mask-actions button:disabled{opacity:.45;cursor:not-allowed}
+.nv-mask-dot{display:block;width:12px;height:12px;border-radius:50%;background:#ff5a5a;border:2px solid #fff;box-shadow:0 1px 4px #000a}
+.nv-mask-dot.is-first{width:16px;height:16px;background:#ffd166}

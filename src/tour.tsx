@@ -28,6 +28,7 @@ import {iconStateHtml,IconStateVisual,videoMarkerHtml,VideoPopup,ZoomImage,type 
 import {ContinuousMusic} from './continuousMusic';
 import {inPhase} from './phase';
 import {InteriorLightFilter,interiorLifted,gradeOf} from './interiorLight';
+import {occluderMarkers} from './frameOcclusion';
 import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
 import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
@@ -95,6 +96,9 @@ type ViewerProps={
   onReady:(sceneId:string)=>void;
 };
 function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,linked,image,video,onReady,lang='fr'}:ViewerProps&{lang?:string}){
+  // Un détourage (objet devant un écran) est prêt : on réaffiche les cadres pour le montrer.
+  const [occTick,setOccTick]=useState(0);
+  useEffect(()=>{const on=()=>setOccTick(n=>n+1);window.addEventListener('nv-occluder-ready',on);return()=>window.removeEventListener('nv-occluder-ready',on);},[]);
   const langRef=useRef(lang);langRef.current=lang;
   const container=useRef<HTMLDivElement>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null); // dernier clic : point de départ du zoom photo/vidéo
@@ -149,7 +153,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
       syncMarkers(instance,visibleVideoFrames(current.scene.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[
-        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current,current.scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+        publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current,current.scene.hotspots),...occluderMarkers(h,nightOnly()?undefined:current.scene.dataUrl),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
     let pending=0;
@@ -178,7 +182,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     let disposed=false;
     // Fondu enchaîné des marqueurs, déclenché au moment exact où le fondu de l'image commence.
     let fade:Promise<void>|null=null;
-    const markersNow=()=>visibleVideoFrames(next.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,next.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]);
+    const markersNow=()=>visibleVideoFrames(next.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[publicMarker(h,handlers.current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,next.hotspots),...occluderMarkers(h,nightOnly()?undefined:next.dataUrl),...(haloMarkers(h) as unknown as MarkerConfig[])]);
     const T=getTransitionMs();
     warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?handlers.current.sphereImage(h.target):undefined));
     const onLoaded=()=>{instance.removeEventListener('panorama-loaded',onLoaded);fade=crossfadeMarkers(instance,markersNow(),T);};
@@ -223,8 +227,8 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
     syncMarkers(instance,visibleVideoFrames(scene.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[
-      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,scene.hotspots),...(haloMarkers(h) as unknown as MarkerConfig[])]));
-  },[scene.id,scene.hotspots,icons,lang,night,nightTexture]);
+      publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,scene.hotspots),...occluderMarkers(h,nightOnly()?undefined:scene.dataUrl),...(haloMarkers(h) as unknown as MarkerConfig[])]));
+  },[scene.id,scene.hotspots,icons,lang,night,nightTexture,occTick]);
   return <div className="tour-panorama" ref={container}/>;
 }
 /**

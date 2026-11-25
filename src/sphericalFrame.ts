@@ -164,4 +164,4 @@ export function straightenFrames(plugin:MarkersPlugin,ids:string[]){
     }
   }
 }
-export const frameIdsOf=(hotspots:Hotspot[])=>hotspots.filter(h=>(h.type==='image'&&!!h.imageDataUrl&&h.mediaDisplay!=='popup')||(h.type==='video'&&!!(h.videoDataUrl||h.videoUrl)&&h.mediaDisplay!=='popup')).map(h=>h.id);
+export const frameIdsOf=(hotspots:Hotspot[])=>hotspots.filter(h=>(h.type==='image'&&!!h.imageDataUrl&&h.mediaDisplay!=='popup')||(h.type==='video'&&!!(h.videoDataUrl||h.videoUrl)&&h.mediaDisplay!=='popup')).flatMap(h=>h.frameMasks?.length?[h.id,h.id+':occ']:[h.id]);
