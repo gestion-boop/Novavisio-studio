@@ -246,3 +246,60 @@
 
 .nv-cloud-rev{display:flex;gap:6px;align-items:stretch}.nv-cloud-rev>button:first-child{flex:1;text-align:left}
 .nv-cloud-rev-copy{white-space:nowrap;background:#1d7f78!important;border-color:#5dc7b7!important;color:#fff!important}
+
+/* ===== Fenêtre « Mes projets Cloud » refondue (barre latérale + tableau) ===== */
+.modal.cloud-panel.nv-cloud2{max-width:none;width:min(1180px,96vw);height:min(86vh,820px);max-height:none;display:grid;grid-template-columns:230px 1fr;grid-template-rows:auto minmax(0,1fr);align-content:stretch;align-items:stretch;padding:0;overflow:hidden;gap:0}
+.nv-cloud2-head{grid-column:1/-1;align-self:start;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:44px 22px 14px;border-bottom:1px solid rgba(255,255,255,.1)}
+.nv-cloud2-head h2{margin:0;font-size:1.25rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.nv-cloud2-head small{opacity:.7}
+.nv-cloud2-chip{font-size:.75rem;font-weight:500;padding:3px 10px;border-radius:99px;background:rgba(255,255,255,.12)}
+.nv-cloud2-head-actions{display:flex;gap:8px;flex-wrap:wrap}
+.nv-cloud2-head-actions .is-primary{background:#2e8bff;color:#fff;border-color:#2e8bff}
+.nv-cloud2-side{padding:14px 12px;border-right:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column;gap:4px;overflow:auto}
+.nv-cloud2-side h4{margin:12px 6px 4px;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;opacity:.55}
+.nv-cloud2-nav{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:transparent;border:0;border-radius:8px;padding:8px 10px;color:inherit;cursor:pointer;font-size:.88rem}
+.nv-cloud2-nav:hover{background:rgba(255,255,255,.08)}
+.nv-cloud2-nav.is-on{background:rgba(46,139,255,.28);font-weight:600}
+.nv-cloud2-nav b{font-size:.75rem;opacity:.75}
+.nv-cloud2-main{display:flex;flex-direction:column;min-height:0;padding:12px 18px 14px;gap:10px;overflow:hidden}
+.nv-cloud2-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.nv-cloud2-search{flex:1 1 260px;min-width:200px}
+.nv-cloud2-tools .nv-cloud2-chip{border:1px solid rgba(255,255,255,.2);background:transparent;color:inherit;cursor:pointer;padding:6px 12px}
+.nv-cloud2-tools .nv-cloud2-chip.is-on{background:rgba(46,139,255,.3);border-color:#2e8bff}
+.nv-cloud2-warn{display:flex;gap:10px;align-items:flex-start;background:rgba(255,150,40,.16);border:1px solid #ff9628;border-radius:10px;padding:10px 12px;font-size:.88rem}
+.nv-cloud2-cols,.nv-cloud2-row{display:grid;grid-template-columns:minmax(200px,2.4fr) 80px 70px 130px 130px minmax(180px,1.5fr);gap:10px;align-items:center}
+.nv-cloud2-cols{padding:0 12px;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;opacity:.55}
+.nv-cloud2-list{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.nv-cloud2-item{border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:10px 12px;background:rgba(255,255,255,.04)}
+.nv-cloud2-item.is-child{margin-left:18px;background:rgba(255,255,255,.025)}
+.nv-cloud2-name{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nv-cloud2-name b{overflow:hidden;text-overflow:ellipsis}
+.nv-cloud2-linked{color:#4cd08a}
+.nv-cloud2-num{text-align:center;font-size:1.05rem}
+.nv-cloud2-dash{opacity:.4}
+.nv-cloud2-date{display:flex;flex-direction:column;font-size:.85rem}
+.nv-cloud2-date small{opacity:.65}
+.nv-cloud2-tags{display:flex;gap:4px;flex-wrap:wrap}
+.nv-tag{font-size:.7rem;padding:2px 8px;border-radius:99px;font-weight:600}
+.nv-tag.t-pub{background:rgba(76,208,138,.25);color:#7ee8ae}
+.nv-tag.t-priv{background:rgba(255,255,255,.12)}
+.nv-tag.t-share{background:rgba(46,139,255,.25)}
+.nv-cloud2-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.nv-cloud2-actions .is-open{background:#2e8bff;color:#fff;border-color:#2e8bff}
+.nv-cloud2-group{display:flex;flex-direction:column;gap:6px;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:8px;background:rgba(255,255,255,.03)}
+.nv-cloud2-group-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;background:transparent;border:0;color:inherit;cursor:pointer;padding:4px 6px;text-align:left}
+.nv-cloud2-group-head small{opacity:.65}
+@media (max-width:820px){
+  .modal.cloud-panel.nv-cloud2{grid-template-columns:1fr;grid-template-rows:auto auto 1fr;height:94vh}
+  .nv-cloud2-side{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid rgba(255,255,255,.1);padding:8px}
+  .nv-cloud2-side h4{display:none}
+  .nv-cloud2-cols{display:none}
+  .nv-cloud2-row{grid-template-columns:1fr 1fr;}
+  .nv-cloud2-name{grid-column:1/-1}
+  .nv-cloud2-actions{grid-column:1/-1;justify-content:flex-start}
+}
+.modal.cloud-panel.nv-cloud2>.close{grid-column:1/-1;grid-row:1;z-index:3;height:0;overflow:visible}
+.modal.cloud-panel.nv-cloud2>.nv-cloud2-head{grid-row:1}
+.modal.cloud-panel.nv-cloud2>.nv-cloud2-side,.modal.cloud-panel.nv-cloud2>.nv-cloud2-main{grid-row:2}
+.nv-cloud2 .nv-cloud2-group-head,.nv-cloud2 .nv-cloud2-group-head:hover,.nv-cloud2 .nv-cloud2-group-head:focus{background:rgba(255,255,255,.06);color:inherit;border:0;outline:0;border-radius:8px}
+.nv-cloud2 .nv-cloud2-group-head:hover{background:rgba(255,255,255,.12)}

@@ -539,3 +539,10 @@ export const sameProjectName=(a:string,b:string)=>{
   const n=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
   return n(a)===n(b);
 };
+
+/** Identifiants des visites qui ont un lien public actif (facultatif : vide si la lecture est refusée). */
+export async function listActivePublicationIds():Promise<Set<string>>{
+  const {data,error}=await supabase().from('nvstudio_publications').select('project_id').is('revoked_at',null);
+  if(error)return new Set();
+  return new Set((data??[]).map(r=>r.project_id as string));
+}
