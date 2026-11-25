@@ -362,10 +362,10 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 
 /* Croix collée au coin de l'image agrandie */
 .nv-zoom-wrap{position:relative;display:inline-flex;max-width:100%;max-height:100%;line-height:0}
-.nv-zoom-wrap>img{display:block;max-width:92vw;max-height:86vh;object-fit:contain}
+.nv-zoom-wrap img{display:block;max-width:92vw;max-height:86vh;object-fit:contain}
 .nv-zoom-wrap>.lightbox-close,.nv-zoom-wrap>.tour-close-image{position:absolute!important;top:-16px!important;right:-16px!important;left:auto!important;bottom:auto!important;z-index:5;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;box-shadow:0 4px 14px #000a}
 @media(max-width:520px){.nv-zoom-wrap>.lightbox-close,.nv-zoom-wrap>.tour-close-image{top:-12px!important;right:-6px!important}}
-.image-lightbox .nv-zoom-wrap>img.nv-photo-frame,.tour-image-viewer .nv-zoom-wrap>img.nv-photo-frame{max-width:92vw;max-height:86vh;box-shadow:0 22px 90px #0009}
+.image-lightbox .nv-zoom-wrap img.nv-photo-frame,.tour-image-viewer .nv-zoom-wrap img.nv-photo-frame{max-width:92vw;max-height:86vh;box-shadow:0 22px 90px #0009}
 
 /* Bouton son : à droite, un peu sous le haut (la place du coin est réservée à l'icône plein écran de la plateforme) */
 .nv-audio-layer{left:auto!important;right:16px!important;top:76px!important}
@@ -414,3 +414,17 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
   box-shadow:inset 0 3px 7px #0006!important;
   transform:translateY(1px);
 }
+
+/* Loupe sur les images agrandies : zoom, déplacement, boutons aux couleurs de la barre du bas */
+.nv-zoom-view{position:relative;display:block;overflow:hidden;line-height:0;touch-action:none;cursor:zoom-in;border-radius:2px}
+.nv-zoom-view.is-zoomed{cursor:grab}.nv-zoom-view.is-zoomed:active{cursor:grabbing}
+.nv-zoom-view img{transform-origin:50% 50%;user-select:none;-webkit-user-drag:none;will-change:transform}
+.nv-loupe-tools{position:absolute;top:34px;right:-60px;z-index:5;display:flex;flex-direction:column;align-items:center;gap:8px}
+.nv-loupe-btn{display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:50%;cursor:pointer;
+  background:var(--nv-button-bg,#311820);border:var(--nv-button-border-width,2px) solid var(--nv-button-outline,#d3c1b6);color:var(--nv-icon-color,#fff);box-shadow:0 4px 14px #0009}
+.nv-loupe-btn:hover:not(:disabled){background:color-mix(in srgb,var(--nv-button-bg,#311820) 78%,#fff)}
+.nv-loupe-btn:active:not(:disabled){background:color-mix(in srgb,var(--nv-button-bg,#311820) 70%,#000)}
+.nv-loupe-btn:disabled{opacity:.4;cursor:not-allowed}
+.nv-loupe-level{font:700 12px system-ui;color:#fff;background:#000a;border-radius:99px;padding:2px 8px}
+/* Écrans étroits : les boutons passent dans l'image, en bas à droite */
+@media(max-width:900px){.nv-loupe-tools{top:auto;right:8px;bottom:8px;flex-direction:row}.nv-loupe-btn{width:40px;height:40px}}

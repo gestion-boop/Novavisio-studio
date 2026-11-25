@@ -1,5 +1,5 @@
 import {useEffect,useLayoutEffect,useRef,useState,type RefObject,type ReactNode} from 'react';
-import {Play,Volume2,VolumeX,X} from 'lucide-react';
+import {Play,Volume2,VolumeX,X,ZoomIn,ZoomOut,RotateCcw} from 'lucide-react';
 import {perspectiveMatrix,escapeAttribute} from './imageFrame';
 import {defaultFrameCorners,type CustomIcon,type Hotspot,type ImageFrameStyle,type Scene} from './storage';
 import {XMark} from './XMark';
@@ -118,11 +118,84 @@ export function useZoomTransition(origin:ZoomOrigin|null|undefined,enabled:boole
     anim:custom?animation:undefined};
 }
 
-export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',animation,onClose}:{animation?:string;frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}){
+const LOUPE_MAX=8;
+/**
+ * Loupe : zoom et déplacement dans une image agrandie (cartes, plans, affiches…).
+ * Boutons + / − / retour, molette (centrée sur le curseur), glisser pour se déplacer, pincement à deux doigts, double-clic.
+ */
+function ImageLoupe({src,alt,frameStyle}:{src:string;alt:string;frameStyle:ImageFrameStyle}){
+  const [t,setT]=useState({s:1,x:0,y:0});
+  const view=useRef<HTMLDivElement>(null);
+  const tRef=useRef(t);tRef.current=t;
+  const pointers=useRef(new Map<number,{x:number;y:number}>());
+  const drag=useRef<{x:number;y:number;tx:number;ty:number}|null>(null);
+  const pinch=useRef<{d:number;s:number}|null>(null);
+  const limit=(s:number,x:number,y:number)=>{
+    const el=view.current;const w=el?.clientWidth??0,h=el?.clientHeight??0;
+    const mx=Math.max(0,(s-1)*w/2),my=Math.max(0,(s-1)*h/2);
+    return {s,x:Math.max(-mx,Math.min(mx,x)),y:Math.max(-my,Math.min(my,y))};
+  };
+  /** Zoom d'un facteur, autour du point (px, py) mesuré depuis le centre de l'image. */
+  const zoomBy=(factor:number,px=0,py=0)=>setT(cur=>{
+    const s=Math.max(1,Math.min(LOUPE_MAX,cur.s*factor));
+    if(s===1)return {s:1,x:0,y:0};
+    const k=s/cur.s;
+    return limit(s,px-(px-cur.x)*k,py-(py-cur.y)*k);
+  });
+  const fromCenter=(clientX:number,clientY:number)=>{
+    const r=view.current!.getBoundingClientRect();
+    return {x:clientX-(r.left+r.width/2),y:clientY-(r.top+r.height/2)};
+  };
+  useEffect(()=>{
+    const el=view.current;if(!el)return;
+    const onWheel=(e:WheelEvent)=>{e.preventDefault();const p=fromCenter(e.clientX,e.clientY);zoomBy(e.deltaY<0?1.2:1/1.2,p.x,p.y);};
+    el.addEventListener('wheel',onWheel,{passive:false});
+    return ()=>el.removeEventListener('wheel',onWheel);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+  const down=(e:React.PointerEvent)=>{
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.current.size===2){
+      const [a,b]=[...pointers.current.values()];
+      pinch.current={d:Math.hypot(a.x-b.x,a.y-b.y)||1,s:tRef.current.s};drag.current=null;
+    }else drag.current={x:e.clientX,y:e.clientY,tx:tRef.current.x,ty:tRef.current.y};
+  };
+  const move=(e:React.PointerEvent)=>{
+    if(!pointers.current.has(e.pointerId))return;
+    pointers.current.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.current.size>=2&&pinch.current){
+      const [a,b]=[...pointers.current.values()];
+      const d=Math.hypot(a.x-b.x,a.y-b.y)||1;
+      const p=fromCenter((a.x+b.x)/2,(a.y+b.y)/2);
+      const target=Math.max(1,Math.min(LOUPE_MAX,pinch.current.s*d/pinch.current.d));
+      zoomBy(target/tRef.current.s,p.x,p.y);
+    }else if(drag.current&&tRef.current.s>1){
+      const dx=e.clientX-drag.current.x,dy=e.clientY-drag.current.y;
+      setT(cur=>limit(cur.s,drag.current!.tx+dx,drag.current!.ty+dy));
+    }
+  };
+  const up=(e:React.PointerEvent)=>{pointers.current.delete(e.pointerId);if(pointers.current.size<2)pinch.current=null;if(!pointers.current.size)drag.current=null;};
+  const dbl=(e:React.MouseEvent)=>{const p=fromCenter(e.clientX,e.clientY);if(tRef.current.s>1)setT({s:1,x:0,y:0});else zoomBy(2.5,p.x,p.y);};
+  const zoomed=t.s>1;
+  return <>
+    <div ref={view} className={'nv-zoom-view'+(zoomed?' is-zoomed':'')} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onDoubleClick={dbl}>
+      <img className={('nv-photo-frame nv-photo-frame-'+frameStyle).trim()} src={src} alt={alt} draggable={false} style={{transform:'translate('+t.x.toFixed(1)+'px,'+t.y.toFixed(1)+'px) scale('+t.s.toFixed(3)+')'}}/>
+    </div>
+    <div className="nv-loupe-tools" role="group" aria-label="Loupe">
+      <button type="button" className="nv-loupe-btn" aria-label="Agrandir" title="Agrandir (ou molette, ou double-clic)" disabled={t.s>=LOUPE_MAX} onClick={()=>zoomBy(1.6)}><ZoomIn size={22}/></button>
+      <button type="button" className="nv-loupe-btn" aria-label="Réduire" title="Réduire" disabled={!zoomed} onClick={()=>zoomBy(1/1.6)}><ZoomOut size={22}/></button>
+      <button type="button" className="nv-loupe-btn" aria-label="Taille d’origine" title="Revenir à la taille d’origine" disabled={!zoomed} onClick={()=>setT({s:1,x:0,y:0})}><RotateCcw size={20}/></button>
+      {zoomed&&<span className="nv-loupe-level" aria-live="polite">×{t.s.toFixed(1).replace('.',',')}</span>}
+    </div>
+  </>;
+}
+
+export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',animation,onClose}:{animation?:string;frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}) {
   const z=useZoomTransition(origin,animate,onClose,animation);
   // La croix est collée au coin supérieur droit de l'image (et suit son animation), pas au coin de l'écran.
   const wrap=(close:ReactNode)=><div ref={z.body as never} data-win-anim={z.anim} className={('nv-zoom-wrap'+z.bodyClass).trim()} onClick={e=>e.stopPropagation()}>
-    <img className={('nv-photo-frame nv-photo-frame-'+frameStyle).trim()} src={src} alt={alt}/>
+    <ImageLoupe src={src} alt={alt} frameStyle={frameStyle}/>
     {close}
   </div>;
   if(variant==='tour')return <div ref={z.overlay} className={'tour-image-viewer'+z.overlayClass} onClick={z.requestClose}>
