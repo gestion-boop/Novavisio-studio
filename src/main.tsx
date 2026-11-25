@@ -6,7 +6,8 @@ import {requestLoupeFull} from './FrameLoupe';
 import {fitCornersToAspect} from './frameOcclusion';
 import type {FrameSphericalCorners} from './storage';
 import {withClientAutomation} from './clientAutomation';
-import {AgentsDialog} from './AgentsDialog';
+import {AgentPicker,AgentsDialog} from './AgentsDialog';
+import {applyAgent,emptyAgent} from './agents';
 import {StudioPreview} from './StudioPreview';
 import {GradePanel} from './GradePanel';
 import {ZoomPanel} from './ZoomPanel';
@@ -5678,6 +5679,9 @@ function App(){
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Agent immobilier">
+            <AgentPicker profile={project.clientProfile} onPick={agent=>setProject(p=>applyAgent(p,agent??emptyAgent()))}/>
+          </InspectorSection>
           <InspectorSection title="Panoramas du projet" initiallyOpen={false}>
             <p className="hint">Ajoute ou supprime des panoramas sans réinitialiser les vues de caméra ni les éléments des autres scènes.</p>
             <button type="button" className="primary" onClick={()=>upload.current?.click()}>＋ Ajouter des panoramas</button>
