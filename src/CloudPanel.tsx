@@ -145,6 +145,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
         <span><b>{item.name}{item.shared&&<em className="shared-tag"> · Partagé avec moi</em>}</b>
           {!item.shared&&(recipients[item.id]?.length??0)>0&&
             <small className="shared-tag" title={recipients[item.id].join(' · ')}>👥 Partagé avec {recipients[item.id].map(email=>email.split('@')[0]).join(', ')}</small>}
+          {typeof item.scenes==='number'&&<small className="nv-cloud-counts"><b>{item.scenes}</b> panorama{item.scenes>1?'s':''}{typeof item.spaces==='number'&&item.spaces>0&&<> · <b>{item.spaces}</b> espace{item.spaces>1?'s':''}</>}</small>}
           <small>{item.autosave?'sauvegarde auto':'rév. '+item.revision} · {new Date(item.updated_at).toLocaleString('fr-FR')}</small>
         </span>
         <div className="nv-cloud-recovery-actions">

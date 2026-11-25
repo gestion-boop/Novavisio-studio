@@ -110,7 +110,7 @@ export async function confirmEmailLink(tokenHash:string,type:string){
 }
 export async function signOut(){await supabase().auth.signOut();}
 
-export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean;clientName?:string};
+export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean;clientName?:string;/** Nombre de panoramas / d'espaces de la visite (absent si le Cloud ne peut pas le lire). */scenes?:number;spaces?:number};
 export async function listCloudProjects():Promise<CloudProject[]>{
   const db=supabase();
   const {data:{user},error:authError}=await db.auth.getUser();
@@ -140,14 +140,22 @@ export async function listCloudProjects():Promise<CloudProject[]>{
   const latest=new Map<string,{revision:number;created_at:string}>();
   if(!revisionRes.error)for(const row of revisionRes.data??[])
     if(!latest.has(row.project_id))latest.set(row.project_id,row);
+  // Nombre de panoramas et d'espaces : calculé côté Cloud (fonction nvstudio_project_stats), sans télécharger les visites. Facultatif.
+  const stats=new Map<string,{scenes:number|null;spaces:number|null}>();
+  try{
+    const st=await db.rpc('nvstudio_project_stats');
+    if(!st.error)for(const row of (st.data??[]) as {project_id:string;scenes:number|null;spaces:number|null}[])stats.set(row.project_id,{scenes:row.scenes,spaces:row.spaces});
+  }catch{/* fonction non installée : la liste s'affiche sans les nombres */}
   return [...all.values()].map(p=>{
     const last=latest.get(p.id);
+    const stat=stats.get(p.id);
     const workingVersion=Number(p.working_version??0);
     const updated=[workingVersion>0?p.working_updated_at:null,last?.created_at,p.created_at]
       .filter((date):date is string=>typeof date==='string'&&!!date).sort().reverse()[0];
     return {id:p.id,name:p.name||'Visite',created_at:p.created_at,
       revision:last?.revision??0,updated_at:updated,autosave:workingVersion>0,
-      shared:p.owner_id!==user.id};
+      shared:p.owner_id!==user.id,
+      ...(typeof stat?.scenes==='number'?{scenes:stat.scenes}:{}),...(typeof stat?.spaces==='number'?{spaces:stat.spaces}:{})};
   }).sort((a,b)=>Date.parse(b.updated_at)-Date.parse(a.updated_at)||a.name.localeCompare(b.name,'fr'));
 }
 
@@ -513,3 +521,15 @@ export async function createCollaboratorAccount(email:string,password:string):Pr
   if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0)return 'exists';
   return data.session?'created':'confirm';
 }
+
+/** Nom actuellement enregistré dans le Cloud pour une visite (sert au garde-fou « ce projet n'est pas celui lié à ce lien »). */
+export async function cloudProjectName(projectId:string):Promise<string|null>{
+  const {data,error}=await supabase().from('nvstudio_projects').select('name').eq('id',projectId).maybeSingle();
+  if(error||!data)return null;
+  return typeof data.name==='string'?data.name:null;
+}
+/** Deux noms de visite désignent-ils le même projet ? Casse, accents et espaces ignorés. */
+export const sameProjectName=(a:string,b:string)=>{
+  const n=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  return n(a)===n(b);
+};

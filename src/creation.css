@@ -241,3 +241,5 @@
 
 .nv-zoom-panel{display:flex;flex-direction:column;gap:10px}
 .nv-zoom-scale{display:flex;justify-content:space-between;font-size:11px;opacity:.65;margin-top:-6px}
+
+.nv-cloud-counts{opacity:1!important;color:#9fe6d8}.nv-cloud-counts b{font-size:14px;color:#fff}

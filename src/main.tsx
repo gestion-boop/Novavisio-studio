@@ -82,7 +82,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
-import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,type CloudLink} from './cloud';
+import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,cloudProjectName,sameProjectName,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
@@ -1747,6 +1747,7 @@ function App(){
     return up;
   },true);
   const lastAutoPublish=useRef(0);
+  const nameGuardOk=useRef(new Set<string>());
   async function manualSave(publishing=false,silent=false):Promise<boolean>{
     if(!ready||savingManually||savingRef.current)return false;
     if(lock?.kind==='unreadable'||lock?.kind==='conflict'){
@@ -1759,6 +1760,14 @@ function App(){
       if(cloud.signedIn||await cloud.ensureSignedIn()){
         const link=readLink();
         if(link){
+          // Garde-fou : une visite ne doit pas être enregistrée sur le lien Cloud d'un autre projet (nom différent).
+          const cloudName=await cloudProjectName(link.projectId);
+          const guardKey=link.projectId+'|'+project.name;
+          if(cloudName&&!sameProjectName(cloudName,project.name)&&!nameGuardOk.current.has(guardKey)){
+            const go=await confirmAsk('Attention : cette visite s’appelle « '+project.name+' », mais elle est liée dans le Cloud à « '+cloudName+' ».\n\nL’enregistrer ici mélangerait deux projets : la nouvelle sauvegarde deviendrait la version la plus récente de « '+cloudName+' ».\n\nSi ce sont deux projets différents, annule puis utilise « Envoyer comme nouvelle visite » dans le panneau Cloud.\n\nEnregistrer quand même sur « '+cloudName+' » ?');
+            if(!go){setStatus('Enregistrement annulé : utilise « Envoyer comme nouvelle visite » dans le panneau Cloud.');return false;}
+            nameGuardOk.current.add(guardKey);
+          }
           const hand=await getWriteState(link.projectId);
           if(!hand){
             const message='Impossible de vérifier les droits de sauvegarde de cette visite. Par sécurité, aucune modification ne sera envoyée au Cloud.';
