@@ -23,7 +23,6 @@ const palettes=[
   {name:'Coucher de soleil',background:'#0b1826',outline:'#e8734a',button:'#e8734a',buttonOutline:'#e6c17c',icon:'#f7f5ef'},
 ];
 export function ProjectPreparation({project,setProject,onClose,onFinish,onImportPanoramas}:{project:StudioProject;setProject:Dispatch<SetStateAction<StudioProject>>;onClose:()=>void;onFinish:()=>void;onImportPanoramas:(files:FileList|null,targetSpaceId?:string|null,onProgress?:(done:number,total:number)=>void)=>Promise<void>}){
-  const [agentId,setAgentId]=useState('');
   const [step,setStep]=useState(0),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[saveSkin,setSaveSkin]=useState(false),[progress,setProgress]=useState<{value:number;max:number}|null>(null);
   const content=useRef<HTMLDivElement>(null);
   // Visite créée à partir d'un client : étapes supplémentaires (fiche, boutons proposés).
@@ -55,7 +54,7 @@ export function ProjectPreparation({project,setProject,onClose,onFinish,onImport
           {key==='project'&&<><p>Donne un nom à ta visite, puis applique un modèle enregistré (skin) pour reprendre les icônes Normal/Survol/Pressé, la barre et la configuration VR. Les photos, les textes et les coordonnées de l'ancien client ne sont pas copiés.</p>
             <label>Nom de l’établissement<input aria-label="Nom de l’établissement" value={project.name} maxLength={150} onChange={e=>setProject(p=>({...p,name:e.target.value}))}/></label>
             <SkinChoices project={project} setProject={setProject}/>
-            <AgentPicker value={agentId} onPick={agent=>{setAgentId(agent?.id??'');setProject(pr=>applyAgent(pr,agent??emptyAgent()));}}/>
+            <AgentPicker profile={project.clientProfile} onPick={agent=>setProject(pr=>applyAgent(pr,agent??emptyAgent()))}/>
           </>}
           {key==='icons'&&<><p>Choisis une collection pour la barre et les prochaines flèches de navigation. Les points déjà placés conservent leurs icônes.</p>
             <ButtonImporter disabled={busy} project={project} setProject={setProject} onBusyChange={setBusy}/>
