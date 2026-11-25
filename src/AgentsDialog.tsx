@@ -2,6 +2,7 @@ import {useEffect,useState} from 'react';
 import {Trash2,UserRound} from 'lucide-react';
 import {confirmAsk} from './confirmDialog';
 import {XMark} from './XMark';
+import type {ClientProfile} from './storage';
 import {agentError,agentLabel,deleteAgent,emptyAgent,listAgents,saveAgent,type Agent} from './agents';
 
 /** Paramètres > Agents immobiliers : annuaire des agents (nom, prénom, téléphone, lien Info, lien d'intro). */
@@ -32,7 +33,7 @@ export function AgentsDialog({onClose}:{onClose:()=>void}){
     <section className="modal nv-agents" role="dialog" aria-modal="true" aria-label="Agents immobiliers" onClick={e=>e.stopPropagation()}>
       <button type="button" className="close" onClick={onClose} aria-label="Fermer"><XMark/></button>
       <h2><UserRound size={20}/> Agents immobiliers</h2>
-      <p className="nv-agents-help">Saisis chaque agent une fois. À la création d’une visite (skin Immosphera), tu le choisis et tout est pré-rempli : son téléphone sur le bouton Appeler, son lien Info sur le bouton « i » et son intro.</p>
+      <p className="nv-agents-help">Saisis chaque agent une fois. Dans l’onglet Visite du projet, tu le choisis et tout est pré-rempli : son téléphone sur le bouton Appeler, son lien Info sur le bouton « i » et son intro.</p>
       {message&&<p className="nv-agents-msg" role="status">{message}</p>}
       {!draft&&<>
         <ul className="nv-agents-list">
@@ -62,14 +63,16 @@ export function AgentsDialog({onClose}:{onClose:()=>void}){
 }
 
 /** Sélecteur d'agent à la création d'une visite : applique toutes les informations en un clic. */
-export function AgentPicker({value,onPick}:{value:string;onPick:(agent:Agent|null)=>void}){
+export function AgentPicker({value,profile,onPick}:{value?:string;profile?:ClientProfile;onPick:(agent:Agent|null)=>void}){
   const [agents,setAgents]=useState<Agent[]|null>(null);
   const [error,setError]=useState('');
   useEffect(()=>{void listAgents().then(setAgents).catch(e=>{setAgents([]);setError(e instanceof Error?e.message:String(e));});},[]);
   if(agents===null)return null;
+  const selected=value??profile?.agentId??agents.find(a=>a.firstName===profile?.agentFirstName&&a.lastName===profile?.agentLastName)?.id??'';
   return <label className="nv-agent-picker">Agent immobilier
-    <select value={value} onChange={e=>onPick(agents.find(a=>a.id===e.target.value)??null)}>
+    <select disabled={!!error} value={selected} onChange={e=>onPick(agents.find(a=>a.id===e.target.value)??null)}>
       <option value="">{agents.length?'— Aucun agent —':'Aucun agent enregistré (Paramètres > Agents immobiliers)'}</option>
+      {selected&&!agents.some(a=>a.id===selected)&&<option value={selected}>{[profile?.agentFirstName,profile?.agentLastName].filter(Boolean).join(' ')||'Agent indisponible'}</option>}
       {agents.map(a=><option key={a.id} value={a.id}>{agentLabel(a)}{a.phone?' · '+a.phone:''}</option>)}
     </select>
     {error&&<small>{error}</small>}
