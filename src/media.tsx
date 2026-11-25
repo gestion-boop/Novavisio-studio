@@ -191,10 +191,10 @@ function ImageLoupe({src,alt,frameStyle}:{src:string;alt:string;frameStyle:Image
   </>;
 }
 
-export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',animation,onClose}:{animation?:string;frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}) {
+export function ZoomImage({src,alt,origin,animate,variant,frameStyle='none',animation,closeShiftY,onClose}:{closeShiftY?:number;animation?:string;frameStyle?:ImageFrameStyle;src:string;alt:string;origin?:ZoomOrigin|null;animate:boolean;variant:'studio'|'tour';onClose:()=>void}) {
   const z=useZoomTransition(origin,animate,onClose,animation);
   // La croix est collée au coin supérieur droit de l'image (et suit son animation), pas au coin de l'écran.
-  const wrap=(close:ReactNode)=><div ref={z.body as never} data-win-anim={z.anim} className={('nv-zoom-wrap'+z.bodyClass).trim()} onClick={e=>e.stopPropagation()}>
+  const wrap=(close:ReactNode)=><div ref={z.body as never} data-win-anim={z.anim} className={('nv-zoom-wrap'+z.bodyClass).trim()} style={closeShiftY?{'--nv-close-dy':closeShiftY+'px'} as React.CSSProperties:undefined} onClick={e=>e.stopPropagation()}>
     <ImageLoupe src={src} alt={alt} frameStyle={frameStyle}/>
     {close}
   </div>;

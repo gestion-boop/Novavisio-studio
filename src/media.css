@@ -428,3 +428,6 @@ button:has(.nv-sound-pressed):active .nv-sound-glyph .nv-sound-normal{opacity:0}
 .nv-loupe-level{font:700 12px system-ui;color:#fff;background:#000a;border-radius:99px;padding:2px 8px}
 /* Écrans étroits : les boutons passent dans l'image, en bas à droite */
 @media(max-width:900px){.nv-loupe-tools{top:auto;right:8px;bottom:8px;flex-direction:row}.nv-loupe-btn{width:40px;height:40px}}
+
+/* Hauteur de la croix réglée photo par photo (--nv-close-dy, en px, négatif = plus haut) */
+:root:not(#nv-x) .nv-zoom-wrap.nv-zoom-wrap[style*="--nv-close-dy"]>:is(.lightbox-close,.tour-close-image){top:calc(4px + var(--nv-close-dy,0px))!important}

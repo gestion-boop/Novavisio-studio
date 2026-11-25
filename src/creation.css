@@ -238,3 +238,6 @@
 .nv-grade-actions{display:flex;gap:8px;flex-wrap:wrap}
 .nv-grade-actions button{padding:9px 12px;border-radius:10px;border:1px solid #3a6577;background:#15303e;color:#e6f6f8;font-weight:600;cursor:pointer}
 .nv-grade-actions button:disabled{opacity:.45;cursor:not-allowed}
+
+.nv-zoom-panel{display:flex;flex-direction:column;gap:10px}
+.nv-zoom-scale{display:flex;justify-content:space-between;font-size:11px;opacity:.65;margin-top:-6px}

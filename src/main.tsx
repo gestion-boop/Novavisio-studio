@@ -5,6 +5,7 @@ import {withClientAutomation} from './clientAutomation';
 import {AgentsDialog} from './AgentsDialog';
 import {StudioPreview} from './StudioPreview';
 import {GradePanel} from './GradePanel';
+import {ZoomPanel} from './ZoomPanel';
 import {normalizeGrade} from './photoGrade';
 import {PanoramaPreviewEditor} from './PanoramaPreviewEditor';
 import {overlayClose} from './overlayClose';
@@ -84,7 +85,7 @@ import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
-import {SlidersHorizontal,Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer,UserRound} from 'lucide-react';
+import {ZoomIn,SlidersHorizontal,Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer,UserRound} from 'lucide-react';
 import {checkProject,type CheckIssue} from './projectCheck';
 import {autoFixProject} from './autoFix';
 import {IssueCallout,IssueBanner,type IssueFocus} from './IssueCallout';
@@ -3691,11 +3692,14 @@ function App(){
     onAddLink={addClientLink} canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
     onImportPhotos={items=>setProject(p=>({...p,mediaLibrary:[...items,...(p.mediaLibrary??[])].slice(0,300)}))}
     libraryNames={(project.mediaLibrary??[]).map(item=>item.name)} libraryRoom={Math.max(0,300-(project.mediaLibrary??[]).length)}/>;
+  /** La grande fenêtre cache le panorama : dès qu'un point est sélectionné (poignées des coins, contour à tracer…) on garde la colonne étroite. */
+  const liveTuning=panel==='points'&&!selectedId&&(hubOpen.scene==='zoom'||hubOpen.scene==='grade');   // zoom et retouche : on doit voir le panorama bouger
+  const wideNow=wideSheet&&!preview&&!(selectedId&&panel==='points')&&!maskDraw&&!liveTuning;
   return <div ref={studioRef} className={
     'app nv-studio-pro'+
     (studioFallback?' nv-studio-fullscreen-fallback':'')+
     (leftHidden?' nv-studio-hide-left':'')+
-    ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(!rightHidden&&wideSheet?' nv-wide':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
+    ' nv-studio-hide-right'+(!rightHidden?' nv-sheet-open':'')+(!rightHidden&&wideNow?' nv-wide':'')+(selectedId&&panel==='points'?' nv-sheet-side':'')+
     (sceneDensity==='compact'?' nv-scenes-compact':'')
   }>
     <header className="topbar nv-topbar-v3">
@@ -4871,7 +4875,7 @@ function App(){
               entries={galleryEntries(item,preview?visibleScenes.filter(sc=>!sc.excluded):visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
               onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} onClose={()=>setGalleryOpen(null)}/>;
           })()}
-          {(imageZoom?.imageDataUrl||imageZoom?.imageUrl) && <ZoomImage variant="studio" animation={imageZoom.openAnimation??project.windowAnimation} frameStyle={imageZoom.imageFrameStyle} src={(imageZoom.imageDataUrl||imageZoom.imageUrl)!} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
+          {(imageZoom?.imageDataUrl||imageZoom?.imageUrl) && <ZoomImage variant="studio" animation={imageZoom.openAnimation??project.windowAnimation} frameStyle={imageZoom.imageFrameStyle} closeShiftY={imageZoom.closeShiftY} src={(imageZoom.imageDataUrl||imageZoom.imageUrl)!} alt={imageZoom.title} origin={zoomFrom} animate={imageZoom.fadeOnClick!==false} onClose={()=>setImageZoom(null)}/>}
           {frame && <div className="embed-overlay" {...overlayClose(()=>setFrame(null))} role="presentation">
             <section className={'embed-shell'+(frame.full?' is-full':'')} aria-label={'Contenu intégré : '+frame.title} onClick={event=>event.stopPropagation()}>
               <div className="embed-header">
@@ -5066,6 +5070,16 @@ function App(){
                 </div>
               </div>
 
+              {selected.type==='image'&&<div className="nv-mask-tool">
+                <b>Croix de l’image agrandie</b>
+                <label className="nv-grade-row"><span>Hauteur de la croix</span><b>{(selected.closeShiftY??0)>0?'+':''}{selected.closeShiftY??0}</b>
+                  <input type="range" min="-120" max="80" step="2" value={selected.closeShiftY??0} aria-label="Hauteur de la croix" onChange={e=>patchPoint({closeShiftY:Number(e.target.value)||undefined})} onDoubleClick={()=>patchPoint({closeShiftY:undefined})}/></label>
+                <div className="nv-zoom-scale" aria-hidden="true"><span>Plus haut (hors de l’image)</span><span>Plus bas</span></div>
+                <div className="nv-mask-actions">
+                  <button type="button" disabled={selected.closeShiftY===undefined} onClick={()=>patchPoint({closeShiftY:undefined})}>Position habituelle</button>
+                  <button type="button" onClick={()=>{const dy=selected.closeShiftY;setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.type==='image'?{...h,closeShiftY:dy}:h)}))}));setStatus('Hauteur de la croix appliquée à toutes les photos du projet.');}}>Appliquer à toutes les photos</button>
+                </div>
+              </div>}
               {(selected.type==='image'||selected.type==='video')&&!isPopupMedia(selected)&&<div className="nv-mask-tool">
                 <b>Détourer (objet devant l’écran)</b>
                 {maskDraw&&maskDraw.id===selected.id?<>
@@ -5312,6 +5326,12 @@ function App(){
                   <TranslationInputs label="Nom traduit" values={active.nameTranslations} onChange={t=>patchScene(sc=>({...sc,nameTranslations:t}))}/>
                   </>},
                   {key:'arrival',title:'Vue d’arrivée',hint:arrivalSaving?'Enregistrement…':active.arrivalYaw!==undefined?'✓ Définie · cliquer pour actualiser':'Enregistrer le cadrage actuel',icon:<Eye size={26}/>,tone:'#2fbf8f',disabled:arrivalSaving||savingManually||!!lock,onClick:()=>{void saveArrivalImmediately();},content:<>{arrivalTiles()}</>},
+                  {key:'zoom',title:'Zoom du panorama',hint:active.arrivalZoom!==undefined?'Réglé : '+Math.round(panoramaArrivalZoom(active)):'Par défaut',icon:<ZoomIn size={26}/>,tone:'#3fc1c9',content:<ZoomPanel scene={active}
+                    onChange={z=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===active.id?(z===undefined?{...sc,arrivalZoom:undefined,arrivalZoomModel:undefined}:{...sc,arrivalZoom:z,arrivalZoomModel:'wide' as const}):sc)}))}
+                    spaceCount={visibleScenes.length} totalCount={project.scenes.length}
+                    onApplyTo={scope=>{const z=panoramaArrivalZoom(active);const ids=new Set((scope==='space'?visibleScenes:project.scenes).map(sc=>sc.id));
+                      setProject(p=>({...p,scenes:p.scenes.map(sc=>ids.has(sc.id)?{...sc,arrivalZoom:z,arrivalZoomModel:'wide' as const}:sc)}));
+                      setStatus('Zoom '+Math.round(z)+' appliqué à '+ids.size+' panorama'+(ids.size>1?'s':'')+'.');}}/>},
                   {key:'grade',title:'Retouche de l’image',hint:active.grade?'✓ Réglée en direct':'Exposition, contraste, couleur',icon:<SlidersHorizontal size={26}/>,tone:'#f5a623',content:<GradePanel grade={active.grade}
                     onChange={g=>setProject(p=>({...p,scenes:p.scenes.map(sc=>sc.id===active.id?{...sc,grade:g}:sc)}))}
                     spaceCount={visibleScenes.length} totalCount={project.scenes.length}
@@ -5936,7 +5956,7 @@ function App(){
           </InspectorSection>
         </div>}
         </div>
-        {wideSheet&&<StudioPreview project={project} scene={active??undefined} thumb={active?(sceneThumbs[active.id]||active.dataUrl):undefined} selectedBarId={panel==='bar'?selectedBarId:undefined} selectedPointId={panel==='points'?selectedId:undefined}/>}
+        {wideNow&&<StudioPreview project={project} scene={active??undefined} thumb={active?(sceneThumbs[active.id]||active.dataUrl):undefined} selectedBarId={panel==='bar'?selectedBarId:undefined} selectedPointId={panel==='points'?selectedId:undefined}/>}
       </aside>
     </div>
     {clientOpen&&<ClientsDirectory

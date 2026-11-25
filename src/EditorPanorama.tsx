@@ -130,7 +130,8 @@ export function markersForScene(scene:Scene,icons:CustomIcon[],height:number,sel
     if(preview)all.push(...(haloMarkers(h) as unknown as MarkerConfig[]));
     const hasMedia=h.type==='image'?!!h.imageDataUrl:
       h.type==='video'?!!(h.videoDataUrl||h.videoUrl):false;
-    if(!preview&&selectedId===h.id&&hasMedia&&!isPopupMedia(h)){
+    // Pendant le tracé d'un détourage, les poignées du cadre sont masquées : elles intercepteraient les clics.
+    if(!preview&&selectedId===h.id&&hasMedia&&!isPopupMedia(h)&&maskDraftNow===undefined){
       all.push(...editingFrameControls(h));
     }
     // Détourage : le calque qui reprend l'objet de premier plan passe par-dessus l'écran incrusté.
@@ -244,6 +245,7 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
       const a=actions.current;
       const h=a.scene.hotspots.find(item=>item.id===marker.id);
       if (!h) return;
+      if(a.onMaskClick)return;   // détourage en cours : un clic sur l'écran sert à placer un point du contour
       if(suppressMarkerClick.current===marker.id){suppressMarkerClick.current=null;return;}
       if (a.preview) {
         if(h.type==='navigation' && h.target && !a.night) a.onNavigate(h.target,h);
@@ -264,7 +266,7 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
     });
     viewer.addEventListener('click',event=>{
       const a=actions.current;
-      if(a.onMaskClick&&!a.preview&&typeof event.data.yaw==='number'&&typeof event.data.pitch==='number'){a.onMaskClick(event.data.yaw,event.data.pitch);return;}
+      if(a.onMaskClick)return;   // tracé d'un détourage : géré par l'écouteur ci-dessous
       if(!a.preview && a.mode && typeof event.data.yaw==='number' && typeof event.data.pitch==='number') {
         a.onCreate(event.data.yaw,event.data.pitch);
       }
@@ -715,6 +717,35 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
       root.removeEventListener('drop',drop);
     };
   },[]);
+  // Tracé d'un détourage : un clic SUR un calque incrusté (l'affiche elle-même) ne déclenche pas le clic « panorama » du lecteur,
+  // donc on écoute directement le pointeur et on convertit la position en yaw / pitch sur la sphère.
+  const tracing=!!onMaskClick;
+  useEffect(()=>{
+    const el=box.current,v=viewerRef.current;
+    if(!tracing||!el||!v)return;
+    let down:{x:number;y:number}|null=null;
+    const pd=(e:PointerEvent)=>{down={x:e.clientX,y:e.clientY};};
+    const pu=(e:PointerEvent)=>{
+      if(!down||e.button!==0)return;
+      const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y)>5;down=null;
+      if(moved)return;
+      const r=el.getBoundingClientRect();
+      const pos=v.dataHelper.viewerCoordsToSphericalCoords({x:e.clientX-r.left,y:e.clientY-r.top});
+      if(pos)actions.current.onMaskClick?.(pos.yaw,pos.pitch);
+    };
+    el.addEventListener('pointerdown',pd,true);el.addEventListener('pointerup',pu,true);
+    return ()=>{el.removeEventListener('pointerdown',pd,true);el.removeEventListener('pointerup',pu,true);};
+  },[tracing]);
+  // Zoom d'arrivée réglé au curseur : le panorama affiché suit en direct (le cap n'est pas touché).
+  const arrivalZoomNow=panoramaArrivalZoom(scene);
+  const lastZoomSet=useRef<{id:string;z:number}|null>(null);
+  useEffect(()=>{
+    const v=viewerRef.current;
+    if(!v||loadedSceneRef.current!==scene.id)return;
+    const prev=lastZoomSet.current;lastZoomSet.current={id:scene.id,z:arrivalZoomNow};
+    if(!prev||prev.id!==scene.id||prev.z===arrivalZoomNow)return;   // pas de saut au changement de panorama
+    try{v.zoom(arrivalZoomNow);}catch{/* lecteur détruit */}
+  },[arrivalZoomNow,scene.id]);
   // Retouche de la photo du panorama en direct (curseurs Exposition, Contraste, Couleur…) : ne touche pas aux incrustations.
   useEffect(()=>{gradeRef.current?.set(photoGrade??null);},[photoGrade,scene.id]);
   // Détourage : le contour en cours se redessine à chaque point ajouté ; un calque prêt est ajouté aux marqueurs.
