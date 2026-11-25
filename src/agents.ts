@@ -1,6 +1,7 @@
 import {supabase} from './cloud';
 import {emptyClientProfile,type StudioProject} from './storage';
-import {withClientAutomation} from './clientAutomation';
+import {barKind} from './barKind';
+import {diallable,withClientAutomation} from './clientAutomation';
 
 /** Agent immobilier (Paramètres > Agents immobiliers) : saisi une fois, proposé à la création de chaque visite. */
 export type Agent={id:string;firstName:string;lastName:string;phone:string;infoUrl:string;introUrl:string};
@@ -39,9 +40,21 @@ export async function deleteAgent(id:string):Promise<void>{
 /** Pré-saisit la visite avec l'agent : fiche (nom, téléphone, liens) puis report sur le bouton Appeler, le bouton « i » et l'intro. */
 export function applyAgent(project:StudioProject,agent:Agent):StudioProject{
   const base=project.clientProfile??emptyClientProfile();
-  const clientProfile={...base,agentFirstName:agent.firstName,agentLastName:agent.lastName,agentPhone:agent.phone,agentInfoUrl:agent.infoUrl,introUrl:agent.introUrl};
+  const clientProfile={...base,agentId:agent.id||undefined,agentFirstName:agent.firstName,agentLastName:agent.lastName,agentPhone:agent.phone,agentInfoUrl:agent.infoUrl,introUrl:agent.introUrl};
   // Le choix de l'agent remplace l'intro de l'agent précédent, mais jamais une intro choisie à la main ou venant d'un skin.
   const previousIntro=(project.clientProfile?.introUrl??'').trim();
-  const resetIntro=!!previousIntro&&project.introUrl===previousIntro?{introUrl:''}:{};
-  return withClientAutomation({...project,...resetIntro,clientProfile});
+  const resetIntro=!!previousIntro&&project.introUrl===previousIntro?{introUrl:'',introEnabled:false}:{};
+  const previousInfo=base.agentInfoUrl?.trim();
+  const previousPhone=diallable(base.agentPhone);
+  const bottomBar=project.bottomBar.map(item=>{
+    const kind=barKind(item);
+    if(kind==='info'&&previousInfo&&item.url===previousInfo&&!item.text?.trim()){
+      return {...item,type:'information' as const,url:''};
+    }
+    if(kind==='phone'&&previousPhone&&item.url==='tel:'+previousPhone){
+      return {...item,url:''};
+    }
+    return item;
+  });
+  return withClientAutomation({...project,...resetIntro,bottomBar,clientProfile});
 }
