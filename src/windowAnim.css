@@ -102,14 +102,15 @@
   position:absolute;left:50%;top:50%;translate:-50% -50%}
 .embed-shell:not(#nv-x) .embed-title,.tour-dialog:not(#nv-x) h2{max-width:calc(50% - 40px)}
 
-/* Page intégrée (« Ouvrir un lien ») : plus de bandeau ni de titre, la page occupe tout le panneau ; seule la croix reste, en haut au centre. */
-.tour-dialog:not(#nv-x):has(iframe),.embed-shell:not(#nv-x){position:relative}
-.tour-dialog:not(#nv-x):has(iframe)>header,.embed-shell:not(#nv-x)>.embed-header{
-  position:absolute!important;top:0;left:0;right:0;height:0!important;min-height:0!important;padding:0!important;
-  background:transparent!important;border:0!important;overflow:visible;z-index:6;pointer-events:none}
+/* La barre de fermeture reste au-dessus du contenu intégré. */
+:root:not(#nv-x) :is(.tour-dialog:has(iframe)>header,.embed-shell>.embed-header){
+  position:relative!important;display:flex;justify-content:flex-end;align-items:center;
+  flex:0 0 auto;min-height:48px;box-sizing:border-box;padding:4px 10px;
+}
 .tour-dialog:not(#nv-x):has(iframe)>header h2,.embed-shell:not(#nv-x) .embed-title,.embed-shell:not(#nv-x) .embed-actions a{display:none!important}
-.tour-dialog:not(#nv-x):has(iframe)>header>button,.embed-shell:not(#nv-x) .embed-actions button{
-  top:12px!important;translate:-50% 0!important;pointer-events:auto;box-shadow:0 4px 14px #0008}
+:root:not(#nv-x) :is(.tour-dialog:has(iframe)>header>button,.embed-shell .embed-actions button){
+  position:static!important;translate:none!important;
+}
 .embed-shell:not(#nv-x) .embed-actions{position:static}
 
 /* ===== Galerie photos « haut de gamme » : mosaïque éditoriale aux couleurs du skin (accent = couleur des icônes de la barre) ===== */
@@ -201,8 +202,8 @@
 :root:not(#nv-x) :is(.lightbox-close,.tour-close-image,.nv-video-close,.nv-gallery-close,.nv-pg-close,.nv-pg-exit,.info-in-view .modal>.close,.modal>.close,.nv-gallery>header>button:last-child,.nv-photo-gallery>header>button:last-child,.tour-dialog>header>button:last-child,.nv-plan-dialog>header>button:last-child,.nv-preparation-dialog>header>button:last-child){top:4px!important}
 /* La galerie réserve une colonne à droite pour que la croix ne recouvre pas le titre. */
 :root:not(#nv-x) .nv-gallery>header{
-  display:grid;grid-template-columns:minmax(44px,1fr) minmax(0,auto) minmax(44px,1fr);
-  column-gap:8px;padding:0;min-height:44px;
+  display:grid!important;grid-template-columns:44px minmax(0,1fr) 44px;
+  align-self:stretch;width:100%;box-sizing:border-box;column-gap:8px;padding:0;min-height:44px;
 }
 :root:not(#nv-x) .nv-gallery>header>h2{
   grid-column:2;text-align:center;overflow-wrap:anywhere;
