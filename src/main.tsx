@@ -1,6 +1,7 @@
 import {barUsesIconImage} from './storage';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {phaseOf} from './phase';
+import {isReturnLink} from './returnLink';
 import {withClientAutomation} from './clientAutomation';
 import {AgentsDialog} from './AgentsDialog';
 import {StudioPreview} from './StudioPreview';
@@ -2522,7 +2523,8 @@ function App(){
     setStatus('Élément supprimé du panorama · Enregistre avec la disquette.');
   }
   function moveHotspot(id:string,yaw:number,pitch:number){
-    patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch}:h)}));
+    // Une flèche de retour déplacée à la main garde exactement la hauteur choisie (sinon elle est abaissée automatiquement près d'une flèche d'avancée).
+    patchScene(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.id===id?{...h,yaw,pitch,...(isReturnLink(h)?{pitchFixed:true}:{})}:h)}));
   }
   function dropIcon(payload:string,yaw:number,pitch:number){
     if(payload.startsWith('media:')){
@@ -5080,6 +5082,7 @@ function App(){
                   <button type="button" onClick={()=>{const dy=selected.closeShiftY;setProject(p=>({...p,scenes:p.scenes.map(sc=>({...sc,hotspots:sc.hotspots.map(h=>h.type==='image'?{...h,closeShiftY:dy}:h)}))}));setStatus('Hauteur de la croix appliquée à toutes les photos du projet.');}}>Appliquer à toutes les photos</button>
                 </div>
               </div>}
+              {isReturnLink(selected)&&<label className="toggle-row"><input type="checkbox" checked={!!selected.pitchFixed} onChange={e=>patchPoint({pitchFixed:e.target.checked||undefined})}/> Garder ma hauteur exacte (ne pas abaisser cette flèche près d’une flèche d’avancée)</label>}
               {(selected.type==='image'||selected.type==='video')&&!isPopupMedia(selected)&&<div className="nv-mask-tool">
                 <b>Détourer (objet devant l’écran)</b>
                 {maskDraw&&maskDraw.id===selected.id?<>

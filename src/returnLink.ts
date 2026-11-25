@@ -16,10 +16,10 @@ const angle = (a: {yaw: number; pitch: number}, b: {yaw: number; pitch: number})
 /**
  * Hauteur (pitch) à AFFICHER pour un point. Une flèche retour proche d'une flèche d'avancée est descendue vers le sol :
  * les deux ne se superposent plus et ne peuvent plus être confondues. Les autres points ne bougent pas, et la position
- * enregistrée dans le projet n'est jamais modifiée.
+ * enregistrée dans le projet n'est jamais modifiée. Une flèche déplacée par l'utilisateur (`pitchFixed`) garde exactement sa hauteur.
  */
 export function displayPitch(h: Hotspot, all: readonly Hotspot[]): number {
-  if (!isReturnLink(h)) return h.pitch;
+  if (!isReturnLink(h) || h.pitchFixed) return h.pitch;
   const close = all.filter((o) => o.id !== h.id && o.type === 'navigation' && !isReturnLink(o) && angle(h, o) < RETURN_CLOSE);
   if (!close.length) return h.pitch;
   return Math.max(-1.2, Math.min(h.pitch, ...close.map((o) => o.pitch)) - RETURN_DROP);

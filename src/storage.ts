@@ -47,6 +47,8 @@ export type Hotspot = {
   frameMasks?:[number,number][][];
   /** Photo agrandie : décalage vertical de la croix de fermeture, en px (négatif = plus haut, jusqu'à sortir de l'image). 0 = position habituelle. */
   closeShiftY?:number;
+  /** Flèche de retour : garde exactement la hauteur choisie (pas d'abaissement automatique près d'une flèche d'avancée). Posé dès que l'utilisateur la déplace. */
+  pitchFixed?:boolean;
   fadeOnClick?:boolean;
   // Flèche de navigation : vue d'arrivée dans le panorama de destination, propre à CETTE flèche.
   arrivalYaw?:number;arrivalPitch?:number;arrivalZoom?:number;arrivalZoomModel?:'wide';
@@ -490,6 +492,7 @@ export function validateProject(value:unknown):StudioProject {
             Number.isFinite(p.pitch) && Math.abs(p.pitch)<=Math.PI/2+0.001)
         )) ||
         (h.fadeOnClick !== undefined && typeof h.fadeOnClick !== 'boolean') ||
+        (h.pitchFixed !== undefined && typeof h.pitchFixed !== 'boolean') ||
         (h.closeShiftY !== undefined && (typeof h.closeShiftY !== 'number' || !Number.isFinite(h.closeShiftY) || h.closeShiftY < -120 || h.closeShiftY > 80)) ||
         (h.frameMasks !== undefined && (!Array.isArray(h.frameMasks)||h.frameMasks.length>8||
           !h.frameMasks.every(poly=>Array.isArray(poly)&&poly.length>=3&&poly.length<=80&&poly.every(pt=>Array.isArray(pt)&&pt.length===2&&Number.isFinite(pt[0])&&Number.isFinite(pt[1])&&Math.abs(pt[0])<100&&Math.abs(pt[1])<=Math.PI/2+0.001))))
