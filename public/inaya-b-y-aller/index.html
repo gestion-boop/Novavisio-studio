@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inaya.B – Y aller</title>
+<meta name="description" content="Comment venir chez Inaya.B, bijoux et accessoires féminins, place des 4 Fontaines à Narbonne : adresse, horaires, téléphone, Google Maps, Waze et Plans.">
+<link rel="icon" href="assets/img/logo.png">
+<style>
+:root{--t:#a04c34;--td:#7a3a28;--ink:#3a2a22;--muted:#7d6558;--line:#e6cdb6}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+body{font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);background:radial-gradient(ellipse at 50% 0%,#fcf3e8 0%,#f3e2cf 55%,#e9cfb5 100%) fixed;line-height:1.55;overflow-x:clip}
+.wrap{max-width:760px;margin:0 auto;padding:0 18px}
+header{text-align:center;padding:40px 0 22px}
+.logo{width:min(40vw,170px);height:auto;border-radius:50%;margin:0 auto 14px;display:block;box-shadow:0 12px 30px rgba(120,60,40,.28),0 0 0 5px rgba(160,76,52,.16)}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.6rem,5vw,2.3rem);color:var(--td)}
+.sub{color:var(--muted);letter-spacing:.2em;text-transform:uppercase;font-size:.76rem;font-weight:600;margin-top:4px}
+.card{background:rgba(255,255,255,.78);border:1px solid var(--line);border-radius:18px;padding:20px 22px;margin-top:16px;box-shadow:0 8px 22px rgba(120,60,40,.1)}
+.card h2{font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:var(--t);margin-bottom:8px}
+.big{font-size:1.15rem;font-weight:700;color:var(--td)}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;flex:1 1 150px;min-height:50px;padding:0 18px;border-radius:14px;font-weight:700;text-decoration:none;border:0;cursor:pointer;font:inherit;font-weight:700;font-size:.98rem}
+.btn.main{background:var(--t);color:#fff}
+.btn.alt{background:#fff;color:var(--td);border:2px solid var(--t)}
+.hours{display:grid;grid-template-columns:auto 1fr;gap:4px 18px;font-size:.98rem}
+.hours dt{color:var(--muted)}.hours dd{font-weight:600}
+.map{margin-top:16px;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:0 8px 22px rgba(120,60,40,.1);background:#e9cfb5}
+.map iframe{width:100%;height:340px;border:0;display:block}
+.ok{display:none;margin-top:8px;color:#2e7d5b;font-weight:600;font-size:.9rem}
+footer{text-align:center;color:var(--muted);font-size:.85rem;padding:26px 18px 40px}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <img class="logo" src="assets/img/logo.png" alt="Inaya.B – Bijoux &amp; accessoires féminins">
+  <h1>Y aller</h1>
+  <p class="sub">Inaya.B · Bijoux &amp; accessoires féminins</p>
+</header>
+<main class="wrap">
+  <section class="card">
+    <h2>Adresse</h2>
+    <p class="big">Place des 4 Fontaines<br>11100 Narbonne</p>
+    <div class="row">
+      <a class="btn main" href="https://www.google.com/maps/search/?api=1&amp;query=Place+des+4+Fontaines+11100+Narbonne" target="_blank" rel="noopener">Google Maps</a>
+      <a class="btn main" href="https://waze.com/ul?q=Place%20des%204%20Fontaines%2C%2011100%20Narbonne&amp;navigate=yes" target="_blank" rel="noopener">Waze</a>
+      <a class="btn main" href="https://maps.apple.com/?q=Place%20des%204%20Fontaines%2C%2011100%20Narbonne" target="_blank" rel="noopener">Plans (Apple)</a>
+    </div>
+    <div class="row"><button class="btn alt" id="copy" type="button">Copier l'adresse</button></div>
+    <p class="ok" id="ok" role="status">✓ Adresse copiée</p>
+  </section>
+  <section class="card">
+    <h2>Horaires</h2>
+    <dl class="hours"><dt>Mardi – samedi</dt><dd>10h00 – 19h00</dd></dl>
+  </section>
+  <section class="card">
+    <h2>Téléphone</h2>
+    <p class="big">06 69 58 14 43</p>
+    <div class="row"><a class="btn main" href="tel:+33669581443">Appeler la boutique</a></div>
+  </section>
+  <div class="map"><iframe loading="lazy" title="Plan d'accès Inaya.B" src="https://www.google.com/maps?q=Place+des+4+Fontaines,+11100+Narbonne&amp;output=embed"></iframe></div>
+</main>
+<footer>© Inaya.B · Visite immersive by NovaVisio</footer>
+<script>
+{
+  const b=document.getElementById('copy'),ok=document.getElementById('ok'),t='Inaya.B – Place des 4 Fontaines, 11100 Narbonne';
+  b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch{}a.remove()}ok.style.display='block';setTimeout(()=>ok.style.display='none',2200)});
+}
+</script>
+</body>
+</html>
