@@ -38,11 +38,22 @@ export function BarUniformPanel({project,selectedBar,setProject,onStyle,onMessag
         :'Barre uniformisée : même taille ('+size+' px). Aucune icône importée à ajuster.');
     }finally{setBusy(false);}
   };
+  /** Copie le réglage du bouton choisi (taille, zoom de l'icône, animation d'ouverture, police) vers tous les autres boutons. */
+  const copyStyle=()=>{
+    if(!selectedBar)return;
+    const src=selectedBar;
+    setProject(p=>({...withBarSize(p,barIconSize(src)),
+      bottomBar:p.bottomBar.map(b=>({...b,iconSize:barIconSize(src),
+        ...(src.iconZoom!==undefined&&b.iconId?{iconZoom:src.iconZoom}:{}),
+        openAnimation:src.openAnimation,fontFamily:src.fontFamily}))}));
+    onMessage('Le style du bouton « '+src.title+' » (taille, zoom, animation, police) est copié sur tous les boutons.');
+  };
   return <section className="nv-bar-uniform" aria-label="Appliquer à toute la barre">
     <h4>Appliquer à toute la barre <small>({count} boutons)</small></h4>
     <div className="nv-bar-uniform-actions">
       <button type="button" disabled={busy} onClick={uniformSize}>Mêmes tailles<small>{size} px pour tous</small></button>
       <button type="button" disabled={busy} onClick={()=>void uniformFit()}>Icônes uniformes<small>taille + marges ajustées</small></button>
+      <button type="button" disabled={busy||!selectedBar} title={selectedBar?undefined:'Choisis d’abord un bouton dans la liste ou dans la barre'} onClick={copyStyle}>Copier ce bouton à tous<small>{selectedBar?'« '+selectedBar.title+' » : taille, zoom, animation':'choisis d’abord un bouton'}</small></button>
     </div>
     <p className="nv-bar-uniform-label">Couleurs et style pour tous les boutons :</p>
     <div className="nv-skin-choices">{PRESET_PROPOSALS.map(p=><button type="button" key={p.name} onClick={()=>{onStyle(p.style);onMessage('Style « '+p.name+' » appliqué à toute la barre.');}}>

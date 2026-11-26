@@ -5701,6 +5701,10 @@ function App(){
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSection title="Langues de la visite" initiallyOpen>
+            <p className="hint">Les visiteurs choisissent leur langue avec les drapeaux. Coche ici celles que tu proposes ; le texte traduit se saisit ensuite dans chaque point Information.</p>
+            <div className="nv-setup-languages">{STUDIO_LANGUAGES.map(lang=><label key={lang.code}><input type="checkbox" checked={activeLanguages.includes(lang.code)} onChange={e=>{const checked=e.target.checked;setProject(p=>{const current=p.languages??STUDIO_LANGUAGES.map(l=>l.code);const languages=checked?[...new Set([...current,lang.code])]:current.filter(code=>code!==lang.code);return languages.length?{...p,languages}:p;});}}/><span>{lang.flag}</span>{lang.name}</label>)}</div>
+          </InspectorSection>
           <InspectorSection title="Agent immobilier">
             <AgentPicker profile={project.clientProfile} onPick={agent=>setProject(p=>applyAgent(p,agent??emptyAgent()))}/>
           </InspectorSection>
