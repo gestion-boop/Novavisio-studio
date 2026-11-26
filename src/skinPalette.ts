@@ -32,14 +32,21 @@ async function viaProxy(url:string):Promise<string>{
 export async function proposalsFromImages(urls:string[]):Promise<SkinProposal[]>{
   for(const url of urls){
     let local='';
+    const own=/^(data|blob):/.test(url);   // logo importé depuis l'ordinateur : déjà lisible, pas besoin du serveur
     try{
-      local=await viaProxy(url);
+      local=own?url:await viaProxy(url);
       const {primary,accent}=await paletteFromLogo(local);
       return proposalsFrom(primary,accent);
     }catch{/* on essaie l'image suivante */}
-    finally{if(local)URL.revokeObjectURL(local);}
+    finally{if(local&&!own)URL.revokeObjectURL(local);}
   }
   throw Error('Aucune couleur détectable : le logo et les photos ne sont pas lisibles.');
+}
+
+/** Style de la barre du bas déduit du logo : couleur dominante pour les boutons, tons clairs pour le fond, pictogramme lisible. `null` si le logo n'a pas de couleur exploitable (noir et blanc, illisible…). */
+export async function barStyleFromLogo(logo?:string):Promise<SkinProposal['style']|null>{
+  if(!logo)return null;
+  try{return (await proposalsFromImages([logo]))[0].style;}catch{return null;}
 }
 
 /** Palettes standard proposées quand le logo n'est pas lisible. */
