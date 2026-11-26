@@ -303,3 +303,27 @@
 .modal.cloud-panel.nv-cloud2>.nv-cloud2-side,.modal.cloud-panel.nv-cloud2>.nv-cloud2-main{grid-row:2}
 .nv-cloud2 .nv-cloud2-group-head,.nv-cloud2 .nv-cloud2-group-head:hover,.nv-cloud2 .nv-cloud2-group-head:focus{background:rgba(255,255,255,.06);color:inherit;border:0;outline:0;border-radius:8px}
 .nv-cloud2 .nv-cloud2-group-head:hover{background:rgba(255,255,255,.12)}
+
+/* ── Grande fenêtre de réglages : équilibre des colonnes, tuiles lisibles, icônes de même taille et de même couleur ── */
+.bar-item-symbol{height:32px;width:32px;flex:none}
+.bar-item-symbol svg,.bar-item-symbol img{width:22px;height:22px;object-fit:contain}
+@media(min-width:1100px){
+.nv-studio-pro.nv-sheet-open.nv-wide .workspace>.right.panel{
+  left:clamp(16px,2vw,40px);right:clamp(16px,2vw,40px);top:40px;bottom:24px;
+  grid-template-columns:clamp(170px,13vw,210px) minmax(0,1fr) clamp(320px,26vw,430px)}
+.nv-studio-pro.nv-wide .right.panel .nv-right-tabs button{min-height:46px;font-size:14.5px}
+.nv-studio-pro.nv-wide .right.panel .nv-hub-tiles{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.nv-studio-pro.nv-wide .right.panel .nv-hub-tile{
+  display:grid;grid-template-columns:44px minmax(0,1fr);grid-template-rows:auto auto;column-gap:14px;row-gap:2px;align-items:center;justify-items:start;
+  height:auto;min-height:78px;padding:14px 16px;gap:0 14px;border-radius:16px;text-align:left}
+.nv-studio-pro.nv-wide .right.panel .nv-hub-tile .nv-app-tile-icon{grid-row:1/span 2;width:44px;height:44px;border-radius:12px;background:#174b57;box-shadow:none;color:#8fe9de}
+.nv-studio-pro.nv-wide .right.panel .nv-hub-tile .nv-app-tile-icon svg{width:22px;height:22px}
+.nv-studio-pro.nv-wide .right.panel .nv-hub-tile .nv-app-tile-label{white-space:normal;font-size:14.5px;line-height:1.25;align-self:end}
+.nv-studio-pro.nv-wide .right.panel .nv-hub-tile .nv-hub-hint{font-size:12px;font-weight:500;color:#93afbc;white-space:normal;align-self:start;text-align:left}
+.nv-studio-pro.nv-wide .right.panel .nv-hub-tile .nv-app-tile-badge{top:10px;right:12px}
+.nv-studio-pro.nv-wide .nv-hub-detail-body:has(>.bar-items-list){grid-template-columns:minmax(260px,330px) minmax(0,1fr)}
+.nv-studio-pro.nv-wide .bar-item-row{min-height:50px;padding:8px 12px}
+.nv-studio-pro.nv-wide .bar-item-row>span:nth-child(2){font-size:14px}
+.nv-studio-pro.nv-wide .nv-bar-list-sort>.nv-sort-grip{opacity:.4}
+.nv-studio-pro.nv-wide .nv-bar-list-sort:hover>.nv-sort-grip{opacity:1}
+}
