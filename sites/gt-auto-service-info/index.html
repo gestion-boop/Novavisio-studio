@@ -12,7 +12,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"AutoRepair","name":"G.T Auto Service","url":"https://www.gtautoservice.fr/","logo":"https://www.gtautoservice.fr/wp-content/uploads/2026/04/gt-auto-service-logo-reparation.png","telephone":"+33468424196","email":"gt.autoservice11@gmail.com","address":{"@type":"PostalAddress","streetAddress":"37 Avenue du Champ de Mars, ZI Plaisance","postalCode":"11100","addressLocality":"Narbonne","addressCountry":"FR"},"areaServed":["Narbonne","Lézignan-Corbières"],"openingHours":["Mo-Fr","Sa"]}
+{"@context":"https://schema.org","@type":"AutoRepair","name":"G.T Auto Service","url":"https://www.gtautoservice.fr/","logo":"https://www.gtautoservice.fr/wp-content/uploads/2026/04/gt-auto-service-logo-reparation.png","telephone":"+33468424196","email":"gt.autoservice11@gmail.com","address":{"@type":"PostalAddress","streetAddress":"37 Avenue du Champ de Mars, ZI Plaisance","postalCode":"11100","addressLocality":"Narbonne","addressCountry":"FR"},"areaServed":["Narbonne","Lézignan-Corbières"],"openingHours":["Mo-Fr 08:00-12:00","Mo-Fr 14:00-18:00"]  const f=document.getElementById('qf');
+  f.addEventListener('submit',e=>{e.preventDefault();const d=new FormData(f);
+    const body=`Prénom : ${d.get('p')}\nNom : ${d.get('n')}\nEmail : ${d.get('e')}\nTéléphone : ${d.get('t')}\nService : ${d.get('s')}\nPlaque : ${d.get('i')}\n\n${d.get('m')}`;
+    location.href='mailto:gt.autoservice11@gmail.com?subject='+encodeURIComponent('Demande de devis – '+d.get('s'))+'&body='+encodeURIComponent(body)});
+}
 </script>
 <style>
 :root{--red:#B43846;--red-d:#8f2a36;--red-l:#fbe9eb;--ink:#212725;--ink-2:#2c3331;--muted:#5d6562;--bg:#f6f5f3;--card:#fff;--line:#e6e3df}
@@ -131,6 +135,13 @@ details p{padding:0 20px 18px;color:var(--muted)}
 .contact iframe{width:100%;height:100%;min-height:380px;border:0;display:block}
 @media(max-width:860px){.contact{grid-template-columns:1fr}.contact .info{padding:28px}}
 
+.quote{margin-top:28px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:28px}
+.quote h3{font-size:1.25rem;font-weight:800;margin-bottom:6px}
+.qf{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px}
+.qf label{display:grid;gap:6px;font-weight:600;font-size:.9rem}
+.qf .full{grid-column:1/-1}
+.qf input,.qf select,.qf textarea{font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-weight:400}
+.qf button{justify-content:center;border:0;cursor:pointer;font:inherit;font-weight:600}
 .legal{font-size:.9rem;color:var(--muted)}
 .legal dl{display:grid;grid-template-columns:minmax(0,200px) 1fr;gap:8px 18px}
 .legal dt{font-weight:600;color:var(--ink)}
@@ -199,7 +210,7 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
       </div>
       <div class="cta">
         <a class="btn btn-red" href="tel:+33468424196">Appeler le 04 68 42 41 96</a>
-        <a class="btn btn-ghost" href="https://www.gtautoservice.fr/contact/">Demander un devis gratuit</a>
+        <a class="btn btn-ghost" href="#devis">Demander un devis gratuit</a>
       </div>
     </div>
     <aside class="idcard" aria-label="Fiche d'identité">
@@ -208,7 +219,7 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
         <dt>Adresse</dt><dd>37 av. du Champ de Mars<br>ZI Plaisance, 11100 Narbonne</dd>
         <dt>Téléphone</dt><dd><a href="tel:+33468424196">04 68 42 41 96</a></dd>
         <dt>Email</dt><dd><a href="mailto:gt.autoservice11@gmail.com">gt.autoservice11@gmail.com</a></dd>
-        <dt>Horaires</dt><dd>Lundi – vendredi<br>Samedi matin</dd>
+        <dt>Horaires</dt><dd>Lundi – vendredi<br>8h–12h · 14h–18h<br>Samedi et dimanche : fermé</dd>
         <dt>Gérant</dt><dd>Thomas Gaulois</dd>
       </dl>
     </aside>
@@ -347,6 +358,8 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
     <details><summary>Puis-je faire réparer ma carrosserie sans sinistre ?</summary><p>Oui. Pas besoin d'accident pour faire appel au garage : rayure, bosse de parking, phares à rénover ou simple remise en beauté, tout est possible.</p></details>
     <details><summary>Intervenez-vous sur toutes les marques ?</summary><p>Oui : citadines, berlines, SUV et utilitaires légers, diesel comme essence, sans distinction de marque ni de modèle.</p></details>
     <details><summary>Le véhicule de courtoisie est-il payant ?</summary><p>Non, il est mis à disposition gratuitement pendant toute la durée de l'intervention.</p></details>
+    <details><summary>Le débosselage sans peinture, est-ce vraiment efficace ?</summary><p>Oui, pour les petites bosses dont la peinture n'est ni fissurée ni écaillée : le galbe d'origine est retrouvé sans repeindre, ce qui réduit le coût et le délai. Si la peinture est abîmée ou la déformation trop importante, un débosselage classique suivi d'une remise en peinture est nécessaire. L'évaluation est gratuite lors du devis.</p></details>
+    <details><summary>Mon véhicule sera-t-il nettoyé après les travaux ?</summary><p>Oui, systématiquement : à chaque sortie, un nettoyage intérieur complet est offert. Votre voiture vous est rendue propre, réparée et prête à rouler.</p></details>
   </div>
 </section>
 
@@ -383,14 +396,29 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
         <div><h4>Adresse</h4><p>37 avenue du Champ de Mars<br>ZI Plaisance – 11100 Narbonne</p></div>
         <div><h4>Téléphone</h4><a href="tel:+33468424196">04 68 42 41 96</a></div>
         <div><h4>Email</h4><a href="mailto:gt.autoservice11@gmail.com">gt.autoservice11@gmail.com</a></div>
-        <div><h4>Horaires</h4><p>Lundi – vendredi, samedi matin</p></div>
+        <div><h4>Horaires</h4><p>Lundi – vendredi<br>8h–12h · 14h–18h<br>Samedi et dimanche : fermé</p></div>
         <div class="cta" style="margin-top:4px">
-          <a class="btn btn-red" href="https://www.gtautoservice.fr/contact/">Demander un devis</a>
+          <a class="btn btn-red" href="#devis">Demander un devis</a>
           <a class="btn btn-ghost" href="https://www.google.com/maps/search/?api=1&query=37+Avenue+du+Champ+de+Mars+11100+Narbonne" target="_blank" rel="noopener">Itinéraire</a>
         </div>
       </div>
       <iframe loading="lazy" title="Plan d'accès G.T Auto Service" src="https://www.google.com/maps?q=37+Avenue+du+Champ+de+Mars,+11100+Narbonne&output=embed"></iframe>
     </div>
+    <div class="quote" id="devis">
+      <h3>Demande de devis</h3>
+      <p class="sub" style="margin-bottom:16px">Remplissez ce formulaire : votre messagerie s'ouvre avec la demande prête à envoyer au garage.</p>
+      <form id="qf" class="qf">
+        <label>Prénom *<input name="p" required></label>
+        <label>Nom *<input name="n" required></label>
+        <label>Email *<input name="e" type="email" required></label>
+        <label>Téléphone *<input name="t" type="tel" required></label>
+        <label>Service souhaité *<select name="s" required><option value="">Choisir…</option><option>Mécanique</option><option>Carrosserie</option><option>Vitrage</option><option>Pneumatiques</option><option>Climatisation</option><option>Achat / vente / Reprise</option><option>Autre</option></select></label>
+        <label>Plaque d'immatriculation *<input name="i" required></label>
+        <label class="full">Message *<textarea name="m" rows="4" required></textarea></label>
+        <button class="btn btn-red full" type="submit">Envoyer ma demande</button>
+      </form>
+    </div>
+    <p style="margin-top:18px"><a class="btn btn-dark" href="https://www.instagram.com/gt_auto_service" target="_blank" rel="noopener">Instagram @gt_auto_service</a></p>
   </div>
 </section>
 
