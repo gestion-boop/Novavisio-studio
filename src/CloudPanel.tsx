@@ -5,6 +5,7 @@ import {overlayClose} from './overlayClose';
 import {cloudConfigured,supabase,signOut,listCloudProjects,listOwnedProjectRecipients,saveToCloud,openCloudProject,openCloudRevision,listCloudRevisions,listCloudSpaces,listActivePublicationIds,sameProjectName,deleteCloudProject,readLink,writeLink,type CloudProject,type CloudLink,type CloudRevision,type CloudSpace} from './cloud';
 import type {StudioProject} from './storage';
 import {LoginBox} from './LoginBox';
+import {PasswordBox} from './PasswordBox';
 import {XMark} from './XMark';
 import {checkMigrations,migrationSql,type MigrationItem} from './migrationCheck';
 
@@ -22,6 +23,7 @@ type Props={
 };
 export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOpen,onStatus,autoEnabled,onAutoChange,autoLabel,manualMode=false}:Props){
   const [userEmail,setUserEmail]=useState<string|null>(null);
+  const [showPw,setShowPw]=useState(false);
   const [busy,setBusy]=useState('');
   const [error,setError]=useState('');
   const [items,setItems]=useState<CloudProject[]>([]);
@@ -203,6 +205,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
       <h4>Outils</h4>
       {onOpenClients&&<button type="button" className="nv-cloud2-nav" onClick={onOpenClients}>👥 Clients &amp; logos</button>}
       {userEmail&&<button type="button" className={'nv-cloud2-nav'+(showInstall?' is-on':'')} onClick={()=>{setShowInstall(v=>{if(!v&&!migrations)void verifyInstall();return !v;});}}>🛠 Installation Supabase{migrations?(migrations.some(m=>m.state==='missing')?' ⚠':' ✓'):''}</button>}
+      {userEmail&&<button type="button" className={'nv-cloud2-nav'+(showPw?' is-on':'')} onClick={()=>setShowPw(v=>!v)}>🔑 Mon mot de passe</button>}
       {userEmail&&<button type="button" className="nv-cloud2-nav" onClick={()=>void signOut()}>⎋ Se déconnecter</button>}
     </aside>
     <main className="nv-cloud2-main">
@@ -210,6 +213,7 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
       <p className="warning">Supabase n’est pas configuré. Définis <code>NEXT_PUBLIC_SUPABASE_URL</code> et <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> (clé <b>publishable</b> uniquement) dans les variables d’environnement du déploiement, puis redéploie.</p>
     </>:!userEmail?<LoginBox intro="Connecte-toi pour sauvegarder tes visites dans Supabase, ou pour ouvrir une visite à laquelle on t’a invité."/>
     :<>
+      {showPw&&<PasswordBox intro="Définis (ou change) le mot de passe de ton compte : tu pourras te connecter avec ton e-mail et ce mot de passe, en plus du lien magique."/>}
       {mismatch&&linked&&<div className="nv-cloud2-warn" role="alert">⚠ <div><b>Projet ouvert dans l’éditeur : « {project.name} »</b> — lié au Cloud « {linked.name} ». Les noms ne correspondent pas : à l’enregistrement, une confirmation te sera demandée. Pour garder deux projets séparés, utilise « Envoyer comme nouvelle visite ».</div></div>}
       {showInstall&&<div className="nv-install-check nv-cloud2-install">
         <p className="hint-inline">Vérifie que toutes les mises à jour de la base sont installées. Pour une mise à jour manquante : copie son SQL, ouvre l’éditeur SQL de ton projet Supabase, colle, puis exécute.</p>

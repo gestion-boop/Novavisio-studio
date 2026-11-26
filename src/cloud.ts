@@ -108,6 +108,33 @@ export async function confirmEmailLink(tokenHash:string,type:string){
   const {error}=await supabase().auth.verifyOtp({token_hash:tokenHash,type:type as 'email'});
   if(error)throw new Error(/expired|invalid/i.test(error.message)?'Ce lien a expiré ou a déjà été utilisé.':error.message);
 }
+
+/**
+ * Création d'un compte (e-mail + mot de passe) par la personne elle-même. Le mot de passe part uniquement vers Supabase.
+ * 'created' = compte actif et connecté ; 'confirm' = il faut d'abord cliquer le lien de confirmation reçu par e-mail ;
+ * 'exists' = un compte existe déjà avec cette adresse ; 'disabled' = les inscriptions sont fermées dans Supabase.
+ */
+export async function signUpAccount(email:string,password:string):Promise<'created'|'confirm'|'exists'|'disabled'>{
+  const {data,error}=await supabase().auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
+  if(error){
+    if(/already registered|already been registered/i.test(error.message))return 'exists';
+    if(/signups? not allowed|signup.*disabled|not allowed for this instance/i.test(error.message))return 'disabled';
+    throw new Error(/password/i.test(error.message)?'Mot de passe refusé : '+error.message:error.message);
+  }
+  if(data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0)return 'exists';
+  return data.session?'created':'confirm';
+}
+/** Envoie un e-mail pour (re)définir le mot de passe : sert aussi aux comptes créés par lien magique, qui n'en ont pas encore. */
+export async function sendPasswordReset(email:string){
+  const {error}=await supabase().auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  if(error)throw new Error(error.message);
+}
+/** Définit ou change le mot de passe du compte connecté. */
+export async function setMyPassword(password:string){
+  const {error}=await supabase().auth.updateUser({password});
+  if(error)throw new Error(/same|different/i.test(error.message)?'Choisis un mot de passe différent de l’actuel.':error.message);
+}
+export const MIN_PASSWORD=8;
 export async function signOut(){await supabase().auth.signOut();}
 
 export type CloudProject={id:string;name:string;created_at:string;revision:number;updated_at:string;autosave:boolean;shared:boolean;clientName?:string;/** Nombre de panoramas / d'espaces de la visite (absent si le Cloud ne peut pas le lire). */scenes?:number;spaces?:number};

@@ -83,6 +83,7 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
+import {PasswordBox} from './PasswordBox';
 import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,cloudProjectName,sameProjectName,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
@@ -497,6 +498,12 @@ function App(){
   const [cloudOpen,setCloudOpen]=useState(false);
   const [saveWarning,setSaveWarning]=useState<string|null>(null);
   const [authNotice,setAuthNotice]=useState<string|null>(null);
+  const [recoveryPw,setRecoveryPw]=useState(false);
+  useEffect(()=>{
+    if(!cloudConfigured)return;
+    const {data:sub}=supabase().auth.onAuthStateChange(e=>{if(e==='PASSWORD_RECOVERY')setRecoveryPw(true);});
+    return ()=>sub.subscription.unsubscribe();
+  },[]);
   // Lien de confirmation « à bouton » : ?token_hash=…&type=… (le jeton n'est consommé qu'au clic).
   const [emailLink,setEmailLink]=useState<{tokenHash:string;type:string;busy:boolean;error:string;done:boolean}|null>(()=>{
     const q=new URLSearchParams(window.location.search);
@@ -4151,10 +4158,17 @@ function App(){
         </section>
       </div>;
     })()}
+    {recoveryPw&&!emailLink&&<div className="overlay"><div className="modal cloud-panel">
+      <button className="close" onClick={()=>setRecoveryPw(false)} aria-label="Fermer">×</button>
+      <h2>Choisir mon mot de passe</h2>
+      <PasswordBox intro="Tu es connecté grâce au lien reçu par e-mail. Choisis ton mot de passe :"/>
+      <button className="quiet" onClick={()=>setRecoveryPw(false)}>Fermer</button>
+    </div></div>}
     {emailLink&&<div className="overlay"><div className="modal cloud-panel">
       <h2>{emailLink.done?'Adresse confirmée ✓':'Confirmer mon accès'}</h2>
       {emailLink.done?<>
         <p>Tu es connecté. Tu peux maintenant ouvrir la visite partagée : clique sur <b>Cloud</b> en haut, puis <b>Ouvrir</b> à côté de la visite.</p>
+        {emailLink.type==='recovery'&&<PasswordBox intro="Choisis maintenant ton nouveau mot de passe :"/>}
         <button className="primary" onClick={()=>{setEmailLink(null);setCloudOpen(true);}}>Ouvrir le panneau Cloud</button>
       </>:<>
         <p>Clique sur le bouton pour confirmer ton adresse e-mail et accéder à NovaVisio Studio.</p>

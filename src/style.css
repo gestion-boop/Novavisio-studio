@@ -1381,7 +1381,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 .private-btn:hover{background:#4d3811}
 .login-box{display:flex;flex-direction:column;gap:10px}
 .login-box p{margin:0}
-.login-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.login-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .login-tabs button{padding:8px 6px;border:1px solid #3c5a6d;border-radius:9px;background:#183142;color:#c7e5e7;font-size:12px;cursor:pointer}
 .login-tabs button.is-on{border-color:#4bebde;background:#17505a;color:#fff;font-weight:700}
 .login-form{display:flex;flex-direction:column;gap:9px}
