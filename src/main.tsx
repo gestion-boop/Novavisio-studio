@@ -85,6 +85,7 @@ import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {PasswordBox} from './PasswordBox';
 import {ClientColorProposals} from './ClientSetupSteps';
+import {BarUniformPanel} from './BarUniformPanel';
 import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,cloudProjectName,sameProjectName,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
@@ -5467,6 +5468,7 @@ function App(){
         {panel==='bar' && <div className="properties">
           <div className="section-title">BARRE DE NAVIGATION <span className="counter">{project.bottomBar.length}</span></div>
           <p className="hint">Ces icônes apparaissent en bas de la visite. Clique sur un bouton dans le panorama ou dans la liste pour le modifier.</p>
+          <BarUniformPanel project={project} selectedBar={selectedBar} setProject={setProject} onStyle={changeBarStyle} onMessage={setStatus}/>
           <SectionHub id="bar" open={hubOpen.bar??null} onOpenChange={k=>setHubOpen(h=>({...h,bar:k}))} forceOpen={selectedBarId?'buttons':null} sections={[
             {key:'buttons',title:'Boutons et actions',badge:project.bottomBar.length,hint:'Ajouter, modifier, ordonner',icon:<PanelBottom size={26}/>,tone:'#a468f0',content:<>
 

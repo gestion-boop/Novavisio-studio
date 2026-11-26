@@ -327,3 +327,13 @@
 .nv-studio-pro.nv-wide .nv-bar-list-sort>.nv-sort-grip{opacity:.4}
 .nv-studio-pro.nv-wide .nv-bar-list-sort:hover>.nv-sort-grip{opacity:1}
 }
+
+/* Raccourcis « Appliquer à toute la barre » (Barre du bas) */
+.nv-bar-uniform{margin:10px 0 14px;padding:14px 16px;border:1px solid #2f6a72;border-radius:14px;background:#0f2a33}
+.nv-bar-uniform h4{margin:0 0 10px;font-size:14px;color:#e6f6f8}
+.nv-bar-uniform h4 small{font-weight:500;color:#93afbc}
+.nv-bar-uniform-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.nv-bar-uniform-actions button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:11px 14px;border-radius:12px;border:1px solid #3a7b85;background:#154451;color:#e6f6f8;font-weight:700;cursor:pointer;text-align:left}
+.nv-bar-uniform-actions button small{font-weight:500;font-size:11.5px;color:#9fc3cc}
+.nv-bar-uniform-actions button:hover:not(:disabled){background:#1b5565}
+.nv-bar-uniform-label{margin:12px 0 6px;font-size:12px;color:#93afbc}
