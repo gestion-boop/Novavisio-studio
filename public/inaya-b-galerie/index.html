@@ -28,7 +28,7 @@ h1{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:clamp(1
 footer{text-align:center;color:var(--muted);font-size:.85rem;padding:0 18px 40px}
 .lb{position:fixed;inset:0;z-index:100;background:rgba(40,22,16,.94);display:grid;place-items:center;padding:60px 64px}
 .lb[hidden]{display:none}
-.lb img{max-height:84vh;max-width:100%;border-radius:12px;object-fit:contain}
+.lb img{cursor:zoom-out;max-height:84vh;max-width:100%;border-radius:12px;object-fit:contain}
 .lb button{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:50%;width:48px;height:48px;font-size:1.8rem;cursor:pointer;line-height:1}
 .lb button:hover{background:var(--t)}
 .lb-x{top:14px;left:50%;transform:translateX(-50%)}
@@ -73,7 +73,6 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:0 18px 40px
 </div></main>
 <footer>© Inaya.B · Visite immersive by NovaVisio</footer>
 <div class="lb" id="lb" hidden>
-  <button class="lb-x" id="lbx" aria-label="Fermer">×</button>
   <button class="lb-p" id="lbp" aria-label="Précédent">‹</button>
   <button class="lb-n" id="lbn" aria-label="Suivant">›</button>
   <img id="lbi" alt="">
@@ -83,8 +82,8 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:0 18px 40px
   const g=[...document.querySelectorAll('.p')],lb=document.getElementById('lb'),li=document.getElementById('lbi');let k=0;
   const show=n=>{k=(n+g.length)%g.length;const im=g[k].querySelector('img');li.src=im.src;li.alt=im.alt;lb.hidden=false};
   g.forEach((f,i)=>{f.addEventListener('click',()=>show(i));f.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();show(i)}})});
-  document.getElementById('lbx').onclick=()=>lb.hidden=true;document.getElementById('lbp').onclick=()=>show(k-1);document.getElementById('lbn').onclick=()=>show(k+1);
-  lb.addEventListener('click',e=>{if(e.target===lb)lb.hidden=true});
+  document.getElementById('lbp').onclick=()=>show(k-1);document.getElementById('lbn').onclick=()=>show(k+1);
+  lb.addEventListener('click',e=>{if(!e.target.closest('.lb-p,.lb-n'))lb.hidden=true});
   document.addEventListener('keydown',e=>{if(lb.hidden)return;if(e.key==='Escape')lb.hidden=true;if(e.key==='ArrowLeft')show(k-1);if(e.key==='ArrowRight')show(k+1)});
 }
 </script>

@@ -84,7 +84,7 @@ import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {PasswordBox} from './PasswordBox';
-import {barStyleFromLogo} from './skinPalette';
+import {ClientColorProposals} from './ClientSetupSteps';
 import {cloudConfigured,supabase,confirmEmailLink,readLink,writeLink,listCloudProjects,getWriteState,cloudProjectName,sameProjectName,type CloudLink} from './cloud';
 import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,publicationActive,shareUrl,wrapperHtml} from './share';
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
@@ -3738,18 +3738,12 @@ function App(){
     setClientVideoPlacement({...video,sceneId:active.id});
     setStatus('Clique dans le panorama pour placer « '+video.name+' »');
   }
-  /** Crée les couleurs des boutons de la barre du bas d'après le logo du client (couleur dominante). Ne touche à rien si le logo n'a pas de couleur lisible. */
-  async function applyLogoColors(logo:string,name?:string){
-    const style=await barStyleFromLogo(logo);
-    if(!style){setStatus('Logo enregistré, mais aucune couleur lisible n’a pu en être tirée : choisis les couleurs de la barre à la main (Barre → couleurs).');return;}
-    setProject(p=>p.clientProfile?.logoUrl===logo?{...p,barStyle:{...p.barStyle,...style}}:p);
-    setStatus('Couleurs des boutons de la barre du bas créées d’après le logo'+(name?' de « '+name+' »':'')+'. Tu peux les modifier dans Barre → couleurs. Enregistre avec la disquette.');
-  }
   const clientView=<ClientPanel value={project.clientProfile}
     onChange={clientProfile=>{
       const previousLogo=projectRef.current.clientProfile?.logoUrl;
       setProject(p=>withClientAutomation({...p,clientProfile}));
-      if(clientProfile.logoUrl&&clientProfile.logoUrl!==previousLogo&&!clientProfile.preferredSkinId&&!isImmospheraProject(projectRef.current,clientProfile))void applyLogoColors(clientProfile.logoUrl,clientProfile.name);
+      // Le logo ne change JAMAIS les couleurs tout seul : on propose seulement, au choix (Barre → Couleurs et contours).
+      if(clientProfile.logoUrl&&clientProfile.logoUrl!==previousLogo)setStatus('Logo mis à jour. Les couleurs de la barre ne changent pas : pour reprendre celles du logo, ouvre Barre → Couleurs et contours.');
     }}
     onAddLink={addClientLink} canPlaceVideo={!!active} onPlaceVideo={placeClientVideo}
     onImportPhotos={items=>setProject(p=>({...p,mediaLibrary:[...items,...(p.mediaLibrary??[])].slice(0,300)}))}
@@ -5541,7 +5535,7 @@ function App(){
           </div>}
 
             </>},
-            {key:'colors',title:'Couleurs et contours',hint:'Fond, boutons, pictogrammes',icon:<Palette size={26}/>,tone:'#ff8a3d',content:<><div className="style-settings">
+            {key:'colors',title:'Couleurs et contours',hint:'Fond, boutons… ou d’après le logo',icon:<Palette size={26}/>,tone:'#ff8a3d',content:<><ClientColorProposals project={project} onPick={style=>{changeBarStyle(style);setStatus('Couleurs d’après le logo appliquées à la barre. Enregistre avec la disquette.');}}/><div className="style-settings">
             <button type="button" className="tool" onClick={()=>{setPanel('icons');setLibraryFor('global-close-icon');}}>✕ Configurer la croix de fermeture de tous les popups</button>
             {generalLibraryBlock(selectedBar?{barId:selectedBar.id}:undefined,selectedBar?'au bouton « '+selectedBar.title+' »':'')}
             <div className="style-colors">
@@ -6079,16 +6073,10 @@ function App(){
             fresh={...fresh,name,clientProfile,
               ...(style?{barStyle:{...fresh.barStyle,...style}}:{}),
               ...(immo?{vrEnabled:true}:{})};
-            // Nouveau client avec un logo : les couleurs des boutons de la barre sont créées d'après ce logo (sauf skin du client ou palette déjà choisie).
-            let logoNote='';
-            if(!immo&&!chosenSkin&&!style&&clientProfile.logoUrl){
-              const fromLogo=await barStyleFromLogo(clientProfile.logoUrl);
-              if(fromLogo){fresh={...fresh,barStyle:{...fresh.barStyle,...fromLogo}};logoNote=' · couleurs de la barre créées d’après son logo';}
-            }
             setActiveSpaceId(null);setSpaceManagerOpen(false);
             setProject(fresh);setActiveId('');setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(true);
             cloud.unlink();
-            setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' »'+(immo?' (skin Immosphera et casque VR activés)':clientProfile.preferredSkinId?' avec son skin':'')+logoNote+'. Ajoute les panoramas puis enregistre avec la disquette.');
+            setStatus('Bien « '+name+' » préparé pour « '+clientProfile.name+' »'+(immo?' (skin Immosphera et casque VR activés)':clientProfile.preferredSkinId?' avec son skin':'')+'. Ajoute les panoramas puis enregistre avec la disquette.');
           }catch(e){
             setStatus('Impossible de préparer ce bien avec le skin choisi : '+(e instanceof Error?e.message:String(e)));
           }
@@ -6116,8 +6104,6 @@ function App(){
           return;
         }
         setStatus('Client « '+clientProfile.name+' » associé à la visite · Clique sur Enregistrer pour conserver ce lien.');
-        // Client déjà dans la visite : ses couleurs de barre viennent de son logo.
-        if(clientProfile.logoUrl)void applyLogoColors(clientProfile.logoUrl,clientProfile.name);
       }}
     />}
     <footer className="nv-app-footer"><span>NovaVisio Studio · Éditeur professionnel</span><span>{project.scenes.length} panoramas{project.scenes.some(sc=>sc.excluded)?' ('+project.scenes.filter(sc=>sc.excluded).length+' décoché'+(project.scenes.filter(sc=>sc.excluded).length>1?'s':'')+')':''} · {totalPoints} points</span><span className="nv-footer-build">Build {new Date(__NV_BUILD_TIME__).toLocaleString('fr-FR',{timeZone:'Europe/Paris',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} · Projets Cloud Supabase <button type="button" className="nv-footer-refresh" onClick={reloadToLatestVersion} disabled={savingManually} title="Recharger NovaStudio pour obtenir la dernière version">↻ Actualiser</button></span></footer>

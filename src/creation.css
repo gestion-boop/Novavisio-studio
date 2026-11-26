@@ -309,8 +309,8 @@
 .bar-item-symbol svg,.bar-item-symbol img{width:22px;height:22px;object-fit:contain}
 @media(min-width:1100px){
 .nv-studio-pro.nv-sheet-open.nv-wide .workspace>.right.panel{
-  left:clamp(16px,2vw,40px);right:clamp(16px,2vw,40px);top:40px;bottom:24px;
-  grid-template-columns:clamp(170px,13vw,210px) minmax(0,1fr) clamp(320px,26vw,430px)}
+  left:8px;right:8px;top:8px;bottom:8px;border-radius:16px;
+  grid-template-columns:clamp(170px,12vw,210px) minmax(0,1fr) clamp(340px,25vw,460px)}
 .nv-studio-pro.nv-wide .right.panel .nv-right-tabs button{min-height:46px;font-size:14.5px}
 .nv-studio-pro.nv-wide .right.panel .nv-hub-tiles{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
 .nv-studio-pro.nv-wide .right.panel .nv-hub-tile{

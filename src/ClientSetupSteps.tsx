@@ -6,7 +6,7 @@ import {InfoRow} from './InfoRow';
 import {proposalsFromImages,type SkinProposal} from './skinPalette';
 
 type SetProject=Dispatch<SetStateAction<StudioProject>>;
-const https=(u?:string)=>{try{const x=new URL(u||'');return x.protocol==='https:'?x.href:'';}catch{return '';}};
+const https=(u?:string)=>{try{const x=new URL(u||'');return x.protocol==='https:'||/^data:image\//.test(u||'')?(x.protocol==='https:'?x.href:(u||'')):'';}catch{return '';}};
 
 /** Étape « Client » du parcours : la fiche trouvée, à vérifier, et les photos à retenir. */
 export function ClientStep({project,setProject}:{project:StudioProject;setProject:SetProject}){
