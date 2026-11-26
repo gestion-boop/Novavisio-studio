@@ -138,31 +138,6 @@ details p{padding:0 20px 18px;color:var(--muted)}
 .qf .full{grid-column:1/-1}
 .qf input,.qf select,.qf textarea{font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-weight:400}
 .qf button{justify-content:center;border:0;cursor:pointer;font:inherit;font-weight:600}
-.gal{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:210px;gap:14px}
-.gi{position:relative;margin:0;border-radius:16px;overflow:hidden;cursor:zoom-in;background:var(--ink);grid-row:span 2}
-.gi.w{grid-column:span 2}
-.gi.f{grid-column:span 4}
-.gi:focus-visible{outline:3px solid var(--red);outline-offset:2px}
-.gi.f img{object-position:50% 62%}
-.gi img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
-.gi:hover img{transform:scale(1.05)}
-.gi figcaption{position:absolute;inset:auto 0 0 0;padding:44px 18px 16px;color:#fff;background:linear-gradient(transparent,rgba(20,24,23,.88));display:grid;gap:2px}
-.gi small{color:#f3b7bf;font-weight:700;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
-.gi b{font-size:1.05rem;line-height:1.25}
-.gi span{font-size:.85rem;color:#d6dbd9;max-height:0;overflow:hidden;transition:max-height .3s}
-.gi:hover span,.gi:focus-visible span{max-height:5em}
-@media(max-width:860px){.gal{grid-template-columns:repeat(2,1fr);grid-auto-rows:190px}.gi.w{grid-column:span 2}.gi span{max-height:5em}}
-@media(max-width:480px){.gal{grid-template-columns:1fr;grid-auto-rows:260px}.gi.w,.gi.f{grid-column:auto}}
-.lb{position:fixed;inset:0;z-index:100;background:rgba(15,18,17,.94);display:grid;place-items:center;padding:56px 64px}
-.lb[hidden]{display:none}
-.lb figure{max-width:min(1000px,100%);max-height:100%;display:grid;gap:12px;justify-items:center;color:#fff;text-align:center}
-.lb img{max-height:72vh;max-width:100%;border-radius:12px;object-fit:contain}
-.lb figcaption{font-size:.95rem;color:#d6dbd9}
-.lb button{position:absolute;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:50%;width:48px;height:48px;font-size:1.8rem;cursor:pointer;line-height:1}
-.lb button:hover{background:var(--red)}
-.lb-x{top:14px;left:50%;transform:translateX(-50%)}
-.lb-p{left:12px;top:50%}.lb-n{right:12px;top:50%}
-@media(max-width:600px){.lb{padding:64px 10px}.lb-p,.lb-n{top:auto;bottom:14px}}
 .legal{font-size:.9rem;color:var(--muted)}
 .legal dl{display:grid;grid-template-columns:minmax(0,200px) 1fr;gap:8px 18px}
 .legal dt{font-weight:600;color:var(--ink)}
@@ -209,7 +184,6 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
       <li><a href="#top">Accueil</a></li>
       <li><a href="#mecanique">Mécanique</a></li>
       <li><a href="#carrosserie">Carrosserie</a></li>
-      <li><a href="#galerie">Galerie</a></li>
       <li><a href="#actualites">Actualités</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
@@ -343,30 +317,6 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
     </div>
   </div>
 </section>
-
-<section id="galerie">
-  <div class="wrap">
-    <div class="kicker">Galerie</div>
-    <h2>Le garage en images.</h2>
-    <p class="sub">Mécanique, carrosserie, peinture : un seul interlocuteur, toutes marques, à Narbonne.</p>
-    <div class="gal">
-      <figure class="gi w" data-i="0" tabindex="0" role="button" aria-label="Agrandir : Révision et entretien"><img src="assets/img/galerie/moteur.jpg" alt="Révision et entretien" loading="lazy"><figcaption><small>Mécanique</small><b>Révision et entretien</b><span>Vidange, filtres, niveaux : l’atelier intervient selon les préconisations du carnet d’entretien.</span></figcaption></figure>
-      <figure class="gi t" data-i="1" tabindex="0" role="button" aria-label="Agrandir : Lustrage et polissage"><img src="assets/img/galerie/polissage.jpg" alt="Lustrage et polissage" loading="lazy"><figcaption><small>Carrosserie</small><b>Lustrage et polissage</b><span>Un rendu brillant et uniforme, avec des finitions professionnelles.</span></figcaption></figure>
-      <figure class="gi t" data-i="2" tabindex="0" role="button" aria-label="Agrandir : Un atelier équipé"><img src="assets/img/galerie/cles.jpg" alt="Un atelier équipé" loading="lazy"><figcaption><small>Atelier</small><b>Un atelier équipé</b><span>Équipé pour toutes les interventions mécaniques, de la vidange à la panne moteur difficile à identifier.</span></figcaption></figure>
-      <figure class="gi t" data-i="3" tabindex="0" role="button" aria-label="Agrandir : Peinture complète ou partielle"><img src="assets/img/galerie/cabine.jpg" alt="Peinture complète ou partielle" loading="lazy"><figcaption><small>Peinture</small><b>Peinture complète ou partielle</b><span>Raccords et retouches aux teintes constructeurs, de l’apprêt aux finitions.</span></figcaption></figure>
-      <figure class="gi w" data-i="4" tabindex="0" role="button" aria-label="Agrandir : Un accrochage ? On s’occupe de tout"><img src="assets/img/galerie/sinistre.jpg" alt="Un accrochage ? On s’occupe de tout" loading="lazy"><figcaption><small>Sinistre</small><b>Un accrochage ? On s’occupe de tout</b><span>Évaluation des dommages, devis gratuit, relation avec votre assureur et véhicule de courtoisie.</span></figcaption></figure>
-      <figure class="gi t" data-i="5" tabindex="0" role="button" aria-label="Agrandir : Moteur et diagnostic"><img src="assets/img/galerie/diagnostic.jpg" alt="Moteur et diagnostic" loading="lazy"><figcaption><small>Moteur</small><b>Moteur et diagnostic</b><span>Recherche de pannes, injecteurs, bougies, turbo : on identifie la panne avant d’intervenir.</span></figcaption></figure>
-      <figure class="gi f" data-i="6" tabindex="0" role="button" aria-label="Agrandir : Citadines, SUV, utilitaires"><img src="assets/img/galerie/atelier.jpg" alt="Citadines, SUV, utilitaires" loading="lazy"><figcaption><small>Toutes marques</small><b>Citadines, SUV, utilitaires</b><span>Un garage indépendant à Narbonne, pour tous les véhicules, diesel comme essence.</span></figcaption></figure>
-    </div>
-  </div>
-</section>
-
-<div class="lb" id="lb" hidden>
-  <button class="lb-x" id="lbx" aria-label="Fermer">×</button>
-  <button class="lb-p" id="lbp" aria-label="Précédent">‹</button>
-  <button class="lb-n" id="lbn" aria-label="Suivant">›</button>
-  <figure><img id="lbi" alt=""><figcaption id="lbc"></figcaption></figure>
-</div>
 
 <section id="process">
   <div class="wrap">
@@ -506,12 +456,6 @@ footer nav{display:flex;flex-wrap:wrap;gap:18px}
   f.addEventListener('submit',e=>{e.preventDefault();const d=new FormData(f);
     const body=`Prénom : ${d.get('p')}\nNom : ${d.get('n')}\nEmail : ${d.get('e')}\nTéléphone : ${d.get('t')}\nService : ${d.get('s')}\nPlaque : ${d.get('i')}\n\n${d.get('m')}`;
     location.href='mailto:gt.autoservice11@gmail.com?subject='+encodeURIComponent('Demande de devis – '+d.get('s'))+'&body='+encodeURIComponent(body)});
-  const g=[...document.querySelectorAll('.gi')],lb=document.getElementById('lb'),li=document.getElementById('lbi'),lc=document.getElementById('lbc');let k=0;
-  const show=n=>{k=(n+g.length)%g.length;const f=g[k];li.src=f.querySelector('img').src;li.alt=f.querySelector('img').alt;lc.textContent=f.querySelector('b').textContent+' — '+f.querySelector('span').textContent;lb.hidden=false};
-  g.forEach((f,i)=>{f.addEventListener('click',()=>show(i));f.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();show(i)}})});
-  document.getElementById('lbx').onclick=()=>lb.hidden=true;document.getElementById('lbp').onclick=()=>show(k-1);document.getElementById('lbn').onclick=()=>show(k+1);
-  lb.addEventListener('click',e=>{if(e.target===lb)lb.hidden=true});
-  document.addEventListener('keydown',e=>{if(lb.hidden)return;if(e.key==='Escape')lb.hidden=true;if(e.key==='ArrowLeft')show(k-1);if(e.key==='ArrowRight')show(k+1)});
 }
 </script>
 </body>
