@@ -3,127 +3,432 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>G.T Auto Service – Infos</title>
-<meta name="description" content="G.T Auto Service, garage indépendant toutes marques à Narbonne : mécanique, carrosserie, pneus, vitrage, climatisation, diagnostic. Véhicule de courtoisie offert.">
+<title>G.T Auto Service – Garage auto à Narbonne | Fiche infos</title>
+<meta name="description" content="G.T Auto Service, garage indépendant toutes marques à Narbonne (ZI Plaisance) : mécanique, carrosserie, peinture, vitrage, pneus, climatisation, diagnostic, pré-contrôle technique. Véhicule de courtoisie offert, devis gratuit.">
+<meta property="og:title" content="G.T Auto Service – Garage auto à Narbonne">
+<meta property="og:description" content="Mécanique, carrosserie, vitrage, pneus, climatisation. Toutes marques. Véhicule de courtoisie offert.">
+<meta property="og:image" content="https://www.gtautoservice.fr/wp-content/uploads/2026/04/gt-auto-service-logo-reparation.png">
+<link rel="icon" href="assets/img/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"AutoRepair","name":"G.T Auto Service","url":"https://www.gtautoservice.fr/","logo":"https://www.gtautoservice.fr/wp-content/uploads/2026/04/gt-auto-service-logo-reparation.png","telephone":"+33468424196","email":"gt.autoservice11@gmail.com","address":{"@type":"PostalAddress","streetAddress":"37 Avenue du Champ de Mars, ZI Plaisance","postalCode":"11100","addressLocality":"Narbonne","addressCountry":"FR"},"areaServed":["Narbonne","Lézignan-Corbières"],"openingHours":["Mo-Fr","Sa"]}
+</script>
 <style>
-  :root{--red:#B43846;--red-dark:#8f2a36;--ink:#212725;--muted:#5d6562;--bg:#f6f5f3;--card:#fff;--line:#e6e3df}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55}
-  a{color:inherit}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
-  header{background:var(--ink);color:#fff;padding:56px 0 64px;position:relative;overflow:hidden}
-  header::after{content:"";position:absolute;right:-120px;top:-120px;width:380px;height:380px;border-radius:50%;background:var(--red);opacity:.18}
-  .logo{height:84px;width:auto;background:#fff;border-radius:12px;padding:8px 12px;margin-bottom:28px;display:block}
-  .eyebrow{font-size:.78rem;letter-spacing:.14em;text-transform:uppercase;color:#f3b7bf;font-weight:600}
-  h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;line-height:1.1;margin:10px 0 14px}
-  header p{max-width:620px;color:#d6dbd9;font-size:1.05rem}
-  .badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
-  .badge{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);padding:8px 14px;border-radius:999px;font-size:.88rem;font-weight:500}
-  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
-  .btn{display:inline-block;padding:13px 22px;border-radius:10px;font-weight:600;text-decoration:none;transition:.15s}
-  .btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red-dark)}
-  .btn-ghost{border:1px solid rgba(255,255,255,.35);color:#fff}.btn-ghost:hover{background:rgba(255,255,255,.08)}
-  section{padding:56px 0}
-  h2{font-size:1.6rem;font-weight:800;margin-bottom:6px}
-  .sub{color:var(--muted);margin-bottom:28px}
-  .grid{display:grid;gap:16px}
-  .g4{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-  .g3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
-  .card h3{font-size:1.05rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:10px}
-  .card h3 span{width:32px;height:32px;border-radius:8px;background:#fbe9eb;color:var(--red);display:grid;place-items:center;font-size:1rem;flex:none}
-  .card ul{list-style:none;color:var(--muted);font-size:.93rem}
-  .card li{padding:4px 0 4px 16px;position:relative}
-  .card li::before{content:"";position:absolute;left:0;top:12px;width:6px;height:6px;border-radius:50%;background:var(--red)}
-  .kpi{text-align:center}
-  .kpi b{display:block;font-size:2rem;color:var(--red);font-weight:800}
-  .kpi small{color:var(--muted);font-size:.9rem}
-  .contact{background:var(--ink);color:#fff;border-radius:18px;padding:36px;display:grid;gap:28px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
-  .contact h4{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:#f3b7bf;margin-bottom:6px}
-  .contact p,.contact a{font-size:1.05rem;font-weight:500;text-decoration:none}
-  .contact a:hover{text-decoration:underline}
-  .map{margin-top:20px;border-radius:18px;overflow:hidden;border:1px solid var(--line)}
-  .map iframe{width:100%;height:320px;border:0;display:block}
-  footer{padding:28px 0 40px;color:var(--muted);font-size:.85rem;text-align:center}
+:root{--red:#B43846;--red-d:#8f2a36;--red-l:#fbe9eb;--ink:#212725;--ink-2:#2c3331;--muted:#5d6562;--bg:#f6f5f3;--card:#fff;--line:#e6e3df}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;overflow-x:clip}
+a{color:inherit}
+img{max-width:100%;display:block}
+.wrap{max-width:1160px;margin:0 auto;padding:0 20px}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:50;background:rgba(251,250,248,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:72px}
+.nav img{height:46px;width:auto}
+.nav ul{display:flex;gap:30px;list-style:none}
+.nav ul a{text-decoration:none;font-weight:500;font-size:1.02rem;transition:color .15s}
+.nav ul a:hover,.nav ul a.on{color:var(--red)}
+.nav .call{background:var(--red);color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:600;font-size:.92rem;white-space:nowrap}
+.burger{display:none;background:none;border:0;font-size:1.6rem;cursor:pointer;width:44px;height:44px}
+@media(max-width:860px){
+  .nav ul{display:none;position:absolute;top:72px;left:0;right:0;flex-direction:column;gap:0;background:#fbfaf8;border-bottom:1px solid var(--line)}
+  .nav ul.open{display:flex}
+  .nav ul a{display:block;padding:14px 20px;border-top:1px solid var(--line)}
+  .burger{display:block}
+  .nav .call{display:none}
+}
+
+/* HERO */
+.hero{background:var(--ink);color:#fff;position:relative;overflow:hidden}
+.hero::before{content:"";position:absolute;right:-160px;top:-160px;width:520px;height:520px;border-radius:50%;background:var(--red);opacity:.2}
+.hero::after{content:"";position:absolute;left:-120px;bottom:-200px;width:380px;height:380px;border-radius:50%;border:2px solid rgba(255,255,255,.07)}
+.hero .wrap{position:relative;z-index:1;padding-top:72px;padding-bottom:80px;display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:center}
+.tag{display:inline-block;font-size:.8rem;font-weight:600;color:#f3b7bf;background:rgba(180,56,70,.18);border:1px solid rgba(243,183,191,.25);padding:6px 12px;border-radius:999px}
+.hero h1{font-size:clamp(2.1rem,5vw,3.5rem);font-weight:800;line-height:1.06;margin:16px 0;text-wrap:balance}
+.hero h1 em{font-style:normal;color:#f08c98}
+.hero p.lead{color:#d6dbd9;font-size:1.1rem;max-width:600px}
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.badge{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);padding:8px 14px;border-radius:999px;font-size:.88rem;font-weight:500}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 22px;border-radius:10px;font-weight:600;text-decoration:none;transition:.15s;min-height:48px}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:var(--red-d)}
+.btn-ghost{border:1px solid rgba(255,255,255,.35);color:#fff}.btn-ghost:hover{background:rgba(255,255,255,.08)}
+.btn-dark{background:var(--ink);color:#fff}.btn-dark:hover{background:#000}
+.idcard{background:#fff;color:var(--ink);border-radius:18px;padding:26px;box-shadow:0 30px 60px rgba(0,0,0,.35)}
+.idcard img{height:70px;width:auto;margin-bottom:18px}
+.idcard dl{display:grid;grid-template-columns:auto 1fr;gap:10px 14px;font-size:.93rem}
+.idcard dt{color:var(--muted);font-weight:500}
+.idcard dd{font-weight:600}
+.idcard dd a{text-decoration:none;color:var(--red)}
+@media(max-width:860px){.hero .wrap{grid-template-columns:1fr;padding-top:48px;padding-bottom:56px}}
+
+/* SECTIONS */
+section{padding:72px 0}
+.alt{background:#fff;border-block:1px solid var(--line)}
+.kicker{color:var(--red);font-weight:700;font-size:.85rem;margin-bottom:8px}
+h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:800;line-height:1.12;margin-bottom:12px;text-wrap:balance}
+.sub{color:var(--muted);max-width:720px;margin-bottom:34px;font-size:1.03rem}
+.grid{display:grid;gap:18px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}
+.alt .card{background:var(--bg)}
+.card h3{font-size:1.08rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.ico{width:38px;height:38px;border-radius:10px;background:var(--red-l);color:var(--red);display:grid;place-items:center;flex:none}
+.ico svg{width:20px;height:20px}
+.card p{color:var(--muted);font-size:.94rem;margin-bottom:10px}
+.card ul{list-style:none;font-size:.93rem}
+.card li{padding:5px 0 5px 18px;position:relative}
+.card li::before{content:"";position:absolute;left:0;top:13px;width:7px;height:7px;border-radius:50%;background:var(--red)}
+.kpi{text-align:center;padding:26px 18px}
+.kpi b{display:block;font-size:2.1rem;color:var(--red);font-weight:800;line-height:1.1}
+.kpi small{color:var(--muted);font-size:.92rem}
+
+/* ABOUT */
+.about{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:start}
+.about p{margin-bottom:14px;color:#3a423f}
+.checks{list-style:none;display:grid;gap:12px}
+.checks li{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px 14px 50px;position:relative;font-weight:500}
+.checks li::before{content:"✓";position:absolute;left:16px;top:13px;width:22px;height:22px;border-radius:50%;background:var(--red);color:#fff;font-size:.8rem;display:grid;place-items:center;font-weight:700}
+@media(max-width:860px){.about{grid-template-columns:1fr}}
+
+/* STEPS */
+.steps{counter-reset:s;display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr))}
+.step{background:var(--ink);color:#fff;border-radius:16px;padding:28px;position:relative}
+.step::before{counter-increment:s;content:counter(s);position:absolute;top:22px;right:24px;font-size:3rem;font-weight:800;color:rgba(255,255,255,.08);line-height:1}
+.step span{color:#f08c98;font-weight:700;font-size:.85rem}
+.step h3{font-size:1.15rem;margin:6px 0 8px}
+.step p{color:#c9cfcd;font-size:.95rem}
+
+/* FAQ */
+details{background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
+summary{cursor:pointer;padding:18px 52px 18px 20px;font-weight:600;list-style:none;position:relative}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";position:absolute;right:20px;top:14px;font-size:1.4rem;color:var(--red);font-weight:600}
+details[open] summary::after{content:"–"}
+details p{padding:0 20px 18px;color:var(--muted)}
+
+/* NEWS */
+.news a{text-decoration:none;display:flex;flex-direction:column;height:100%}
+.news .card{transition:.15s;display:flex;flex-direction:column}
+.news .card:hover{border-color:var(--red);transform:translateY(-2px)}
+.news .more{margin-top:auto;color:var(--red);font-weight:600;font-size:.92rem}
+.news small{color:var(--red);font-weight:600;font-size:.8rem}
+
+/* ZONES */
+.zones{display:flex;flex-wrap:wrap;gap:10px}
+.zones span{background:#fff;border:1px solid var(--line);padding:9px 16px;border-radius:999px;font-weight:500}
+
+/* CONTACT */
+.contact{background:var(--ink);color:#fff;border-radius:20px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr}
+.contact .info{padding:40px;display:grid;gap:22px;align-content:start}
+.contact h4{font-size:.8rem;color:#f3b7bf;margin-bottom:4px;font-weight:600}
+.contact p,.contact a{font-size:1.05rem;font-weight:500;text-decoration:none}
+.contact a:hover{text-decoration:underline}
+.contact iframe{width:100%;height:100%;min-height:380px;border:0;display:block}
+@media(max-width:860px){.contact{grid-template-columns:1fr}.contact .info{padding:28px}}
+
+.legal{font-size:.9rem;color:var(--muted)}
+.legal dl{display:grid;grid-template-columns:minmax(0,200px) 1fr;gap:8px 18px}
+.legal dt{font-weight:600;color:var(--ink)}
+@media(max-width:600px){.legal dl{grid-template-columns:1fr}.legal dd{margin-bottom:8px}}
+
+footer{background:var(--ink);color:#aeb5b2;padding:36px 0;font-size:.88rem;margin-top:72px}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px}
+footer a{color:#fff;text-decoration:none}
+footer nav{display:flex;flex-wrap:wrap;gap:18px}
+
+.sticky-call{display:none}
+@media(max-width:860px){.sticky-call{display:flex;position:fixed;bottom:14px;left:14px;right:14px;z-index:60;justify-content:center;box-shadow:0 10px 30px rgba(0,0,0,.25)}body{padding-bottom:76px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 </style>
 </head>
 <body>
 
-<header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.5-.6-.6-2.5z"/></symbol>
+  <symbol id="i-brake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.8-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14.1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 3.3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.8h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.1z"/></symbol>
+  <symbol id="i-susp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M8 5h8M8 19h8M9 8l6 2-6 2 6 2-6 2"/></symbol>
+  <symbol id="i-engine" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 9h3l2-2h5l2 2h2v3h2v4h-2v2H8l-2-2H4z"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4M7 11h2l1-2 2 4 1-2h4"/></symbol>
+  <symbol id="i-exhaust" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 14h11a3 3 0 0 0 0-6H8M17 10h4M17 14h3M18 18c1 0 2-1 2-2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-hammer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12l-8.5 8.5a2.1 2.1 0 0 1-3-3L12 9M17.6 15L22 10.6M20 12.6l-6.6-6.6a3 3 0 0 0-4.2 0L8 7.2l7.2 7.2"/></symbol>
+  <symbol id="i-frame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M7 7v10M17 7v10M3 12h18"/></symbol>
+  <symbol id="i-paint" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 11h2v6h-9v4M5 3h14v8H5zM3 7h2"/></symbol>
+  <symbol id="i-glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 16c3-6 15-6 18 0z"/><path d="M12 10v6"/></symbol>
+  <symbol id="i-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6a6 6 0 0 1 0 12zM13 8h7M13 12h8M13 16h7"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></symbol>
+  <symbol id="i-tire" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5"/></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M4 7l16 10M20 7L4 17M9 4l3 2 3-2M9 20l3-2 3 2"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 16H3v-4l2-5h14l2 5v4h-2"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/><path d="M9.5 16.5h5"/></symbol>
+  <symbol id="i-euro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6a7 7 0 1 0 0 12M4 10h10M4 14h10"/></symbol>
+</svg>
+
+<nav class="nav">
   <div class="wrap">
-    <img class="logo" src="assets/img/logo.png" alt="G.T Auto Service">
-    <div class="eyebrow">Garage indépendant · Narbonne</div>
-    <h1>G.T Auto Service</h1>
-    <p>Mécanique, carrosserie, pneus, vitrage, climatisation et achat-revente : un seul interlocuteur pour tous vos besoins auto, toutes marques.</p>
-    <div class="badges">
-      <div class="badge">🚗 Véhicule de courtoisie offert</div>
-      <div class="badge">📄 Devis clair et transparent</div>
-      <div class="badge">🔧 Toutes marques</div>
-      <div class="badge">✨ Nettoyage intérieur offert</div>
+    <a href="https://www.gtautoservice.fr/" aria-label="G.T Auto Service – accueil"><img src="assets/img/logo.png" alt="G.T Auto Service"></a>
+    <ul id="menu">
+      <li><a href="https://www.gtautoservice.fr/">Accueil</a></li>
+      <li><a href="https://www.gtautoservice.fr/atelier-mecanique-narbonne/">Mécanique</a></li>
+      <li><a href="https://www.gtautoservice.fr/carrosserie-narbonne/">Carrosserie</a></li>
+      <li><a href="https://www.gtautoservice.fr/actualites/">Actualités</a></li>
+      <li><a href="https://www.gtautoservice.fr/contact/">Contact</a></li>
+    </ul>
+    <a class="call" href="tel:+33468424196">04 68 42 41 96</a>
+    <button class="burger" id="burger" aria-label="Ouvrir le menu" aria-expanded="false">☰</button>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="tag">Garage indépendant · Narbonne · ZI Plaisance</span>
+      <h1>Votre garage automobile <em>à Narbonne</em>, toutes marques.</h1>
+      <p class="lead">Mécanique, carrosserie, peinture, vitrage, pneus, climatisation, diagnostic et achat-revente : un seul interlocuteur pour tous vos besoins auto. Chez G.T Auto Service, on prend soin de votre véhicule comme du nôtre.</p>
+      <div class="badges">
+        <span class="badge">Véhicule de courtoisie offert</span>
+        <span class="badge">Devis gratuit et transparent</span>
+        <span class="badge">Toutes marques</span>
+        <span class="badge">Nettoyage intérieur offert</span>
+      </div>
+      <div class="cta">
+        <a class="btn btn-red" href="tel:+33468424196">Appeler le 04 68 42 41 96</a>
+        <a class="btn btn-ghost" href="https://www.gtautoservice.fr/contact/">Demander un devis gratuit</a>
+      </div>
     </div>
-    <div class="cta">
-      <a class="btn btn-red" href="tel:+33468424196">📞 04 68 42 41 96</a>
-      <a class="btn btn-ghost" href="https://www.gtautoservice.fr/#contact" target="_blank" rel="noopener">Demander un devis gratuit</a>
-    </div>
+    <aside class="idcard" aria-label="Fiche d'identité">
+      <img src="assets/img/logo.png" alt="Logo G.T Auto Service">
+      <dl>
+        <dt>Adresse</dt><dd>37 av. du Champ de Mars<br>ZI Plaisance, 11100 Narbonne</dd>
+        <dt>Téléphone</dt><dd><a href="tel:+33468424196">04 68 42 41 96</a></dd>
+        <dt>Email</dt><dd><a href="mailto:gt.autoservice11@gmail.com">gt.autoservice11@gmail.com</a></dd>
+        <dt>Horaires</dt><dd>Lundi – vendredi<br>Samedi matin</dd>
+        <dt>Gérant</dt><dd>Thomas Gaulois</dd>
+      </dl>
+    </aside>
   </div>
 </header>
 
 <section>
   <div class="wrap grid g4">
-    <div class="card kpi"><b>15+ ans</b><small>d'expertise à Narbonne</small></div>
-    <div class="card kpi"><b>Toutes</b><small>marques : citadines, SUV, utilitaires</small></div>
-    <div class="card kpi"><b>0 €</b><small>pour le véhicule de prêt pendant les travaux</small></div>
+    <div class="card kpi"><b>15+ ans</b><small>d'expertise au service des automobilistes narbonnais</small></div>
+    <div class="card kpi"><b>Toutes</b><small>marques : citadines, berlines, SUV, utilitaires, diesel et essence</small></div>
+    <div class="card kpi"><b>0 €</b><small>pour le véhicule de courtoisie pendant toute l'intervention</small></div>
     <div class="card kpi"><b>1</b><small>interlocuteur unique, de l'entretien au sinistre</small></div>
   </div>
 </section>
 
-<section style="padding-top:0">
+<section class="alt" id="apropos">
+  <div class="wrap about">
+    <div>
+      <div class="kicker">À propos</div>
+      <h2>Un vrai garagiste, à votre service.</h2>
+      <p>G.T Auto Service, c'est une équipe de mécaniciens passionnés qui met son savoir-faire au service des automobilistes narbonnais depuis plus de 15 ans. De la simple vidange à la remise en état complète après sinistre, le garage intervient sur toutes marques avec la même exigence : un travail bien fait, des tarifs justes, une vraie écoute.</p>
+      <p>Pas de rendez-vous impossible à obtenir, pas de jargon inutile : on vous explique clairement ce qui ne va pas, ce qui va être fait et combien ça va coûter, avant de commencer.</p>
+      <p>Parce qu'une immobilisation de véhicule bouleverse le quotidien, un véhicule de courtoisie est mis à votre disposition pendant toute la durée de l'intervention, sans frais supplémentaires.</p>
+    </div>
+    <ul class="checks">
+      <li>Garage de proximité ancré à Narbonne</li>
+      <li>Délais annoncés et respectés</li>
+      <li>Devis détaillé avant toute intervention, rien sans votre accord</li>
+      <li>Pièces de rechange de qualité</li>
+      <li>Nettoyage intérieur offert à chaque sortie</li>
+      <li>Gestion complète de vos sinistres avec l'assurance</li>
+    </ul>
+  </div>
+</section>
+
+<section id="mecanique">
   <div class="wrap">
-    <h2>Nos services</h2>
-    <p class="sub">De l'entretien courant aux grosses interventions, tout sous un seul toit.</p>
+    <div class="kicker">Atelier mécanique</div>
+    <h2>Mécanique : de l'entretien courant aux grosses réparations.</h2>
+    <p class="sub">L'atelier est équipé pour toutes les interventions mécaniques, de la vidange à la panne moteur difficile à identifier. <a href="https://www.gtautoservice.fr/atelier-mecanique-narbonne/" style="color:var(--red);font-weight:600">Voir la page Mécanique →</a></p>
     <div class="grid g3">
-      <div class="card"><h3><span>🔧</span>Mécanique générale</h3><ul>
-        <li>Vidange et filtres (huile, air, habitacle, carburant)</li><li>Courroie de distribution et accessoires</li><li>Embrayage et boîte de vitesses</li><li>Freinage, suspension, direction, parallélisme</li></ul></div>
-      <div class="card"><h3><span>⚙️</span>Moteur</h3><ul>
-        <li>Recherche de pannes moteur</li><li>Injecteurs, bougies, turbo</li><li>Décalaminage</li><li>Joint de culasse</li><li>Préparation / reprogrammation</li></ul></div>
-      <div class="card"><h3><span>🎨</span>Carrosserie &amp; peinture</h3><ul>
-        <li>Débosselage classique et sans peinture</li><li>Redressage de châssis au marbre</li><li>Peinture complète et raccords</li><li>Remplacement d'éléments</li><li>Rénovation d'optiques de phares</li></ul></div>
-      <div class="card"><h3><span>🛞</span>Pneumatiques</h3><ul>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-wrench"/></svg></span>Révision et entretien</h3>
+        <p>Selon les préconisations du carnet d'entretien.</p><ul>
+        <li>Vidange et filtre à huile</li><li>Filtres à air, habitacle et carburant</li><li>Niveaux : frein, refroidissement, lave-glace</li><li>Essuie-glaces, ampoules et phares</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-brake"/></svg></span>Freinage et sécurité</h3>
+        <p>Votre première ligne de sécurité.</p><ul>
+        <li>Plaquettes et disques</li><li>Étriers et liquide de frein</li><li>Frein de stationnement</li><li>Contrôle complet du circuit</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-gear"/></svg></span>Distribution, embrayage, transmission</h3>
+        <p>Des pièces critiques, à traiter avant la casse.</p><ul>
+        <li>Kit distribution avec galet et pompe à eau</li><li>Embrayage et kit complet</li><li>Boîte de vitesses</li><li>Chaîne de transmission</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-susp"/></svg></span>Suspension, direction, parallélisme</h3>
+        <p>Pour la tenue de route, les pneus et la consommation.</p><ul>
+        <li>Amortisseurs et suspension</li><li>Géométrie et parallélisme</li><li>Direction</li><li>Roulements et rotules</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-engine"/></svg></span>Moteur et motorisation</h3>
+        <p>Des interventions courantes aux plus techniques.</p><ul>
+        <li>Recherche de pannes et codes défauts</li><li>Injecteurs, bougies, turbo</li><li>Décalaminage, joint de culasse</li><li>Préparation moteur et reprogrammation</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-scan"/></svg></span>Diagnostic électronique</h3>
+        <p>Voyant allumé ? On identifie la panne avant d'intervenir.</p><ul>
+        <li>Valise OBD, lecture des codes défauts</li><li>Systèmes électroniques et capteurs</li><li>Démarreur, alternateur, batterie</li><li>Check-up complet du véhicule</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-exhaust"/></svg></span>Échappement et dépollution</h3>
+        <p>Performances, consommation et contrôle technique.</p><ul>
+        <li>Pot et éléments de ligne</li><li>FAP (filtre à particules)</li><li>Catalyseur</li><li>Contrôle des émissions</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-check"/></svg></span>Pré-contrôle technique</h3>
+        <p>Passez le contrôle sans mauvaise surprise.</p><ul>
+        <li>Pré-contrôle sur tous les points réglementaires</li><li>Correction des défaillances</li><li>Prise en charge de la contre-visite</li><li>Aide aux démarches carte grise</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-tire"/></svg></span>Pneumatiques</h3>
+        <p>Montés, équilibrés et alignés comme il se doit.</p><ul>
         <li>Montage, équilibrage, géométrie</li><li>Pneus neufs et d'occasion</li><li>Permutation et stockage saisonnier</li><li>Réparation de crevaison</li></ul></div>
-      <div class="card"><h3><span>🪟</span>Vitrage</h3><ul>
-        <li>Remplacement de pare-brise</li><li>Réparation d'impacts</li><li>Vitres latérales et lunette arrière</li><li>Pose de films teintés</li></ul></div>
-      <div class="card"><h3><span>❄️</span>Climatisation</h3><ul>
-        <li>Recharge et désinfection</li><li>Remplacement de compresseur</li><li>Diagnostic de fuite au traceur UV</li></ul></div>
-      <div class="card"><h3><span>🔍</span>Diagnostic</h3><ul>
-        <li>Diagnostic électronique (valise OBD)</li><li>Check-up complet du véhicule</li><li>Explication claire et solution adaptée</li></ul></div>
-      <div class="card"><h3><span>📋</span>Contrôle technique</h3><ul>
-        <li>Pré-contrôle technique</li><li>Contre-visite</li></ul></div>
-      <div class="card"><h3><span>🛡️</span>Sinistres &amp; occasion</h3><ul>
-        <li>Relation avec votre assurance</li><li>Prise en charge de A à Z</li><li>Achat, vente et reprise de véhicules</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-snow"/></svg></span>Climatisation</h3>
+        <p>Un habitacle frais et sain toute l'année.</p><ul>
+        <li>Recharge et désinfection</li><li>Remplacement de compresseur</li><li>Recherche de fuite au traceur UV</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-car"/></svg></span>Achat, vente et reprise</h3>
+        <p>Véhicules d'occasion vérifiés par l'atelier.</p><ul>
+        <li>Achat-revente de véhicules d'occasion</li><li>Reprise de votre véhicule</li><li>Conseil avant achat</li></ul></div>
     </div>
   </div>
 </section>
 
-<section style="padding-top:0">
+<section class="alt" id="carrosserie">
   <div class="wrap">
-    <h2>Coordonnées</h2>
+    <div class="kicker">Carrosserie et peinture</div>
+    <h2>Carrosserie : un seul interlocuteur, de l'évaluation à la restitution.</h2>
+    <p class="sub">G.T Auto Service coordonne vos travaux avec un réseau de carrossiers spécialisés sélectionnés : évaluation des dommages, organisation, suivi du chantier et restitution. <a href="https://www.gtautoservice.fr/carrosserie-narbonne/" style="color:var(--red);font-weight:600">Voir la page Carrosserie →</a></p>
+    <div class="grid g3">
+      <div class="card"><h3><span class="ico"><svg><use href="#i-hammer"/></svg></span>Débosselage et tôlerie</h3><ul>
+        <li>Débosselage classique, avec ou sans remplacement</li><li>Débosselage sans peinture (DSP)</li><li>Tôlerie et redressage</li><li>Aile, capot, portière, pare-chocs</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-frame"/></svg></span>Redressage de châssis au marbre</h3><ul>
+        <li>Contrôle de la géométrie sur banc</li><li>Redressage aux cotes constructeur</li><li>Véhicules légers et utilitaires</li><li>Rapport de contrôle fourni</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-paint"/></svg></span>Peinture automobile</h3><ul>
+        <li>Peinture complète ou partielle</li><li>Raccords aux teintes constructeurs</li><li>Apprêt, ponçage, finitions</li><li>Lustrage et polissage</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-glass"/></svg></span>Vitrage automobile</h3><ul>
+        <li>Pare-brise toutes marques</li><li>Réparation d'impacts</li><li>Vitres latérales et lunette arrière</li><li>Films teintés homologués</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-light"/></svg></span>Optiques et éclairage</h3><ul>
+        <li>Rénovation de phares jaunis</li><li>Phares et rétroviseurs</li><li>Calandre</li><li>Feux arrière et clignotants</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-shield"/></svg></span>Anticorrosion et protection</h3><ul>
+        <li>Traitement antirouille préventif</li><li>Soubassements, passages de roue</li><li>Traitement curatif</li><li>Protection longue durée</li></ul></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-doc"/></svg></span>Sinistre et assurance</h3><ul>
+        <li>Évaluation et devis gratuit détaillé</li><li>Coordination avec votre assureur</li><li>Suivi complet du dossier</li><li>Véhicule de remplacement</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<section id="process">
+  <div class="wrap">
+    <div class="kicker">Comment ça se passe</div>
+    <h2>Une prise en charge simple, de A à Z.</h2>
+    <p class="sub">Trois étapes, sans surprise.</p>
+    <div class="steps">
+      <div class="step"><span>Étape 1</span><h3>Vous nous contactez</h3><p>Par téléphone ou par le formulaire, vous décrivez le problème. On convient d'un créneau adapté à votre emploi du temps.</p></div>
+      <div class="step"><span>Étape 2</span><h3>Diagnostic et devis</h3><p>Diagnostic précis à votre arrivée, puis devis clair et détaillé. Rien n'est réalisé sans votre accord.</p></div>
+      <div class="step"><span>Étape 3</span><h3>Réparation et restitution</h3><p>Travaux dans les délais convenus, véhicule rendu propre avec nettoyage intérieur offert. Véhicule de courtoisie si besoin.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="pourquoi">
+  <div class="wrap">
+    <div class="kicker">Pourquoi nous choisir</div>
+    <h2>Trois raisons de confier votre véhicule à G.T Auto Service.</h2>
+    <div class="grid g3" style="margin-top:28px">
+      <div class="card"><h3><span class="ico"><svg><use href="#i-wrench"/></svg></span>Un garage tout-en-un</h3><p>Mécanique, carrosserie, peinture, diagnostic, achat-revente : fini les allers-retours entre spécialistes.</p></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-car"/></svg></span>Véhicule de courtoisie</h3><p>Vous ne restez jamais à pied : un véhicule de prêt gratuit le temps que votre voiture soit prête.</p></div>
+      <div class="card"><h3><span class="ico"><svg><use href="#i-euro"/></svg></span>Devis transparent, zéro surprise</h3><p>Devis détaillé avant chaque intervention. Pas de frais cachés, pas de réparation non validée.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap" style="max-width:860px">
+    <div class="kicker">FAQ</div>
+    <h2>Questions fréquentes</h2>
+    <p class="sub">Les réponses aux questions que les clients posent le plus souvent.</p>
+    <details><summary>G.T Auto Service est-il agréé par les assurances ?</summary><p>Le garage n'est pas agréé assurance, mais cela ne change rien pour vous : il gère directement la relation avec votre assureur et vous accompagne dans toutes les démarches liées au sinistre, avec le même suivi qu'un carrossier agréé et un interlocuteur de proximité à Narbonne qui défend vos intérêts.</p></details>
+    <details><summary>Combien coûte une réparation de carrosserie ?</summary><p>Tout dépend de la nature et de l'étendue des dommages : une retouche de peinture ou un débosselage sans peinture n'a pas le même coût qu'un redressage de châssis au marbre. Un devis gratuit, détaillé et sans engagement est établi avant toute intervention.</p></details>
+    <details><summary>Combien de temps durent les travaux ?</summary><p>Une réparation d'impact ou un débosselage léger peut être rapide ; une remise en état complète ou une peinture intégrale demande plus de temps. Le délai estimé est communiqué dès le devis, et un véhicule de courtoisie est prêté pendant toute l'immobilisation.</p></details>
+    <details><summary>Puis-je faire réparer ma carrosserie sans sinistre ?</summary><p>Oui. Pas besoin d'accident pour faire appel au garage : rayure, bosse de parking, phares à rénover ou simple remise en beauté, tout est possible.</p></details>
+    <details><summary>Intervenez-vous sur toutes les marques ?</summary><p>Oui : citadines, berlines, SUV et utilitaires légers, diesel comme essence, sans distinction de marque ni de modèle.</p></details>
+    <details><summary>Le véhicule de courtoisie est-il payant ?</summary><p>Non, il est mis à disposition gratuitement pendant toute la durée de l'intervention.</p></details>
+  </div>
+</section>
+
+<section class="alt" id="actualites">
+  <div class="wrap">
+    <div class="kicker">Actualités</div>
+    <h2>À la une du garage</h2>
+    <p class="sub">Conseils d'entretien et offres saisonnières. <a href="https://www.gtautoservice.fr/actualites/" style="color:var(--red);font-weight:600">Toutes les actualités →</a></p>
+    <div class="grid g4 news">
+      <a href="https://www.gtautoservice.fr/changement-de-pneu-narbonne-montage-et-equilibrage/"><div class="card"><small>Pneumatiques</small><h3>Changement de pneu à Narbonne : montage et équilibrage</h3><p>Pneus neufs ou d'occasion, équilibrage et géométrie.</p><span class="more">Lire l'article →</span></div></a>
+      <a href="https://www.gtautoservice.fr/climatisation-voiture-narbonne-votre-controle-avant-lete/"><div class="card"><small>Climatisation</small><h3>Climatisation voiture : votre contrôle avant l'été</h3><p>Diagnostic complet de la climatisation et contrôle du gaz.</p><span class="more">Lire l'article →</span></div></a>
+      <a href="https://www.gtautoservice.fr/revision-voiture-narbonne-partez-en-vacances-serein/"><div class="card"><small>Révision</small><h3>Révision voiture : partez en vacances serein</h3><p>Un pré-contrôle complet de votre auto avant le départ.</p><span class="more">Lire l'article →</span></div></a>
+      <a href="https://www.gtautoservice.fr/revision-auto-narbonne-preparez-vos-vacances-dete/"><div class="card"><small>Révision</small><h3>Révision auto : préparez vos vacances d'été</h3><p>Prenez rendez-vous 2 à 3 semaines avant votre départ.</p><span class="more">Lire l'article →</span></div></a>
+    </div>
+  </div>
+</section>
+
+<section id="zones">
+  <div class="wrap">
+    <div class="kicker">Secteur d'intervention</div>
+    <h2>Narbonne et ses environs</h2>
+    <p class="sub">Le garage accueille les automobilistes de Narbonne, du Narbonnais et du Lézignanais.</p>
+    <div class="zones"><span>Narbonne</span><span>Le Narbonnais</span><span>Lézignan-Corbières</span></div>
+  </div>
+</section>
+
+<section id="contact" style="padding-top:0">
+  <div class="wrap">
+    <div class="kicker">Contact</div>
+    <h2>Parlons de votre véhicule.</h2>
     <p class="sub">Un devis, une question, un rendez-vous ? L'équipe vous répond rapidement.</p>
     <div class="contact">
-      <div><h4>Adresse</h4><p>37 avenue du Champ de Mars<br>ZI Plaisance<br>11100 Narbonne</p></div>
-      <div><h4>Téléphone</h4><p>04 68 42 41 96</p></div>
-      <div><h4>Email</h4><p>gt.autoservice11@gmail.com</p></div>
-      <div><h4>Horaires</h4><p>Du lundi au vendredi<br>Le samedi matin<br><small style="color:#d6dbd9;font-weight:400">Horaires précis : nous appeler</small></p></div>
+      <div class="info">
+        <div><h4>Adresse</h4><p>37 avenue du Champ de Mars<br>ZI Plaisance – 11100 Narbonne</p></div>
+        <div><h4>Téléphone</h4><a href="tel:+33468424196">04 68 42 41 96</a></div>
+        <div><h4>Email</h4><a href="mailto:gt.autoservice11@gmail.com">gt.autoservice11@gmail.com</a></div>
+        <div><h4>Horaires</h4><p>Lundi – vendredi, samedi matin</p></div>
+        <div class="cta" style="margin-top:4px">
+          <a class="btn btn-red" href="https://www.gtautoservice.fr/contact/">Demander un devis</a>
+          <a class="btn btn-ghost" href="https://www.google.com/maps/search/?api=1&query=37+Avenue+du+Champ+de+Mars+11100+Narbonne" target="_blank" rel="noopener">Itinéraire</a>
+        </div>
+      </div>
+      <iframe loading="lazy" title="Plan d'accès G.T Auto Service" src="https://www.google.com/maps?q=37+Avenue+du+Champ+de+Mars,+11100+Narbonne&output=embed"></iframe>
     </div>
-    <p style="margin-top:18px"><a class="btn btn-red" href="https://www.google.com/maps/search/?api=1&query=37+Avenue+du+Champ+de+Mars+11100+Narbonne" target="_blank" rel="noopener">📍 Itinéraire Google Maps</a></p>
+  </div>
+</section>
+
+<section id="legal" style="padding-bottom:0">
+  <div class="wrap legal">
+    <div class="kicker">Informations légales</div>
+    <dl>
+      <dt>Raison sociale</dt><dd>G.T AUTO SERVICE – SARL au capital de 1 000 €</dd>
+      <dt>N° d'immatriculation</dt><dd>991 461 435 00018</dd>
+      <dt>Siège</dt><dd>37 avenue du Champ de Mars, ZI Plaisance, 11100 Narbonne</dd>
+      <dt>Gérant</dt><dd>Thomas Gaulois</dd>
+      <dt>Site officiel</dt><dd><a href="https://www.gtautoservice.fr/" style="color:var(--red)">www.gtautoservice.fr</a></dd>
+    </dl>
   </div>
 </section>
 
 <footer>
-  <div style="margin-bottom:6px">Visite immersive by NovaVisio</div>
-  © G.T Auto Service – Garage automobile à Narbonne · <a href="https://www.gtautoservice.fr/" target="_blank" rel="noopener">gtautoservice.fr</a>
+  <div class="wrap">
+    <span>© G.T Auto Service – Garage automobile à Narbonne · Visite immersive by NovaVisio</span>
+    <nav>
+      <a href="https://www.gtautoservice.fr/">Accueil</a>
+      <a href="https://www.gtautoservice.fr/atelier-mecanique-narbonne/">Mécanique</a>
+      <a href="https://www.gtautoservice.fr/carrosserie-narbonne/">Carrosserie</a>
+      <a href="https://www.gtautoservice.fr/actualites/">Actualités</a>
+      <a href="https://www.gtautoservice.fr/contact/">Contact</a>
+      <a href="https://www.gtautoservice.fr/mentions-legales/">Mentions légales</a>
+    </nav>
+  </div>
 </footer>
 
+<a class="btn btn-red sticky-call" href="tel:+33468424196">Appeler le garage – 04 68 42 41 96</a>
+
+<script>
+{
+  const b=document.getElementById('burger'),m=document.getElementById('menu');
+  b.addEventListener('click',()=>{const o=m.classList.toggle('open');b.setAttribute('aria-expanded',o)});
+  m.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>m.classList.remove('open')));
+}
+</script>
 </body>
 </html>
