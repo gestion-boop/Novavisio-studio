@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inaya.B – Y aller</title>
-<meta name="description" content="Comment venir chez Inaya.B, bijoux et accessoires féminins, place des 4 Fontaines à Narbonne : adresse, horaires, téléphone, Google Maps, Waze et Plans.">
+<title>Inaya.B – Infos</title>
+<meta name="description" content="Inaya.B, bijoux et accessoires féminins, place des 4 Fontaines à Narbonne : présentation, horaires, téléphone, adresse, Google Maps, Waze et Plans.">
 <link rel="icon" href="assets/img/logo.png">
 <style>
 :root{--t:#a04c34;--td:#7a3a28;--ink:#3a2a22;--muted:#7d6558;--line:#e6cdb6}
@@ -26,6 +26,14 @@ h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.6rem,5vw,2.3rem
 .hours dt{color:var(--muted)}.hours dd{font-weight:600}
 .map{margin-top:16px;border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:0 8px 22px rgba(120,60,40,.1);background:#e9cfb5}
 .map iframe{width:100%;height:340px;border:0;display:block}
+.tags{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.tags span{padding:6px 14px;border-radius:99px;background:rgba(160,76,52,.1);color:var(--td);font-weight:600;font-size:.86rem}
+.row.top{justify-content:center;margin-top:16px}.row.top .btn{flex:0 1 170px}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.photos img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px}
+html{scroll-behavior:smooth}
+.sticky{display:none}
+@media(max-width:700px){.sticky{display:flex;position:fixed;left:14px;right:14px;bottom:14px;z-index:20;flex:none;box-shadow:0 10px 30px rgba(60,30,20,.3)}body{padding-bottom:78px}}
 .ok{display:none;margin-top:8px;color:#2e7d5b;font-weight:600;font-size:.9rem}
 footer{text-align:center;color:var(--muted);font-size:.85rem;padding:26px 18px 40px}
 </style>
@@ -33,12 +41,22 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:26px 18px 4
 <body>
 <header class="wrap">
   <img class="logo" src="assets/img/logo.png" alt="Inaya.B – Bijoux &amp; accessoires féminins">
-  <h1>Y aller</h1>
-  <p class="sub">Inaya.B · Bijoux &amp; accessoires féminins</p>
+  <h1>Inaya.B</h1>
+  <p class="sub">Bijoux &amp; accessoires féminins · Narbonne</p>
+  <div class="tags"><span>#bijoux</span><span>#sac</span><span>#foulard</span></div>
+  <div class="row top"><a class="btn main" href="#y-aller">Y aller</a><a class="btn alt" href="tel:+33669581443">Appeler</a></div>
 </header>
 <main class="wrap">
   <section class="card">
-    <h2>Adresse</h2>
+    <h2>La boutique</h2>
+    <p>Inaya.B, c'est une boutique de <b>bijoux et accessoires féminins</b> à Narbonne, place des 4 Fontaines : bijoux, sacs et foulards.</p>
+    <div class="photos">
+      <img src="assets/img/photos/01.jpg" alt="Inaya.B, photo 1" loading="lazy"><img src="assets/img/photos/02.jpg" alt="Inaya.B, photo 2" loading="lazy"><img src="assets/img/photos/04.jpg" alt="Inaya.B, photo 3" loading="lazy">
+      <img src="assets/img/photos/08.jpg" alt="Inaya.B, photo 4" loading="lazy"><img src="assets/img/photos/12.jpg" alt="Inaya.B, photo 5" loading="lazy"><img src="assets/img/photos/18.jpg" alt="Inaya.B, photo 6" loading="lazy">
+    </div>
+  </section>
+  <section class="card" id="y-aller">
+    <h2>Y aller · Adresse</h2>
     <p class="big">Place des 4 Fontaines<br>11100 Narbonne</p>
     <div class="row">
       <a class="btn main" href="https://www.google.com/maps/search/?api=1&amp;query=Place+des+4+Fontaines+11100+Narbonne" target="_blank" rel="noopener">Google Maps</a>
@@ -59,6 +77,7 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:26px 18px 4
   </section>
   <div class="map"><iframe loading="lazy" title="Plan d'accès Inaya.B" src="https://www.google.com/maps?q=Place+des+4+Fontaines,+11100+Narbonne&amp;output=embed"></iframe></div>
 </main>
+<a class="btn main sticky" href="tel:+33669581443">Appeler la boutique · 06 69 58 14 43</a>
 <footer>© Inaya.B · Visite immersive by NovaVisio</footer>
 <script>
 {
