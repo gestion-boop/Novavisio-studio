@@ -1,5 +1,5 @@
 import {BackSide,CanvasTexture,Group,Mesh,MeshBasicMaterial,ShaderMaterial,SphereGeometry,SRGBColorSpace,Vector3,RepeatWrapping} from 'three';
-import type {Viewer} from '@photo-sphere-viewer/core';
+import type {Viewer,events} from '@photo-sphere-viewer/core';
 import {MarkersPlugin} from '@photo-sphere-viewer/markers-plugin';
 
 /**
@@ -92,7 +92,7 @@ function waterDropMaterial(){
 export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string|undefined):()=>void{
   const plugin=viewer.getPlugin(MarkersPlugin) as MarkersPlugin;
   const entries=new Map<string,Entry>();
-  let hoverId='',raf=0,last=performance.now(),alive=true;
+  let hoverId='',alive=true;
   const tmp=new Vector3();
 
   const over=(e:Event)=>{const el=(e.target as HTMLElement|null)?.closest?.('.psv-marker');hoverId=el?.id?.replace(/^psv-marker-/,'')??'';};
@@ -122,10 +122,8 @@ export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string
     entries.set(id,e);return e;
   };
 
-  const tick=(now:number)=>{
-    if(!alive)return;
-    raf=requestAnimationFrame(tick);
-    const dt=Math.min(64,now-last);last=now;
+  const tick=({elapsed}:{elapsed:number})=>{
+    const dt=Math.min(64,elapsed);
     if(document.hidden)return;
     const markers=plugin.getMarkers().filter(m=>(m.config as {data?:{nvSphere?:SphereData}}).data?.nvSphere);
     const seen=new Set<string>();
@@ -161,10 +159,10 @@ export function attachSphereLayer(viewer:Viewer,imageOf:(sceneId:string)=>string
     for(const id of [...entries.keys()])if(!seen.has(id)){remove(id);needsRender=true;}
     if(needsRender)viewer.needsUpdate();
   };
-  raf=requestAnimationFrame(tick);
+  viewer.addEventListener('before-render',tick);
 
   return ()=>{
-    alive=false;cancelAnimationFrame(raf);
+    alive=false;viewer.removeEventListener<'before-render',events.BeforeRenderEvent>('before-render',tick);
     viewer.container.removeEventListener('pointerover',over);
     viewer.container.removeEventListener('pointerleave',out);
     try{for(const id of [...entries.keys()])remove(id);}catch{/* visualiseur déjà détruit */}

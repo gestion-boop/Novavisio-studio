@@ -15,6 +15,7 @@ import {startPosterBounce} from './posterBounce';
 import {isFrame,straightenFrames,frameIdsOf,haloMarkers,frameWorldCorners,visibleVideoFrames,editingFrameControls,cornerMarkerId,centerMarkerId,FRAME_KEYS,type SphericalPoint} from './sphericalFrame';
 import {type Hotspot,type CustomIcon,type Scene,type StudioProject,defaultFrameCorners,type FrameSphericalCorners} from './storage';
 import {getTransitionMs,warmPanoramas} from './transitionPrefs';
+import {createSceneTransition} from './sceneTransition';
 import {glyphs} from './glyphSet';
 import {inPhase} from './phase';
 import {occluderMarkers,maskDraftMarkers,needsOccluder} from './frameOcclusion';
@@ -72,6 +73,7 @@ export type PanoramaProps = {
   onPick: (id:string)=>void;
   onRemoveNavigation:(id:string)=>void;
   onNavigate: (id:string,via?:Hotspot)=>void;
+  onSceneError?: (id:string)=>void;
   arrival?:{sceneId:string;yaw:number;pitch:number;zoom:number}|null; // vue d'arrivée propre à la flèche utilisée
   onInfo: (hotspot:Hotspot)=>void;
   onLink: (title:string,url:string,mode?:'embed'|'tab')=>void;
@@ -179,19 +181,20 @@ export function FullscreenGalleryHoverPreview({scene,thumb,onOrientation}:{scene
   </div>;
 }
 
-export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
+export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,nightTexture,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onSceneError,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange,turn}:PanoramaProps) {
   const box = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer|null>(null);
   const gradeRef=useRef<GradeHandle|null>(null);
   const loadedSceneRef=useRef<string|null>(null);
+  const transition=useRef<ReturnType<typeof createSceneTransition>|null>(null);
   const currentTextureRef=useRef(scene.dataUrl);
   const dayViewRef=useRef<{yaw:number;pitch:number;zoom:number}|null>(null);
   const lastPointer=useRef<ZoomOrigin|null>(null);
   const suppressMarkerClick=useRef<string|null>(null); // Suppress only the click belonging to a removed or dragged marker.
   maskDraftNow=maskDraft;
   const gradeNow=useRef<PhotoGrade|null|undefined>(photoGrade);gradeNow.current=photoGrade;
-  const actions = useRef({onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
-  actions.current = {onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
+  const actions = useRef({onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onSceneError,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange});
+  actions.current = {onMaskClick,sphereImage,scene,icons,mode,preview,autoNavigation,night,arrival,onCreate,onPick,onRemoveNavigation,onNavigate,onSceneError,onInfo,onLink,onImage,onVideo,selectedId,onWorldFrameChange,onMarkerMove,onAssetDrop,onCameraChange};
 
   useEffect(()=>{
     const root=box.current;
@@ -202,8 +205,9 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
   },[]);
   useEffect(()=>{
     if (!box.current) return;
+    const initialTexture=night&&nightTexture?nightTexture:scene.dataUrl;
     const viewer = new Viewer({
-      container:box.current, panorama:night&&nightTexture?nightTexture:scene.dataUrl,
+      container:box.current, panorama:initialTexture,
       // Le bouton plein écran natif n'agrandit que le lecteur 360° et cache les éléments personnalisés.
       // La vue complète (lecteur + barre) est désormais gérée par App.
       navbar:[],mousemove:true,mousewheel:true,touchmoveTwoFingers:false,
@@ -214,6 +218,9 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
       plugins:[MarkersPlugin]
     });
     viewerRef.current = viewer;
+    currentTextureRef.current=initialTexture;
+    const sceneTransition=createSceneTransition(viewer,box.current);
+    transition.current=sceneTransition;
     const photoGradeHandle=installPhotoGrade(viewer);gradeRef.current=photoGradeHandle;photoGradeHandle.set(gradeNow.current??null);
     loadedSceneRef.current=scene.id;
     const reportCamera=()=>{
@@ -244,6 +251,7 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
     markers.addEventListener('select-marker',({marker})=>{
       const a=actions.current;
       const hid=marker.id.endsWith(':occ')?marker.id.slice(0,-4):marker.id;   // le calque de découpe représente son écran
+      if(loadedSceneRef.current!==a.scene.id)return;
       const h=a.scene.hotspots.find(item=>item.id===hid);
       if (!h) return;
       if(a.onMaskClick)return;   // détourage en cours : un clic sur l'écran sert à placer un point du contour
@@ -267,7 +275,7 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
     });
     viewer.addEventListener('click',event=>{
       const a=actions.current;
-      if(a.onMaskClick)return;   // tracé d'un détourage : géré par l'écouteur ci-dessous
+      if(loadedSceneRef.current!==a.scene.id||a.onMaskClick)return;   // tracé d'un détourage : géré par l'écouteur ci-dessous
       if(!a.preview && a.mode && typeof event.data.yaw==='number' && typeof event.data.pitch==='number') {
         a.onCreate(event.data.yaw,event.data.pitch);
       }
@@ -276,67 +284,31 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
     resetMarkers(viewer,markersForScene(scene,icons,height,selectedId,preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
     // Aperçu seulement : léger rebond des affiches (photos / vidéos) pour montrer qu'elles sont cliquables.
     const stopBounce=startPosterBounce(viewer,()=>actions.current.scene,()=>actions.current.preview&&loadedSceneRef.current===actions.current.scene.id);
-    return ()=>{detachSpheres();window.removeEventListener('nv-frame-dim',onDim);stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
+    return ()=>{sceneTransition.destroy();transition.current=null;detachSpheres();window.removeEventListener('nv-frame-dim',onDim);stopBounce();if(zoomFrame)cancelAnimationFrame(zoomFrame);viewerRef.current=null;loadedSceneRef.current=null;viewer.destroy();};
   },[]);
   useEffect(()=>{
     const viewer=viewerRef.current;
-    if(!viewer||loadedSceneRef.current===scene.id)return;
-    let disposed=false;
-    const next=scene;
-    const pending=actions.current.arrival;
-    const arrivalFor=pending&&pending.sceneId===next.id?pending:null;
-    // Fondu de l'ensemble du lecteur (panorama + cadres + photos) :
-    // on évite que les images incrustées disparaissent seules au milieu du fondu.
-    // Les coordonnées sauvegardées ne sont jamais modifiées.
-    const host=box.current;
-    let timer:ReturnType<typeof setTimeout>|undefined;
-    const veil=document.createElement('div');
-    veil.setAttribute('aria-hidden','true');
-    Object.assign(veil.style,{
-      position:'absolute',inset:'0',zIndex:'18',pointerEvents:'none',
-      background:'#071925',opacity:'0',transition:'opacity '+Math.max(1,Math.round(getTransitionMs()/2))+'ms ease-in-out'
+    const controller=transition.current;
+    if(!viewer||!controller)return;
+    const returning=loadedSceneRef.current===scene.id;
+    if(returning&&!controller.pending)return;
+    const arrivalFor=arrival?.sceneId===scene.id?arrival:null;
+    const position=returning?viewer.getPosition():{yaw:arrivalFor?.yaw??scene.arrivalYaw??0,pitch:arrivalFor?.pitch??scene.arrivalPitch??0};
+    const zoom=returning?viewer.getZoomLevel():arrivalFor?.zoom??panoramaArrivalZoom(scene);
+    const texture=returning?currentTextureRef.current:night&&nightTexture?nightTexture:scene.dataUrl;
+    warmPanoramas(scene.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?actions.current.sphereImage(h.target):undefined));
+    void controller.change({texture,position,zoom},getTransitionMs(),()=>{
+      const a=actions.current;
+      const destination=a.scene.id===scene.id?a.scene:scene;
+      loadedSceneRef.current=scene.id;
+      currentTextureRef.current=texture;
+      gradeRef.current?.set(destination.id===a.scene.id?gradeNow.current??null:destination.grade??null);
+      resetMarkers(viewer,markersForScene(destination,a.icons,box.current?.clientHeight||550,a.selectedId,a.preview,viewer.getZoomLevel(),a.autoNavigation,night));
+      const camera=viewer.getPosition();
+      a.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
+    },()=>{
+      if(loadedSceneRef.current)actions.current.onSceneError?.(loadedSceneRef.current);
     });
-    const half=Math.round(getTransitionMs()/2);
-    // Précharge les panoramas atteignables depuis celui-ci (adresses réseau uniquement).
-    warmPanoramas(next.hotspots.filter(h=>h.type==='navigation').map(h=>h.target?actions.current.sphereImage(h.target):undefined));
-    if(host){
-      if(getComputedStyle(host).position==='static')host.style.position='relative';
-      host.appendChild(veil);
-    }
-    const finish=()=>{if(timer!==undefined)clearTimeout(timer);veil.remove();};
-    const restore=()=>{
-      const current=actions.current.scene;
-      if(loadedSceneRef.current===current.id){
-        syncMarkers(viewer,markersForScene(current,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
-      }
-      veil.style.opacity='0';
-      timer=setTimeout(finish,half+10);
-    };
-    const arrivalPos={yaw:arrivalFor?.yaw??next.arrivalYaw??0,pitch:arrivalFor?.pitch??next.arrivalPitch??0};
-    const arrivalZoom=arrivalFor?.zoom??panoramaArrivalZoom(next);
-    const nextTexture=night&&nightTexture?nightTexture:next.dataUrl;
-    // Première moitié du fondu : masquer l'ancienne scène et ses incrustations ensemble.
-    requestAnimationFrame(()=>{if(!disposed)veil.style.opacity='1';});
-    timer=setTimeout(()=>{
-      if(disposed)return;
-      resetMarkers(viewer,[]);
-      void viewer.setPanorama(nextTexture,{
-        showLoader:false,transition:{effect:'fade',rotation:false,speed:0},
-        position:arrivalPos,zoom:arrivalZoom,
-      }).then(success=>{
-        if(disposed)return;
-        if(!success){restore();return;}
-        loadedSceneRef.current=next.id;
-        currentTextureRef.current=nextTexture;
-        const camera=viewer.getPosition();
-        actions.current.onCameraChange(camera.yaw,camera.pitch,viewer.getZoomLevel());
-        syncMarkers(viewer,markersForScene(next,actions.current.icons,box.current?.clientHeight||550,actions.current.selectedId,actions.current.preview,viewer.getZoomLevel(),actions.current.autoNavigation,actions.current.night));
-        // Deuxième moitié : photo et cadre sont déjà ensemble sur le nouveau panorama.
-        veil.style.opacity='0';
-        timer=setTimeout(finish,half+10);
-      }).catch(()=>{if(!disposed)restore();});
-    },half+5);
-    return ()=>{disposed=true;if(timer!==undefined)clearTimeout(timer);veil.remove();};
   },[scene.id,scene.dataUrl]);
   useEffect(()=>{
     // Parcours guidé : tourne la vue (ex. demi-tour pour placer le retour) sans changer de panorama.
@@ -748,7 +720,7 @@ export function Panorama({photoGrade,maskDraft,onMaskClick,sphereImage,scene,ico
     try{v.zoom(arrivalZoomNow);}catch{/* lecteur détruit */}
   },[arrivalZoomNow,scene.id]);
   // Retouche de la photo du panorama en direct (curseurs Exposition, Contraste, Couleur…) : ne touche pas aux incrustations.
-  useEffect(()=>{gradeRef.current?.set(photoGrade??null);},[photoGrade,scene.id]);
+  useEffect(()=>{if(loadedSceneRef.current===scene.id)gradeRef.current?.set(photoGrade??null);},[photoGrade,scene.id]);
   // Détourage : le contour en cours se redessine à chaque point ajouté ; un calque prêt est ajouté aux marqueurs.
   useEffect(()=>{
     const v=viewerRef.current;
