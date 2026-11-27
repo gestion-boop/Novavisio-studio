@@ -38,7 +38,7 @@ function panoramaOrder(project:StudioProject,scene:StudioProject['scenes'][numbe
   ].filter(isRef);
 }
 
-function mediaOrder(project:StudioProject,scene:StudioProject['scenes'][number]):string[]{
+function visibleMediaOrder(project:StudioProject,scene:StudioProject['scenes'][number]):string[]{
   const visibleIconIds=new Set([
     ...scene.hotspots.flatMap(h=>[h.iconId,h.hoverIconId,h.pressedIconId]),
     ...project.bottomBar.flatMap(item=>[item.iconId,item.hoverIconId,item.pressedIconId]),
@@ -47,6 +47,11 @@ function mediaOrder(project:StudioProject,scene:StudioProject['scenes'][number])
   return [
     ...scene.hotspots.map(h=>h.imageDataUrl),
     ...project.icons.filter(icon=>visibleIconIds.has(icon.id)).map(icon=>icon.dataUrl),
+  ].filter(isRef);
+}
+
+function mediaOrder(project:StudioProject,scene:StudioProject['scenes'][number]):string[]{
+  return [
     ...project.audioTracks.filter(track=>track.id===scene.musicTrackId||track.id===project.defaultMusicTrackId).map(track=>track.dataUrl),
     scene.nightDataUrl,scene.audioDataUrl,
     ...scene.hotspots.map(h=>h.videoDataUrl),
@@ -98,6 +103,7 @@ function Share(){
   const requestNumber=useRef(0);
   const loadingSelected=useRef(false);
   const panoramaLane=useRef(createLane());
+  const visibleLane=useRef(createLane());
   const mediaLane=useRef(createLane());
 
   const fetchRef=useCallback((ref:string):Promise<boolean>=>{
@@ -147,7 +153,7 @@ function Share(){
       if(!alive.current||request!==requestNumber.current)return;
       // A few rapid clicks may supersede a download that already started.
       // Reserve at most two extra requests beyond the background lanes.
-      while(pending.current.size>=4&&!pending.current.has(panorama)&&alive.current&&request===requestNumber.current){
+      while(pending.current.size>=5&&!pending.current.has(panorama)&&alive.current&&request===requestNumber.current){
         await Promise.race(pending.current.values());
       }
       if(!alive.current||request!==requestNumber.current)return;
@@ -159,12 +165,14 @@ function Share(){
       setPhase({kind:'error',message:'Le premier panorama n’a pas pu être chargé'});
       return;
     }
-    // Only the selected panorama may bypass the two background lanes. A heavy
-    // video never blocks prefetching a panorama, or visiting a different scene.
+    // Keep fixed photos and visible icons independent of videos and galleries.
     panoramaLane.current.queue=panoramaOrder(project,scene);
+    visibleLane.current.attempted.clear();
+    visibleLane.current.queue=visibleMediaOrder(project,scene);
     mediaLane.current.attempted.clear();
     mediaLane.current.queue=mediaOrder(project,scene);
     void drain(panoramaLane.current);
+    void drain(visibleLane.current);
     void drain(mediaLane.current);
   },[drain,fetchRef]);
 

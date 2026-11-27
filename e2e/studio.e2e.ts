@@ -226,6 +226,7 @@ test('charge le panorama voisin avant une vidéo lente dans la scène de départ
     {id:'c',name:'Scène distante',dataUrl:'nvmedia:far.jpg',hotspots:[]},
     {id:'b',name:'Salon test',dataUrl:'nvmedia:near.jpg',arrivalYaw:.5,hotspots:[
       {id:'back',type:'navigation',text:'',title:'Retour',target:'a',yaw:.5,pitch:0,sphere:true},
+      {id:'poster-near',type:'image',text:'',title:'Affiche',target:'',yaw:.6,pitch:.1,imageDataUrl:'nvmedia:near-poster.jpg',imageBounce:false},
     ]},
   ]};
   const headers={'access-control-allow-origin':'*'};
@@ -253,6 +254,8 @@ test('charge le panorama voisin avant une vidéo lente dans la scène de départ
     const clicked=Date.now();
     await page.locator('#psv-marker-next').click();
     await expect(page.locator('#psv-marker-back')).toBeVisible();
-    console.log('Fixture 360° · ouverture '+firstUsableMs+' ms · deuxième scène '+(Date.now()-clicked)+' ms');
+    const nextUsableMs=Date.now()-clicked;
+    await expect.poll(()=>requested.includes('near-poster.jpg')).toBe(true);
+    console.log('Fixture 360° · ouverture '+firstUsableMs+' ms · deuxième scène '+nextUsableMs+' ms');
   }finally{releaseVideo();}
 });
