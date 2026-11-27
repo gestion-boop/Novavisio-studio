@@ -29,6 +29,7 @@ import {
   type DetectedInfo,
   analyzeWebsite,
   analyzeLogoColors,
+  analyzeSourceImage,
   buildInitialBrandKit,
   inferCategory
 } from './novaStudioAI';
@@ -64,6 +65,8 @@ import {
   type CustomIcon,
   type ImportedButtonSet,
   type BottomBarItem,
+  isSafeMediaUrl,
+  newProject,
   readImage
 } from './storage';
 import {
@@ -87,16 +90,7 @@ import {
 import { NativeIntro } from './nativeIntro';
 
 export type NovaStudioAIProps = {
-  project: StudioProject;
-  defaultMode?: 'new' | 'update';
-  /** Nouveau client : les champs démarrent vides au lieu de reprendre la visite en cours. */
-  freshClient?: boolean;
-  onApply: (
-    updated: Partial<StudioProject>,
-    clientProfile: ClientProfile,
-    brandKit: BrandKit,
-    mode: 'new' | 'update'
-  ) => void;
+  onApply: (visit: StudioProject) => Promise<void>;
   onClose: () => void;
 };
 
@@ -114,37 +108,40 @@ async function iconStatesFor(spec: {label: string; nodes: ReadonlyArray<readonly
   return {normal, hover, pressed};
 }
 
-export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient = false, onApply, onClose}: NovaStudioAIProps) {
-  const seed: Partial<StudioProject> = freshClient ? {} : project;
+export function NovaStudioAIAssistant({onApply, onClose}: NovaStudioAIProps) {
+  const [project] = useState(() => ({...newProject(), name: '', introEnabled: true}) as StudioProject);
   const [activeTab, setActiveTab] = useState<'info' | 'brand' | 'icons' | 'intro' | 'menu'>('info');
-  const [creationMode, setCreationMode] = useState<'new' | 'update'>(defaultMode);
+  const [creating, setCreating] = useState(false);
 
   // ==========================================
   // Champs Module 1 — Création et analyse
   // ==========================================
-  const [clientName, setClientName] = useState(seed.clientProfile?.name || seed.name || '');
-  const [projectName, setProjectName] = useState(seed.name || '');
+  const [clientName, setClientName] = useState(project.clientProfile?.name || project.name || '');
+  const [projectName, setProjectName] = useState(project.name || '');
   const [activityCategory, setActivityCategory] = useState<ActivityCategory>(
-    (seed.clientProfile?.activityCategory as ActivityCategory) || 'autre'
+    (project.clientProfile?.activityCategory as ActivityCategory) || 'autre'
   );
-  const [website, setWebsite] = useState(seed.clientProfile?.website || '');
-  const [address, setAddress] = useState(seed.clientProfile?.address || '');
-  const [city, setCity] = useState(seed.clientProfile?.city || '');
-  const [phone, setPhone] = useState(seed.clientProfile?.phone || '');
-  const [email, setEmail] = useState(seed.clientProfile?.email || '');
-  const [bookingUrl, setBookingUrl] = useState(seed.clientProfile?.bookingUrl || '');
-  const [facebook, setFacebook] = useState(seed.clientProfile?.facebook || '');
-  const [instagram, setInstagram] = useState(seed.clientProfile?.instagram || '');
+  const [website, setWebsite] = useState(project.clientProfile?.website || '');
+  const [address, setAddress] = useState(project.clientProfile?.address || '');
+  const [city, setCity] = useState(project.clientProfile?.city || '');
+  const [phone, setPhone] = useState(project.clientProfile?.phone || '');
+  const [email, setEmail] = useState(project.clientProfile?.email || '');
+  const [bookingUrl, setBookingUrl] = useState(project.clientProfile?.bookingUrl || '');
+  const [facebook, setFacebook] = useState(project.clientProfile?.facebook || '');
+  const [instagram, setInstagram] = useState(project.clientProfile?.instagram || '');
   const [visitType, setVisitType] = useState<VisitType>(
-    (seed.clientProfile?.visitType as VisitType) || (seed.vrEnabled ? 'hybrid' : 'premium')
+    (project.clientProfile?.visitType as VisitType) || (project.vrEnabled ? 'hybrid' : 'premium')
   );
   const [selectedLanguages, setSelectedLanguages] = useState<StudioLanguage[]>(
     project.languages && project.languages.length ? project.languages : ['fr', 'en']
   );
-  const [logoUrl, setLogoUrl] = useState<string>(seed.clientProfile?.logoUrl || '');
+  const [logoUrl, setLogoUrl] = useState<string>(project.clientProfile?.logoUrl || '');
   const [logoColors, setLogoColors] = useState<{primary: string; accent: string} | null>(null);
 
   // Données détectées
+  const [htmlInputKey, setHtmlInputKey] = useState(0);
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [htmlFile, setHtmlFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [detected, setDetected] = useState<DetectedInfo | null>(null);
   const [analysisError, setAnalysisError] = useState('');
@@ -239,22 +236,16 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
     });
   }, [activityCategory, clientName, project.name, bookingUrl, phone, email, website, address, city, detected, project.scenes]);
 
-  const [selectedMenuKeys, setSelectedMenuKeys] = useState<Set<string>>(() => {
-    const initial = generateAutoMenuProposals({
-      category: (project.clientProfile?.activityCategory as ActivityCategory) || 'autre',
-      clientName: project.clientProfile?.name || project.name || '',
-      bookingUrl: project.clientProfile?.bookingUrl,
-      phone: project.clientProfile?.phone,
-      email: project.clientProfile?.email,
-      website: project.clientProfile?.website,
-      address: project.clientProfile?.address,
-    });
-    return new Set(initial.filter((p) => p.recommended).map((p) => p.key));
-  });
+  const recommendedMenuKeys = useMemo(
+    () => new Set(menuProposals.filter(p => p.recommended).map(p => p.key)),
+    [menuProposals],
+  );
+  const [customMenuKeys, setSelectedMenuKeys] = useState<Set<string> | null>(null);
+  const selectedMenuKeys = customMenuKeys ?? recommendedMenuKeys;
 
   const toggleMenuProposal = (key: string) => {
-    setSelectedMenuKeys((prev) => {
-      const next = new Set(prev);
+    setSelectedMenuKeys(previous => {
+      const next = new Set(previous ?? recommendedMenuKeys);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
@@ -268,55 +259,59 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
   // Liste de toutes les icônes (les 36 standard + personnalisées)
   const allIconSpecs = useMemo(() => [...BRAND_ICON_SET, ...customIcons], [customIcons]);
 
-  // Lancer l'analyse automatique du site web
-  const runWebsiteAnalysis = async () => {
-    if (!website.trim()) {
-      setAnalysisError('Renseigne d’abord l’adresse du site internet.');
-      return;
-    }
+  const runSourceAnalysis = async () => {
     setAnalyzing(true);
     setAnalysisError('');
+    setDetected(null);
     try {
-      const data = await analyzeWebsite(website.trim());
+      if (htmlFile && htmlFile.size > 1.5 * 1024 * 1024) {
+        throw new Error('Choisis un fichier HTML de 1,5 Mo maximum.');
+      }
+      const url = sourceUrl.trim();
+      const html = await htmlFile?.text();
+      const data = await analyzeWebsite(url, AbortSignal.timeout(65000), html);
+      const selectedLogo = logoUrl || data.logoUrls.find(isSafeMediaUrl) || '';
+      const detectedLogoColors = logoColors || (isSafeMediaUrl(selectedLogo)
+        ? await analyzeSourceImage(selectedLogo).catch(() => null)
+        : null);
+      const palettePhoto = !detectedLogoColors && !data.colors.length && data.photoUrls.find(isSafeMediaUrl);
+      const palette = detectedLogoColors || (palettePhoto
+        ? await analyzeSourceImage(palettePhoto).catch(() => null)
+        : null);
       setDetected(data);
-
-      if (data.address && !address) setAddress(data.address);
-      if (data.city && !city) setCity(data.city);
-      if (data.phone && !phone) setPhone(data.phone);
-      if (data.email && !email) setEmail(data.email);
-      if (data.bookingUrl && !bookingUrl) setBookingUrl(data.bookingUrl);
+      const detectedName = data.name;
+      if (detectedName) setClientName(current => current.trim() ? current : detectedName);
+      if (!address && data.address) setAddress(data.address);
+      if (!city && data.city) setCity(data.city);
+      if (!phone && data.phone) setPhone(data.phone);
+      if (!email && data.email) setEmail(data.email);
+      if (!bookingUrl && data.bookingUrl) setBookingUrl(data.bookingUrl);
+      if (data.website) {
+        const hostname = new URL(data.website).hostname;
+        if (/(^|\.)(facebook\.com|fb\.com)$/.test(hostname)) setFacebook(data.website);
+        else if (/(^|\.)instagram\.com$/.test(hostname)) setInstagram(data.website);
+        else setWebsite(data.website);
+      }
       if (data.facebook && !facebook) setFacebook(data.facebook);
       if (data.instagram && !instagram) setInstagram(data.instagram);
-
-      if (data.logoUrls.length > 0 && !logoUrl) {
-        setLogoUrl(data.logoUrls[0]);
+      if (selectedLogo) {
+        setLogoUrl(selectedLogo);
+        setLogoColors(detectedLogoColors);
       }
 
-      const suggestedCategory = inferCategory(clientName || '', data.notes?.join(' '), data.services);
-      if (suggestedCategory !== 'autre' && activityCategory === 'autre') {
-        setActivityCategory(suggestedCategory);
-      }
-
-      const initial = buildInitialBrandKit(
-        activityCategory !== 'autre' ? activityCategory : suggestedCategory,
-        data,
-        logoColors,
-        styleId
-      );
+      const name = clientName.trim() || data.name || 'Visite 360°';
+      const category = activityCategory === 'autre' ? inferCategory(name, data.description, data.services) : activityCategory;
+      setActivityCategory(category);
+      if (!introTitle.trim()) setIntroTitle(name);
+      const initial = buildInitialBrandKit(category, data, palette, styleId);
       setSeedColor(initial.seed);
       setColors(initial.kit.colors);
 
-      // Met à jour les propositions d'introduction avec les données fraîches
-      const freshIntro = generateAutoIntroPreset({
-        category: activityCategory !== 'autre' ? activityCategory : suggestedCategory,
-        clientName: clientName || project.name || 'Visite 360°',
-        colors: initial.kit.colors,
-        logoUrl: data.logoUrls[0] || logoUrl,
-      });
-      setIntroSubtitle(freshIntro.subtitle);
-      setIntroButtonLabel(freshIntro.buttonLabel);
-      setIntroStyleId(freshIntro.styleId);
-      setIntroAnimation(freshIntro.animation);
+      const intro = generateAutoIntroPreset({category, clientName: name, colors: initial.kit.colors, logoUrl: selectedLogo});
+      setIntroSubtitle(intro.subtitle);
+      setIntroButtonLabel(intro.buttonLabel);
+      setIntroStyleId(intro.styleId);
+      setIntroAnimation(intro.animation);
     } catch (err) {
       setAnalysisError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -523,6 +518,18 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
       return;
     }
 
+    setCreating(true);
+    try {
+      await createVisit();
+    } catch (err) {
+      setActiveTab('info');
+      setAnalysisError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const createVisit = async () => {
     const brandKit: BrandKit = {
       styleId,
       colors,
@@ -542,7 +549,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
       facebook: facebook.trim(),
       instagram: instagram.trim(),
       otherLinks: '',
-      description: project.clientProfile?.description || '',
+      description: detected?.description || '',
       bookingUrl: bookingUrl.trim() || undefined,
       openingHours: detected?.openingHours || project.clientProfile?.openingHours || undefined,
       services: detected?.services?.length ? detected.services.join(', ') : project.clientProfile?.services || undefined,
@@ -629,7 +636,20 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
     // Configuration du style de la barre (Module 7)
     const appliedBarStyle = buildBarStyle(colors, barLayout, project.barStyle);
 
-    const projectUpdate: Partial<StudioProject> = {
+    const mediaLibrary = (['photo', 'video'] as const).flatMap(kind =>
+      (kind === 'photo' ? detected?.photoUrls : detected?.videoUrls)?.filter(isSafeMediaUrl).map((url, index) => ({
+        id: crypto.randomUUID(),
+        kind,
+        name: kind === 'photo' ? 'Photo ' + (index + 1) : 'Vidéo ' + (index + 1),
+        url,
+        provider: 'web' as const,
+      })) ?? [],
+    );
+
+    const visit: StudioProject = {
+      ...project,
+      mediaLibrary,
+      preparationComplete: true,
       name: projectName.trim() || clientName.trim(),
       clientProfile,
       brandKit,
@@ -644,12 +664,14 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
       buttonSets: buttonSetsToAdd,
     };
 
-    onApply(projectUpdate, clientProfile, brandKit, creationMode);
+    await onApply(visit);
     onClose();
   };
 
+  const close = () => { if (!creating) onClose(); };
+
   return (
-    <div className="nv-ai-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="nv-ai-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div className="nv-ai-modal" role="dialog" aria-modal="true" aria-label="NovaStudio AI">
         {/* Entête */}
         <header className="nv-ai-header">
@@ -660,7 +682,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
             </div>
             <h2>Création intelligente de visite immersive 360°</h2>
           </div>
-          <button className="nv-ai-close-btn" onClick={onClose} title="Fermer" aria-label="Fermer">
+          <button className="nv-ai-close-btn" onClick={close} title="Fermer" aria-label="Fermer">
             <X size={18} />
           </button>
         </header>
@@ -714,34 +736,6 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
           {/* ONGLET 1 : Client & Analyse */}
           {activeTab === 'info' && (
             <div>
-              {/* Sélecteur de mode de création */}
-              <div className="nv-ai-mode-selector">
-                <div className="nv-ai-mode-cards">
-                  <button
-                    type="button"
-                    className={`nv-ai-mode-card ${creationMode === 'new' ? 'is-active' : ''}`}
-                    onClick={() => setCreationMode('new')}
-                  >
-                    <div className="nv-ai-mode-card-title">
-                      <Sparkles size={16} />
-                      <strong>Créer une nouvelle visite</strong>
-                    </div>
-                    <p>Initialise un nouveau projet vierge dédié à ce client, sans écraser votre visite en cours.</p>
-                  </button>
-                  <button
-                    type="button"
-                    className={`nv-ai-mode-card ${creationMode === 'update' ? 'is-active' : ''}`}
-                    onClick={() => setCreationMode('update')}
-                  >
-                    <div className="nv-ai-mode-card-title">
-                      <Layers size={16} />
-                      <strong>Appliquer à la visite en cours</strong>
-                    </div>
-                    <p>Conserve vos panoramas actuels (« {project.name || 'Visite en cours'} ») et met à jour l’identité visuelle.</p>
-                  </button>
-                </div>
-              </div>
-
               <div className="nv-ai-grid">
               <div className="nv-ai-field">
                 <label>
@@ -752,11 +746,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
                   className="nv-ai-input"
                   placeholder="Ex. Le Mas des Oliviers, Hôtel Spa Grand Large..."
                   value={clientName}
-                  onChange={(e) => {
-                    setClientName(e.target.value);
-                    if (!projectName) setProjectName(e.target.value);
-                    if (!introTitle) setIntroTitle(e.target.value);
-                  }}
+                  onChange={(e) => setClientName(e.target.value)}
                   autoFocus
                 />
               </div>
@@ -812,36 +802,42 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
               </div>
 
               <div className="nv-ai-field is-full">
-                <label>
-                  Site internet public du client (pour analyse et aspiration automatique)
-                </label>
-                <div className="nv-ai-input-with-action">
-                  <input
-                    type="url"
-                    className="nv-ai-input"
-                    placeholder="https://www.mon-etablissement.com"
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="nv-ai-btn-action"
-                    disabled={analyzing || !website.trim()}
-                    onClick={runWebsiteAnalysis}
-                  >
-                    {analyzing ? (
-                      <>
-                        <span className="nv-ai-spinner" />
-                        <span>Analyse en cours…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={16} />
-                        <span>Analyser le site internet</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                <label htmlFor="nv-ai-source-url">Lien public du client</label>
+                <input
+                  id="nv-ai-source-url"
+                  type="url"
+                  className="nv-ai-input"
+                  placeholder="Site web, Facebook, Instagram…"
+                  value={sourceUrl}
+                  disabled={analyzing}
+                  onChange={(e) => setSourceUrl(e.target.value)}
+                />
+                <label htmlFor="nv-ai-source-html">Fichier HTML</label>
+                <input
+                  key={htmlInputKey}
+                  id="nv-ai-source-html"
+                  type="file"
+                  accept=".html,.htm,text/html"
+                  disabled={analyzing}
+                  className="nv-ai-input"
+                  onChange={(e) => setHtmlFile(e.target.files?.[0] ?? null)}
+                />
+                {htmlFile && <>
+                  <small>Indique l’adresse d’origine de la page si le fichier contient des liens relatifs.</small>
+                  <button type="button" className="nv-ai-btn-ghost" disabled={analyzing} onClick={() => {
+                    setHtmlFile(null);
+                    setHtmlInputKey(key => key + 1);
+                  }}>Retirer le fichier HTML</button>
+                </>}
+                <button
+                  type="button"
+                  className="nv-ai-btn-primary"
+                  disabled={analyzing || (!sourceUrl.trim() && !htmlFile)}
+                  onClick={runSourceAnalysis}
+                >
+                  <Sparkles size={16} />
+                  {analyzing ? 'Analyse en cours…' : 'Analyser la source'}
+                </button>
               </div>
 
               {analysisError && (
@@ -855,7 +851,12 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
                 <div className="nv-ai-alert nv-ai-alert-success is-full">
                   <CheckCircle2 size={16} />
                   <div>
-                    <strong>Analyse réussie du site web :</strong>
+                    <strong>Médias détectés</strong>
+                    <ul>
+                      <li>{detected.photoUrls.length} photo(s)</li>
+                      <li>{detected.logoUrls.length} logo(s)</li>
+                      <li>{detected.videoUrls?.length ?? 0} vidéo(s)</li>
+                    </ul>
                     <div style={{fontSize: '0.82rem', marginTop: '0.25rem'}}>
                       {(detected.services?.length ?? 0) > 0 && (
                         <span>Prestations identifiées : {(detected.services ?? []).slice(0, 4).join(', ')}. </span>
@@ -1617,7 +1618,7 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
                     <button
                       type="button"
                       className="nv-ai-pill-btn"
-                      onClick={() => setSelectedMenuKeys(new Set(menuProposals.filter((p) => p.recommended).map((p) => p.key)))}
+                      onClick={() => setSelectedMenuKeys(null)}
                     >
                       Recommandés uniquement
                     </button>
@@ -1689,12 +1690,13 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
           <div className="nv-ai-footer-right">
             {activeTab === 'info' && (
               <>
-                <button type="button" className="nv-ai-btn-ghost" onClick={onClose}>
+                <button type="button" className="nv-ai-btn-ghost" onClick={close}>
                   Annuler
                 </button>
                 <button
                   type="button"
                   className="nv-ai-btn-primary"
+                  disabled={analyzing}
                   onClick={() => {
                     if (!clientName.trim()) {
                       setAnalysisError('Renseigne le nom commercial du client avant de continuer.');
@@ -1771,9 +1773,10 @@ export function NovaStudioAIAssistant({project, defaultMode = 'new', freshClient
                   type="button"
                   className="nv-ai-btn-primary"
                   onClick={handleApply}
+                  disabled={creating || analyzing}
                 >
                   <Sparkles size={16} />
-                  <span>{creationMode === 'new' ? '✨ Créer la nouvelle visite (IA)' : 'Valider & Appliquer au projet'}</span>
+                  <span>{creating ? 'Création en cours…' : 'Créer la nouvelle visite'}</span>
                 </button>
               </>
             )}

@@ -1,4 +1,4 @@
-import {askAspirate} from './aspirate';
+import {askAspirate, fetchAspiratedImage} from './aspirate';
 import {type BrandKit, type StyleId, generateBrand, isHex} from './brandKit';
 import {paletteFromLogo} from './svgIcons';
 
@@ -49,12 +49,15 @@ export const VISIT_TYPES: ReadonlyArray<{
 ];
 
 export type DetectedInfo = {
+  name?: string;
+  description?: string;
   website?: string;
   colors: string[];
   themeColor?: string;
   fonts: string[];
   logoUrls: string[];
   photoUrls: string[];
+  videoUrls?: string[];
   address?: string;
   city?: string;
   phone?: string;
@@ -69,8 +72,8 @@ export type DetectedInfo = {
 };
 
 /** Analyse automatique du site internet public via le crawler serveur NovaStudio */
-export async function analyzeWebsite(url: string, signal?: AbortSignal): Promise<DetectedInfo> {
-  const result = await askAspirate(url, signal);
+export async function analyzeWebsite(url: string, signal?: AbortSignal, html?: string): Promise<DetectedInfo> {
+  const result = await askAspirate(url, signal, html);
   const fiche = result.fiche || {};
   const brand = result.brand;
 
@@ -96,12 +99,15 @@ export async function analyzeWebsite(url: string, signal?: AbortSignal): Promise
     : undefined;
 
   return {
+    name: fiche.nom || undefined,
+    description: fiche.description || undefined,
     website: fiche.site || url,
     colors,
     themeColor: brand?.themeColor || undefined,
     fonts,
     logoUrls: result.logos || [],
     photoUrls: result.photos || [],
+    videoUrls: result.videos || [],
     address: fiche.adresse || undefined,
     city: fiche.ville || undefined,
     phone: fiche.tel || undefined,
@@ -119,6 +125,16 @@ export async function analyzeWebsite(url: string, signal?: AbortSignal): Promise
 /** Analyse des couleurs dominantes d'un logo importé ou choisi */
 export async function analyzeLogoColors(logoDataUrl: string): Promise<{primary: string; accent: string}> {
   return paletteFromLogo(logoDataUrl);
+}
+
+export async function analyzeSourceImage(url: string): Promise<{primary: string; accent: string}> {
+  const blob = await fetchAspiratedImage(url, AbortSignal.timeout(6500));
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    return await analyzeLogoColors(objectUrl);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 /** Devine la catégorie d'activité d'après le texte descriptif ou les données trouvées */

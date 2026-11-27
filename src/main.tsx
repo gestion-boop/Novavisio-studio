@@ -6209,49 +6209,26 @@ function App(){
       iconCount={project.icons.length}
       onAddIcons={files=>{setProject(p=>({...p,icons:[...p.icons,...files.map(f=>({id:uid(),name:f.name.slice(0,150),dataUrl:f.dataUrl}))]}));setStatus(files.length+' icônes de charte ajoutées à « Mes icônes » · enregistre avec la disquette.');}}
       onApply={(patch,kit)=>{setProject(p=>({...p,barStyle:{...p.barStyle,...patch},brandKit:kit}));setStatus('Charte graphique appliquée à la barre du bas · enregistre avec la disquette.');}}/>}
-    {aiAssistantOpen&&<NovaStudioAIAssistant project={project} onClose={()=>setAiAssistantOpen(false)}
-      onApply={(updated,clientProfile,brandKit,mode)=>{
-        const immo=isImmospheraProject({name:updated.name||clientProfile.name,clientProfile},clientProfile);
-        if(mode==='new'){
-          const fresh=newProject();
-          const created:StudioProject={
-            ...fresh,
-            ...updated,
-            name:updated.name||clientProfile.name||'Nouvelle visite 360°',
-            clientProfile,
-            brandKit,
-            ...(immo?{vrEnabled:true}:{}),
-            scenes:[],
-            spaces:[],
-            updatedAt:new Date().toISOString(),
-          };
-          setActiveSpaceId(null);
-          setSpaceManagerOpen(false);
-          resetProject(created);
-          setActiveId('');
-          setSelectedId('');
-          setMode(null);
-          setPreview(false);
-          cloud.unlink();
-          if(immo){
-            void applyImmospheraDefaults(created,undefined,{replaceEmptyBar:true}).then(styled=>{
-              resetProject({...styled,name:created.name,clientProfile,brandKit,vrEnabled:true});
-              setStatus('✨ Nouvelle visite « '+clientProfile.name+' » créée · skin Immosphera et casque VR activés.');
-            }).catch(()=>undefined);
-          }else{
-            setStatus('✨ Nouvelle visite « '+clientProfile.name+' » créée avec succès ! Tu peux maintenant ajouter tes panoramas 360°.');
-          }
-        }else{
-          setProject(p=>({...p,...updated,clientProfile,brandKit,...(immo?{vrEnabled:true}:{})}));
-          if(immo){
-            void applyImmospheraDefaults({...projectRef.current,...updated,clientProfile,brandKit}).then(styled=>{
-              setProject({...styled,clientProfile,brandKit,vrEnabled:true});
-              setStatus('NovaStudio AI : Visite « '+(updated.name||clientProfile.name)+' » mise à jour · skin Immosphera et casque VR activés.');
-            }).catch(()=>undefined);
-          }else{
-            setStatus('NovaStudio AI : Visite « '+(updated.name||clientProfile.name)+' » mise à jour avec la charte.');
-          }
+    {aiAssistantOpen&&<NovaStudioAIAssistant onClose={()=>setAiAssistantOpen(false)}
+      onApply={async visit=>{
+        const previous=projectRef.current;
+        const immo=isImmospheraProject(visit);
+        const created=immo?await applyImmospheraDefaults({...visit,vrEnabled:true},undefined,{replaceEmptyBar:true}):visit;
+        if(projectRef.current!==previous)throw new Error('La visite active a changé. Réessaie la création.');
+        if(savingManually||savingRef.current)throw new Error('Attends la fin de l’enregistrement avant de créer la visite.');
+        if(hasUnsavedWork&&!await recovery.checkpoint()){
+          throw new Error('Enregistre la visite en cours avant de créer la nouvelle visite.');
         }
+        if(projectRef.current!==previous)throw new Error('La visite active a changé. Réessaie la création.');
+        cloud.unlink();
+        setActiveSpaceId(null);
+        setSpaceManagerOpen(false);
+        resetProject({...created,updatedAt:new Date().toISOString()});
+        setActiveId('');
+        setSelectedId('');
+        setMode(null);
+        setPreview(false);
+        setStatus('Nouvelle visite « '+created.name+' » créée · ajoute tes panoramas 360°.');
       }}/>}
     {introPreview&&project.introDesign&&<div className="nv-native-intro-preview" role="presentation">
       <NativeIntro design={project.introDesign} cover={visibleScenes.find(scene=>scene.id===startSceneId(visibleScenes))?.dataUrl} durationSec={project.introDuration??6} onDone={endIntroPreview}/>
