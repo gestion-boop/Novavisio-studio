@@ -546,7 +546,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
 
       </section>
     </div>}
-    {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);setSceneId(sourceProject?.scenes[0]?.id??'');}}>← Projet complet</button>}
+    {gallerySpace&&<button type="button" className="nv-return-project" onClick={()=>{setGallerySpace(null);const first=sourceProject?.scenes[0]?.id;if(first)onNeedScene?.(first);setSceneId(first??'');}}>← Projet complet</button>}
     {!showIntro&&firstPanoramaReady&&!floorPlanOpen&&<PlanMiniMap lang={lang} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onPick={id=>move(id)} onExpand={()=>setFloorPlanOpen(true)}/>}
     {floorPlanOpen&&<FloorPlanDialog lang={lang} shortcuts={project.planShortcuts!==false?(project.bottomBar??[]).filter(b=>b.type!=='plan').map(b=>({id:b.id,label:pick(b.title,b.titleTranslations,lang),icon:project.icons?.find(i=>i.id===b.iconId)?.dataUrl})):undefined} onShortcut={id=>{const item=project.bottomBar?.find(b=>b.id===id);if(item){setFloorPlanOpen(false);act(item);}}} plans={getFloorPlans(project)} scenes={project.scenes} currentId={current.id} onClose={()=>setFloorPlanOpen(false)} onPick={id=>{move(id);setFloorPlanOpen(false);}}/>}
     {photosId&&(()=>{
@@ -560,7 +560,7 @@ export function Tour({project:given,onNeedScene}:{project?:StudioProject;onNeedS
       const item=resolveVrGalleryItem({...project,bottomBar:[raw,...(project.bottomBar??[]).filter(b=>b.id!==raw.id)]});
       return <PanoramaGallery title={item.galleryTitle||pick(item.title,item.titleTranslations,lang)||ui('panoramas',lang)} currentId={current.id} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
         entries={galleryEntries(item,project.scenes,project.spaces).map(e=>{const sc=project.scenes.find(x=>x.id===e.sceneId);return {sceneId:e.sceneId,spaceId:e.spaceId,label:sc&&sc.name===e.label?pick(sc.name,sc.nameTranslations,lang):e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)};})}
-        onPick={(id,spaceId)=>{if(spaceId){setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
+        onPick={(id,spaceId)=>{if(spaceId){onNeedScene?.(id);setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
     {(photo?.imageDataUrl||photo?.imageUrl)&&<ZoomImage variant="tour" animation={photo.openAnimation??project.windowAnimation} frameStyle={photo.imageFrameStyle} closeShiftY={photo.closeShiftY} src={(photo.imageDataUrl||photo.imageUrl)!} alt={photo.title} origin={zoomFrom} animate={photo.fadeOnClick!==false} onClose={()=>setPhoto(null)}/>}
     {!showIntro&&!firstPanoramaReady&&<div className="nv-tour-startup-mask" role="status" aria-live="polite">
