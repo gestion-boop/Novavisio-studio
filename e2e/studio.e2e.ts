@@ -241,3 +241,52 @@ test('NovaStudio AI démarre une visite vierge et conserve le brouillon précéd
   await expect(page.locator('.panorama canvas')).toHaveCount(0);
   await expect(page.getByRole('button',{name:/Reprendre « Visite précédente »/})).toBeVisible();
 });
+
+test('charge le panorama voisin avant une vidéo lente dans la scène de départ',async({page,context})=>{
+  await page.goto('/visitor.html');
+  const image=await panorama(page);
+  const jpeg=Buffer.from(image.split(',')[1],'base64');
+  const requested:string[]=[];
+  let releaseVideo=()=>{};
+  const videoGate=new Promise<void>(resolve=>{releaseVideo=resolve;});
+  const snapshot:StudioProject={...newProject(),bottomBar:[],name:'Visite avec médias différés',transitionMs:0,scenes:[
+    {id:'a',name:'Accueil test',dataUrl:'nvmedia:first.jpg',hotspots:[
+      {id:'next',type:'navigation',text:'',title:'Vers le salon',target:'b',yaw:0,pitch:0},
+      {id:'slow-video',type:'video',text:'',title:'Vidéo lourde',target:'',yaw:.3,pitch:.1,videoDataUrl:'nvmedia:slow.mp4'},
+    ]},
+    {id:'b',name:'Salon test',dataUrl:'nvmedia:near.jpg',arrivalYaw:.5,hotspots:[
+      {id:'back',type:'navigation',text:'',title:'Retour',target:'a',yaw:.5,pitch:0,sphere:true},
+      {id:'poster-near',type:'image',text:'',title:'Affiche',target:'',yaw:.6,pitch:.1,imageDataUrl:'nvmedia:near-poster.jpg',imageBounce:false},
+    ]},
+    {id:'c',name:'Scène distante',dataUrl:'nvmedia:far.jpg',hotspots:[]},
+  ]};
+  const headers={'access-control-allow-origin':'*'};
+  await context.route(supabase+'/rest/v1/rpc/nvstudio_get_share',route=>route.fulfill({
+    json:{status:'ok',permanent:true,snapshot},headers,
+  }));
+  await context.route(supabase+'/storage/v1/object/**',async route=>{
+    const file=new URL(route.request().url()).pathname.split('/').at(-1)!;
+    requested.push(file);
+    if(file==='slow.mp4'){
+      await videoGate;
+      await route.fulfill({status:404,json:{message:'Test terminé'},headers});
+      return;
+    }
+    await route.fulfill({body:jpeg,contentType:'image/jpeg',headers});
+  });
+  try{
+    const opening=Date.now();
+    await page.goto('/share.html?t='+shareToken);
+    await expect(page.getByText('Accueil test',{exact:true})).toBeVisible();
+    const firstUsableMs=Date.now()-opening;
+    await expect.poll(()=>requested.includes('slow.mp4')&&requested.includes('near.jpg')).toBe(true);
+    expect(requested[0]).toBe('first.jpg');
+    expect(requested).not.toContain('far.jpg');
+    const clicked=Date.now();
+    await page.locator('#psv-marker-next').click();
+    await expect(page.locator('#psv-marker-back')).toBeVisible();
+    const nextUsableMs=Date.now()-clicked;
+    await expect.poll(()=>requested.includes('near-poster.jpg')).toBe(true);
+    console.log('Fixture 360° · ouverture '+firstUsableMs+' ms · deuxième scène '+nextUsableMs+' ms');
+  }finally{releaseVideo();}
+});

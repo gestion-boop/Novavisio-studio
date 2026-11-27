@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {ErrorBoundary,installErrorLog} from './ErrorBoundary';
 import {Tour} from './tour';
@@ -23,10 +23,45 @@ const PLACEHOLDER:Record<MediaKind,string>={
 };
 const isRef=(v?:string):v is string=>typeof v==='string'&&v.startsWith(MEDIA_PREFIX);
 
-function sceneRefs(scene:StudioProject['scenes'][number]):string[]{
-  const refs=[scene.dataUrl,scene.nightDataUrl,scene.audioDataUrl,...scene.hotspots.flatMap(h=>[h.imageDataUrl,h.videoDataUrl])];
-  return [...new Set(refs.filter(isRef))];
+function panoramaOrder(project:StudioProject,scene:StudioProject['scenes'][number]):string[]{
+  const index=project.scenes.indexOf(scene);
+  const ids=new Set([
+    ...scene.hotspots.filter(h=>h.type==='navigation').map(h=>h.target),
+    ...project.bottomBar.filter(item=>item.type==='navigation').map(item=>item.target),
+    project.scenes[index+1]?.id,project.scenes[index-1]?.id,
+  ]);
+  ids.delete(scene.id);
+  const byId=new Map(project.scenes.map(candidate=>[candidate.id,candidate.dataUrl]));
+  return [...new Set([...ids].map(id=>id?byId.get(id):undefined).filter(isRef))].slice(0,4);
 }
+
+function visibleMediaOrder(project:StudioProject,scene:StudioProject['scenes'][number]):string[]{
+  const visibleIconIds=new Set([
+    ...scene.hotspots.flatMap(h=>[h.iconId,h.hoverIconId,h.pressedIconId]),
+    ...project.bottomBar.flatMap(item=>[item.iconId,item.hoverIconId,item.pressedIconId]),
+    project.settingsIconId,project.closeIconId,
+  ]);
+  return [
+    ...scene.hotspots.map(h=>h.imageDataUrl),
+    ...project.icons.filter(icon=>visibleIconIds.has(icon.id)).map(icon=>icon.dataUrl),
+  ].filter(isRef);
+}
+
+function mediaOrder(project:StudioProject,scene:StudioProject['scenes'][number]):string[]{
+  return [
+    ...project.audioTracks.filter(track=>track.id===scene.musicTrackId||track.id===project.defaultMusicTrackId).map(track=>track.dataUrl),
+    scene.nightDataUrl,scene.audioDataUrl,
+    ...scene.hotspots.map(h=>h.videoDataUrl),
+    ...[project.floorPlan,...(project.floorPlans??[])].map(plan=>plan?.imageDataUrl),
+    ...project.icons.map(icon=>icon.dataUrl),
+    ...project.bottomBar.flatMap(item=>[item.galleryBackgroundImage,...(item.photos??[]).map(media=>media.data)]),
+    ...project.audioTracks.map(track=>track.dataUrl),
+  ].filter(isRef);
+}
+
+type BackgroundLane={queue:string[];attempted:Set<string>;running:boolean};
+const createLane=():BackgroundLane=>({queue:[],attempted:new Set(),running:false});
+
 /** Hydratation progressive : le panorama est visible dès qu'il est chargé, sans attendre les médias secondaires. */
 function hydrate(snapshot:StudioProject,loaded:Map<string,string>):StudioProject{
   const p=structuredClone(snapshot);
@@ -35,7 +70,10 @@ function hydrate(snapshot:StudioProject,loaded:Map<string,string>):StudioProject
   [p.floorPlan,...(p.floorPlans??[])].forEach(plan=>{if(plan)plan.imageDataUrl=swap(plan.imageDataUrl)??'';});
   p.icons.forEach(i=>{i.dataUrl=swap(i.dataUrl)??'';});
   p.audioTracks.forEach(t=>{t.dataUrl=swap(t.dataUrl);});
-  p.bottomBar?.forEach(b=>(b.photos??[]).forEach(m=>{m.data=swap(m.data);}));
+  p.bottomBar?.forEach(item=>{
+    item.galleryBackgroundImage=swap(item.galleryBackgroundImage);
+    (item.photos??[]).forEach(media=>{media.data=swap(media.data);});
+  });
   p.scenes.forEach(scene=>{
     // A 360° scene no longer waits for big framed images, videos or audio.
     scene.dataUrl=swap(scene.dataUrl)??'';
@@ -55,47 +93,95 @@ function Share(){
   const [phase,setPhase]=useState<Phase>({kind:'loading'});
   const [version,setVersion]=useState(0);
   const loaded=useRef(new Map<string,string>());
-  const pending=useRef(new Map<string,Promise<void>>());
+  const pending=useRef(new Map<string,Promise<boolean>>());
   const alive=useRef(true);
   const snapshotRef=useRef<StudioProject|null>(null);
+  const desiredScene=useRef('');
+  const requestNumber=useRef(0);
+  const loadingSelected=useRef(false);
+  const panoramaLane=useRef(createLane());
+  const visibleLane=useRef(createLane());
+  const mediaLane=useRef(createLane());
 
-  const fetchRef=async(ref:string)=>{
-    if(loaded.current.has(ref))return;
-    const {data,error}=await supabase().storage.from(BUCKET).download(ref.slice(MEDIA_PREFIX.length));
-    if(error||!data)throw new Error('Média indisponible');
-    if(!alive.current)return;
-    loaded.current.set(ref,URL.createObjectURL(data));
-  };
-  const ensureScene=(id:string):Promise<void>=>{
-    const snap=snapshotRef.current;
-    const scene=snap?.scenes.find(s=>s.id===id);
-    if(!snap||!scene)return Promise.resolve();
-    let job=pending.current.get(id);
-    if(!job){
-      job=(async()=>{
-        const download=async(ref:string)=>{
-          for(let attempt=0;attempt<3;attempt++){
-            try{await fetchRef(ref);return;}
-            catch(e){
-              if(attempt===2||!alive.current)throw e;
-              await new Promise(resolve=>setTimeout(resolve,500*(attempt+1)));
-            }
-          }
-        };
-        // Priority #1: 360° texture. Release the panorama as soon as it arrives.
-        const panoRef=isRef(scene.dataUrl)?scene.dataUrl:null;
-        if(panoRef){
-          await download(panoRef);
-          if(alive.current)setVersion(v=>v+1);
-        }
-        // Priority #2: images and videos embedded in this scene, downloaded in parallel.
-        await Promise.allSettled(sceneRefs(scene).filter(ref=>ref!==panoRef).map(download));
-        if(alive.current)setVersion(v=>v+1);
-      })().catch(()=>{pending.current.delete(id);});
-      pending.current.set(id,job);
-    }
+  const fetchRef=useCallback((ref:string):Promise<boolean>=>{
+    if(!alive.current)return Promise.resolve(false);
+    if(loaded.current.has(ref))return Promise.resolve(true);
+    const existing=pending.current.get(ref);
+    if(existing)return existing;
+    const job=(async()=>{
+      try{
+        const {data,error}=await supabase().storage.from(BUCKET).download(ref.slice(MEDIA_PREFIX.length));
+        if(error||!data||!alive.current)return false;
+        loaded.current.set(ref,URL.createObjectURL(data));
+        setVersion(previous=>previous+1);
+        return true;
+      }catch{return false;}
+    })().finally(()=>{pending.current.delete(ref);});
+    pending.current.set(ref,job);
     return job;
-  };
+  },[]);
+
+  const drain=useCallback(async(lane:BackgroundLane)=>{
+    if(lane.running)return;
+    lane.running=true;
+    try{
+      while(alive.current&&!loadingSelected.current){
+        const ref=lane.queue.shift();
+        if(!ref)return;
+        if(lane.attempted.has(ref))continue;
+        lane.attempted.add(ref);
+        await fetchRef(ref);
+      }
+    }finally{lane.running=false;}
+  },[fetchRef]);
+
+  const previewScenes=useCallback((ids:string[])=>{
+    const project=snapshotRef.current;
+    if(!project||!alive.current)return;
+    const byId=new Map(project.scenes.map(scene=>[scene.id,scene.dataUrl]));
+    const refs=ids.map(id=>byId.get(id)).filter(isRef);
+    const lane=panoramaLane.current;
+    lane.queue=[...new Set([...refs,...lane.queue])];
+    void drain(lane);
+  },[drain]);
+
+  const ensureScene=useCallback(async(id:string)=>{
+    const project=snapshotRef.current;
+    const scene=project?.scenes.find(candidate=>candidate.id===id);
+    if(!project||!scene||!alive.current)return;
+    if(desiredScene.current===id&&(loadingSelected.current||!isRef(scene.dataUrl)||loaded.current.has(scene.dataUrl)))return;
+    desiredScene.current=id;
+    const request=++requestNumber.current;
+    loadingSelected.current=true;
+    const panorama=scene.dataUrl;
+    let ready=!isRef(panorama);
+    for(let attempt=0;!ready&&attempt<3&&alive.current&&request===requestNumber.current;attempt++){
+      if(attempt>0)await new Promise(resolve=>setTimeout(resolve,500*attempt));
+      if(!alive.current||request!==requestNumber.current)return;
+      // A few rapid clicks may supersede a download that already started.
+      // Reserve at most two extra requests beyond the background lanes.
+      while(pending.current.size>=5&&!pending.current.has(panorama)&&alive.current&&request===requestNumber.current){
+        await Promise.race(pending.current.values());
+      }
+      if(!alive.current||request!==requestNumber.current)return;
+      ready=await fetchRef(panorama);
+    }
+    if(!alive.current||request!==requestNumber.current)return;
+    loadingSelected.current=false;
+    if(!ready&&scene===project.scenes[0]){
+      setPhase({kind:'error',message:'Le premier panorama n’a pas pu être chargé'});
+      return;
+    }
+    // Keep fixed photos and visible icons independent of videos and galleries.
+    panoramaLane.current.queue=panoramaOrder(project,scene);
+    visibleLane.current.attempted.clear();
+    visibleLane.current.queue=visibleMediaOrder(project,scene);
+    mediaLane.current.attempted.clear();
+    mediaLane.current.queue=mediaOrder(project,scene);
+    void drain(panoramaLane.current);
+    void drain(visibleLane.current);
+    void drain(mediaLane.current);
+  },[drain,fetchRef]);
 
   useEffect(()=>{
     alive.current=true;
@@ -118,40 +204,8 @@ function Share(){
         // The viewer is preloaded under the intro; no intermediate loading screen.
         if(!alive.current)return;
         setPhase({kind:'ok',snapshot:snap,expiresAt:res.expires_at??null});
-        const fetchIcons=async()=>{
-          await Promise.allSettled(snap.icons.filter(i=>isRef(i.dataUrl)).map(i=>fetchRef(i.dataUrl)));
-          if(alive.current)setVersion(v=>v+1);
-        };
-        const fetchAudio=async()=>{
-          await Promise.allSettled(snap.audioTracks.filter(t=>isRef(t.dataUrl)).map(t=>fetchRef(t.dataUrl!)));
-          if(alive.current)setVersion(v=>v+1);
-        };
-        const fetchBarPhotos=async()=>{
-          const refs=(snap.bottomBar??[]).flatMap(b=>(b.photos??[]).map(m=>m.data)).filter(isRef);
-          for(const ref of refs){
-            if(!alive.current)return;
-            try{await fetchRef(ref);if(alive.current)setVersion(v=>v+1);}catch{/* photo indisponible : tuile vide */}
-          }
-        };
-        const fetchPlan=async()=>{
-          const refs=[...new Set([snap.floorPlan,...(snap.floorPlans??[])].map(plan=>plan?.imageDataUrl).filter(isRef))];
-          for(const ref of refs){
-            try{await fetchRef(ref);}catch{/* The plan dialog keeps a loading/unavailable message. */}
-            if(alive.current)setVersion(v=>v+1);
-          }
-        };
-        void fetchIcons();
-        void fetchAudio();
-        // The first 360° picture has network priority. Others follow without blocking the intro.
-        void (async()=>{
-          if(snap.scenes[0])await ensureScene(snap.scenes[0].id);
-          void fetchPlan();
-          for(const scene of snap.scenes.slice(1)){
-            if(!alive.current)return;
-            await ensureScene(scene.id);
-          }
-          void fetchBarPhotos(); // les photos de la galerie viennent après les panoramas
-        })();
+        const first=snap.scenes[0];
+        if(first)void ensureScene(first.id);
       }catch(e){
         if(alive.current)setPhase({kind:'error',message:e instanceof Error?e.message:'Impossible de charger la visite'});
       }
@@ -161,14 +215,19 @@ function Share(){
       loaded.current.forEach(url=>URL.revokeObjectURL(url));
       loaded.current.clear();
     };
-  },[]);
+  },[ensureScene]);
 
   // Une page laissée ouverte passe l'échéance : l'accès se ferme.
   useEffect(()=>{
     if(phase.kind!=='ok'||!phase.expiresAt)return; // lien permanent : pas d'échéance
     const ms=new Date(phase.expiresAt).getTime()-Date.now();
     if(!Number.isFinite(ms))return;
-    const timer=window.setTimeout(()=>setPhase({kind:'expired'}),Math.min(Math.max(ms,0),2_000_000_000));
+    const timer=window.setTimeout(()=>{
+      alive.current=false;
+      loaded.current.forEach(url=>URL.revokeObjectURL(url));
+      loaded.current.clear();
+      setPhase({kind:'expired'});
+    },Math.min(Math.max(ms,0),2_000_000_000));
     return ()=>window.clearTimeout(timer);
   },[phase]);
 
@@ -181,7 +240,7 @@ function Share(){
   if(phase.kind==='expired')return <Message title="Ce lien a expiré" text="La durée d’accès à cette visite est terminée. Demande un nouveau lien à la personne qui te l’a envoyé."/>;
   if(phase.kind==='invalid')return <Message title="Lien invalide" text="Ce lien n’existe pas ou est incomplet. Vérifie l’adresse reçue."/>;
   if(phase.kind==='error')return <Message title="Visite indisponible" text={phase.message+'. Réessaie dans un instant.'}/>;
-  return <Tour project={project??undefined} onNeedScene={id=>{void ensureScene(id);}}/>;
+  return <Tour project={project??undefined} onNeedScene={ensureScene} onPreviewScenes={previewScenes}/>;
 }
 installErrorLog();
 createRoot(document.getElementById('share-root')!).render(<ErrorBoundary label="visite publique"><Share/></ErrorBoundary>);
