@@ -83,6 +83,8 @@ import {ClientPanel,type ClientLink} from './ClientPanel';
 import {ClientsDirectory} from './ClientsDirectory';
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
+import {readDraft,recoveryScope,type DraftSummary} from './recoveryDraft';
+import {useRecoveryDraft} from './useRecoveryDraft';
 import {PasswordBox} from './PasswordBox';
 import {ClientColorProposals} from './ClientSetupSteps';
 import {BarUniformPanel} from './BarUniformPanel';
@@ -256,6 +258,10 @@ function App(){
     }
   }
   const [project,setProjectRaw]=useState<StudioProject>(newProject());
+  const [recoveryDocument,setRecoveryDocument]=useState(()=>crypto.randomUUID());
+  const recoveryOwner=useRef<string|null>(null);
+  const cloudStartup=useRef(0);
+  const [recoveryBootOwner,setRecoveryBootOwner]=useState<string|null>(null);
   // Historique Annuler / Rétablir (Ctrl+Z · Ctrl+Maj+Z · Ctrl+Y) : des modifications rapprochées comptent pour une seule action.
   const histRef=useRef<{past:StudioProject[];future:StudioProject[];last:number;ops:number}>({past:[],future:[],last:0,ops:0});
   const [,setHistTick]=useState(0);
@@ -271,7 +277,7 @@ function App(){
     setHistTick(t=>t+1);
   },[]);
   /** Remplace tout le projet (ouverture, nouveau projet…) : l'historique repart de zéro. */
-  const resetProject=useCallback((p:StudioProject)=>{histRef.current={past:[],future:[],last:0,ops:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
+  const resetProject=useCallback((p:StudioProject)=>{setRecoveryDocument(crypto.randomUUID());histRef.current={past:[],future:[],last:0,ops:0};setProjectRaw(p);setHistTick(t=>t+1);},[]);
   const [ready,setReady]=useState(false);
   const [preparationOpen,setPreparationOpen]=useState(false);
   const [aiAssistantOpen,setAiAssistantOpen]=useState(false);
@@ -349,11 +355,9 @@ function App(){
       setStatus('Sauvegarde en cours : actualise NovaStudio une fois terminée.');
       return;
     }
-    if(ready&&projectRef.current!==savedRef.current){
-      const proceed=await confirmAsk(
-        'Des modifications du projet ne sont pas enregistrées. Enregistre avec la disquette avant de mettre à jour. Actualiser quand même et perdre ces modifications ?'
-      );
-      if(!proceed)return;
+    if(hasUnsavedWork&&!recovery.isProtected(projectRef.current,recoveryDocument)&&!await recovery.checkpoint()){
+      setStatus('Actualisation suspendue : le brouillon local n’a pas pu être écrit. Enregistre ou télécharge ton projet avant de réessayer.');
+      return;
     }
     updateReloadApproved.current=true;
     // On mémorise où l'on était : après la mise à jour, on revient dans le même panorama (même vue), pas au début de la visite.
@@ -1634,7 +1638,8 @@ function App(){
     resetProject(upgraded);setActiveId(startSceneId(upgraded.scenes));setSelectedId('');setMode(null);
   }
   useEffect(()=>{
-    let cancelled=false;
+    const startup=++cloudStartup.current;
+    const superseded=()=>startup!==cloudStartup.current;
     const restore=async()=>{
       // A linked cloud project always takes precedence over the older "current"
       // IndexedDB project; otherwise refreshing reopens an unrelated customer.
@@ -1645,28 +1650,30 @@ function App(){
           const {supabase,openCloudProject,cloudConfigured}=await import('./cloud');
           if(!cloudConfigured)throw new Error('Cloud non configuré');
           const {data:{session},error}=await supabase().auth.getSession();
-          if(cancelled)return;
+          if(superseded())return;
           if(error)throw error;
           if(!session){
             setStatus('Connecte-toi au Cloud pour retrouver ton dernier projet · bouton Cloud.');
             setReady(true);
             return;
           }
+          recoveryOwner.current=session.user.id;
+          setRecoveryBootOwner(session.user.id);
           // Juste après une mise à jour le réseau / la session peut mettre un instant : on réessaie seul avant d'afficher une erreur.
           let loaded:Awaited<ReturnType<typeof openCloudProject>>|null=null,lastError:unknown=null;
           for(let attempt=0;attempt<3&&!loaded;attempt++){
-            if(attempt>0){setStatus('Réouverture du projet Cloud… nouvel essai '+(attempt+1)+'/3');await new Promise(r=>window.setTimeout(r,1500*attempt));if(cancelled)return;}
-            try{loaded=await openCloudProject(link.projectId,message=>{if(!cancelled)setStatus(message);});}catch(err){lastError=err;}
+            if(attempt>0){setStatus('Réouverture du projet Cloud… nouvel essai '+(attempt+1)+'/3');await new Promise(r=>window.setTimeout(r,1500*attempt));if(superseded())return;}
+            try{loaded=await openCloudProject(link.projectId,message=>{if(!superseded())setStatus(message);});}catch(err){lastError=err;}
           }
           if(!loaded)throw lastError??new Error('Réouverture impossible');
-          if(cancelled)return;
+          if(superseded())return;
           adopt(loaded.project,null);
           writeLink(loaded.link);
           setStatus('Projet Cloud restauré : '+loaded.project.name);
           setReady(true);
           return;
         }catch(e){
-          if(cancelled)return;
+          if(superseded())return;
           // Never silently switch to an unrelated locally stored project.
           setStatus('Impossible de rouvrir le dernier projet Cloud : '+(e instanceof Error?e.message:String(e))+' · Ouvre Cloud pour choisir une sauvegarde.');
           setReady(true);
@@ -1675,7 +1682,7 @@ function App(){
       }
       try{
         const p=await loadProject();
-        if(cancelled)return;
+        if(superseded())return;
         if(p){
           rawStoredRef.current=p;
           try{adopt(p,p.updatedAt??null);rawStoredRef.current=null;}
@@ -1686,13 +1693,13 @@ function App(){
         }
         setReady(true);setStatus('Prêt');
       }catch(e){
-        if(cancelled)return;
+        if(superseded())return;
         setLock({kind:'unreadable',reason:'Stockage du navigateur indisponible ('+(e instanceof Error?e.message:String(e))+')'});
         setReady(true);setStatus('Stockage indisponible — enregistrement suspendu');
       }
     };
     void restore();
-    return ()=>{cancelled=true;};
+    return ()=>{cloudStartup.current++;};
   },[]);
   // Enregistrement : jamais pendant un verrou, jamais en écrasant le travail d'un autre onglet.
   async function persist(snapshot:StudioProject,force=false):Promise<boolean>{
@@ -1701,7 +1708,11 @@ function App(){
     setStatus('Sauvegarde…');
     try{
       const stamp=await saveProject(snapshot,baseRef.current,force);
-      baseRef.current=stamp;savedRef.current=snapshot;
+      baseRef.current=stamp;
+      if(!readLink()){
+        savedRef.current=snapshot;
+        recovery.confirmSaved(snapshot,recoveryDocument,projectRef.current===snapshot);
+      }
       setStatus('Sauvegardé localement');
       setLock(l=>l&&l.kind!=='unreadable'?null:l);
       try{channelRef.current?.postMessage({type:'saved',stamp});}catch{/* ignoré */}
@@ -1714,18 +1725,6 @@ function App(){
       return false;
     }finally{savingRef.current=false;}
   }
-  // Sauvegarde volontaire : aucun timer, aucune écriture au changement d'onglet,
-  // aucune écriture automatique dans IndexedDB. Avertir seulement si on quitte sans enregistrer.
-  useEffect(()=>{
-    const onBeforeUnload=(event:BeforeUnloadEvent)=>{
-      if(!updateReloadApproved.current&&((ready&&projectRef.current!==savedRef.current)||savingRef.current)){
-        event.preventDefault();
-        event.returnValue='';
-      }
-    };
-    window.addEventListener('beforeunload',onBeforeUnload);
-    return ()=>window.removeEventListener('beforeunload',onBeforeUnload);
-  },[ready]);
   // Plusieurs onglets : on est prévenu dès qu'un autre onglet enregistre.
   async function reloadFromStore(){
     try{
@@ -1756,6 +1755,51 @@ function App(){
     setStatus('Projet cloud ouvert : '+(by??'version distante'));
     return up;
   },true);
+  const draftLink=readLink();
+  const sessionOwner=cloud.userId??(!ready?recoveryBootOwner:null);
+  const draftOwner=draftLink&&recoveryOwner.current===sessionOwner?sessionOwner:null;
+  const draftScope=lock?.kind==='unreadable'||(!ready&&!draftOwner)?null:recoveryScope(draftOwner,draftLink);
+  const hasUnsavedWork=ready&&project!==savedRef.current&&(!!savedRef.current||project.scenes.length>0||histRef.current.ops>0||!!project.preparationComplete);
+  const recovery=useRecoveryDraft({
+    project,documentId:recoveryDocument,enabled:!!draftScope,dirty:hasUnsavedWork,scope:draftScope,cloudVersion:draftLink?.version,
+    context:()=>({owner:draftOwner,link:draftLink,base:baseRef.current}),
+  });
+  async function resumeDraft(summary:DraftSummary){
+    const openProject=projectRef.current;
+    try{
+      const draft=await readDraft(summary);
+      if(!draft||draft.scope!==draftScope||projectRef.current!==openProject){setStatus('Impossible de reprendre ce brouillon dans le projet actuel.');return;}
+      if(hasUnsavedWork&&!await recovery.checkpoint()){
+        setStatus('Télécharge le projet actuellement ouvert avant de reprendre le brouillon.');
+        return;
+      }
+      if(projectRef.current!==openProject)return;
+      const recovered=ensureFrameReferences(validateProject(draft.project),viewAreaRef.current?.clientHeight||550);
+      const documentId=crypto.randomUUID();
+      cloudStartup.current++;setReady(true);
+      recoveryOwner.current=draft.owner;
+      cloud.unlink();writeLink(draft.link);
+      baseRef.current=draft.base;
+      savedRef.current=null;
+      setRecoveryDocument(documentId);recovery.adopt(draft,documentId);
+      histRef.current={past:[],future:[],last:0,ops:1};
+      setProjectRaw(recovered);setHistTick(t=>t+1);
+      setActiveSpaceId(null);setSpaceManagerOpen(false);setActiveId(startSceneId(recovered.scenes));
+      setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(false);setLock(null);
+      setStatus('Brouillon récupéré : '+recovered.name+' · Utilise la disquette pour enregistrer.');
+    }catch(error){setStatus('Brouillon impossible à lire : '+(error instanceof Error?error.message:String(error)));}
+  }
+  // Prevent closing only while there is work that has not reached durable storage.
+  useEffect(()=>{
+    const onBeforeUnload=(event:BeforeUnloadEvent)=>{
+      if(!updateReloadApproved.current&&((hasUnsavedWork&&!recovery.isProtected(projectRef.current,recoveryDocument))||savingRef.current)){
+        event.preventDefault();
+        event.returnValue='';
+      }
+    };
+    window.addEventListener('beforeunload',onBeforeUnload);
+    return ()=>window.removeEventListener('beforeunload',onBeforeUnload);
+  },[hasUnsavedWork,recoveryDocument,recovery.isProtected]);
   const lastAutoPublish=useRef(0);
   const nameGuardOk=useRef(new Set<string>());
   async function manualSave(publishing=false,silent=false):Promise<boolean>{
@@ -1769,6 +1813,8 @@ function App(){
     try{
       if(cloud.signedIn||await cloud.ensureSignedIn()){
         const link=readLink();
+        if(!link)recoveryOwner.current=cloud.getUserId();
+        const draftProtected=hasUnsavedWork&&await recovery.checkpoint();
         if(link){
           // Garde-fou : une visite ne doit pas être enregistrée sur le lien Cloud d'un autre projet (nom différent).
           const cloudName=await cloudProjectName(link.projectId);
@@ -1794,11 +1840,13 @@ function App(){
         const synced=await cloud.syncNow(snapshot);
         if(!synced){
           const reason=cloud.getLastError();
-          const message='Échec de la sauvegarde Cloud : '+(reason??'synchronisation non confirmée. Vérifie la connexion, les droits et le panneau Cloud.')+' · Tes modifications restent sur cet appareil. Ne ferme pas cette fenêtre avant de les sécuriser.';
+          const message='Échec de la sauvegarde Cloud : '+(reason??'synchronisation non confirmée. Vérifie la connexion, les droits et le panneau Cloud.')+(draftProtected?' · Brouillon conservé sur cet appareil.':' · Télécharge ta copie avant de fermer cet onglet.');
           setStatus(message);setSaveWarning(message);
           return false;
         }
         savedRef.current=snapshot;
+        recoveryOwner.current??=cloud.getUserId();
+        recovery.confirmSaved(snapshot,recoveryDocument,projectRef.current===snapshot);
         // Enregistrer met aussi à jour les liens permanents DÉJÀ actifs (réglable dans « Lien public ») ; jamais de nouveau lien, jamais les liens temporaires.
         const autoRefresh=!publishing&&autoPublishOn()&&!(silent&&Date.now()-lastAutoPublish.current<45_000);
         if(autoRefresh)lastAutoPublish.current=Date.now();
@@ -1860,7 +1908,15 @@ function App(){
         }
         }else setStatus('Enregistré dans le Cloud · Cliquez sur Publier pour actualiser la visite en ligne');
       }else{
-        if(!silent){setStatus('Cloud déconnecté : connexion nécessaire pour enregistrer ou publier.');setCloudOpen(true);}
+        if(!publishing&&!readLink()&&!silent){
+          const localOk=await persist(snapshot);
+          if(localOk){histRef.current.ops=0;setHistTick(t=>t+1);}
+          return localOk;
+        }
+        if(!silent){
+          const protectedLocally=await recovery.checkpoint();
+          setStatus(protectedLocally?'Cloud déconnecté · Brouillon conservé sur cet appareil.':'Cloud déconnecté : reconnecte-toi pour enregistrer ou publier.');
+        }
         return false;
       }
       if(silent)setStatus('Enregistrement automatique effectué');
@@ -2535,7 +2591,7 @@ function App(){
     flushSync(()=>setProject(snapshot));
     try{
       // 1) copie locale d'abord : la vue ne se perd jamais, même si le Cloud échoue.
-      const localOk=await persist(snapshot);
+      const localOk=readLink()?await recovery.checkpoint():await persist(snapshot);
       // 2) puis Cloud si le projet y est lié.
       const ok=(cloud.signedIn||readLink())?await manualSave(false,true):localOk;
       if(!ok){
@@ -3689,7 +3745,7 @@ function App(){
       const raw=await readProjectFile(file,pct=>setStatus('Lecture du fichier… '+pct+' %'));
       const imported=ensureFrameReferences(validateProject(raw),viewAreaRef.current?.clientHeight||550);
       if(!await confirmAsk('Remplacer le projet actuellement ouvert par ce fichier ?'))return;
-      setActiveSpaceId(null);setSpaceManagerOpen(false);setProject(imported);setActiveId(startSceneId(imported.scenes));setSelectedId('');setMode(null);setPreview(false);
+      setActiveSpaceId(null);setSpaceManagerOpen(false);resetProject(imported);setActiveId(startSceneId(imported.scenes));setSelectedId('');setMode(null);setPreview(false);
       cloud.unlink(); // un autre projet : il aura sa propre visite dans le cloud (l'ancienne reste intacte)
       setStatus('Projet importé');setPreparationOpen(false);
     }catch(e){window.alert('Impossible d’ouvrir ce projet : '+String(e));}
@@ -3903,9 +3959,9 @@ function App(){
           <RefreshCw size={16} aria-hidden="true"/><span>Nouvelle version</span><i className="nv-header-update-dot" aria-hidden="true"/>
         </button>}
         {(()=>{
-          const dirty=ready&&project!==savedRef.current,ops=histRef.current.ops;
+          const dirty=hasUnsavedWork,ops=histRef.current.ops;
           const state=savingManually?'saving':!dirty?'clean':ops>=5?'urgent':'dirty';
-          const tip=state==='saving'?'Enregistrement en cours…':state==='clean'?'Tout est enregistré':state==='urgent'?ops+' modifications non enregistrées : clique pour enregistrer (enregistrement automatique à la 6e)':'Des modifications ne sont pas enregistrées : clique pour enregistrer (Ctrl+S)';
+          const tip=state==='saving'?'Enregistrement en cours…':state==='clean'?'Tout est enregistré':state==='urgent'?ops+' modifications en cours : clique pour enregistrer (Ctrl+S)':'Des modifications ne sont pas enregistrées : clique pour enregistrer (Ctrl+S)';
           return <button type="button" className={'nv-v3-icon-btn nv-v3-save is-'+state} onClick={()=>void manualSave()} disabled={!ready||savingManually||!!lock} aria-label={tip} title={tip}>
             <Save size={20}/>{state==='dirty'||state==='urgent'?<i className="nv-save-badge" aria-hidden="true">{ops>9?'9+':ops||'!'}</i>:null}
           </button>;
@@ -4206,6 +4262,18 @@ function App(){
         <button className="primary" onClick={cloud.retryNow}>J’ai exécuté le SQL : réessayer</button>
         <button className="quiet" onClick={()=>cloud.setEnabled(false)}>Mettre en pause</button>
       </div>
+    </div>}
+    {recovery.candidates.length>0&&<section className="nv-banner" aria-label="Brouillons de récupération">
+      <p><b>Brouillon disponible sur cet appareil</b></p>
+      <div className="nv-banner-actions">
+        {recovery.candidates.map(draft=><button key={draft.id} type="button" className="primary" disabled={savingManually}
+          onClick={()=>void resumeDraft(draft)}>Reprendre « {draft.name} » · {new Date(draft.at).toLocaleString('fr-FR')}</button>)}
+        <button type="button" className="quiet" onClick={recovery.hide}>Plus tard</button>
+      </div>
+    </section>}
+    {recovery.unavailable&&hasUnsavedWork&&<div className="nv-banner" role="alert">
+      <p><b>Le brouillon local n’a pas pu être protégé.</b> Tu peux télécharger le projet ou réessayer de l’enregistrer.</p>
+      <div className="nv-banner-actions"><button type="button" className="quiet" onClick={download}>Télécharger ma copie</button></div>
     </div>}
     {lock&&<div className="nv-banner" role="alert">
       {lock.kind==='conflict'&&<>
@@ -6235,6 +6303,7 @@ function App(){
       onOpen={(p:StudioProject,link:CloudLink,spaceId?:string,intent?:'share'|'export')=>{
         if(spaceId&&intent)setPendingSpaceIntent({spaceId,intent});
         const applyOpened=(opened:StudioProject)=>{
+          recoveryOwner.current=cloud.getUserId();
           resetProject(opened);setPreparationOpen(false);
           const openSpace=spaceId?(opened.spaces??[]).find(sp=>sp.id===spaceId):undefined;
           setActiveSpaceId(openSpace?.id??null);setActiveId(openSpace?(scenesInSpace(opened,openSpace)[0]?.id??''):(startSceneId(opened.scenes)));
@@ -6260,7 +6329,7 @@ function App(){
             try{
               const snapshot=projectRef.current;
               const ok=await cloud.overwriteNow(snapshot);
-              if(ok){savedRef.current=snapshot;setSaveWarning(null);setStatus('Version Cloud écrasée par la tienne (ancienne version archivée)');histRef.current.ops=0;setHistTick(t=>t+1);}
+              if(ok){savedRef.current=snapshot;recovery.confirmSaved(snapshot,recoveryDocument,projectRef.current===snapshot);setSaveWarning(null);setStatus('Version Cloud écrasée par la tienne (ancienne version archivée)');histRef.current.ops=0;setHistTick(t=>t+1);}
               else setStatus('Écrasement impossible : '+(cloud.getLastError()??'vérifie la connexion et tes droits'));
             }finally{setSavingManually(false);}
           }}>Écraser la version Cloud</button>}

@@ -14,7 +14,7 @@ export default defineConfig({
       this.emitFile({
         type:'asset',
         fileName:'version.json',
-        source:JSON.stringify({buildTime})
+        source:JSON.stringify({buildTime,commit:process.env.VERCEL_GIT_COMMIT_SHA??process.env.GITHUB_SHA})
       });
     }
   }],

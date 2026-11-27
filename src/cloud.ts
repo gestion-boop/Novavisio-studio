@@ -28,13 +28,18 @@ export function supabase():SupabaseClient{
 /** `revision` = dernière révision immuable ; `version` = dernière version de la copie de travail connue de cet appareil. */
 export type CloudLink={projectId:string;revision:number;version?:number};
 const LINK_KEY='nvstudio-cloud-link';
-export function readLink():CloudLink|null{
+function restoreLink():CloudLink|null{
   try{
     const v=JSON.parse(localStorage.getItem(LINK_KEY)||'null');
     return v&&typeof v.projectId==='string'&&Number.isInteger(v.revision)?{projectId:v.projectId,revision:v.revision,...(Number.isInteger(v.version)?{version:v.version}:{})}:null;
   }catch{return null;}
 }
+// Other tabs remember the last opened project for their next launch. They must
+// not switch the target of a save in a tab that is already editing a project.
+let activeLink=restoreLink();
+export function readLink():CloudLink|null{return activeLink;}
 export function writeLink(link:CloudLink|null){
+  activeLink=link;
   try{if(link)localStorage.setItem(LINK_KEY,JSON.stringify(link));else localStorage.removeItem(LINK_KEY);}catch{/* storage unavailable */}
 }
 

@@ -39,7 +39,10 @@ const plainLink=(l:CloudLink):CloudLink=>({projectId:l.projectId,revision:l.revi
 
 /** `onRemote` remplace le projet affiché par celui d'une autre personne et renvoie l'objet projet réellement affiché. */
 export function useCloudSync(project:StudioProject,active:boolean,onRemote:(project:StudioProject,by:string|null)=>StudioProject,manualOnly=false){
-  const [signedIn,setSignedIn]=useState(false);
+  const [userId,updateUserId]=useState<string|null>(null);
+  const userIdRef=useRef<string|null>(null);
+  const setUserId=(id:string|null)=>{userIdRef.current=id;updateUserId(id);};
+  const signedIn=!!userId;
   const [enabled,setEnabledState]=useState(()=>{try{return localStorage.getItem(ENABLED_KEY)!=='off';}catch{return true;}});
   const [state,setState]=useState<SyncState>(cloudConfigured?{kind:'login'}:{kind:'off'});
   const projectRef=useRef(project);projectRef.current=project;
@@ -69,7 +72,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
       let session=(await db.auth.getSession()).data.session;
       if(!session)session=(await db.auth.refreshSession()).data.session;
       if(session){
-        setSignedIn(true);
+        setUserId(session.user.id);
         // L'écriture suit immédiatement : on ne peut pas attendre le prochain rendu pour autoriser l'envoi.
         canRunRef.current=cloudConfigured&&(manualOnly||enabledRef.current)&&activeRef.current;
         return true;
@@ -80,14 +83,15 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   useEffect(()=>{
     if(!cloudConfigured)return;
     const db=supabase();
-    void db.auth.getSession().then(({data})=>setSignedIn(!!data.session));
+    void db.auth.getSession().then(({data})=>setUserId(data.session?.user.id??null));
     // Une session « absente » signalée par un événement n'est crue qu'après vérification : un renouvellement de jeton raté
     // (plusieurs onglets, mémoire saturée, réseau) ne doit pas afficher « Non connecté » alors que la personne est connectée.
     let timer:number|undefined;
-    const {data:sub}=db.auth.onAuthStateChange((_e,session)=>{
+    const {data:sub}=db.auth.onAuthStateChange((event,session)=>{
       window.clearTimeout(timer);
-      if(session){setSignedIn(true);return;}
-      timer=window.setTimeout(()=>{void ensureSignedIn().then(ok=>{if(!ok)setSignedIn(false);});},1200);
+      if(session){setUserId(session.user.id);return;}
+      if(event==='SIGNED_OUT'){setUserId(null);return;}
+      timer=window.setTimeout(()=>{void ensureSignedIn().then(ok=>{if(!ok)setUserId(null);});},1200);
     });
     // Reprise automatique : au retour sur l'onglet, quand le réseau revient, et toutes les 30 s tant qu'on est affiché « déconnecté ».
     const recheck=()=>{if(!signedInRef.current)void ensureSignedIn();};
@@ -239,7 +243,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   },[schedule,manualOnly]);
   /** Le projet affiché vient du cloud (ou vient d'y être enregistré) : il est synchronisé, rien à renvoyer. */
   const markSynced=useCallback((synced:StudioProject,link:CloudLink)=>{
-    syncedRef.current=synced;blockedRef.current=null;attemptRef.current=0;takeoverRef.current=false;
+    syncedRef.current=synced;blockedRef.current=null;attemptRef.current=0;takeoverRef.current=false;conflictVersionRef.current=null;
     const saved=plainLink(link);
     writeLink(saved);
     writeFp({projectId:saved.projectId,version:saved.version??0,fp:fingerprint(synced)});
@@ -248,7 +252,7 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
   /** Un autre projet remplace celui-ci : on coupe le lien (le cloud existant reste intact, un nouveau sera créé si besoin). */
   const unlink=useCallback(()=>{
     writeLink(null);writeFp(null);
-    syncedRef.current=null;blockedRef.current=null;attemptRef.current=0;takeoverRef.current=false;
+    syncedRef.current=null;blockedRef.current=null;attemptRef.current=0;takeoverRef.current=false;conflictVersionRef.current=null;
     setState(!cloudConfigured?{kind:'off'}:signedIn?{kind:'idle'}:{kind:'login'});
   },[signedIn]);
 
@@ -291,5 +295,5 @@ export function useCloudSync(project:StudioProject,active:boolean,onRemote:(proj
     if(ok)conflictVersionRef.current=null;else takeoverRef.current=false;
     return ok;
   };
-  return {state,overwriteNow,hasConflict:()=>conflictVersionRef.current!==null,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,ensureSignedIn,syncNow,getLastError:()=>lastErrorRef.current};
+  return {state,userId,getUserId:()=>userIdRef.current,overwriteNow,hasConflict:()=>conflictVersionRef.current!==null,enabled:manualOnly?false:enabled,setEnabled,retryNow,markSynced,unlink,signedIn,ensureSignedIn,syncNow,getLastError:()=>lastErrorRef.current};
 }

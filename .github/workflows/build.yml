@@ -1,9 +1,9 @@
 name: Build NovaVisio Studio
 on:
   push:
-    branches: [main, staging]
+    branches: [main, staging, preproduction]
   pull_request:
-    branches: [main, staging]
+    branches: [main, staging, preproduction]
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,8 +20,23 @@ jobs:
       - run: npm run build
       - run: node scripts/check-export.mjs
       - run: node scripts/check-floor-plan.mjs
+      - name: Install browser test dependencies
+        run: npx playwright install --with-deps --only-shell chromium webkit
+      - name: Run browser regression tests
+        run: npm run test:browser
+      - name: Upload browser traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-traces
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Deploy to Vercel
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/preproduction')
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: node scripts/deploy-vercel.mjs
+      - name: Verify deployed production routes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node scripts/check-production.mjs

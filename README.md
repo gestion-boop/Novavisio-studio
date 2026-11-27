@@ -172,3 +172,10 @@ L’outil **Plan** ouvre directement cette fenêtre agrandie, sans formulaire de
 La configuration des galeries propose **Agrandir la galerie avec les aperçus** : photos et vidéos ont une grande visionneuse à côté de leur liste de sélection ; la galerie des panoramas permet de consulter chaque vue 360° en cliquant sur sa vignette et de modifier le nom affiché sur ses cartes.
 
 Dans l’éditeur du plan, l’œil d’une vignette affiche sa vue 360° à gauche. La liste de droite reste accessible : cliquer sur une autre vignette actualise l’aperçu. Commencer un glisser-déposer rétablit le plan pour y déposer le panorama. Dans la visite, le plan s’ouvre avec un fondu et un léger zoom ; l’animation est désactivée si le navigateur demande une réduction des mouvements.
+
+## Récupération et mises en production
+
+- Les modifications en cours sont protégées par un brouillon dans le navigateur. Après réouverture, **Reprendre** recharge ce brouillon. La disquette enregistre la version officielle. Un brouillon Cloud garde la version de départ pour que Supabase refuse un écrasement involontaire.
+- Utilise le même navigateur, sur le même appareil. Pour un brouillon Cloud, utilise aussi le même compte. Il faut pouvoir charger l’application. Une fois ouverte, elle peut protéger des modifications malgré une coupure réseau.
+- Lance `npm test` et `npm run test:browser` avant la mise en ligne. Les tests de navigateur utilisent un projet fictif dans Chromium et dans WebKit au format iPhone. Ils vérifient la reprise locale, le conflit Cloud, la publication et la navigation dans la visite publique.
+- La branche `preproduction` publie un aperçu Vercel après ces contrôles. La branche `main` déclenche la production et contrôle ensuite les trois pages publiques et leurs fichiers JavaScript. Pour revenir à une version précédente en urgence, retrouve dans Vercel le dernier déploiement de production validé et utilise **Rollback**. Corrige ensuite le commit fautif avant la prochaine mise en production.
