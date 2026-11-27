@@ -29,8 +29,8 @@ const clean = (s, max = 400) => decode(s).replace(/\s+/g, ' ').trim().slice(0, m
 export function absolute(raw, base) {
   if (!String(raw ?? '').trim()) return '';
   try {
-    const u = new URL(decode(raw).trim(), base);
-    if (!['http:', 'https:'].includes(u.protocol)) return '';
+    const u = new URL(decode(raw).trim(), base || undefined);
+    if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password || u.href.length > 2048) return '';
     u.hash = '';
     return u.href;
   } catch { return ''; }
@@ -81,7 +81,7 @@ const DAY_FR = {Monday: 'Lundi', Tuesday: 'Mardi', Wednesday: 'Mercredi', Thursd
 export function parsePage(html, pageUrl) {
   const found = {
     title: '', description: '', name: '', phones: [], emails: [], address: '', city: '',
-    socials: {}, booking: '', hours: [], images: [], logos: [], links: [], services: [],
+    socials: {}, booking: '', hours: [], images: [], logos: [], videos: [], links: [], services: [],
   };
   const text = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
 
@@ -92,14 +92,36 @@ export function parsePage(html, pageUrl) {
     }
     return '';
   };
+  if (!pageUrl) {
+    const canonical = tags(html, 'link').find(tag => attr(tag, 'rel').toLowerCase() === 'canonical');
+    pageUrl = absolute(meta('og:url') || (canonical ? attr(canonical, 'href') : ''), undefined);
+  }
   found.description = clean(meta('og:description') || meta('description'), 1200);
   found.name = clean(meta('og:site_name') || meta('og:title'), 160);
   const ogImage = absolute(meta('og:image:secure_url') || meta('og:image') || meta('twitter:image'), pageUrl);
   if (ogImage) found.images.push({url: ogImage, score: 80});
 
+  const addVideo = (raw) => {
+    const url = absolute(raw, pageUrl);
+    if (!url) return;
+    const {hostname,pathname} = new URL(url);
+    const direct = /\.(mp4|webm|mov|m4v)$/i.test(pathname);
+    const youtube = /^(?:www\.)?youtube(?:-nocookie)?\.com$/i.test(hostname) && pathname.startsWith('/embed/');
+    const vimeo = hostname === 'player.vimeo.com' && pathname.startsWith('/video/');
+    if (direct || youtube || vimeo) found.videos.push(url);
+  };
+  addVideo(meta('og:video:secure_url') || meta('og:video:url') || meta('og:video'));
+  for (const video of text.matchAll(/<video\b[^>]*>(?:[\s\S]*?<\/video>|)/gi)) {
+    const opening = tags(video[0], 'video')[0];
+    addVideo(attr(opening, 'src') || attr(opening, 'data-src'));
+    for (const source of tags(video[0], 'source')) addVideo(attr(source, 'src'));
+  }
+  for (const frame of tags(text, 'iframe')) addVideo(attr(frame, 'src'));
+
   // JSON-LD : la source la plus fiable quand elle existe.
   for (const item of jsonLdBlocks(html)) {
     const type = asArray(item['@type']).join(' ');
+    if (/\bVideoObject\b/i.test(type)) addVideo(item.contentUrl || item.embedUrl);
     if (!/(Business|Organization|Restaurant|Hotel|Store|Service|Place|Camp|Lodging|Salon|Spa|Clinic|Dentist|Physician|Gym|Cafe|Bar)/i.test(type)) continue;
     if (item.name && !found.name) found.name = clean(item.name, 160);
     if (item.description && !found.description) found.description = clean(item.description, 1200);
@@ -163,7 +185,6 @@ export function parsePage(html, pageUrl) {
   for (const m of text.matchAll(/<(?:img|source)\b[^>]*>/gi)) {
     const t = m[0];
     const w = parseInt(attr(t, 'width'), 10) || 0, h = parseInt(attr(t, 'height'), 10) || 0;
-    if ((w && w < 120) || (h && h < 120)) continue;
     const srcset = attr(t, 'srcset') || attr(t, 'data-srcset');
     const src = bestFromSrcset(srcset, pageUrl) ||
       absolute(attr(t, 'data-src') || attr(t, 'data-lazy-src') || attr(t, 'data-original') || attr(t, 'src'), pageUrl);
@@ -171,7 +192,7 @@ export function parsePage(html, pageUrl) {
     const meta2 = `${src} ${attr(t, 'alt')} ${attr(t, 'class')} ${attr(t, 'id')}`;
     const isLogo = /logo/i.test(meta2) && !/(partenaire|partner|sponsor|client|label|certif)/i.test(meta2);
     if (isLogo) { found.logos.push({url: src, score: 60}); continue; }
-    if (!GOOD_EXT.test(src) || BAD_IMAGE.test(src)) continue;
+    if ((w && w < 120) || (h && h < 120) || (!GOOD_EXT.test(src) && !/^<img\b/i.test(t)) || BAD_IMAGE.test(src)) continue;
     found.images.push({url: src, score: 30 + Math.min(40, Math.round(w / 40)) + (attr(t, 'alt') ? 5 : 0)});
   }
   for (const m of text.matchAll(/background(?:-image)?\s*:[^;"']*url\(\s*['"]?([^'")\s]+)['"]?\s*\)/gi)) {
@@ -222,7 +243,7 @@ const rank = (list, keyOf, limit) => {
  * Parcourt le site : page d'accueil + au plus `maxPages - 1` pages utiles.
  * fetchPage(url) → {html, finalUrl} ; lève une erreur si la page est inaccessible (la page est alors ignorée).
  */
-export async function crawlSite(startUrl, fetchPage, {maxPages = 6, maxPhotos = 60} = {}) {
+export async function crawlSite(startUrl, fetchPage, {maxPages = 6, maxPhotos = 60, followLinks = true} = {}) {
   const pages = [];
   const notes = [];
   const results = [];
@@ -237,7 +258,7 @@ export async function crawlSite(startUrl, fetchPage, {maxPages = 6, maxPhotos = 
       const parsed = parsePage(html, finalUrl || url);
       results.push(parsed);
       pages.push(finalUrl || url);
-      if (pages.length === 1) {
+      if (followLinks && pages.length === 1) {
         for (const next of usefulLinks(parsed.links, finalUrl || url, maxPages - 1)) if (!visited.has(next)) queue.push(next);
       }
     } catch (e) {
@@ -272,5 +293,6 @@ export async function crawlSite(startUrl, fetchPage, {maxPages = 6, maxPhotos = 
   if (!hours.length) notes.push('Aucun horaire trouvé sur le site.');
   if (!fiche.facebook && !fiche.instagram) notes.push('Aucun lien Facebook ou Instagram trouvé sur le site.');
   if (!photos.length) notes.push('Aucune photo exploitable trouvée sur le site.');
-  return {ok: true, fiche, photos, logos, notes, pages, emails, phones};
+  const videos = [...new Set(results.flatMap((r) => r.videos))].slice(0, 30);
+  return {ok: true, fiche, photos, logos, videos, notes, pages, emails, phones};
 }

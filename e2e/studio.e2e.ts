@@ -210,3 +210,34 @@ test('importe, édite et publie une visite que le lecteur peut ouvrir',async({pa
   await visitor.goto('/share.html?t='+shareToken);
   await expect(visitor.getByText('Entrée',{exact:true})).toBeVisible();
 });
+
+test('NovaStudio AI démarre une visite vierge et conserve le brouillon précédent',async({page,context})=>{
+  await context.route(supabase+'/**',route=>route.abort());
+  await page.goto('/');
+  await closePreparation(page);
+  await importPanoramas(page,await panorama(page));
+  await page.getByRole('textbox',{name:'Nom du projet'}).fill('Visite précédente');
+
+  const openAssistant=async()=>{
+    await page.getByRole('button',{name:'Ouvrir le menu de navigation'}).click();
+    await page.getByRole('navigation',{name:'Navigation NovaStudio'}).getByRole('button',{name:'NovaStudio AI',exact:true}).click();
+  };
+  await openAssistant();
+  const assistant=page.getByRole('dialog',{name:'NovaStudio AI'});
+  const client=assistant.getByPlaceholder(/Le Mas des Oliviers/);
+  await expect(client).toHaveValue('');
+  await expect(assistant.getByText('Appliquer à la visite en cours')).toHaveCount(0);
+  await client.fill('Essai annulé');
+  await assistant.getByRole('button',{name:'Annuler'}).click();
+  await expect(page.getByRole('textbox',{name:'Nom du projet'})).toHaveValue('Visite précédente');
+
+  await openAssistant();
+  await expect(client).toHaveValue('');
+  await client.fill('Atelier du Canal');
+  await assistant.getByRole('button',{name:/Interface & Menus automatiques/}).click();
+  await assistant.getByRole('button',{name:'Créer la nouvelle visite',exact:true}).click();
+  await expect(assistant).toHaveCount(0);
+  await expect(page.getByRole('textbox',{name:'Nom du projet'})).toHaveValue('Atelier du Canal');
+  await expect(page.locator('.panorama canvas')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:/Reprendre « Visite précédente »/})).toBeVisible();
+});

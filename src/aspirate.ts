@@ -11,12 +11,12 @@ async function accessToken(): Promise<string> {
 }
 
 /** Lit le site Internet d'un établissement (accueil + pages utiles) via le serveur NovaStudio. */
-export async function askAspirate(site: string, signal?: AbortSignal): Promise<ScrapeLike & {pages?: string[]; brand?: SiteBrandAnalysis | null}> {
+export async function askAspirate(site: string, signal?: AbortSignal, html?: string): Promise<ScrapeLike & {pages?: string[]; videos?: string[]; brand?: SiteBrandAnalysis | null}> {
   const token = await accessToken();
   const response = await fetch('/api/aspirate', {
     method: 'POST',
     headers: {'content-type': 'application/json', authorization: 'Bearer ' + token},
-    body: JSON.stringify({site}), signal, cache: 'no-store',
+    body: JSON.stringify({site,html}), signal, cache: 'no-store',
   });
   const raw = await response.text();
   let parsed: Record<string, unknown> = {};
@@ -24,7 +24,20 @@ export async function askAspirate(site: string, signal?: AbortSignal): Promise<S
     throw new Error('L’aspirateur de site n’est pas disponible sur cette version de NovaStudio.');
   }
   if (!response.ok) throw new Error(String(parsed.error || 'Erreur de l’aspirateur ' + response.status));
-  return parsed as unknown as ScrapeLike & {pages?: string[]; brand?: SiteBrandAnalysis | null};
+  return parsed as unknown as ScrapeLike & {pages?: string[]; videos?: string[]; brand?: SiteBrandAnalysis | null};
+}
+
+export async function fetchAspiratedImage(url: string, signal?: AbortSignal): Promise<Blob> {
+  const token = await accessToken();
+  return fetchImage(url, token, signal);
+}
+
+async function fetchImage(url: string, token: string, signal?: AbortSignal): Promise<Blob> {
+  const response = await fetch('/api/novagen-image?url=' + encodeURIComponent(url), {
+    headers: {authorization: 'Bearer ' + token}, signal, cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('HTTP ' + response.status);
+  return response.blob();
 }
 
 const MAX_SIDE = 2000;
@@ -74,11 +87,7 @@ export async function importPhotosAsMedia(
     try {
       const name = nameFromUrl(url);
       if (known.has(name.toLowerCase())) { result.skipped++; return; }
-      const response = await fetch('/api/novagen-image?url=' + encodeURIComponent(url), {
-        headers: {authorization: 'Bearer ' + token}, signal: options.signal, cache: 'no-store',
-      });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const data = await shrink(await response.blob());
+      const data = await shrink(await fetchImage(url, token, options.signal));
       if (!data) { result.tooSmall++; return; }
       if (!isSafeFrameImage(data) || data.length > 12_000_000) throw new Error('image refusée');
       if (result.items.length >= room) { result.skipped++; return; }
