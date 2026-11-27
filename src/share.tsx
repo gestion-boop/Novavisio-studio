@@ -32,10 +32,7 @@ function panoramaOrder(project:StudioProject,scene:StudioProject['scenes'][numbe
   ]);
   ids.delete(scene.id);
   const byId=new Map(project.scenes.map(candidate=>[candidate.id,candidate.dataUrl]));
-  return [
-    ...[...ids].map(id=>id?byId.get(id):undefined),
-    ...project.scenes.filter(candidate=>candidate!==scene&&!ids.has(candidate.id)).map(candidate=>candidate.dataUrl),
-  ].filter(isRef);
+  return [...new Set([...ids].map(id=>id?byId.get(id):undefined).filter(isRef))].slice(0,4);
 }
 
 function visibleMediaOrder(project:StudioProject,scene:StudioProject['scenes'][number]):string[]{
@@ -138,6 +135,16 @@ function Share(){
     }finally{lane.running=false;}
   },[fetchRef]);
 
+  const previewScenes=useCallback((ids:string[])=>{
+    const project=snapshotRef.current;
+    if(!project||!alive.current)return;
+    const byId=new Map(project.scenes.map(scene=>[scene.id,scene.dataUrl]));
+    const refs=ids.map(id=>byId.get(id)).filter(isRef);
+    const lane=panoramaLane.current;
+    lane.queue=[...new Set([...refs,...lane.queue])];
+    void drain(lane);
+  },[drain]);
+
   const ensureScene=useCallback(async(id:string)=>{
     const project=snapshotRef.current;
     const scene=project?.scenes.find(candidate=>candidate.id===id);
@@ -233,7 +240,7 @@ function Share(){
   if(phase.kind==='expired')return <Message title="Ce lien a expiré" text="La durée d’accès à cette visite est terminée. Demande un nouveau lien à la personne qui te l’a envoyé."/>;
   if(phase.kind==='invalid')return <Message title="Lien invalide" text="Ce lien n’existe pas ou est incomplet. Vérifie l’adresse reçue."/>;
   if(phase.kind==='error')return <Message title="Visite indisponible" text={phase.message+'. Réessaie dans un instant.'}/>;
-  return <Tour project={project??undefined} onNeedScene={ensureScene}/>;
+  return <Tour project={project??undefined} onNeedScene={ensureScene} onPreviewScenes={previewScenes}/>;
 }
 installErrorLog();
 createRoot(document.getElementById('share-root')!).render(<ErrorBoundary label="visite publique"><Share/></ErrorBoundary>);

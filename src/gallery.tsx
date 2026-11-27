@@ -35,10 +35,30 @@ export function galleryBackgroundSrc(item:BottomBarItem,scenes:Scene[],spaces:St
 }
 export type GalleryCard={sceneId:string;label:string;thumb?:string;spaceId?:string};
 /** Galerie de raccourcis vers les panoramas : un clic sur une vignette emmène directement au panorama. */
-export function PanoramaGallery({title,entries,currentId,background,onPick,onClose,renderPreview,viewSource}:{title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void;renderPreview?:(sceneId:string)=>ReactNode;viewSource?:(sceneId:string)=>ViewSource|undefined}){
+export function PanoramaGallery({title,entries,currentId,background,onPick,onClose,renderPreview,viewSource,onVisibleScenes}:{title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void;renderPreview?:(sceneId:string)=>ReactNode;viewSource?:(sceneId:string)=>ViewSource|undefined;onVisibleScenes?:(ids:string[])=>void}){
   const [views,setViews]=useState<Record<string,string>>({});
   const viewRef=useRef(viewSource),entriesRef=useRef(entries);viewRef.current=viewSource;entriesRef.current=entries;
   const entriesKey=entries.map(e=>e.sceneId).join(',');
+  const grid=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    if(!onVisibleScenes||!grid.current)return;
+    if(typeof IntersectionObserver==='undefined'){
+      onVisibleScenes(entriesRef.current.slice(0,6).map(entry=>entry.sceneId));
+      return;
+    }
+    const observer=new IntersectionObserver(changes=>{
+      const ids:string[]=[];
+      for(const change of changes){
+        if(!change.isIntersecting)continue;
+        const id=(change.target as HTMLElement).dataset.previewScene;
+        if(id)ids.push(id);
+        observer.unobserve(change.target);
+      }
+      if(ids.length)onVisibleScenes(ids);
+    });
+    grid.current.querySelectorAll('[data-preview-scene]').forEach(card=>observer.observe(card));
+    return ()=>observer.disconnect();
+  },[entriesKey,onVisibleScenes]);
   useEffect(()=>{
     if(!viewRef.current)return;
     let dead=false;
@@ -63,7 +83,7 @@ export function PanoramaGallery({title,entries,currentId,background,onPick,onClo
     <section className={'nv-gallery'+(background?' has-bg':'')} role="dialog" aria-label={title} onClick={e=>e.stopPropagation()}
       style={background?{backgroundImage:'linear-gradient(rgba(4,14,20,.58),rgba(4,14,20,.84)),url("'+background.replace(/"/g,'%22')+'")',backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
       <header><h2>{title}</h2><button type="button" className="nv-gallery-close" onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();onClose();}} aria-label="Fermer la galerie"><X size={20}/></button></header>
-      {entries.length?<div className="nv-gallery-grid">{entries.map(e=><div className="nv-gallery-cell" key={e.spaceId??e.sceneId}>
+      {entries.length?<div className="nv-gallery-grid" ref={grid}>{entries.map(e=><div className="nv-gallery-cell" data-preview-scene={onVisibleScenes?e.sceneId:undefined} key={e.spaceId??e.sceneId}>
         <button type="button" className={'nv-gallery-card'+(e.sceneId===currentId?' is-current':'')} onClick={()=>onPick(e.sceneId,e.spaceId)}>
           <span className="nv-gallery-thumb">{(views[e.sceneId]||e.thumb)?<img src={views[e.sceneId]||e.thumb} alt="" loading="lazy" decoding="async" draggable={false}/>:<span className="nv-gallery-ph"/>}</span>
           <strong>{e.label}</strong>
