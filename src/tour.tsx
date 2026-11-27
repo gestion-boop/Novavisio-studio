@@ -57,6 +57,12 @@ function checkedLink(raw:string):string|null {
     return ['https:','http:','tel:','mailto:'].includes(parsed.protocol)?parsed.href:null;
   }catch{return null;}
 }
+// Loading media have no interactive surface in the public viewer.
+function publicMediaReady(h:Hotspot):boolean{
+  if(h.type==='image')return !!(h.imageDataUrl||h.imageUrl);
+  if(h.type==='video')return !!(h.videoDataUrl||h.videoUrl);
+  return true;
+}
 function publicMarker(h:Hotspot,icons:CustomIcon[],height:number,zoom:number,lang:string='fr',all:readonly Hotspot[]=[]):MarkerConfig {
   if(h.type==='image'&&h.imageDataUrl&&!isPopupMedia(h)){
     return {id:h.id,imageLayer:framedPhotoSource(h),position:frameWorldCorners(h),hoverScale:false};
@@ -168,7 +174,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       const viewHeight=container.current?.clientHeight||550;
       const current=handlers.current;
       if(loadedScene.current!==current.scene.id)return;
-      syncMarkers(instance,visibleVideoFrames(current.scene.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[
+      syncMarkers(instance,visibleVideoFrames(current.scene.hotspots).filter(h=>publicMediaReady(h)&&inPhase(h,nightOnly())).flatMap(h=>[
         publicMarker(h,current.icons,viewHeight,instance.getZoomLevel(),langRef.current,current.scene.hotspots),...occluderMarkers(h,nightOnly()?undefined:current.scene.dataUrl),...(haloMarkers(h) as unknown as MarkerConfig[])]));
     };
     refreshMarkers();
@@ -207,7 +213,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
       loadedScene.current=scene.id;
       currentTexture.current=texture;
       gradeRef.current?.set(destination.grade??null);
-      resetMarkers(instance,visibleVideoFrames(destination.hotspots).filter(h=>inPhase(h,isNight)).flatMap(h=>[
+      resetMarkers(instance,visibleVideoFrames(destination.hotspots).filter(h=>publicMediaReady(h)&&inPhase(h,isNight)).flatMap(h=>[
         publicMarker(h,current.icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,destination.hotspots),
         ...occluderMarkers(h,isNight?undefined:destination.dataUrl),...(haloMarkers(h) as unknown as MarkerConfig[]),
       ]));
@@ -239,7 +245,7 @@ function Pano({sphereImage,scene,icons,night,nightTexture,arrival,navigate,info,
     const instance=viewer.current;
     if(!instance||loadedScene.current!==scene.id)return;
     // Images, icon files and screen videos may arrive after the main panorama.
-    syncMarkers(instance,visibleVideoFrames(scene.hotspots).filter(h=>inPhase(h,nightOnly())).flatMap(h=>[
+    syncMarkers(instance,visibleVideoFrames(scene.hotspots).filter(h=>publicMediaReady(h)&&inPhase(h,nightOnly())).flatMap(h=>[
       publicMarker(h,icons,container.current?.clientHeight||550,instance.getZoomLevel(),langRef.current,scene.hotspots),...occluderMarkers(h,nightOnly()?undefined:scene.dataUrl),...(haloMarkers(h) as unknown as MarkerConfig[])]));
   },[scene.id,scene.hotspots,icons,lang,night,nightTexture,occTick]);
   // Retouche de la photo du panorama (exposition, contraste, couleur…), seule : les incrustations ne sont pas touchées.
