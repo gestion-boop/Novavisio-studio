@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch:'**/*.e2e.ts',
   timeout:45_000,
   workers:1,
-  use:{baseURL:'http://localhost:4173',trace:'retain-on-failure'},
+  use:{baseURL:'http://localhost:4173',trace:'retain-on-failure',actionTimeout:12_000},
   webServer:{
     command:'npm run build && npm run preview -- --host localhost --port 4173 --strictPort',
     url:'http://localhost:4173',

@@ -4176,7 +4176,7 @@ function App(){
       autoFixCount={autoFixChanges.length}
       onAutoFix={()=>{const r=autoFixProject(project);try{setProject(validateProject(r.project));setStatus(r.changes.length?'Corrections appliquées ('+r.changes.length+'). Vérifie les flèches créées et déplace-les vers la bonne direction.':'Rien à corriger automatiquement.');}catch(e){setStatus('Correction impossible : '+String(e));}}}/>}
     {commentsOpen&&<CommentsPanel comments={project.comments??[]} scenes={project.scenes} currentSceneId={cameraRef.current.sceneId||activeId} onAdd={addComment} onGo={goToComment} onToggle={toggleComment} onDelete={deleteComment} onClose={()=>{setCommentsOpen(false);backFrom();}}/>}
-    {welcome&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
+    {welcome&&!publishConfirm&&!publishReport&&<aside className="nv-welcome" role="status" aria-label="Depuis ta dernière visite">
       <h3>👋 {welcome.since?'Depuis ta dernière visite ('+new Date(welcome.since).toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})+')':'À savoir sur ce projet'}</h3>
       <ul>
         {welcome.notifs>0&&<li>{welcome.notifs} événement{welcome.notifs>1?'s':''} (enregistrements, notes, captures)</li>}
