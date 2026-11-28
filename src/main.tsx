@@ -1765,7 +1765,11 @@ function App(){
     project,documentId:recoveryDocument,enabled:!!draftScope,dirty:hasUnsavedWork,scope:draftScope,cloudVersion:draftLink?.version,
     context:()=>({owner:draftOwner,link:draftLink,base:baseRef.current}),
   });
+  const resumingDraft=useRef(false);
   async function resumeDraft(summary:DraftSummary){
+    // Un seul « Reprendre » à la fois : les clics répétés ne doivent pas multiplier les brouillons.
+    if(resumingDraft.current)return;
+    resumingDraft.current=true;
     const openProject=projectRef.current;
     try{
       const draft=await readDraft(summary);
@@ -1776,7 +1780,8 @@ function App(){
       }
       if(projectRef.current!==openProject)return;
       const recovered=ensureFrameReferences(validateProject(draft.project),viewAreaRef.current?.clientHeight||550);
-      const documentId=crypto.randomUUID();
+      // On garde l'identifiant du brouillon repris : l'enregistrement automatique le remplace au lieu d'en créer un nouveau à chaque « Reprendre ».
+      const documentId=draft.id as ReturnType<typeof crypto.randomUUID>;
       cloudStartup.current++;setReady(true);
       recoveryOwner.current=draft.owner;
       cloud.unlink();writeLink(draft.link);
@@ -1789,6 +1794,7 @@ function App(){
       setSelectedId('');setMode(null);setPreview(false);setPreparationOpen(false);setLock(null);
       setStatus('Brouillon récupéré : '+recovered.name+' · Utilise la disquette pour enregistrer.');
     }catch(error){setStatus('Brouillon impossible à lire : '+(error instanceof Error?error.message:String(error)));}
+    finally{resumingDraft.current=false;}
   }
   // Prevent closing only while there is work that has not reached durable storage.
   useEffect(()=>{
@@ -1810,6 +1816,12 @@ function App(){
       return false;
     }
     const snapshot=projectRef.current;
+    // Un projet sans panorama n'est jamais envoyé au Cloud (cloudSync) : on le dit clairement au lieu d'afficher « Sauvegarde impossible ».
+    if(!snapshot.scenes.length){
+      if(hasUnsavedWork)await recovery.checkpoint();
+      if(!silent)setStatus('Rien à enregistrer dans le Cloud pour l’instant : ajoute au moins un panorama, puis enregistre. Ton brouillon reste conservé sur cet appareil.');
+      return false;
+    }
     setSavingManually(true);
     try{
       if(cloud.signedIn||await cloud.ensureSignedIn()){
