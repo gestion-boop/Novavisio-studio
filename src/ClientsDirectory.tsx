@@ -215,6 +215,7 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
  return <div className="nv-directory-overlay" role="presentation" {...overlayClose(onClose)}>
   <section className="nv-directory-shell" role="dialog" aria-modal="true" aria-label="Répertoire central Clients"
     onClick={e=>e.stopPropagation()}>
+    <button type="button" className="nv-directory-close" onClick={onClose} title="Fermer le répertoire" aria-label="Fermer"><X size={18}/></button>
     <header className="nv-directory-head">
       <div className="nv-directory-heading"><div className="nv-directory-head-icon"><Users size={22}/></div>
         <div><h2>Clients</h2><p>NovaGen + NovaStudio · Répertoire des établissements</p></div>
@@ -231,7 +232,6 @@ export function ClientsDirectory({currentProjectName,currentProfile,onClose,onAs
           setManualOpen(true);setSavedNotice('');setSearch('');discovery.close();
         }} title="Formulaire classique"><Plus size={16}/> Saisie manuelle</button>
         <button type="button" onClick={()=>setRefresh(v=>v+1)} title="Actualiser les clients"><RefreshCw size={16}/> Actualiser</button>
-        <button type="button" onClick={onClose} title="Fermer le répertoire" aria-label="Fermer"><X size={20}/></button>
       </div>
     </header>
     <div className="nv-directory-layout">

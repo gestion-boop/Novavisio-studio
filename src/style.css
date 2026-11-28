@@ -3325,7 +3325,7 @@ footer{min-height:28px;padding:4px 18px;border-top:1px solid #1a2e40;display:fle
 
 /* Clients — unified read-only NovaGen / NovaStudio directory. */
 .nv-directory-overlay{position:fixed;inset:0;z-index:1600;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(0,8,18,.85);backdrop-filter:blur(8px);color:#edfafa}
-.nv-directory-shell{display:flex;flex-direction:column;min-width:0;width:min(1200px,100%);height:min(790px,94dvh);max-height:94dvh;border-radius:17px;overflow:hidden;border:1px solid #31576a;background:#0e2433;box-shadow:0 28px 100px rgba(0,0,0,.65)}
+.nv-directory-shell{position:relative;display:flex;flex-direction:column;min-width:0;width:min(1200px,100%);height:min(790px,94dvh);max-height:94dvh;border-radius:17px;overflow:hidden;border:1px solid #31576a;background:#0e2433;box-shadow:0 28px 100px rgba(0,0,0,.65)}
 .nv-directory-head{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:18px 22px;border-bottom:1px solid #294655;background:#102c3b;flex:none}
 .nv-directory-heading{display:flex;gap:13px;align-items:center;min-width:0}
 .nv-directory-head-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#22565d;color:#8ceadb;flex:none}
@@ -6312,3 +6312,6 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-inspector-search input[type=search]:focus{outline:2px solid #4bebde;outline-offset:1px}
 .nv-inspector-search-empty{display:block;margin-top:6px;color:#cfe3e8;font-size:12px}
 .nv-cloud2-empty-hint{align-self:center;color:#f3c98b;font-size:12px;max-width:190px;line-height:1.25}
+
+.nv-directory-close{position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:5;display:grid;place-items:center;width:34px;height:34px;padding:0;border-radius:50%;border:1px solid #3b5e71;background:#173a4a;color:#dceff2;cursor:pointer}
+.nv-directory-close:hover{border-color:#70c7c1;background:#245666}
