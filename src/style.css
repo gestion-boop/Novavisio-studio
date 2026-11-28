@@ -5412,6 +5412,7 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 }
 
 /* Auréole discrète autour d'un cadre cliquable (Aperçu et visite) */
+:root[data-no-frame-halo] .nv-frame-halo{display:none!important}
 .nv-frame-halo{pointer-events:none!important}
 .nv-frame-halo path,.nv-frame-halo polygon{pointer-events:none;filter:drop-shadow(0 0 5px rgba(255,255,255,.9)) drop-shadow(0 0 12px rgba(120,220,255,.6));animation:nv-halo 2.6s ease-in-out infinite}
 @keyframes nv-halo{0%,100%{opacity:.18}50%{opacity:.75}}
