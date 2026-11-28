@@ -68,9 +68,13 @@
 .nv-visitor-settings-panel:not(#nv-x) strong{color:var(--nv-panel-ink,#eaf7fa)}
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button,.nv-vs-fullscreen,.nv-open-floor-plan){
   background:var(--nv-button-bg,#143543);background-color:var(--nv-button-bg,#143543);
-  border:1px solid color-mix(in srgb,var(--nv-icon-color,#35606f) 45%,transparent);color:var(--nv-icon-color,#e6f6f8);transition:background .2s,transform .2s,border-color .2s,filter .2s}
+  border:var(--nv-button-border-width,2px) solid var(--nv-button-outline,#35606f);color:var(--nv-icon-color,#e6f6f8);transition:background .2s,transform .2s,border-color .2s,filter .2s,opacity .2s,box-shadow .2s}
+/* Choix actif : même disque et même pictogramme que la barre, mis en valeur par un second liseré (contour des boutons) ; l'autre choix est atténué. */
+.nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button:not(.is-on):not(.nv-vs-flags button)){opacity:.62}
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button.is-on){
-  background:var(--nv-icon-color,#1f8aa8)!important;background-color:var(--nv-icon-color,#1f8aa8)!important;border-color:var(--nv-button-bg,#7ad6ee)!important;color:var(--nv-button-bg,#fff)}
+  background:var(--nv-button-bg,#1f8aa8)!important;background-color:var(--nv-button-bg,#1f8aa8)!important;border-color:var(--nv-button-outline,#7ad6ee)!important;color:var(--nv-icon-color,#fff)!important;opacity:1;
+  box-shadow:0 0 0 2px var(--nv-panel-ink,#fff),0 0 0 4px var(--nv-button-outline,#7ad6ee)}
+.nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-flags button.is-on){opacity:1}
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button:not(.is-on):hover,.nv-vs-fullscreen:hover,.nv-open-floor-plan:hover){filter:brightness(1.25)}
 .nv-visitor-settings-panel:not(#nv-x) :is(.nv-vs-row button,.nv-vs-fullscreen):hover{transform:translateY(-2px)}
 
