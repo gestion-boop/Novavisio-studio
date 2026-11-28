@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Narbo Via – Infos pratiques</title>
+<style>
+:root{--ink:#1c1b19;--muted:#6b665d;--bg:#f6f1e7;--card:#fff;--line:#e4dccb;--acc:#9c3d26}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+body{font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.55;overflow-x:clip}
+.wrap{max-width:1000px;margin:0 auto;padding:0 clamp(16px,3vw,32px)}
+header.wrap{padding-top:58px;padding-bottom:8px;text-align:center}
+.logo{height:clamp(52px,9vw,78px);width:auto;margin:0 auto}
+.sub{margin-top:8px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;font-size:.78rem;font-weight:700}
+.note{margin:18px 0 6px;padding:12px 16px;border-left:4px solid var(--acc);background:#fff;border-radius:10px;font-size:.92rem}
+.tabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:20px 0 14px}
+.tabs button{font:inherit;font-weight:700;padding:11px 22px;border-radius:99px;border:2px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:#fff}
+.tabs button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.panel{display:none}.panel.on{display:block}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+.card h2{font-size:.76rem;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);margin-bottom:8px}
+.card p{font-size:.98rem}
+.card small{color:var(--muted);font-size:.84rem}
+.card b{font-size:1.1em}
+.card a.tel{color:var(--ink);font-weight:700;text-decoration:none;font-size:1.15rem}
+.card a.mail{color:var(--acc);font-weight:600;word-break:break-all}
+.lab{color:var(--muted);font-size:.84rem;margin-top:8px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn{flex:1 1 120px;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border-radius:12px;font-weight:700;text-decoration:none;background:var(--ink);color:#fff;font-size:.92rem}
+.btn.alt{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+.access{margin-top:14px}
+.pass ul{list-style:none}.pass li{padding:7px 0;border-top:1px solid var(--line);font-size:.95rem}.pass li:first-child{border-top:0}
+.free{margin-top:10px;font-size:.9rem;color:var(--muted)}
+footer{text-align:center;color:var(--muted);font-size:.82rem;padding:26px 16px 40px}
+/* nv-lang-css */
+.nv-langbar{position:fixed;top:12px;right:12px;z-index:80;display:flex;gap:6px;padding:6px 8px;border-radius:99px;background:rgba(20,20,20,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.nv-langbar button{width:32px;height:22px;padding:0;border:2px solid transparent;border-radius:5px;overflow:hidden;cursor:pointer;background:none;opacity:.65;transition:opacity .15s,transform .15s}
+.nv-langbar button:hover{opacity:1;transform:scale(1.08)}
+.nv-langbar button[aria-pressed="true"]{border-color:#fff;opacity:1}
+.nv-langbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.nv-langbar svg{width:100%;height:100%;display:block}
+/* /nv-lang-css */
+</style>
+</head>
+<body>
+<header class="wrap">
+  <img class="logo" src="assets/img/logo.svg" alt="Narbo Via">
+  <p class="sub" data-i="sub">Infos pratiques</p>
+</header>
+<main class="wrap">
+  <p class="note" data-i="note" role="note"></p>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" aria-selected="true" data-p="m" data-i="tab_m">Le musée</button>
+    <button type="button" role="tab" aria-selected="false" data-p="h" data-i="tab_h">L'Horreum</button>
+    <button type="button" role="tab" aria-selected="false" data-p="a" data-i="tab_a">Amphoralis</button>
+  </div>
+
+  <section class="panel on" id="p-m">
+    <div class="grid">
+      <div class="card"><h2 data-i="h_hours">Horaires</h2><p data-ih="m_hours"></p></div>
+      <div class="card"><h2 data-i="h_addr">Adresse</h2><p><b>Musée Narbo Via</b><br>2 avenue André Mècle<br>11100 Narbonne</p>
+        <div class="row"><a class="btn" href="https://www.google.com/maps/search/?api=1&amp;query=2+avenue+Andr%C3%A9+M%C3%A8cle+11100+Narbonne" target="_blank" rel="noopener">Google Maps</a><a class="btn" href="https://waze.com/ul?q=2%20avenue%20Andr%C3%A9%20M%C3%A8cle%2C%2011100%20Narbonne&amp;navigate=yes" target="_blank" rel="noopener">Waze</a></div></div>
+      <div class="card"><h2 data-i="h_contact">Contact</h2><p class="lab" data-i="tel">Téléphone</p><a class="tel" href="tel:+33468902890">04 68 90 28 90</a><p class="lab" data-i="mail">E-mail</p><a class="mail" href="mailto:lemusee@narbovia.fr">lemusee@narbovia.fr</a></div>
+      <div class="card"><h2 data-i="h_price">Tarifs</h2><p data-ih="m_price"></p><p class="lab" data-i="guide"></p></div>
+    </div>
+    <div class="card access"><h2 data-i="h_access">Accès</h2><p data-i="m_access"></p></div>
+  </section>
+
+  <section class="panel" id="p-h">
+    <div class="grid">
+      <div class="card"><h2 data-i="h_hours">Horaires</h2><p data-ih="h_hours_t"></p></div>
+      <div class="card"><h2 data-i="h_addr">Adresse</h2><p><b>Horreum</b><br>7 rue Rouget de Lisle<br>11100 Narbonne</p>
+        <div class="row"><a class="btn" href="https://www.google.com/maps/search/?api=1&amp;query=7+rue+Rouget+de+Lisle+11100+Narbonne" target="_blank" rel="noopener">Google Maps</a><a class="btn" href="https://waze.com/ul?q=7%20rue%20Rouget%20de%20Lisle%2C%2011100%20Narbonne&amp;navigate=yes" target="_blank" rel="noopener">Waze</a></div></div>
+      <div class="card"><h2 data-i="h_contact">Contact</h2><p class="lab" data-i="tel">Téléphone</p><a class="tel" href="tel:+33468324530">04 68 32 45 30</a><p class="lab" data-i="mail">E-mail</p><a class="mail" href="mailto:horreum@narbovia.fr">horreum@narbovia.fr</a></div>
+      <div class="card"><h2 data-i="h_price">Tarifs</h2><p data-ih="h_price_t"></p><p class="lab" data-i="guide"></p></div>
+    </div>
+    <div class="card access"><h2 data-i="h_access">Accès</h2><p data-i="h_access_t"></p></div>
+  </section>
+
+  <section class="panel" id="p-a">
+    <div class="grid">
+      <div class="card"><h2 data-i="h_hours">Horaires</h2><p data-ih="a_hours"></p></div>
+      <div class="card"><h2 data-i="h_addr">Adresse</h2><p><b>Amphoralis</b><br>Allée des Potiers<br>11590 Sallèles-d’Aude</p>
+        <div class="row"><a class="btn" href="https://www.google.com/maps/search/?api=1&amp;query=43.27359,2.937003" target="_blank" rel="noopener">Google Maps</a><a class="btn" href="https://waze.com/ul?ll=43.27359%2C2.937003&amp;navigate=yes" target="_blank" rel="noopener">Waze</a></div></div>
+      <div class="card"><h2 data-i="h_contact">Contact</h2><p class="lab" data-i="tel">Téléphone</p><a class="tel" href="tel:+33468468948">04 68 46 89 48</a><p class="lab" data-i="mail">E-mail</p><a class="mail" href="mailto:amphoralis@narbovia.fr">amphoralis@narbovia.fr</a></div>
+      <div class="card"><h2 data-i="h_price">Tarifs</h2><p data-ih="a_price"></p><p class="lab" data-i="guide"></p></div>
+    </div>
+    <div class="card access"><h2 data-i="h_access">Accès</h2><p data-i="a_access"></p></div>
+  </section>
+
+  <section class="card pass" style="margin-top:14px">
+    <h2 data-i="h_pass">Pass et gratuité</h2>
+    <ul><li data-i="p1"></li><li data-i="p2"></li><li data-i="p3"></li><li data-i="p4"></li><li data-i="p5"></li></ul>
+    <p class="free" data-i="free"></p>
+  </section>
+</main>
+<footer data-i="foot"></footer>
+<script>
+{
+  const tabs=[...document.querySelectorAll('.tabs button')];
+  tabs.forEach(b=>b.addEventListener('click',()=>{tabs.forEach(x=>x.setAttribute('aria-selected',String(x===b)));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id==='p-'+b.dataset.p))}));
+}
+</script>
+<script id="nv-lang">
+(function(){
+ const FL={
+  fr:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055a4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ef4135"/></svg>',
+  en:'<svg viewBox="0 0 60 30"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#c8102e" stroke-width="3"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#c8102e" stroke-width="6"/></svg>',
+  es:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/></svg>',
+  de:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#000"/><rect y=".667" width="3" height="1.333" fill="#dd0000"/><rect y="1.333" width="3" height=".667" fill="#ffce00"/></svg>',
+  nl:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ae1c28"/><rect y=".667" width="3" height=".667" fill="#fff"/><rect y="1.333" width="3" height=".667" fill="#21468b"/></svg>',
+  it:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>'};
+ const NAMES={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands',it:'Italiano'};
+ window.NVLang=function(D,onChange){
+  const q=new URLSearchParams(location.search),all=Object.keys(D);
+  /* ?langs=fr,en limite les langues proposées ; ?lang=xx impose la langue de départ (sinon langue du navigateur) */
+  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>D[x]);
+  const list=allowed.length?allowed:all,nav=(navigator.language||'fr').slice(0,2).toLowerCase();
+  let cur=list.includes(q.get('lang'))?q.get('lang'):list.includes(nav)?nav:list[0];
+  const bar=document.createElement('div');bar.className='nv-langbar';bar.setAttribute('role','group');bar.setAttribute('aria-label','Langue');
+  function apply(k){cur=k;document.documentElement.lang=k;const d=D[k];
+   document.querySelectorAll('[data-i]').forEach(e=>{const v=d[e.dataset.i];if(v!==undefined)e.textContent=v});
+   document.querySelectorAll('[data-ih]').forEach(e=>{const v=d[e.dataset.ih];if(v!==undefined)e.innerHTML=v});
+   document.querySelectorAll('[data-ia]').forEach(e=>e.dataset.ia.split(';').forEach(pair=>{const [a,key]=pair.split(':'),v=d[key];if(v!==undefined)e.setAttribute(a,v)}));
+   if(d._title)document.title=d._title;
+   [...bar.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+   if(onChange)onChange(k,d);}
+  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.title=NAMES[k];b.setAttribute('aria-label',NAMES[k]);b.innerHTML=FL[k];b.onclick=()=>apply(k);bar.appendChild(b)});
+  document.body.appendChild(bar);apply(cur);
+ };
+})();
+
+NVLang({"fr": {"_title": "Narbo Via – Infos pratiques", "sub": "Infos pratiques", "note": "Le musée-site d’Amphoralis est fermé du 14 novembre 2026 au 8 février 2027 (pause hivernale), sauf visites de groupes sur réservation.", "tab_m": "Le musée", "tab_h": "L’Horreum", "tab_a": "Amphoralis", "h_hours": "Horaires", "h_addr": "Adresse", "h_contact": "Contact", "h_price": "Tarifs", "h_access": "Accès", "tel": "Téléphone", "mail": "E-mail", "go": "Itinéraire", "m_hours": "Du mardi au dimanche, de 10h à 18h<br>Fermé le lundi<br><small>Fermé les 1er janvier, 1er mai et 25 décembre</small>", "m_price": "Plein tarif : <b>12 €</b>", "guide": "Visite commentée : + 3 € (gratuit pour les moins de 5 ans)", "m_access": "Depuis l’A9, sortie 37 Narbonne Est, direction Narbonne-centre, puis direction des plages. Depuis la gare : navette gratuite Citadine 2 jusqu’aux Halles, puis Citadine 1 jusqu’à Narbo Via (sauf dimanches et jours fériés).", "h_hours_t": "Basse saison (1er octobre – 30 avril) : 10h–12h et 14h–17h<br>Dernière entrée à 16h30<br>1er juillet – 31 août : 9h–12h30 et 13h30–16h<br>1er – 30 septembre : 10h–12h30 et 14h–18h<br>Dernière entrée à 17h30<br>Fermé le lundi<br><small>Fermé les 1er janvier, 1er mai et 25 décembre</small>", "h_price_t": "Plein tarif : <b>6 €</b> · groupe sur réservation : 4 €", "h_access_t": "L’Horreum est au centre-ville, dans une zone semi-piétonne du quartier Cité. À pied depuis la place de l’Hôtel de ville ou la place du Forum : rue Droite, rue Armand Gauthier, puis à gauche rue Rouget de Lisle. Une place PMR est disponible devant l’Horreum. Depuis la gare : navette gratuite Citadine 2 ; la Citadine 1 relie l’Horreum au musée Narbo Via.", "a_hours": "1er octobre – 30 avril : du mardi au samedi, 10h–12h et 14h–17h (et les 1ers dimanches du mois)<br>2 mai – 30 juin : du mardi au dimanche, 10h–12h et 14h–17h<br>1er juillet – 30 septembre : du mardi au dimanche, 10h–12h30 et 14h–18h<br>Fermé le lundi<br><small>Fermé les 1er janvier, 1er mai et 25 décembre · fermeture de mi-novembre à mi-février (sauf groupes sur réservation)</small>", "a_price": "Plein tarif : <b>5 €</b> · groupe sur réservation : 4 €", "a_access": "Depuis Narbonne : D13 jusqu’à Cuxac-d’Aude puis D1118 jusqu’à Sallèles-d’Aude. À l’entrée du village, suivre le canal de jonction puis les panneaux Amphoralis. Parking sur place avec places PMR et emplacements pour bus. Le site est aussi accessible à vélo ou en bateau par le canal de jonction.", "h_pass": "Pass et gratuité", "p1": "Pass 2 sites (valable 1 mois) : 14 €", "p2": "Pass 3 sites (valable 1 mois) : 17 €", "p3": "Abonnement annuel 3 sites, accès illimité : 30 € (50 € avec toute la programmation)", "p4": "18–26 ans : pass 3 sites à 5 € (sur justificatif)", "p5": "Pass Musées Narbonne (3 sites + sites patrimoniaux de la ville) : 23 €", "free": "Gratuit sur justificatif : moins de 18 ans, minima sociaux, personnes en situation de handicap (et leur accompagnateur), demandeurs d’asile… ainsi que le 1er dimanche de chaque mois d’octobre à mai.", "foot": "Données issues de narbovia.fr · Visite immersive by NovaVisio"}, "en": {"_title": "Narbo Via – Practical information", "sub": "Practical information", "note": "The Amphoralis museum-site is closed from 14 November 2026 to 8 February 2027 (winter break), except for group visits by reservation.", "tab_m": "The museum", "tab_h": "The Horreum", "tab_a": "Amphoralis", "h_hours": "Opening hours", "h_addr": "Address", "h_contact": "Contact", "h_price": "Prices", "h_access": "Getting there", "tel": "Phone", "mail": "Email", "go": "Directions", "m_hours": "Tuesday to Sunday, 10:00–18:00<br>Closed on Monday<br><small>Closed on 1 January, 1 May and 25 December</small>", "m_price": "Full price: <b>€12</b>", "guide": "Guided tour: +€3 (free for under 5s)", "m_access": "From the A9, take exit 37 Narbonne Est towards the town centre, then follow signs for the beaches. From the station: free Citadine 2 shuttle to Les Halles, then Citadine 1 to Narbo Via (except Sundays and public holidays).", "h_hours_t": "Low season (1 October – 30 April): 10:00–12:00 and 14:00–17:00<br>Last entry 16:30<br>1 July – 31 August: 9:00–12:30 and 13:30–16:00<br>1 – 30 September: 10:00–12:30 and 14:00–18:00<br>Last entry 17:30<br>Closed on Monday<br><small>Closed on 1 January, 1 May and 25 December</small>", "h_price_t": "Full price: <b>€6</b> · groups by reservation: €4", "h_access_t": "The Horreum is in the town centre, in a semi-pedestrian area of the Cité district. On foot from Place de l’Hôtel de Ville or Place du Forum: rue Droite, rue Armand Gauthier, then turn left onto rue Rouget de Lisle. A disabled parking space is available in front of the Horreum. From the station: free Citadine 2 shuttle; Citadine 1 links the Horreum to the Narbo Via museum.", "a_hours": "1 October – 30 April: Tuesday to Saturday, 10:00–12:00 and 14:00–17:00 (and the first Sunday of each month)<br>2 May – 30 June: Tuesday to Sunday, 10:00–12:00 and 14:00–17:00<br>1 July – 30 September: Tuesday to Sunday, 10:00–12:30 and 14:00–18:00<br>Closed on Monday<br><small>Closed on 1 January, 1 May and 25 December · closed from mid-November to mid-February (except group visits by reservation)</small>", "a_price": "Full price: <b>€5</b> · groups by reservation: €4", "a_access": "From Narbonne: D13 to Cuxac-d’Aude, then D1118 to Sallèles-d’Aude. At the entrance to the village, follow the Canal de Jonction, then the Amphoralis signs. On-site car park with disabled spaces and coach bays. The site can also be reached by bike or by boat along the Canal de Jonction.", "h_pass": "Passes and free entry", "p1": "2-site pass (valid 1 month): €14", "p2": "3-site pass (valid 1 month): €17", "p3": "Annual 3-site subscription, unlimited access: €30 (€50 including the full programme)", "p4": "Ages 18–26: 3-site pass for €5 (with proof)", "p5": "Narbonne Museums Pass (3 sites + the city’s heritage sites): €23", "free": "Free with proof: under 18s, people on social minimum benefits, people with disabilities (and their companion), asylum seekers… and on the first Sunday of each month from October to May.", "foot": "Information from narbovia.fr · Visite immersive by NovaVisio"}, "es": {"_title": "Narbo Via – Información práctica", "sub": "Información práctica", "note": "El museo-sitio de Amphoralis permanece cerrado del 14 de noviembre de 2026 al 8 de febrero de 2027 (pausa invernal), salvo visitas de grupos con reserva.", "tab_m": "El museo", "tab_h": "El Horreum", "tab_a": "Amphoralis", "h_hours": "Horario", "h_addr": "Dirección", "h_contact": "Contacto", "h_price": "Tarifas", "h_access": "Cómo llegar", "tel": "Teléfono", "mail": "Correo electrónico", "go": "Cómo llegar", "m_hours": "De martes a domingo, de 10:00 a 18:00<br>Cerrado los lunes<br><small>Cerrado el 1 de enero, el 1 de mayo y el 25 de diciembre</small>", "m_price": "Tarifa general: <b>12 €</b>", "guide": "Visita guiada: + 3 € (gratis para menores de 5 años)", "m_access": "Desde la A9, salida 37 Narbonne Est, dirección centro de Narbona y después dirección playas. Desde la estación: lanzadera gratuita Citadine 2 hasta Les Halles y después Citadine 1 hasta Narbo Via (excepto domingos y festivos).", "h_hours_t": "Temporada baja (1 de octubre – 30 de abril): 10:00–12:00 y 14:00–17:00<br>Última entrada a las 16:30<br>1 de julio – 31 de agosto: 9:00–12:30 y 13:30–16:00<br>1 – 30 de septiembre: 10:00–12:30 y 14:00–18:00<br>Última entrada a las 17:30<br>Cerrado los lunes<br><small>Cerrado el 1 de enero, el 1 de mayo y el 25 de diciembre</small>", "h_price_t": "Tarifa general: <b>6 €</b> · grupos con reserva: 4 €", "h_access_t": "El Horreum está en el centro de la ciudad, en una zona semipeatonal del barrio Cité. A pie desde la plaza del Ayuntamiento o la plaza del Foro: calle Droite, calle Armand Gauthier y luego a la izquierda la calle Rouget de Lisle. Hay una plaza para personas con movilidad reducida delante del Horreum. Desde la estación: lanzadera gratuita Citadine 2; la Citadine 1 conecta el Horreum con el museo Narbo Via.", "a_hours": "1 de octubre – 30 de abril: de martes a sábado, 10:00–12:00 y 14:00–17:00 (y el primer domingo de cada mes)<br>2 de mayo – 30 de junio: de martes a domingo, 10:00–12:00 y 14:00–17:00<br>1 de julio – 30 de septiembre: de martes a domingo, 10:00–12:30 y 14:00–18:00<br>Cerrado los lunes<br><small>Cerrado el 1 de enero, el 1 de mayo y el 25 de diciembre · cerrado de mediados de noviembre a mediados de febrero (salvo grupos con reserva)</small>", "a_price": "Tarifa general: <b>5 €</b> · grupos con reserva: 4 €", "a_access": "Desde Narbona: D13 hasta Cuxac-d’Aude y después D1118 hasta Sallèles-d’Aude. A la entrada del pueblo, siga el canal de Jonction y luego las señales de Amphoralis. Aparcamiento en el lugar con plazas para personas con movilidad reducida y plazas para autobuses. También se puede llegar en bicicleta o en barco por el canal de Jonction.", "h_pass": "Pases y entrada gratuita", "p1": "Pase de 2 sitios (válido 1 mes): 14 €", "p2": "Pase de 3 sitios (válido 1 mes): 17 €", "p3": "Abono anual de 3 sitios, acceso ilimitado: 30 € (50 € con toda la programación)", "p4": "De 18 a 26 años: pase de 3 sitios por 5 € (con justificante)", "p5": "Pass Museos Narbona (3 sitios + sitios patrimoniales de la ciudad): 23 €", "free": "Gratis con justificante: menores de 18 años, beneficiarios de ayudas sociales mínimas, personas con discapacidad (y su acompañante), solicitantes de asilo… y el primer domingo de cada mes de octubre a mayo.", "foot": "Datos de narbovia.fr · Visite immersive by NovaVisio"}, "de": {"_title": "Narbo Via – Praktische Infos", "sub": "Praktische Infos", "note": "Das Museum-Gelände Amphoralis ist vom 14. November 2026 bis 8. Februar 2027 geschlossen (Winterpause), außer für Gruppenbesuche nach Anmeldung.", "tab_m": "Das Museum", "tab_h": "Der Horreum", "tab_a": "Amphoralis", "h_hours": "Öffnungszeiten", "h_addr": "Adresse", "h_contact": "Kontakt", "h_price": "Preise", "h_access": "Anfahrt", "tel": "Telefon", "mail": "E-Mail", "go": "Route", "m_hours": "Dienstag bis Sonntag, 10–18 Uhr<br>Montag geschlossen<br><small>Geschlossen am 1. Januar, 1. Mai und 25. Dezember</small>", "m_price": "Normalpreis: <b>12 €</b>", "guide": "Führung: + 3 € (frei für Kinder unter 5 Jahren)", "m_access": "Von der A9 Ausfahrt 37 Narbonne Est Richtung Stadtzentrum, dann Richtung Strände. Vom Bahnhof: kostenloser Shuttle Citadine 2 bis Les Halles, dann Citadine 1 bis Narbo Via (außer sonn- und feiertags).", "h_hours_t": "Nebensaison (1. Oktober – 30. April): 10–12 Uhr und 14–17 Uhr<br>Letzter Einlass 16:30 Uhr<br>1. Juli – 31. August: 9–12:30 Uhr und 13:30–16 Uhr<br>1. – 30. September: 10–12:30 Uhr und 14–18 Uhr<br>Letzter Einlass 17:30 Uhr<br>Montag geschlossen<br><small>Geschlossen am 1. Januar, 1. Mai und 25. Dezember</small>", "h_price_t": "Normalpreis: <b>6 €</b> · Gruppen nach Anmeldung: 4 €", "h_access_t": "Der Horreum liegt im Stadtzentrum, in einer halb verkehrsberuhigten Zone des Viertels Cité. Zu Fuß vom Rathausplatz oder vom Place du Forum: rue Droite, rue Armand Gauthier, dann links in die rue Rouget de Lisle. Vor dem Horreum steht ein Behindertenparkplatz bereit. Vom Bahnhof: kostenloser Shuttle Citadine 2; die Citadine 1 verbindet den Horreum mit dem Museum Narbo Via.", "a_hours": "1. Oktober – 30. April: Dienstag bis Samstag, 10–12 Uhr und 14–17 Uhr (und am ersten Sonntag im Monat)<br>2. Mai – 30. Juni: Dienstag bis Sonntag, 10–12 Uhr und 14–17 Uhr<br>1. Juli – 30. September: Dienstag bis Sonntag, 10–12:30 Uhr und 14–18 Uhr<br>Montag geschlossen<br><small>Geschlossen am 1. Januar, 1. Mai und 25. Dezember · geschlossen von Mitte November bis Mitte Februar (außer Gruppen nach Anmeldung)</small>", "a_price": "Normalpreis: <b>5 €</b> · Gruppen nach Anmeldung: 4 €", "a_access": "Ab Narbonne: D13 bis Cuxac-d’Aude, dann D1118 bis Sallèles-d’Aude. Am Ortseingang dem Canal de Jonction und dann den Amphoralis-Schildern folgen. Parkplatz vor Ort mit Behindertenparkplätzen und Busstellplätzen. Die Stätte ist auch mit dem Fahrrad oder per Boot über den Canal de Jonction erreichbar.", "h_pass": "Pässe und freier Eintritt", "p1": "2-Standorte-Pass (1 Monat gültig): 14 €", "p2": "3-Standorte-Pass (1 Monat gültig): 17 €", "p3": "Jahresabo für 3 Standorte, unbegrenzter Zugang: 30 € (50 € inkl. gesamtem Programm)", "p4": "18–26 Jahre: 3-Standorte-Pass für 5 € (mit Nachweis)", "p5": "Narbonne-Museumspass (3 Standorte + Kulturdenkmäler der Stadt): 23 €", "free": "Frei mit Nachweis: unter 18 Jahren, Bezieher von Mindestsicherung, Menschen mit Behinderung (und Begleitperson), Asylsuchende … sowie am ersten Sonntag jedes Monats von Oktober bis Mai.", "foot": "Angaben von narbovia.fr · Visite immersive by NovaVisio"}});
+</script>
+</body>
+</html>
