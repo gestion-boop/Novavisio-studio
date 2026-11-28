@@ -16,6 +16,9 @@ const cache=new Map<string,Promise<Sampled|null>>();
 const hex=(r:number,g:number,b:number)=>'#'+[r,g,b].map(v=>Math.round(v).toString(16).padStart(2,'0')).join('');
 const dist=(a:number[],b:number[])=>Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]);
 
+/** Contraste WCAG entre deux couleurs #rrggbb (défini ici car utilisé à l'échantillonnage). */
+function contrastOf(a:string,b:string){return contrast(a,b);}
+
 function sample(dataUrl:string):Promise<Sampled|null>{
   const hit=cache.get(dataUrl);
   if(hit)return hit;
@@ -40,7 +43,12 @@ function sample(dataUrl:string):Promise<Sampled|null>{
         const list=[...buckets.values()].map(e=>({n:e.n,c:[e.r/e.n,e.g/e.n,e.b/e.n]})).sort((a,b)=>b.n-a.n);
         if(!list.length){resolve(null);return;}
         const disc=list[0].c;
-        const glyph=list.find(e=>dist(e.c,disc)>90)?.c;
+        // Le pictogramme est la couleur SIGNIFICATIVE qui contraste le plus avec le disque : avant, l'anneau du bouton (plus fréquent)
+        // était pris pour le pictogramme et le texte du panneau Paramètres devenait rouge sur fond sombre.
+        const total=list.reduce((a,e)=>a+e.n,0);
+        const toHex=(c:number[])=>hex(c[0],c[1],c[2]);
+        const glyph=list.filter(e=>dist(e.c,disc)>90&&e.n>=Math.max(6,total*0.008))
+          .sort((a,b)=>contrastOf(toHex(b.c),toHex(disc))-contrastOf(toHex(a.c),toHex(disc))||b.n-a.n)[0]?.c;
         resolve(glyph?{button:hex(disc[0],disc[1],disc[2]),icon:hex(glyph[0],glyph[1],glyph[2])}:null);
       }catch{resolve(null);}
     };
@@ -73,7 +81,16 @@ export function useEffectiveBarTheme(project:StudioProject|null|undefined,base:B
     return ()=>{alive=false;};
   },[url]);
   const s=sampled&&sampled.url===url?sampled.s:null;
-  return s?{...base,button:s.button,buttonOutline:s.button,icon:s.icon}:base;
+  const theme=s?{...base,button:s.button,buttonOutline:s.button,icon:s.icon}:base;
+  return readableIcon(theme);
+}
+
+/** Garde-fou de lisibilité : si le pictogramme (texte des boutons des panneaux) contraste trop peu avec le disque du bouton, on prend blanc ou noir. */
+function readableIcon(theme:BarStyle):BarStyle{
+  if(!/^#[0-9a-f]{6}$/i.test(theme.button)||!/^#[0-9a-f]{6}$/i.test(theme.icon))return theme;
+  if(contrast(theme.icon,theme.button)>=3.5)return theme;
+  const fix=contrast('#ffffff',theme.button)>=contrast('#111111',theme.button)?'#ffffff':'#111111';
+  return {...theme,icon:fix};
 }
 
 function lum(c:string){

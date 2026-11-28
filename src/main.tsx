@@ -93,6 +93,7 @@ import {autoPublishOn,refreshActivePublication,publishPermanent,getPublication,p
 import {readSpaceCloudLink,writeSpaceCloudLink} from './spaces';
 import {SharePanel} from './SharePanel';
 import {PrivatePanel} from './PrivatePanel';
+import {ProjectUsers} from './ProjectUsers';
 import {PanoramaGallery,galleryEntries,galleryBackgroundSrc} from './gallery';
 import {useSceneThumbs} from './thumbs';
 import {ZoomIn,SlidersHorizontal,Settings as SettingsIcon,Undo2,Redo2,MessageSquarePlus,Bell,Users,Images,LayoutGrid,Info,Home,Globe,Menu,Star,Eye,Edit3,Trash2,Plus,ChevronLeft,ChevronRight,Sparkles,Download,Cloud,Link2,Layers,Lock,Maximize2,Minimize2,ChevronDown,Search,PanelLeftClose,PanelRightClose,Save,RefreshCw,X,Music,StickyNote,Play,PanelBottom,Smile,MapPin as PinIcon,Upload,Pencil,Moon,Palette,Ruler,Camera,Share2,Map as MapIcon,GripVertical,Timer,UserRound} from 'lucide-react';
@@ -120,7 +121,7 @@ import './style.css';
 import './windowAnim.css';
 import {initWindowAnimOrigin} from './windowAnimOrigin';
 import {applyCloseColor} from './closeColor';
-import {useEffectiveBarTheme} from './barImageTheme';
+import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
 import {setTransitionMs} from './transitionPrefs';
 initWindowAnimOrigin();
 import './media.css';
@@ -2027,6 +2028,7 @@ function App(){
     '--nv-button-bg':effectiveBar.button,
     '--nv-button-outline':effectiveBar.buttonOutline,
     '--nv-icon-color':effectiveBar.icon,
+    '--nv-panel-ink':popupThemeVars(effectiveBar)['--nv-panel-ink' as keyof CSSProperties],
     '--nv-bar-border-width':project.barStyle.outlineWidth+'px',
     '--nv-button-border-width':project.barStyle.buttonOutlineWidth+'px',
     '--nv-bar-roundness':project.barStyle.roundness+'px',
@@ -5816,6 +5818,9 @@ function App(){
                 {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
             </label>
+          </InspectorSection>
+          <InspectorSection title="Utilisateurs de la visite">
+            <ProjectUsers onStatus={setStatus} onInvite={()=>setPrivateOpen(true)}/>
           </InspectorSection>
           <InspectorSection title="Cadre doré des photos et vidéos">
             <p className="hint">Le fin contour doré qui signale les photos et vidéos cliquables dans la visite. Cette case le supprime partout, sur tous les panoramas.</p>
