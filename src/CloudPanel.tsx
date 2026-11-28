@@ -196,7 +196,8 @@ export function CloudPanel({project,onClose,onOpenClients,hasUnsavedChanges,onOp
         <small>{counts.all} visite{counts.all>1?'s':''}{counts.shared>0?' · '+counts.shared+' partagée'+(counts.shared>1?'s':'')+' avec toi':''} · le nombre de panoramas et d’espaces est affiché pour chaque projet</small></div>
       <div className="nv-cloud2-head-actions">
         <button type="button" disabled={!!busy||!userEmail} onClick={()=>void refresh()}>↻ Actualiser</button>
-        {userEmail&&<button type="button" className="is-primary" disabled={!!busy||!project.scenes.length} onClick={()=>void send(true)}>＋ Envoyer comme nouvelle visite</button>}
+        {userEmail&&<button type="button" className="is-primary" disabled={!!busy||!project.scenes.length} title={project.scenes.length?undefined:'Ajoute d’abord au moins un panorama : un projet vide ne peut pas être envoyé.'} onClick={()=>void send(true)}>＋ Envoyer comme nouvelle visite</button>}
+        {userEmail&&!project.scenes.length&&<small className="nv-cloud2-empty-hint">Ajoute d’abord un panorama pour l’envoyer.</small>}
       </div>
     </header>
     <aside className="nv-cloud2-side">

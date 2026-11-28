@@ -1,4 +1,5 @@
 import {barUsesIconImage} from './storage';
+import {lazyNamed} from './lazyDialog';
 import {confirmAsk,ConfirmHost} from './confirmDialog';
 import {phaseOf} from './phase';
 import {isReturnLink} from './returnLink';
@@ -27,13 +28,13 @@ import {reorderItems,useGripSort} from './gripSort';
 import {useHorizontalSort} from './hSort';
 import {isPopupMedia,MediaDisplayControl} from './mediaDisplay';
 import './creation.css';
-import {ProjectPreparation} from './ProjectPreparation';
-import {SkinLibrary} from './SkinLibrary';
+const ProjectPreparation=lazyNamed(()=>import('./ProjectPreparation'),'ProjectPreparation');
+const SkinLibrary=lazyNamed(()=>import('./SkinLibrary'),'SkinLibrary');
 import {cloudHasDefaultSkin,cloudListSkins,cloudNewProjectFromDefault} from './cloudSkins';
 import {applySkin} from './skins';
 import {applyImmospheraDefaults,isImmospheraProject} from './immospheraDefaults';
 import {resolveVrGalleryItem,resolveVrPhotosItem} from './vrMenu';
-import {BarDimensions,InspectorSection} from './PreparationControls';
+import {BarDimensions,InspectorSearch,InspectorSection} from './PreparationControls';
 import './preparation.css';
 import {PhotoFramePicker} from './photoFrame';
 declare const __NV_BUILD_TIME__:string;
@@ -43,8 +44,8 @@ import {flushSync} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import {ErrorBoundary,installErrorLog} from './ErrorBoundary';
 import {glyphs} from './glyphSet';
-import {BrandKitDialog} from './BrandKitDialog';
-import {NovaStudioAIAssistant} from './NovaStudioAIAssistant';
+const BrandKitDialog=lazyNamed(()=>import('./BrandKitDialog'),'BrandKitDialog');
+const NovaStudioAIAssistant=lazyNamed(()=>import('./NovaStudioAIAssistant'),'NovaStudioAIAssistant');
 import {NativeIntro} from './nativeIntro';
 import {InterestDialog} from './InterestDialog';
 import {ProjectSummaryDialog} from './ProjectSummaryDialog';
@@ -63,7 +64,7 @@ import {ContinuousMusic} from './continuousMusic';
 import {settingsGlyphs} from './settingsGlyph';
 import {GlossyPackMaker,BAR_CHOICES} from './GlossyPackMaker';
 import {harmonizeWithBar} from './glossyThemes';
-import {VrMenuEditor} from './VrMenuEditor';
+const VrMenuEditor=lazyNamed(()=>import('./VrMenuEditor'),'VrMenuEditor');
 import {SceneRoomNameOptions,SpaceRoomNameOptions} from './RoomNameOptions';
 import {glossyBarPacks,glyphPng} from './barGlossy';
 import {glossyIconStates} from './glossyIcon';
@@ -78,9 +79,9 @@ import {TranslationInputs} from './TranslationFields';
 import {SunFlareEditor} from './SunFlareEditor';
 const SunGlyph=({size=24}:{size?:number})=><svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>
 import {panoramaArrivalZoom} from './panoramaLens';
-import {CloudPanel} from './CloudPanel';
+const CloudPanel=lazyNamed(()=>import('./CloudPanel'),'CloudPanel');
 import {ClientPanel,type ClientLink} from './ClientPanel';
-import {ClientsDirectory} from './ClientsDirectory';
+const ClientsDirectory=lazyNamed(()=>import('./ClientsDirectory'),'ClientsDirectory');
 import type {ImportedClientVideo} from './novagenVideos';
 import {useCloudSync,type SyncState} from './cloudSync';
 import {readDraft,recoveryScope,type DraftSummary} from './recoveryDraft';
@@ -3976,7 +3977,8 @@ function App(){
         {(()=>{
           const dirty=hasUnsavedWork,ops=histRef.current.ops;
           const state=savingManually?'saving':!dirty?'clean':ops>=5?'urgent':'dirty';
-          const tip=state==='saving'?'Enregistrement en cours…':state==='clean'?'Tout est enregistré':state==='urgent'?ops+' modifications en cours : clique pour enregistrer (Ctrl+S)':'Des modifications ne sont pas enregistrées : clique pour enregistrer (Ctrl+S)';
+          const emptyTip='Ton brouillon est gardé sur cet appareil. Ajoute au moins un panorama pour pouvoir l’enregistrer dans le Cloud.';
+          const tip=state==='saving'?'Enregistrement en cours…':state==='clean'?'Tout est enregistré':!project.scenes.length?emptyTip:state==='urgent'?ops+' modifications en cours : clique pour enregistrer (Ctrl+S)':'Des modifications ne sont pas enregistrées : clique pour enregistrer (Ctrl+S)';
           return <button type="button" className={'nv-v3-icon-btn nv-v3-save is-'+state} onClick={()=>void manualSave()} disabled={!ready||savingManually||!!lock} aria-label={tip} title={tip}>
             <Save size={20}/>{state==='dirty'||state==='urgent'?<i className="nv-save-badge" aria-hidden="true">{ops>9?'9+':ops||'!'}</i>:null}
           </button>;
@@ -5801,6 +5803,7 @@ function App(){
           </InspectorSection>
         </div>}
         {panel==='settings' && <div className="properties">
+          <InspectorSearch placeholder="Rechercher un réglage (langue, agent, VR, croix…)"/>
           <InspectorSection title="Langues de la visite" initiallyOpen>
             <p className="hint">Les visiteurs choisissent leur langue avec les drapeaux. Coche ici celles que tu proposes ; le texte traduit se saisit ensuite dans chaque point Information.</p>
             <div className="nv-setup-languages">{STUDIO_LANGUAGES.map(lang=><label key={lang.code}><input type="checkbox" checked={activeLanguages.includes(lang.code)} onChange={e=>{const checked=e.target.checked;setProject(p=>{const current=p.languages??STUDIO_LANGUAGES.map(l=>l.code);const languages=checked?[...new Set([...current,lang.code])]:current.filter(code=>code!==lang.code);return languages.length?{...p,languages}:p;});}}/><span>{lang.flag}</span>{lang.name}</label>)}</div>

@@ -6305,3 +6305,10 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-users-actions button{flex:1;padding:6px 10px;border-radius:8px;border:1px solid #35606f;background:#1a4456;color:#e6f6f8;font:700 12px system-ui;cursor:pointer}
 .nv-users-actions button.danger{border-color:#8a4350;background:#4a2330;color:#ffd5db}
 .nv-users-actions button:disabled{opacity:.5;cursor:default}
+
+/* Recherche dans les panneaux de réglages */
+.nv-inspector-search{grid-column:1/-1;position:sticky;top:0;z-index:3;padding:6px 0 8px;background:linear-gradient(#10232bf2 70%,#10232b00)}
+.nv-inspector-search input[type=search]{width:100%;box-sizing:border-box;height:38px;padding:0 12px;border:1px solid #35606f;border-radius:10px;background:#0b1d24;color:#e6f6f8;font:14px system-ui,sans-serif}
+.nv-inspector-search input[type=search]:focus{outline:2px solid #4bebde;outline-offset:1px}
+.nv-inspector-search-empty{display:block;margin-top:6px;color:#cfe3e8;font-size:12px}
+.nv-cloud2-empty-hint{align-self:center;color:#f3c98b;font-size:12px;max-width:190px;line-height:1.25}
