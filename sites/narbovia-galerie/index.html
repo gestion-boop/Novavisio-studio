@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Narbo Via – Galerie</title>
+<style>
+:root{--ink:#1c1b19;--muted:#6b665d;--bg:#f6f1e7;--acc:#9c3d26;--ease:cubic-bezier(.2,.8,.2,1)}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+body{font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5;overflow-x:clip}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(12px,3vw,32px)}
+header{text-align:center;padding:60px 0 14px}
+.logo{height:clamp(46px,8vw,68px);width:auto;margin:0 auto;display:block}
+.sub{margin-top:10px;color:var(--muted);letter-spacing:.26em;text-transform:uppercase;font-size:.76rem;font-weight:700}
+.filters{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:18px 0 20px}
+.filters button{font:inherit;font-weight:700;padding:9px 18px;border-radius:99px;border:2px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;transition:background .2s,color .2s}
+.filters button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.filters button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.gal{columns:4 240px;column-gap:14px;padding-bottom:34px}
+.p{position:relative;break-inside:avoid;margin:0 0 14px;border-radius:16px;overflow:hidden;cursor:zoom-in;background:#e4dccb;box-shadow:0 8px 22px rgba(60,40,20,.14);animation:in .6s var(--ease) both}
+.p[hidden]{display:none}
+@keyframes in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.p img{width:100%;height:auto;display:block;transition:transform .7s var(--ease)}
+.p:hover img{transform:scale(1.05)}
+.p:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.p figcaption{position:absolute;inset:auto 0 0 0;padding:34px 14px 10px;color:#fff;background:linear-gradient(transparent,rgba(15,12,8,.82));display:grid;gap:1px}
+.p figcaption b{font-size:.95rem;line-height:1.25}
+.p figcaption small{font-size:.7rem;opacity:.8}
+footer{text-align:center;color:var(--muted);font-size:.8rem;padding:6px 16px 40px}
+.lb{position:fixed;inset:0;z-index:100;background:rgba(15,12,8,.94);display:grid;place-items:center;padding:56px 64px;cursor:zoom-out}
+.lb[hidden]{display:none}
+.lb figure{max-width:min(1100px,100%);display:grid;gap:10px;justify-items:center;color:#eee;text-align:center}
+.lb img{max-height:80vh;max-width:100%;border-radius:12px;object-fit:contain}
+.lb button{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:50%;width:48px;height:48px;font-size:1.8rem;cursor:pointer;line-height:1}
+.lb button:hover{background:var(--acc)}
+.lb-p{left:12px;top:50%}.lb-n{right:12px;top:50%}
+@media(max-width:600px){.lb{padding:60px 8px}.lb-p,.lb-n{top:auto;bottom:14px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* nv-lang-css */
+.nv-langbar{position:fixed;top:12px;right:12px;z-index:80;display:flex;gap:6px;padding:6px 8px;border-radius:99px;background:rgba(20,20,20,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.nv-langbar button{width:32px;height:22px;padding:0;border:2px solid transparent;border-radius:5px;overflow:hidden;cursor:pointer;background:none;opacity:.65;transition:opacity .15s,transform .15s}
+.nv-langbar button:hover{opacity:1;transform:scale(1.08)}
+.nv-langbar button[aria-pressed="true"]{border-color:#fff;opacity:1}
+.nv-langbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.nv-langbar svg{width:100%;height:100%;display:block}
+/* /nv-lang-css */
+</style>
+</head>
+<body>
+<header class="wrap">
+  <img class="logo" src="assets/img/logo.svg" alt="Narbo Via">
+  <p class="sub" data-i="sub">Galerie</p>
+</header>
+<main class="wrap">
+  <div class="filters" role="group" id="filters">
+    <button type="button" aria-pressed="true" data-f="all" data-i="f_all">Toutes</button>
+    <button type="button" aria-pressed="false" data-f="m" data-i="f_m">Le musée</button>
+    <button type="button" aria-pressed="false" data-f="h" data-i="f_h">L’Horreum</button>
+    <button type="button" aria-pressed="false" data-f="a" data-i="f_a">Amphoralis</button>
+  </div>
+  <div class="gal" id="gal">
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Les salles du musée"><img src="assets/img/photos/01.jpg" alt="Les salles du musée" width="1400" height="933" loading="lazy"><figcaption><b data-i="c1">Les salles du musée</b><small>© A. Spani</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Le mur lapidaire"><img src="assets/img/photos/02.jpg" alt="Le mur lapidaire" width="1400" height="1034" loading="lazy"><figcaption><b data-i="c2">Le mur lapidaire</b><small>© Foster N. Young</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Le musée vu de l’extérieur"><img src="assets/img/photos/03.jpg" alt="Le musée vu de l’extérieur" width="1062" height="461" loading="lazy"><figcaption><b data-i="c3">Le musée vu de l’extérieur</b><small>Narbo Via</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="La galerie lapidaire"><img src="assets/img/photos/04.jpg" alt="La galerie lapidaire" width="1400" height="933" loading="lazy"><figcaption><b data-i="c4">La galerie lapidaire</b><small>© A. Spani</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Peinture murale romaine"><img src="assets/img/photos/05.jpg" alt="Peinture murale romaine" width="1066" height="1600" loading="lazy"><figcaption><b data-i="c5">Peinture murale romaine</b><small>© A. Spani</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Mosaïque romaine"><img src="assets/img/photos/06.jpg" alt="Mosaïque romaine" width="1090" height="460" loading="lazy"><figcaption><b data-i="c6">Mosaïque romaine</b><small>Narbo Via</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Une salle d’exposition"><img src="assets/img/photos/07.jpg" alt="Une salle d’exposition" width="1400" height="848" loading="lazy"><figcaption><b data-i="c7">Une salle d’exposition</b><small>© A. Spani</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Amphores en vitrine"><img src="assets/img/photos/08.jpg" alt="Amphores en vitrine" width="1355" height="900" loading="lazy"><figcaption><b data-i="c8">Amphores en vitrine</b><small>Narbo Via</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Bloc architectural sculpté"><img src="assets/img/photos/09.jpg" alt="Bloc architectural sculpté" width="900" height="476" loading="lazy"><figcaption><b data-i="c9">Bloc architectural sculpté</b><small>© Arnaud Spani</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="Mosaïque de sol"><img src="assets/img/photos/10.jpg" alt="Mosaïque de sol" width="567" height="850" loading="lazy"><figcaption><b data-i="c10">Mosaïque de sol</b><small>Narbo Via</small></figcaption></figure>
+    <figure class="p" data-s="m" tabindex="0" role="button" aria-label="L’architecture du musée"><img src="assets/img/photos/11.jpg" alt="L’architecture du musée" width="1062" height="461" loading="lazy"><figcaption><b data-i="c11">L’architecture du musée</b><small>Narbo Via</small></figcaption></figure>
+    <figure class="p" data-s="h" tabindex="0" role="button" aria-label="Les galeries souterraines de l’Horreum"><img src="assets/img/photos/12.jpg" alt="Les galeries souterraines de l’Horreum" width="1062" height="461" loading="lazy"><figcaption><b data-i="c12">Les galeries souterraines de l’Horreum</b><small>© Arnaud Spani</small></figcaption></figure>
+    <figure class="p" data-s="a" tabindex="0" role="button" aria-label="Amphoralis : une maison à toit de chaume"><img src="assets/img/photos/13.jpg" alt="Amphoralis : une maison à toit de chaume" width="1066" height="1600" loading="lazy"><figcaption><b data-i="c13">Amphoralis : une maison à toit de chaume</b><small>© Mahée Peyrusse</small></figcaption></figure>
+    <figure class="p" data-s="a" tabindex="0" role="button" aria-label="Amphoralis : intérieur"><img src="assets/img/photos/14.jpg" alt="Amphoralis : intérieur" width="1066" height="1600" loading="lazy"><figcaption><b data-i="c14">Amphoralis : intérieur</b><small>© Mahée Peyrusse</small></figcaption></figure>
+    <figure class="p" data-s="a" tabindex="0" role="button" aria-label="Les jardins d’Amphoralis vus du ciel"><img src="assets/img/photos/15.jpg" alt="Les jardins d’Amphoralis vus du ciel" width="1066" height="1600" loading="lazy"><figcaption><b data-i="c15">Les jardins d’Amphoralis vus du ciel</b><small>Narbo Via</small></figcaption></figure>
+  </div>
+</main>
+<footer data-i="credit">Photos © Narbo Via et photographes cités</footer>
+<div class="lb" id="lb" hidden>
+  <button class="lb-p" id="lbp" aria-label="Précédent">‹</button>
+  <button class="lb-n" id="lbn" aria-label="Suivant">›</button>
+  <figure><img id="lbi" alt=""><figcaption id="lbc"></figcaption></figure>
+</div>
+<script>
+{
+  const all=[...document.querySelectorAll('.p')],lb=document.getElementById('lb'),li=document.getElementById('lbi'),lc=document.getElementById('lbc');let k=0;
+  const vis=()=>all.filter(f=>!f.hidden);
+  const show=n=>{const v=vis();k=(n+v.length)%v.length;const f=v[k],im=f.querySelector('img');li.src=im.src;li.alt=im.alt;lc.textContent=f.querySelector('b').textContent+' · '+f.querySelector('small').textContent;lb.hidden=false};
+  all.forEach(f=>{f.addEventListener('click',()=>show(vis().indexOf(f)));f.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();show(vis().indexOf(f))}})});
+  document.getElementById('lbp').onclick=e=>{e.stopPropagation();show(k-1)};document.getElementById('lbn').onclick=e=>{e.stopPropagation();show(k+1)};
+  lb.addEventListener('click',e=>{if(!e.target.closest('.lb-p,.lb-n'))lb.hidden=true});
+  document.addEventListener('keydown',e=>{if(lb.hidden)return;if(e.key==='Escape')lb.hidden=true;if(e.key==='ArrowLeft')show(k-1);if(e.key==='ArrowRight')show(k+1)});
+  const btns=[...document.querySelectorAll('#filters button')];
+  btns.forEach(b=>b.addEventListener('click',()=>{btns.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));all.forEach((f,i)=>{const on=b.dataset.f==='all'||f.dataset.s===b.dataset.f;f.hidden=!on;if(on){f.style.animation='none';f.offsetHeight;f.style.animation='';f.style.animationDelay=(i%8)*50+'ms'}})}));
+}
+</script>
+<script id="nv-lang">
+(function(){
+ const FL={
+  fr:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055a4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ef4135"/></svg>',
+  en:'<svg viewBox="0 0 60 30"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#c8102e" stroke-width="3"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#c8102e" stroke-width="6"/></svg>',
+  es:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/></svg>',
+  de:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#000"/><rect y=".667" width="3" height="1.333" fill="#dd0000"/><rect y="1.333" width="3" height=".667" fill="#ffce00"/></svg>',
+  nl:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ae1c28"/><rect y=".667" width="3" height=".667" fill="#fff"/><rect y="1.333" width="3" height=".667" fill="#21468b"/></svg>',
+  it:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>'};
+ const NAMES={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands',it:'Italiano'};
+ window.NVLang=function(D,onChange){
+  const q=new URLSearchParams(location.search),all=Object.keys(D);
+  /* ?langs=fr,en limite les langues proposées ; ?lang=xx impose la langue de départ (sinon langue du navigateur) */
+  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>D[x]);
+  const list=allowed.length?allowed:all,nav=(navigator.language||'fr').slice(0,2).toLowerCase();
+  let cur=list.includes(q.get('lang'))?q.get('lang'):list.includes(nav)?nav:list[0];
+  const bar=document.createElement('div');bar.className='nv-langbar';bar.setAttribute('role','group');bar.setAttribute('aria-label','Langue');
+  function apply(k){cur=k;document.documentElement.lang=k;const d=D[k];
+   document.querySelectorAll('[data-i]').forEach(e=>{const v=d[e.dataset.i];if(v!==undefined)e.textContent=v});
+   document.querySelectorAll('[data-ih]').forEach(e=>{const v=d[e.dataset.ih];if(v!==undefined)e.innerHTML=v});
+   document.querySelectorAll('[data-ia]').forEach(e=>e.dataset.ia.split(';').forEach(pair=>{const [a,key]=pair.split(':'),v=d[key];if(v!==undefined)e.setAttribute(a,v)}));
+   if(d._title)document.title=d._title;
+   [...bar.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+   if(onChange)onChange(k,d);}
+  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.title=NAMES[k];b.setAttribute('aria-label',NAMES[k]);b.innerHTML=FL[k];b.onclick=()=>apply(k);bar.appendChild(b)});
+  document.body.appendChild(bar);apply(cur);
+ };
+})();
+
+NVLang({"fr": {"c1": "Les salles du musée", "c2": "Le mur lapidaire", "c3": "Le musée vu de l’extérieur", "c4": "La galerie lapidaire", "c5": "Peinture murale romaine", "c6": "Mosaïque romaine", "c7": "Une salle d’exposition", "c8": "Amphores en vitrine", "c9": "Bloc architectural sculpté", "c10": "Mosaïque de sol", "c11": "L’architecture du musée", "c12": "Les galeries souterraines de l’Horreum", "c13": "Amphoralis : une maison à toit de chaume", "c14": "Amphoralis : intérieur", "c15": "Les jardins d’Amphoralis vus du ciel", "_title": "Narbo Via – Galerie", "sub": "Galerie", "f_all": "Toutes", "f_m": "Le musée", "f_h": "L’Horreum", "f_a": "Amphoralis", "credit": "Photos © Narbo Via et photographes cités"}, "en": {"c1": "The museum galleries", "c2": "The lapidary wall", "c3": "The museum from outside", "c4": "The lapidary gallery", "c5": "Roman wall painting", "c6": "Roman mosaic", "c7": "An exhibition room", "c8": "Amphorae on display", "c9": "Carved architectural block", "c10": "Floor mosaic", "c11": "The museum’s architecture", "c12": "The underground galleries of the Horreum", "c13": "Amphoralis: a thatched-roof house", "c14": "Amphoralis: interior", "c15": "The gardens of Amphoralis from above", "_title": "Narbo Via – Gallery", "sub": "Gallery", "f_all": "All", "f_m": "The museum", "f_h": "The Horreum", "f_a": "Amphoralis", "credit": "Photos © Narbo Via and the photographers credited"}, "es": {"c1": "Las salas del museo", "c2": "El muro lapidario", "c3": "El museo visto desde fuera", "c4": "La galería lapidaria", "c5": "Pintura mural romana", "c6": "Mosaico romano", "c7": "Una sala de exposición", "c8": "Ánforas en vitrina", "c9": "Bloque arquitectónico esculpido", "c10": "Mosaico de suelo", "c11": "La arquitectura del museo", "c12": "Las galerías subterráneas del Horreum", "c13": "Amphoralis: una casa con techo de paja", "c14": "Amphoralis: interior", "c15": "Los jardines de Amphoralis vistos desde el cielo", "_title": "Narbo Via – Galería", "sub": "Galería", "f_all": "Todas", "f_m": "El museo", "f_h": "El Horreum", "f_a": "Amphoralis", "credit": "Fotos © Narbo Via y los fotógrafos citados"}, "de": {"c1": "Die Ausstellungsräume des Museums", "c2": "Die Lapidarium-Wand", "c3": "Das Museum von außen", "c4": "Die Lapidarium-Galerie", "c5": "Römische Wandmalerei", "c6": "Römisches Mosaik", "c7": "Ein Ausstellungsraum", "c8": "Amphoren in der Vitrine", "c9": "Geschnitzter Architekturblock", "c10": "Bodenmosaik", "c11": "Die Architektur des Museums", "c12": "Die unterirdischen Gänge des Horreums", "c13": "Amphoralis: ein reetgedecktes Haus", "c14": "Amphoralis: Innenraum", "c15": "Die Gärten von Amphoralis aus der Luft", "_title": "Narbo Via – Galerie", "sub": "Galerie", "f_all": "Alle", "f_m": "Das Museum", "f_h": "Der Horreum", "f_a": "Amphoralis", "credit": "Fotos © Narbo Via und die genannten Fotografen"}});
+</script>
+</body>
+</html>
