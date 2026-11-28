@@ -6295,3 +6295,13 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 /* En-tête du panneau de droite : le bouton « Colonne étroite / Grande fenêtre » reste un bouton à texte (il était forcé à 42 × 42 px et le texte débordait). */
 .nv-studio-pro .right.panel .nv-inspector-top .nv-wide-toggle{width:auto;min-width:0;flex:0 0 auto;height:42px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font:700 13px system-ui}
 .nv-studio-pro .right.panel .nv-inspector-top .nv-panorama-settings-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Paramètres de la visite → Utilisateurs */
+.nv-users-list{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.nv-users-list li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border:1px solid #35606f;border-radius:10px;background:#143543}
+.nv-users-who{flex:1 1 150px;min-width:0;display:flex;flex-direction:column}
+.nv-users-who small{opacity:.7;overflow:hidden;text-overflow:ellipsis}
+.nv-users-actions{display:flex;gap:6px;flex:1 1 100%}
+.nv-users-actions button{flex:1;padding:6px 10px;border-radius:8px;border:1px solid #35606f;background:#1a4456;color:#e6f6f8;font:700 12px system-ui;cursor:pointer}
+.nv-users-actions button.danger{border-color:#8a4350;background:#4a2330;color:#ffd5db}
+.nv-users-actions button:disabled{opacity:.5;cursor:default}
