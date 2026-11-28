@@ -34,15 +34,23 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:0 18px 40px
 .lb-x{top:14px;left:50%;transform:translateX(-50%)}
 .lb-p{left:12px;top:50%}.lb-n{right:12px;top:50%}
 @media(max-width:600px){.lb{padding:64px 8px}.lb-p,.lb-n{top:auto;bottom:14px}}
+/* nv-lang-css */
+.nv-langbar{position:fixed;top:12px;right:12px;z-index:80;display:flex;gap:6px;padding:6px 8px;border-radius:99px;background:rgba(20,20,20,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.nv-langbar button{width:32px;height:22px;padding:0;border:2px solid transparent;border-radius:5px;overflow:hidden;cursor:pointer;background:none;opacity:.65;transition:opacity .15s,transform .15s}
+.nv-langbar button:hover{opacity:1;transform:scale(1.08)}
+.nv-langbar button[aria-pressed="true"]{border-color:#fff;opacity:1}
+.nv-langbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.nv-langbar svg{width:100%;height:100%;display:block}
+/* /nv-lang-css */
 </style>
 </head>
 <body>
 <header class="wrap">
   <img class="logo" src="assets/img/logo.png" alt="Inaya.B – Bijoux &amp; accessoires féminins">
   <h1>Inaya.B</h1>
-  <p class="sub">Bijoux &amp; accessoires féminins</p>
+  <p class="sub" data-i="sub">Bijoux &amp; accessoires féminins</p>
   <div class="tags"><span>#bijoux</span><span>#sac</span><span>#foulard</span></div>
-  <p class="info">Place des 4 Fontaines, Narbonne · Mardi – samedi, 10h–19h · <a href="tel:+33669581443">06 69 58 14 43</a></p>
+  <p class="info"><span data-i="addr">Place des 4 Fontaines, Narbonne · Mardi – samedi, 10h–19h</span> · <a href="tel:+33669581443">06 69 58 14 43</a></p>
 </header>
 <main class="wrap"><div class="gal" id="gal">
     <figure class="p" tabindex="0" role="button" aria-label="Agrandir la photo 1"><img src="assets/img/photos/01.jpg" alt="Inaya.B, photo 1" loading="lazy"></figure>
@@ -86,6 +94,37 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding:0 18px 40px
   lb.addEventListener('click',e=>{if(!e.target.closest('.lb-p,.lb-n'))lb.hidden=true});
   document.addEventListener('keydown',e=>{if(lb.hidden)return;if(e.key==='Escape')lb.hidden=true;if(e.key==='ArrowLeft')show(k-1);if(e.key==='ArrowRight')show(k+1)});
 }
+</script>
+<script id="nv-lang">
+(function(){
+ const FL={
+  fr:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055a4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ef4135"/></svg>',
+  en:'<svg viewBox="0 0 60 30"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#c8102e" stroke-width="3"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#c8102e" stroke-width="6"/></svg>',
+  es:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/></svg>',
+  de:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#000"/><rect y=".667" width="3" height="1.333" fill="#dd0000"/><rect y="1.333" width="3" height=".667" fill="#ffce00"/></svg>',
+  nl:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ae1c28"/><rect y=".667" width="3" height=".667" fill="#fff"/><rect y="1.333" width="3" height=".667" fill="#21468b"/></svg>',
+  it:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>'};
+ const NAMES={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands',it:'Italiano'};
+ window.NVLang=function(D,onChange){
+  const q=new URLSearchParams(location.search),all=Object.keys(D);
+  /* ?langs=fr,en limite les langues proposées ; ?lang=xx impose la langue de départ (sinon langue du navigateur) */
+  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>D[x]);
+  const list=allowed.length?allowed:all,nav=(navigator.language||'fr').slice(0,2).toLowerCase();
+  let cur=list.includes(q.get('lang'))?q.get('lang'):list.includes(nav)?nav:list[0];
+  const bar=document.createElement('div');bar.className='nv-langbar';bar.setAttribute('role','group');bar.setAttribute('aria-label','Langue');
+  function apply(k){cur=k;document.documentElement.lang=k;const d=D[k];
+   document.querySelectorAll('[data-i]').forEach(e=>{const v=d[e.dataset.i];if(v!==undefined)e.textContent=v});
+   document.querySelectorAll('[data-ih]').forEach(e=>{const v=d[e.dataset.ih];if(v!==undefined)e.innerHTML=v});
+   document.querySelectorAll('[data-ia]').forEach(e=>e.dataset.ia.split(';').forEach(pair=>{const [a,key]=pair.split(':'),v=d[key];if(v!==undefined)e.setAttribute(a,v)}));
+   if(d._title)document.title=d._title;
+   [...bar.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+   if(onChange)onChange(k,d);}
+  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.title=NAMES[k];b.setAttribute('aria-label',NAMES[k]);b.innerHTML=FL[k];b.onclick=()=>apply(k);bar.appendChild(b)});
+  document.body.appendChild(bar);apply(cur);
+ };
+})();
+
+NVLang({"fr": {"_title": "Inaya.B – Galerie", "sub": "Bijoux & accessoires féminins", "addr": "Place des 4 Fontaines, Narbonne · Mardi – samedi, 10h–19h"}, "en": {"_title": "Inaya.B – Gallery", "sub": "Women’s jewellery & accessories", "addr": "Place des 4 Fontaines, Narbonne · Tuesday – Saturday, 10 am – 7 pm"}, "es": {"_title": "Inaya.B – Galería", "sub": "Joyas y accesorios femeninos", "addr": "Place des 4 Fontaines, Narbona · Martes – sábado, 10:00 – 19:00"}, "de": {"_title": "Inaya.B – Galerie", "sub": "Schmuck & Damenaccessoires", "addr": "Place des 4 Fontaines, Narbonne · Dienstag – Samstag, 10 – 19 Uhr"}});
 </script>
 </body>
 </html>

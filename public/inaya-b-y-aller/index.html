@@ -51,54 +51,93 @@ header{padding:48px 0 26px}
 }
 .ok{display:none;margin-top:8px;color:#2e7d5b;font-weight:600;font-size:.9rem}
 footer{text-align:center;color:var(--muted);font-size:.85rem;padding:26px 18px 40px}
+/* nv-lang-css */
+.nv-langbar{position:fixed;top:12px;right:12px;z-index:80;display:flex;gap:6px;padding:6px 8px;border-radius:99px;background:rgba(20,20,20,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.nv-langbar button{width:32px;height:22px;padding:0;border:2px solid transparent;border-radius:5px;overflow:hidden;cursor:pointer;background:none;opacity:.65;transition:opacity .15s,transform .15s}
+.nv-langbar button:hover{opacity:1;transform:scale(1.08)}
+.nv-langbar button[aria-pressed="true"]{border-color:#fff;opacity:1}
+.nv-langbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.nv-langbar svg{width:100%;height:100%;display:block}
+/* /nv-lang-css */
 </style>
 </head>
 <body>
 <header class="wrap">
   <img class="logo" src="assets/img/logo.png" alt="Inaya.B – Bijoux &amp; accessoires féminins">
   <h1>Inaya.B</h1>
-  <p class="sub">Bijoux &amp; accessoires féminins · Narbonne</p>
+  <p class="sub" data-i="sub">Bijoux &amp; accessoires féminins · Narbonne</p>
   <div class="tags"><span>#bijoux</span><span>#sac</span><span>#foulard</span></div>
-  <div class="row top"><a class="btn main" href="#y-aller">Y aller</a><a class="btn alt" href="tel:+33669581443">Appeler</a></div>
+  <div class="row top"><a class="btn main" href="#y-aller" data-i="go">Y aller</a><a class="btn alt" href="tel:+33669581443" data-i="call">Appeler</a></div>
 </header>
 <main class="wrap">
   <section class="card">
-    <h2>La boutique</h2>
-    <p>Inaya.B, c'est une boutique de <b>bijoux et accessoires féminins</b> à Narbonne, place des 4 Fontaines : bijoux, sacs et foulards.</p>
+    <h2 data-i="h_shop">La boutique</h2>
+    <p data-ih="shop">Inaya.B, c'est une boutique de <b>bijoux et accessoires féminins</b> à Narbonne, place des 4 Fontaines : bijoux, sacs et foulards.</p>
     <div class="photos">
       <img src="assets/img/photos/01.jpg" alt="Inaya.B, photo 1" loading="lazy"><img src="assets/img/photos/02.jpg" alt="Inaya.B, photo 2" loading="lazy"><img src="assets/img/photos/04.jpg" alt="Inaya.B, photo 3" loading="lazy">
       <img src="assets/img/photos/08.jpg" alt="Inaya.B, photo 4" loading="lazy"><img src="assets/img/photos/12.jpg" alt="Inaya.B, photo 5" loading="lazy"><img src="assets/img/photos/18.jpg" alt="Inaya.B, photo 6" loading="lazy">
     </div>
   </section>
   <section class="card" id="y-aller">
-    <h2>Y aller · Adresse</h2>
+    <h2 data-i="h_addr">Y aller · Adresse</h2>
     <p class="big">Place des 4 Fontaines<br>11100 Narbonne</p>
     <div class="row">
       <a class="btn main" href="https://www.google.com/maps/search/?api=1&amp;query=Place+des+4+Fontaines+11100+Narbonne" target="_blank" rel="noopener">Google Maps</a>
       <a class="btn main" href="https://waze.com/ul?q=Place%20des%204%20Fontaines%2C%2011100%20Narbonne&amp;navigate=yes" target="_blank" rel="noopener">Waze</a>
       <a class="btn main" href="https://maps.apple.com/?q=Place%20des%204%20Fontaines%2C%2011100%20Narbonne" target="_blank" rel="noopener">Plans (Apple)</a>
     </div>
-    <div class="row"><button class="btn alt" id="copy" type="button">Copier l'adresse</button></div>
-    <p class="ok" id="ok" role="status">✓ Adresse copiée</p>
+    <div class="row"><button class="btn alt" id="copy" type="button" data-i="copy">Copier l'adresse</button></div>
+    <p class="ok" id="ok" role="status" data-i="copied">✓ Adresse copiée</p>
   </section>
   <section class="card">
-    <h2>Horaires</h2>
-    <dl class="hours"><dt>Mardi – samedi</dt><dd>10h00 – 19h00</dd></dl>
+    <h2 data-i="h_hours">Horaires</h2>
+    <dl class="hours"><dt data-i="days">Mardi – samedi</dt><dd>10h00 – 19h00</dd></dl>
   </section>
   <section class="card">
-    <h2>Téléphone</h2>
+    <h2 data-i="h_tel">Téléphone</h2>
     <p class="big">06 69 58 14 43</p>
-    <div class="row"><a class="btn main" href="tel:+33669581443">Appeler la boutique</a></div>
+    <div class="row"><a class="btn main" href="tel:+33669581443" data-i="callshop">Appeler la boutique</a></div>
   </section>
   <div class="map"><iframe loading="lazy" title="Plan d'accès Inaya.B" src="https://www.google.com/maps?q=Place+des+4+Fontaines,+11100+Narbonne&amp;output=embed"></iframe></div>
 </main>
-<a class="btn main sticky" href="tel:+33669581443">Appeler la boutique · 06 69 58 14 43</a>
+<a class="btn main sticky" href="tel:+33669581443" data-i="sticky">Appeler la boutique · 06 69 58 14 43</a>
 <footer>© Inaya.B · Visite immersive by NovaVisio</footer>
 <script>
 {
   const b=document.getElementById('copy'),ok=document.getElementById('ok'),t='Inaya.B – Place des 4 Fontaines, 11100 Narbonne';
   b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch{}a.remove()}ok.style.display='block';setTimeout(()=>ok.style.display='none',2200)});
 }
+</script>
+<script id="nv-lang">
+(function(){
+ const FL={
+  fr:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055a4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ef4135"/></svg>',
+  en:'<svg viewBox="0 0 60 30"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#c8102e" stroke-width="3"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#c8102e" stroke-width="6"/></svg>',
+  es:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/></svg>',
+  de:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#000"/><rect y=".667" width="3" height="1.333" fill="#dd0000"/><rect y="1.333" width="3" height=".667" fill="#ffce00"/></svg>',
+  nl:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ae1c28"/><rect y=".667" width="3" height=".667" fill="#fff"/><rect y="1.333" width="3" height=".667" fill="#21468b"/></svg>',
+  it:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>'};
+ const NAMES={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands',it:'Italiano'};
+ window.NVLang=function(D,onChange){
+  const q=new URLSearchParams(location.search),all=Object.keys(D);
+  /* ?langs=fr,en limite les langues proposées ; ?lang=xx impose la langue de départ (sinon langue du navigateur) */
+  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>D[x]);
+  const list=allowed.length?allowed:all,nav=(navigator.language||'fr').slice(0,2).toLowerCase();
+  let cur=list.includes(q.get('lang'))?q.get('lang'):list.includes(nav)?nav:list[0];
+  const bar=document.createElement('div');bar.className='nv-langbar';bar.setAttribute('role','group');bar.setAttribute('aria-label','Langue');
+  function apply(k){cur=k;document.documentElement.lang=k;const d=D[k];
+   document.querySelectorAll('[data-i]').forEach(e=>{const v=d[e.dataset.i];if(v!==undefined)e.textContent=v});
+   document.querySelectorAll('[data-ih]').forEach(e=>{const v=d[e.dataset.ih];if(v!==undefined)e.innerHTML=v});
+   document.querySelectorAll('[data-ia]').forEach(e=>e.dataset.ia.split(';').forEach(pair=>{const [a,key]=pair.split(':'),v=d[key];if(v!==undefined)e.setAttribute(a,v)}));
+   if(d._title)document.title=d._title;
+   [...bar.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+   if(onChange)onChange(k,d);}
+  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.title=NAMES[k];b.setAttribute('aria-label',NAMES[k]);b.innerHTML=FL[k];b.onclick=()=>apply(k);bar.appendChild(b)});
+  document.body.appendChild(bar);apply(cur);
+ };
+})();
+
+NVLang({"fr": {"_title": "Inaya.B – Infos", "sub": "Bijoux & accessoires féminins · Narbonne", "go": "Y aller", "call": "Appeler", "h_shop": "La boutique", "shop": "Inaya.B, c'est une boutique de <b>bijoux et accessoires féminins</b> à Narbonne, place des 4 Fontaines : bijoux, sacs et foulards.", "h_addr": "Y aller · Adresse", "copy": "Copier l'adresse", "copied": "✓ Adresse copiée", "h_hours": "Horaires", "days": "Mardi – samedi", "h_tel": "Téléphone", "callshop": "Appeler la boutique", "sticky": "Appeler la boutique · 06 69 58 14 43"}, "en": {"_title": "Inaya.B – Info", "sub": "Women’s jewellery & accessories · Narbonne", "go": "Get there", "call": "Call", "h_shop": "The shop", "shop": "Inaya.B is a shop for <b>women’s jewellery and accessories</b> in Narbonne, Place des 4 Fontaines: jewellery, bags and scarves.", "h_addr": "Getting there · Address", "copy": "Copy the address", "copied": "✓ Address copied", "h_hours": "Opening hours", "days": "Tuesday – Saturday", "h_tel": "Phone", "callshop": "Call the shop", "sticky": "Call the shop · 06 69 58 14 43"}, "es": {"_title": "Inaya.B – Información", "sub": "Joyas y accesorios femeninos · Narbona", "go": "Cómo llegar", "call": "Llamar", "h_shop": "La tienda", "shop": "Inaya.B es una tienda de <b>joyas y accesorios femeninos</b> en Narbona, Place des 4 Fontaines: joyas, bolsos y pañuelos.", "h_addr": "Cómo llegar · Dirección", "copy": "Copiar la dirección", "copied": "✓ Dirección copiada", "h_hours": "Horario", "days": "Martes – sábado", "h_tel": "Teléfono", "callshop": "Llamar a la tienda", "sticky": "Llamar a la tienda · 06 69 58 14 43"}, "de": {"_title": "Inaya.B – Infos", "sub": "Schmuck & Damenaccessoires · Narbonne", "go": "Anfahrt", "call": "Anrufen", "h_shop": "Das Geschäft", "shop": "Inaya.B ist ein Geschäft für <b>Schmuck und Damenaccessoires</b> in Narbonne, Place des 4 Fontaines: Schmuck, Taschen und Tücher.", "h_addr": "Anfahrt · Adresse", "copy": "Adresse kopieren", "copied": "✓ Adresse kopiert", "h_hours": "Öffnungszeiten", "days": "Dienstag – Samstag", "h_tel": "Telefon", "callshop": "Geschäft anrufen", "sticky": "Geschäft anrufen · 06 69 58 14 43"}});
 </script>
 </body>
 </html>

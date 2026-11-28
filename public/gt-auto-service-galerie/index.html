@@ -47,23 +47,31 @@ h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:800;line-height:1.12;margin-
 .lb-p{left:12px;top:50%}.lb-n{right:12px;top:50%}
 @media(max-width:600px){.lb{padding:64px 10px}.lb-p,.lb-n{top:auto;bottom:14px}}
 footer{padding:0 0 36px;text-align:center;color:var(--muted);font-size:.85rem}
+/* nv-lang-css */
+.nv-langbar{position:fixed;top:12px;right:12px;z-index:80;display:flex;gap:6px;padding:6px 8px;border-radius:99px;background:rgba(20,20,20,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.nv-langbar button{width:32px;height:22px;padding:0;border:2px solid transparent;border-radius:5px;overflow:hidden;cursor:pointer;background:none;opacity:.65;transition:opacity .15s,transform .15s}
+.nv-langbar button:hover{opacity:1;transform:scale(1.08)}
+.nv-langbar button[aria-pressed="true"]{border-color:#fff;opacity:1}
+.nv-langbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.nv-langbar svg{width:100%;height:100%;display:block}
+/* /nv-lang-css */
 </style>
 </head>
 <body>
-<header><img src="assets/img/logo.png" alt="G.T Auto Service"><p>Garage indépendant · Narbonne · Toutes marques</p></header>
+<header><img src="assets/img/logo.png" alt="G.T Auto Service"><p data-i="hdr">Garage indépendant · Narbonne · Toutes marques</p></header>
 <section id="galerie">
   <div class="wrap">
-    <div class="kicker">Galerie</div>
-    <h2>Le garage en images.</h2>
-    <p class="sub">Mécanique, carrosserie, peinture : un seul interlocuteur, toutes marques, à Narbonne.</p>
+    <div class="kicker" data-i="kick">Galerie</div>
+    <h2 data-i="h2">Le garage en images.</h2>
+    <p class="sub" data-i="sub">Mécanique, carrosserie, peinture : un seul interlocuteur, toutes marques, à Narbonne.</p>
     <div class="gal">
-      <figure class="gi w" data-i="0" tabindex="0" role="button" aria-label="Agrandir : Révision et entretien"><img src="assets/img/galerie/moteur.jpg" alt="Révision et entretien" loading="lazy"><figcaption><small>Mécanique</small><b>Révision et entretien</b><span>Vidange, filtres, niveaux : l’atelier intervient selon les préconisations du carnet d’entretien.</span></figcaption></figure>
-      <figure class="gi t" data-i="1" tabindex="0" role="button" aria-label="Agrandir : Lustrage et polissage"><img src="assets/img/galerie/polissage.jpg" alt="Lustrage et polissage" loading="lazy"><figcaption><small>Carrosserie</small><b>Lustrage et polissage</b><span>Un rendu brillant et uniforme, avec des finitions professionnelles.</span></figcaption></figure>
-      <figure class="gi t" data-i="2" tabindex="0" role="button" aria-label="Agrandir : Un atelier équipé"><img src="assets/img/galerie/cles.jpg" alt="Un atelier équipé" loading="lazy"><figcaption><small>Atelier</small><b>Un atelier équipé</b><span>Équipé pour toutes les interventions mécaniques, de la vidange à la panne moteur difficile à identifier.</span></figcaption></figure>
-      <figure class="gi t" data-i="3" tabindex="0" role="button" aria-label="Agrandir : Peinture complète ou partielle"><img src="assets/img/galerie/cabine.jpg" alt="Peinture complète ou partielle" loading="lazy"><figcaption><small>Peinture</small><b>Peinture complète ou partielle</b><span>Raccords et retouches aux teintes constructeurs, de l’apprêt aux finitions.</span></figcaption></figure>
-      <figure class="gi w" data-i="4" tabindex="0" role="button" aria-label="Agrandir : Un accrochage ? On s’occupe de tout"><img src="assets/img/galerie/sinistre.jpg" alt="Un accrochage ? On s’occupe de tout" loading="lazy"><figcaption><small>Sinistre</small><b>Un accrochage ? On s’occupe de tout</b><span>Évaluation des dommages, devis gratuit, relation avec votre assureur et véhicule de courtoisie.</span></figcaption></figure>
-      <figure class="gi t" data-i="5" tabindex="0" role="button" aria-label="Agrandir : Moteur et diagnostic"><img src="assets/img/galerie/diagnostic.jpg" alt="Moteur et diagnostic" loading="lazy"><figcaption><small>Moteur</small><b>Moteur et diagnostic</b><span>Recherche de pannes, injecteurs, bougies, turbo : on identifie la panne avant d’intervenir.</span></figcaption></figure>
-      <figure class="gi f" data-i="6" tabindex="0" role="button" aria-label="Agrandir : Citadines, SUV, utilitaires"><img src="assets/img/galerie/atelier.jpg" alt="Citadines, SUV, utilitaires" loading="lazy"><figcaption><small>Toutes marques</small><b>Citadines, SUV, utilitaires</b><span>Un garage indépendant à Narbonne, pour tous les véhicules, diesel comme essence.</span></figcaption></figure>
+      <figure class="gi w" data-i="0" tabindex="0" role="button" aria-label="Agrandir : Révision et entretien"><img src="assets/img/galerie/moteur.jpg" alt="Révision et entretien" loading="lazy"><figcaption><small data-i="k1">Mécanique</small><b data-i="t1">Révision et entretien</b><span data-i="d1">Vidange, filtres, niveaux : l’atelier intervient selon les préconisations du carnet d’entretien.</span></figcaption></figure>
+      <figure class="gi t" data-i="1" tabindex="0" role="button" aria-label="Agrandir : Lustrage et polissage"><img src="assets/img/galerie/polissage.jpg" alt="Lustrage et polissage" loading="lazy"><figcaption><small data-i="k2">Carrosserie</small><b data-i="t2">Lustrage et polissage</b><span data-i="d2">Un rendu brillant et uniforme, avec des finitions professionnelles.</span></figcaption></figure>
+      <figure class="gi t" data-i="2" tabindex="0" role="button" aria-label="Agrandir : Un atelier équipé"><img src="assets/img/galerie/cles.jpg" alt="Un atelier équipé" loading="lazy"><figcaption><small data-i="k3">Atelier</small><b data-i="t3">Un atelier équipé</b><span data-i="d3">Équipé pour toutes les interventions mécaniques, de la vidange à la panne moteur difficile à identifier.</span></figcaption></figure>
+      <figure class="gi t" data-i="3" tabindex="0" role="button" aria-label="Agrandir : Peinture complète ou partielle"><img src="assets/img/galerie/cabine.jpg" alt="Peinture complète ou partielle" loading="lazy"><figcaption><small data-i="k4">Peinture</small><b data-i="t4">Peinture complète ou partielle</b><span data-i="d4">Raccords et retouches aux teintes constructeurs, de l’apprêt aux finitions.</span></figcaption></figure>
+      <figure class="gi w" data-i="4" tabindex="0" role="button" aria-label="Agrandir : Un accrochage ? On s’occupe de tout"><img src="assets/img/galerie/sinistre.jpg" alt="Un accrochage ? On s’occupe de tout" loading="lazy"><figcaption><small data-i="k5">Sinistre</small><b data-i="t5">Un accrochage ? On s’occupe de tout</b><span data-i="d5">Évaluation des dommages, devis gratuit, relation avec votre assureur et véhicule de courtoisie.</span></figcaption></figure>
+      <figure class="gi t" data-i="5" tabindex="0" role="button" aria-label="Agrandir : Moteur et diagnostic"><img src="assets/img/galerie/diagnostic.jpg" alt="Moteur et diagnostic" loading="lazy"><figcaption><small data-i="k6">Moteur</small><b data-i="t6">Moteur et diagnostic</b><span data-i="d6">Recherche de pannes, injecteurs, bougies, turbo : on identifie la panne avant d’intervenir.</span></figcaption></figure>
+      <figure class="gi f" data-i="6" tabindex="0" role="button" aria-label="Agrandir : Citadines, SUV, utilitaires"><img src="assets/img/galerie/atelier.jpg" alt="Citadines, SUV, utilitaires" loading="lazy"><figcaption><small data-i="k7">Toutes marques</small><b data-i="t7">Citadines, SUV, utilitaires</b><span data-i="d7">Un garage indépendant à Narbonne, pour tous les véhicules, diesel comme essence.</span></figcaption></figure>
     </div>
   </div>
 </section>
@@ -84,6 +92,37 @@ footer{padding:0 0 36px;text-align:center;color:var(--muted);font-size:.85rem}
   lb.addEventListener('click',e=>{if(!e.target.closest('.lb-p,.lb-n'))lb.hidden=true});
   document.addEventListener('keydown',e=>{if(lb.hidden)return;if(e.key==='Escape')lb.hidden=true;if(e.key==='ArrowLeft')show(k-1);if(e.key==='ArrowRight')show(k+1)});
 }
+</script>
+<script id="nv-lang">
+(function(){
+ const FL={
+  fr:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055a4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ef4135"/></svg>',
+  en:'<svg viewBox="0 0 60 30"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#c8102e" stroke-width="3"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#c8102e" stroke-width="6"/></svg>',
+  es:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/></svg>',
+  de:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#000"/><rect y=".667" width="3" height="1.333" fill="#dd0000"/><rect y="1.333" width="3" height=".667" fill="#ffce00"/></svg>',
+  nl:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ae1c28"/><rect y=".667" width="3" height=".667" fill="#fff"/><rect y="1.333" width="3" height=".667" fill="#21468b"/></svg>',
+  it:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>'};
+ const NAMES={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands',it:'Italiano'};
+ window.NVLang=function(D,onChange){
+  const q=new URLSearchParams(location.search),all=Object.keys(D);
+  /* ?langs=fr,en limite les langues proposées ; ?lang=xx impose la langue de départ (sinon langue du navigateur) */
+  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>D[x]);
+  const list=allowed.length?allowed:all,nav=(navigator.language||'fr').slice(0,2).toLowerCase();
+  let cur=list.includes(q.get('lang'))?q.get('lang'):list.includes(nav)?nav:list[0];
+  const bar=document.createElement('div');bar.className='nv-langbar';bar.setAttribute('role','group');bar.setAttribute('aria-label','Langue');
+  function apply(k){cur=k;document.documentElement.lang=k;const d=D[k];
+   document.querySelectorAll('[data-i]').forEach(e=>{const v=d[e.dataset.i];if(v!==undefined)e.textContent=v});
+   document.querySelectorAll('[data-ih]').forEach(e=>{const v=d[e.dataset.ih];if(v!==undefined)e.innerHTML=v});
+   document.querySelectorAll('[data-ia]').forEach(e=>e.dataset.ia.split(';').forEach(pair=>{const [a,key]=pair.split(':'),v=d[key];if(v!==undefined)e.setAttribute(a,v)}));
+   if(d._title)document.title=d._title;
+   [...bar.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+   if(onChange)onChange(k,d);}
+  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.title=NAMES[k];b.setAttribute('aria-label',NAMES[k]);b.innerHTML=FL[k];b.onclick=()=>apply(k);bar.appendChild(b)});
+  document.body.appendChild(bar);apply(cur);
+ };
+})();
+
+NVLang({"fr": {"_title": "G.T Auto Service – Galerie", "hdr": "Garage indépendant · Narbonne · Toutes marques", "kick": "Galerie", "h2": "Le garage en images.", "sub": "Mécanique, carrosserie, peinture : un seul interlocuteur, toutes marques, à Narbonne.", "k1": "Mécanique", "t1": "Révision et entretien", "d1": "Vidange, filtres, niveaux : l’atelier intervient selon les préconisations du carnet d’entretien.", "k2": "Carrosserie", "t2": "Lustrage et polissage", "d2": "Un rendu brillant et uniforme, avec des finitions professionnelles.", "k3": "Atelier", "t3": "Un atelier équipé", "d3": "Équipé pour toutes les interventions mécaniques, de la vidange à la panne moteur difficile à identifier.", "k4": "Peinture", "t4": "Peinture complète ou partielle", "d4": "Raccords et retouches aux teintes constructeurs, de l’apprêt aux finitions.", "k5": "Sinistre", "t5": "Un accrochage ? On s’occupe de tout", "d5": "Évaluation des dommages, devis gratuit, relation avec votre assureur et véhicule de courtoisie.", "k6": "Moteur", "t6": "Moteur et diagnostic", "d6": "Recherche de pannes, injecteurs, bougies, turbo : on identifie la panne avant d’intervenir.", "k7": "Toutes marques", "t7": "Citadines, SUV, utilitaires", "d7": "Un garage indépendant à Narbonne, pour tous les véhicules, diesel comme essence."}, "en": {"_title": "G.T Auto Service – Gallery", "hdr": "Independent garage · Narbonne · All makes", "kick": "Gallery", "h2": "The garage in pictures.", "sub": "Mechanics, bodywork, paint: one point of contact, all makes, in Narbonne.", "k1": "Mechanics", "t1": "Service and maintenance", "d1": "Oil change, filters, fluid levels: the workshop works to your service book recommendations.", "k2": "Bodywork", "t2": "Buffing and polishing", "d2": "A glossy, even finish with professional touches.", "k3": "Workshop", "t3": "A fully equipped workshop", "d3": "Equipped for every mechanical job, from an oil change to an engine fault that is hard to trace.", "k4": "Paint", "t4": "Full or partial paint job", "d4": "Touch-ups and blending in manufacturer colours, from primer to finish.", "k5": "Accident", "t5": "A collision? We handle everything", "d5": "Damage assessment, free quote, dealing with your insurer, and a courtesy car.", "k6": "Engine", "t6": "Engine and diagnostics", "d6": "Fault finding, injectors, spark plugs, turbo: we identify the problem before we repair.", "k7": "All makes", "t7": "City cars, SUVs, vans", "d7": "An independent garage in Narbonne for every vehicle, diesel or petrol."}, "es": {"_title": "G.T Auto Service – Galería", "hdr": "Taller independiente · Narbona · Todas las marcas", "kick": "Galería", "h2": "El taller en imágenes.", "sub": "Mecánica, carrocería, pintura: un solo interlocutor, todas las marcas, en Narbona.", "k1": "Mecánica", "t1": "Revisión y mantenimiento", "d1": "Cambio de aceite, filtros, niveles: el taller interviene según las recomendaciones del libro de mantenimiento.", "k2": "Carrocería", "t2": "Abrillantado y pulido", "d2": "Un acabado brillante y uniforme, con un trabajo profesional.", "k3": "Taller", "t3": "Un taller equipado", "d3": "Equipado para toda intervención mecánica, desde el cambio de aceite hasta una avería de motor difícil de localizar.", "k4": "Pintura", "t4": "Pintura completa o parcial", "d4": "Retoques y igualación en los colores del fabricante, de la imprimación al acabado.", "k5": "Siniestro", "t5": "¿Un golpe? Nos ocupamos de todo", "d5": "Evaluación de daños, presupuesto gratuito, gestión con su aseguradora y vehículo de cortesía.", "k6": "Motor", "t6": "Motor y diagnóstico", "d6": "Búsqueda de averías, inyectores, bujías, turbo: identificamos el fallo antes de intervenir.", "k7": "Todas las marcas", "t7": "Utilitarios, SUV, furgonetas", "d7": "Un taller independiente en Narbona, para todos los vehículos, diésel o gasolina."}, "de": {"_title": "G.T Auto Service – Galerie", "hdr": "Unabhängige Werkstatt · Narbonne · Alle Marken", "kick": "Galerie", "h2": "Die Werkstatt in Bildern.", "sub": "Mechanik, Karosserie, Lackierung: ein Ansprechpartner, alle Marken, in Narbonne.", "k1": "Mechanik", "t1": "Inspektion und Wartung", "d1": "Ölwechsel, Filter, Flüssigkeitsstände: Die Werkstatt arbeitet nach den Vorgaben Ihres Serviceheftes.", "k2": "Karosserie", "t2": "Aufbereitung und Politur", "d2": "Ein glänzendes, gleichmäßiges Ergebnis mit professionellem Finish.", "k3": "Werkstatt", "t3": "Eine gut ausgestattete Werkstatt", "d3": "Ausgestattet für alle mechanischen Arbeiten, vom Ölwechsel bis zum schwer auffindbaren Motorschaden.", "k4": "Lackierung", "t4": "Komplett- oder Teillackierung", "d4": "Ausbesserungen und Angleichung in den Herstellerfarben, von der Grundierung bis zum Finish.", "k5": "Schaden", "t5": "Ein Unfall? Wir kümmern uns um alles", "d5": "Schadensbewertung, kostenloser Kostenvoranschlag, Abwicklung mit Ihrer Versicherung und Leihwagen.", "k6": "Motor", "t6": "Motor und Diagnose", "d6": "Fehlersuche, Einspritzdüsen, Zündkerzen, Turbo: Wir finden den Fehler, bevor wir eingreifen.", "k7": "Alle Marken", "t7": "Kleinwagen, SUV, Transporter", "d7": "Eine unabhängige Werkstatt in Narbonne für alle Fahrzeuge, Diesel wie Benzin."}});
 </script>
 </body>
 </html>

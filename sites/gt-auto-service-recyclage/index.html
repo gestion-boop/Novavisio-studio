@@ -24,11 +24,15 @@ h1 em{font-style:normal;color:var(--green)}
 .chips span:nth-child(1){animation-delay:.5s}.chips span:nth-child(2){animation-delay:.85s}.chips span:nth-child(3){animation-delay:1.2s}
 @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.9)}to{opacity:1;transform:none}}
 .sig{margin-top:clamp(20px,4vmin,34px);color:#9aa5a0;font-size:.9rem;letter-spacing:.06em}
-.langs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:clamp(18px,3vmin,28px)}
-.langs button{font:inherit;font-weight:700;font-size:.85rem;padding:7px 13px;border-radius:99px;border:1.5px solid rgba(255,255,255,.28);background:transparent;color:var(--cream);cursor:pointer}
-.langs button[aria-pressed="true"]{background:var(--cream);color:var(--ink);border-color:var(--cream)}
-.langs button:focus-visible{outline:3px solid var(--green);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){.cycle{animation:none}.chips span{animation:none;opacity:1}}
+/* nv-lang-css */
+.nv-langbar{position:fixed;top:12px;right:12px;z-index:80;display:flex;gap:6px;padding:6px 8px;border-radius:99px;background:rgba(20,20,20,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.nv-langbar button{width:32px;height:22px;padding:0;border:2px solid transparent;border-radius:5px;overflow:hidden;cursor:pointer;background:none;opacity:.65;transition:opacity .15s,transform .15s}
+.nv-langbar button:hover{opacity:1;transform:scale(1.08)}
+.nv-langbar button[aria-pressed="true"]{border-color:#fff;opacity:1}
+.nv-langbar button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.nv-langbar svg{width:100%;height:100%;display:block}
+/* /nv-lang-css */
 </style>
 </head>
 <body>
@@ -39,39 +43,42 @@ h1 em{font-style:normal;color:var(--green)}
     <g id="a"><path d="M57.1 16.7A34 34 0 0 1 81.5 62.7"/><path d="M77.4 72.9L73.2 59.4L89.9 66.1Z" fill="currentColor" stroke-width="2"/></g>
     <use href="#a" transform="rotate(120 50 50)"/><use href="#a" transform="rotate(240 50 50)"/>
   </svg>
-  <div class="kicker" id="k"></div>
-  <h1 id="t"></h1>
-  <p class="phrase" id="p"></p>
-  <div class="chips" id="c"></div>
-  <p class="sig" id="s"></p>
-  <div class="langs" id="l" role="group" aria-label="Langue"></div>
+  <div class="kicker" data-i="k"></div>
+  <h1 data-ih="t"></h1>
+  <p class="phrase" data-i="p"></p>
+  <div class="chips"><span data-i="c1"></span><span data-i="c2"></span><span data-i="c3"></span></div>
+  <p class="sig" data-i="s"></p>
 </main>
-<script>
-{
-  const L={
-    fr:{n:'Français',k:'Notre engagement',t:'Le recyclage est dans notre <em>ADN</em>',p:'Chez GT Auto Service, chaque pièce mérite une seconde vie : réparer, réutiliser, recycler, pour votre voiture et pour la planète.',c:['Réparer','Réutiliser','Recycler'],s:'Garage indépendant · Narbonne'},
-    en:{n:'English',k:'Our commitment',t:'Recycling is in our <em>DNA</em>',p:'At GT Auto Service, every part deserves a second life: repair, reuse, recycle, for your car and for the planet.',c:['Repair','Reuse','Recycle'],s:'Independent garage · Narbonne'},
-    es:{n:'Español',k:'Nuestro compromiso',t:'El reciclaje está en nuestro <em>ADN</em>',p:'En GT Auto Service, cada pieza merece una segunda vida: reparar, reutilizar, reciclar, por su coche y por el planeta.',c:['Reparar','Reutilizar','Reciclar'],s:'Taller independiente · Narbona'},
-    de:{n:'Deutsch',k:'Unser Versprechen',t:'Recycling steckt in unserer <em>DNA</em>',p:'Bei GT Auto Service verdient jedes Teil ein zweites Leben: reparieren, wiederverwenden, recyceln – für Ihr Auto und für den Planeten.',c:['Reparieren','Wiederverwenden','Recyceln'],s:'Unabhängige Werkstatt · Narbonne'},
-    nl:{n:'Nederlands',k:'Onze belofte',t:'Recycling zit in ons <em>DNA</em>',p:'Bij GT Auto Service verdient elk onderdeel een tweede leven: repareren, hergebruiken, recyclen, voor uw auto en voor de planeet.',c:['Repareren','Hergebruiken','Recyclen'],s:'Onafhankelijke garage · Narbonne'},
-    it:{n:'Italiano',k:'Il nostro impegno',t:'Il riciclo è nel nostro <em>DNA</em>',p:'Da GT Auto Service ogni ricambio merita una seconda vita: riparare, riutilizzare, riciclare, per la tua auto e per il pianeta.',c:['Riparare','Riutilizzare','Riciclare'],s:'Officina indipendente · Narbona'}
-  };
-  const q=new URLSearchParams(location.search);
-  // ?langs=fr,en,es,de limite les langues proposées ; ?lang=xx impose la langue de départ (sinon : langue du navigateur).
-  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>L[x]);
-  const list=allowed.length?allowed:Object.keys(L);
-  const nav=(navigator.language||'fr').slice(0,2).toLowerCase();
+<script id="nv-lang">
+(function(){
+ const FL={
+  fr:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#0055a4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ef4135"/></svg>',
+  en:'<svg viewBox="0 0 60 30"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#c8102e" stroke-width="3"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#c8102e" stroke-width="6"/></svg>',
+  es:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#aa151b"/><rect y=".5" width="3" height="1" fill="#f1bf00"/></svg>',
+  de:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#000"/><rect y=".667" width="3" height="1.333" fill="#dd0000"/><rect y="1.333" width="3" height=".667" fill="#ffce00"/></svg>',
+  nl:'<svg viewBox="0 0 3 2"><rect width="3" height="2" fill="#ae1c28"/><rect y=".667" width="3" height=".667" fill="#fff"/><rect y="1.333" width="3" height=".667" fill="#21468b"/></svg>',
+  it:'<svg viewBox="0 0 3 2"><rect width="1" height="2" fill="#009246"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#ce2b37"/></svg>'};
+ const NAMES={fr:'Français',en:'English',es:'Español',de:'Deutsch',nl:'Nederlands',it:'Italiano'};
+ window.NVLang=function(D,onChange){
+  const q=new URLSearchParams(location.search),all=Object.keys(D);
+  /* ?langs=fr,en limite les langues proposées ; ?lang=xx impose la langue de départ (sinon langue du navigateur) */
+  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>D[x]);
+  const list=allowed.length?allowed:all,nav=(navigator.language||'fr').slice(0,2).toLowerCase();
   let cur=list.includes(q.get('lang'))?q.get('lang'):list.includes(nav)?nav:list[0];
-  const $=id=>document.getElementById(id),box=$('l');
-  function show(k){
-    cur=k;const d=L[k];document.documentElement.lang=k;
-    $('k').textContent=d.k;$('t').innerHTML=d.t;$('p').textContent=d.p;$('s').textContent=d.s;
-    const c=$('c');c.innerHTML='';d.c.forEach(w=>{const s=document.createElement('span');s.textContent=w;c.appendChild(s)});
-    [...box.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
-  }
-  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.textContent=L[k].n;b.onclick=()=>show(k);box.appendChild(b)});
-  show(cur);
-}
+  const bar=document.createElement('div');bar.className='nv-langbar';bar.setAttribute('role','group');bar.setAttribute('aria-label','Langue');
+  function apply(k){cur=k;document.documentElement.lang=k;const d=D[k];
+   document.querySelectorAll('[data-i]').forEach(e=>{const v=d[e.dataset.i];if(v!==undefined)e.textContent=v});
+   document.querySelectorAll('[data-ih]').forEach(e=>{const v=d[e.dataset.ih];if(v!==undefined)e.innerHTML=v});
+   document.querySelectorAll('[data-ia]').forEach(e=>e.dataset.ia.split(';').forEach(pair=>{const [a,key]=pair.split(':'),v=d[key];if(v!==undefined)e.setAttribute(a,v)}));
+   if(d._title)document.title=d._title;
+   [...bar.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+   if(onChange)onChange(k,d);}
+  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.title=NAMES[k];b.setAttribute('aria-label',NAMES[k]);b.innerHTML=FL[k];b.onclick=()=>apply(k);bar.appendChild(b)});
+  document.body.appendChild(bar);apply(cur);
+ };
+})();
+
+NVLang({"fr": {"_title": "GT Auto Service – Recyclage", "k": "Notre engagement", "t": "Le recyclage est dans notre <em>ADN</em>", "p": "Chez GT Auto Service, chaque pièce mérite une seconde vie : réparer, réutiliser, recycler, pour votre voiture et pour la planète.", "c1": "Réparer", "c2": "Réutiliser", "c3": "Recycler", "s": "Garage indépendant · Narbonne"}, "en": {"_title": "GT Auto Service – Recycling", "k": "Our commitment", "t": "Recycling is in our <em>DNA</em>", "p": "At GT Auto Service, every part deserves a second life: repair, reuse, recycle, for your car and for the planet.", "c1": "Repair", "c2": "Reuse", "c3": "Recycle", "s": "Independent garage · Narbonne"}, "es": {"_title": "GT Auto Service – Reciclaje", "k": "Nuestro compromiso", "t": "El reciclaje está en nuestro <em>ADN</em>", "p": "En GT Auto Service, cada pieza merece una segunda vida: reparar, reutilizar, reciclar, por su coche y por el planeta.", "c1": "Reparar", "c2": "Reutilizar", "c3": "Reciclar", "s": "Taller independiente · Narbona"}, "de": {"_title": "GT Auto Service – Recycling", "k": "Unser Versprechen", "t": "Recycling steckt in unserer <em>DNA</em>", "p": "Bei GT Auto Service verdient jedes Teil ein zweites Leben: reparieren, wiederverwenden, recyceln – für Ihr Auto und für den Planeten.", "c1": "Reparieren", "c2": "Wiederverwenden", "c3": "Recyceln", "s": "Unabhängige Werkstatt · Narbonne"}, "nl": {"_title": "GT Auto Service – Recycling", "k": "Onze belofte", "t": "Recycling zit in ons <em>DNA</em>", "p": "Bij GT Auto Service verdient elk onderdeel een tweede leven: repareren, hergebruiken, recyclen, voor uw auto en voor de planeet.", "c1": "Repareren", "c2": "Hergebruiken", "c3": "Recyclen", "s": "Onafhankelijke garage · Narbonne"}, "it": {"_title": "GT Auto Service – Riciclo", "k": "Il nostro impegno", "t": "Il riciclo è nel nostro <em>DNA</em>", "p": "Da GT Auto Service ogni ricambio merita una seconda vita: riparare, riutilizzare, riciclare, per la tua auto e per il pianeta.", "c1": "Riparare", "c2": "Riutilizzare", "c3": "Riciclare", "s": "Officina indipendente · Narbona"}});
 </script>
 </body>
 </html>
