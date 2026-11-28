@@ -4698,6 +4698,14 @@ function App(){
                         onChange={e=>patchPoint({fadeOnClick:e.target.checked})}/> Agrandir en fondu au clic</label>
                       {!isPopupMedia(selected)&&<label className="nv-quick-check"><input type="checkbox" checked={selected.imageBounce!==false}
                         onChange={e=>patchPoint({imageBounce:e.target.checked})}/> Rebond de cette image en aperçu</label>}
+                      {!isPopupMedia(selected)&&<label className="nv-quick-check">Signal de clic (cadre doré)
+                        <select value={selected.frameHalo===false?'none':(selected.frameSignalStyle??'gold')} onChange={e=>patchPoint({frameSignalStyle:e.target.value as 'gold'|'soft'|'pulse'|'none',frameHalo:e.target.value!=='none'})}>
+                          <option value="gold">Contour doré fin</option>
+                          <option value="soft">Halo discret</option>
+                          <option value="pulse">Pulsation légère</option>
+                          <option value="none">Aucun (sans cadre)</option>
+                        </select>
+                      </label>}
                       {(selected.imageDataUrl||selected.imageUrl)&&<button type="button" className="nv-quick-primary"
                         onClick={()=>{setZoomFrom(null);setImageZoom(selected);}}>
                         <Eye size={15}/> Tester le popup photo
@@ -5263,6 +5271,14 @@ function App(){
                 {isPopupMedia(selected)&&iconSizeControl()}
                 {isPopupMedia(selected)&&applyAllButton()}
                 <PhotoFramePicker value={selected.imageFrameStyle} onChange={imageFrameStyle=>patchPoint({imageFrameStyle})}/>
+                {!isPopupMedia(selected)&&<label className="toggle-row">Signal visuel de l’image (cadre doré)
+                  <select value={selected.frameHalo===false?'none':(selected.frameSignalStyle??'gold')} onChange={e=>patchPoint({frameSignalStyle:e.target.value as 'gold'|'soft'|'pulse'|'none',frameHalo:e.target.value!=='none'})}>
+                    <option value="gold">Fin contour doré (conseillé)</option>
+                    <option value="soft">Halo très discret</option>
+                    <option value="pulse">Légère pulsation</option>
+                    <option value="none">Aucun effet (sans cadre)</option>
+                  </select>
+                </label>}
                 <small className="hint-inline">JPG, PNG, WebP (HEIC selon navigateur) · 40 Mo max</small>
                 {!isPopupMedia(selected)&&<>
                 {selected.imageDataUrl && <p className="hint">💡 Cadrage : déplace directement les quatre poignées turquoise sur le cadre photo dans le 360° pour suivre la perspective.</p>}
