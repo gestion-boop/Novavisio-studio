@@ -6320,7 +6320,8 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 .nv-studio-pro .right.panel .nv-inspector-top{position:sticky}
 .nv-studio-pro .right.panel .nv-inspector-top>button[aria-label="Fermer les réglages"]{position:absolute;left:50%;top:50%;translate:-50% -50%;z-index:2}
 .nv-studio-pro .right.panel .nv-inspector-top .nv-panorama-settings-title{flex:0 1 34%;white-space:normal;overflow:visible;text-overflow:clip;font-size:12px;line-height:1.15;padding-right:0}
-.nv-studio-pro .right.panel .nv-inspector-top .nv-wide-toggle{margin-left:auto;white-space:nowrap}
+.nv-studio-pro .right.panel .nv-inspector-top .nv-wide-toggle{position:absolute;right:10px;top:50%;translate:0 -50%;margin:0;white-space:nowrap}
+.nv-studio-pro .right.panel .nv-inspector-top{min-height:56px}
 .nv-comments>header{position:relative;justify-content:flex-start}
 .nv-comments>header button{position:absolute;left:50%;top:50%;translate:-50% -50%;border-radius:50%}
 .nv-comments>header{min-height:42px}
