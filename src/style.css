@@ -6315,3 +6315,17 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 
 .nv-directory-close{position:absolute;top:6px;left:50%;transform:translateX(-50%);z-index:5;display:grid;place-items:center;width:34px;height:34px;padding:0;border-radius:50%;border:1px solid #3b5e71;background:#173a4a;color:#dceff2;cursor:pointer}
 .nv-directory-close:hover{border-color:#70c7c1;background:#245666}
+
+/* Règle des fenêtres : la croix est toujours en haut, au milieu (colonne étroite comme grande fenêtre) */
+.nv-studio-pro:not(.nv-wide) .right.panel .nv-inspector-top{position:sticky}
+.nv-studio-pro:not(.nv-wide) .right.panel .nv-inspector-top>button[aria-label="Fermer les réglages"]{position:absolute;left:50%;top:50%;translate:-50% -50%;z-index:2}
+.nv-studio-pro:not(.nv-wide) .right.panel .nv-inspector-top .nv-panorama-settings-title{flex:0 1 34%;white-space:normal;overflow:visible;text-overflow:clip;font-size:12px;line-height:1.15;padding-right:0}
+.nv-studio-pro:not(.nv-wide) .right.panel .nv-inspector-top .nv-wide-toggle{margin-left:auto;white-space:nowrap}
+.nv-comments>header{position:relative;justify-content:flex-start}
+.nv-comments>header button{position:absolute;left:50%;top:50%;translate:-50% -50%;border-radius:50%}
+.nv-comments>header{min-height:42px}
+.nv-sheet-open:not(.nv-wide) .nv-setup-languages{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.nv-sheet-open:not(.nv-wide) .nv-setup-languages>label{padding:8px 9px;gap:6px;font-size:12.5px;min-width:0;overflow:hidden}
+.nv-sheet-open:not(.nv-wide) .nv-setup-languages>label>span{font-size:18px;flex:none}
+/* Onglet Barre : les 4 cartes principales d'abord, les réglages « pour toute la barre » (longue liste de thèmes) en dessous */
+.properties>.nv-bar-uniform{order:20}
