@@ -33,7 +33,13 @@ import {PhotoGallery} from './PhotoGallery';
 import {settingsButtonBarStyle,settingsSize} from './settingsButton';
 import {useEffectiveBarTheme,popupThemeVars} from './barImageTheme';
 import {useVisitorPrefs,setSound,setLang,effectiveLang} from './visitorPrefs';
-import {startVr,vrSupported} from './vr';
+/** Test léger de disponibilité du casque : le gros module VR (three, menus 3D) n'est chargé qu'au clic sur « Visite VR ». */
+async function vrSupported():Promise<boolean>{
+  try{
+    const xr=(navigator as Navigator&{xr?:{isSessionSupported:(m:string)=>Promise<boolean>}}).xr;
+    return !!xr&&await xr.isSessionSupported('immersive-vr');
+  }catch{return false;}
+}
 import './visitor.css';
 import {NativeIntro} from './nativeIntro';
 import {nativeIntroActive,introDurationSec} from './introDesign';
@@ -463,6 +469,7 @@ export function Tour({project:given,onNeedScene,onPreviewScenes}:{project?:Studi
     if(vrActive||!projectRef.current||projectRef.current.vrEnabled===false)return;
     setVrError('');
     try{
+      const {startVr}=await import('./vr');
       vrStop.current=await startVr({
         getProject:()=>projectRef.current as StudioProject,
         startSceneId:current.id,
