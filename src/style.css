@@ -6291,3 +6291,7 @@ button.scene,.nv-classic-destination-row,.nv-fullscreen-gallery-scene,.nv-space-
 
 .nv-loupe-fit{display:flex;flex-direction:column;gap:6px;font-size:12px}
 .nv-loupe-fit>div{display:flex;gap:6px;flex-wrap:wrap}
+
+/* En-tête du panneau de droite : le bouton « Colonne étroite / Grande fenêtre » reste un bouton à texte (il était forcé à 42 × 42 px et le texte débordait). */
+.nv-studio-pro .right.panel .nv-inspector-top .nv-wide-toggle{width:auto;min-width:0;flex:0 0 auto;height:42px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;font:700 13px system-ui}
+.nv-studio-pro .right.panel .nv-inspector-top .nv-panorama-settings-title{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
