@@ -22,6 +22,7 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
   const [pub,setPub]=useState<Publication|null>(null);
   const [pubNote,setPubNote]=useState('');
   const [pubCopied,setPubCopied]=useState(false);
+  const [iframeCopied,setIframeCopied]=useState(false);
   const [created,setCreated]=useState<{url:string;expires:string;copied:boolean}|null>(null);
   const [copiedId,setCopiedId]=useState('');
 
@@ -84,6 +85,18 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
     if(!link||!await confirmAsk('Arrêter la publication ? L’adresse permanente cessera de fonctionner (rien n’est supprimé : tu pourras republier).'))return;
     void run('Arrêt…',async()=>{await unpublish(link.projectId);onStatus('Publication arrêtée');await refresh(link.projectId);});
   };
+  const copyIntegration=async (format:'url'|'iframe')=>{
+    if(!pub||!publicationActive(pub))return;
+    const url=shareUrl(pub.token);
+    const esc=(v:string)=>v.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const value=format==='url'?url:`<iframe src="${esc(url)}" title="${esc(project.name||'Visite 360°')}" style="display:block;width:100%;height:clamp(320px,65vh,700px);border:0" allow="fullscreen; autoplay; accelerometer; gyroscope; magnetometer; xr-spatial-tracking" allowfullscreen loading="lazy" referrerpolicy="no-referrer"></iframe>`;
+    const ok=await copy(value);
+    if(!ok){setError('Copie impossible : sélectionne manuellement l’adresse permanente ci-dessus.');return;}
+    setError('');
+    if(format==='url'){setPubCopied(true);setTimeout(()=>setPubCopied(false),1800);}
+    else{setIframeCopied(true);setTimeout(()=>setIframeCopied(false),1800);}
+    onStatus(format==='url'?'Lien permanent copié pour NovaWeb et NovaTour':'Code iFrame permanent copié');
+  };
   const downloadWrapper=()=>{
     if(!pub)return;
     const blob=new Blob([wrapperHtml(shareUrl(pub.token),project.name||'Visite 360°',project.introEnabled?project.introUrl:'',project.introDuration??6)],{type:'text/html'});
@@ -106,8 +119,8 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
     :!userEmail?<LoginBox intro="Pour envoyer un lien, connecte-toi d’abord (lien magique par e-mail, ou e-mail et mot de passe)."/>
     :<>
       <div className="permanent-card">
-        <div className="icon-state-label">LIEN PERMANENT · POUR NOVATOUR{space?' · '+space.name.toUpperCase():''}</div>
-        <small className="hint-inline">Envoie le fichier <b>index.html</b> ci-dessous dans NovaVisio. Ensuite, <b>« Publier »</b> met à jour la visite sans renvoyer de dossier. <b>Si tu avais déjà transmis un ancien index.html, remplace-le une fois pour activer l’intro immédiate avant le chargement.</b></small>
+        <div className="icon-state-label">LIEN PERMANENT · NOVATOUR & NOVAWEB{space?' · '+space.name.toUpperCase():''}</div>
+        <small className="hint-inline">Utilise le même lien permanent dans NovaWeb (bloc Visite 360°) et NovaTour. Le fichier <b>index.html</b> reste disponible pour NovaTour et les hébergements HTML, notamment pour l’introduction externe. Ensuite, <b>« Publier »</b> actualise la visite à la prochaine ouverture, sans renvoyer de dossier. Les liens temporaires ci-dessous restent figés.</small>
         {pubNote&&<small className="warning-inline">{pubNote}</small>}
         {publicationActive(pub)&&pub?<>
           <input readOnly value={shareUrl(pub.token)} onFocus={e=>e.currentTarget.select()}/>
@@ -124,7 +137,8 @@ export function SharePanel({project,space,onClose,onStatus}:Props){
           <div className="cloud-actions">
             <button className="primary" disabled={!!busy||!project.scenes.length} onClick={()=>void publish()}>Mettre à jour maintenant</button>
             <button className="quiet" onClick={downloadWrapper}>Télécharger index.html pour NovaTour</button>
-            <button className="quiet" onClick={()=>void navigator.clipboard.writeText(shareUrl(pub.token)).then(()=>{setPubCopied(true);setTimeout(()=>setPubCopied(false),1800);}).catch(()=>undefined)}>{pubCopied?'Copié ✓':'Copier l’adresse'}</button>
+            <button className="quiet" onClick={()=>void copyIntegration('url')}>{pubCopied?'Copié ✓':'Copier le lien d’intégration permanent'}</button>
+            <button className="quiet" onClick={()=>void copyIntegration('iframe')}>{iframeCopied?'Code copié ✓':'Copier le code iFrame'}</button>
             <a className="quiet share-open" href={shareUrl(pub.token)} target="_blank" rel="noopener">Ouvrir</a>
             <button className="quiet" disabled={!!busy} onClick={stopPublication}>Arrêter la publication</button>
           </div>
