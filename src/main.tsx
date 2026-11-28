@@ -5015,7 +5015,7 @@ function App(){
             const raw=project.bottomBar.find(b=>b.id===galleryOpen&&b.type==='gallery');
             if(!raw)return null;
             const item=resolveVrGalleryItem({...project,bottomBar:[raw,...project.bottomBar.filter(b=>b.id!==raw.id)]});
-            return <PanoramaGallery title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces,sceneThumbs)}
+            return <PanoramaGallery cardTheme={item.galleryCardTheme} title={item.galleryTitle||item.title||'Panoramas'} currentId={active?.id} background={galleryBackgroundSrc(item,project.scenes,project.spaces,sceneThumbs)}
               entries={galleryEntries(item,preview?visibleScenes.filter(sc=>!sc.excluded):visibleScenes,project.spaces).map(e=>({sceneId:e.sceneId,spaceId:e.spaceId,label:e.label,thumb:e.coverDataUrl??sceneThumbs[e.sceneId]}))}
               onPick={(id,spaceId)=>{if(spaceId){selectSpace(spaceId);setPreview(true);}else selectScene(id);setGalleryOpen(null);}} renderPreview={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?<FullscreenGalleryHoverPreview scene={sc} thumb={sceneThumbs[sc.id]}/>:null;}} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} onClose={()=>setGalleryOpen(null)}/>;
           })()}

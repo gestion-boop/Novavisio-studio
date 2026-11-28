@@ -82,6 +82,7 @@ export function projectForSpaceExport(project:StudioProject,space:StudioSpace|nu
       ...item,
       gallerySpaceIds:[],
       galleryBackgroundImage:item.galleryBackgroundImage,
+      galleryCardTheme:item.galleryCardTheme,
       galleryBackground:item.galleryBackground?.startsWith('scene:')&&ids.has(item.galleryBackground.slice(6))?item.galleryBackground:undefined,
       target:item.target&&ids.has(item.target)?item.target:'',
       ...(gallery?{gallery}:{})

@@ -240,3 +240,18 @@
 :root:not(#nv-x) .overlay>.modal>.close svg{width:20px;height:20px;stroke-width:3}
 :root:not(#nv-x) .overlay>.modal>.close:hover{background:color-mix(in srgb,var(--nv-button-bg,#311820) 78%,#fff)!important;border-color:var(--nv-icon-color,#fff)!important}
 :root:not(#nv-x) .overlay>.modal>.close:active{background:color-mix(in srgb,var(--nv-button-bg,#311820) 70%,#000)!important;scale:.94}
+
+/* Thème des cartes du panneau d'espaces (réglé par bouton : normal / survol / pressé). */
+.nv-gallery[style*="--nv-gc-bg"] .nv-gallery-card:not(#nv-x){background-color:var(--nv-gc-bg)!important;border-color:var(--nv-gc-border)!important;color:var(--nv-gc-ink)!important}
+.nv-gallery[style*="--nv-gc-bg"] .nv-gallery-card:not(#nv-x) strong{color:var(--nv-gc-ink)!important}
+.nv-gallery[style*="--nv-gc-bg"] .nv-gallery-card:not(#nv-x):hover{background-color:var(--nv-gc-hover)!important;border-color:var(--nv-gc-pressed)!important;color:var(--nv-gc-hover-ink)!important;box-shadow:0 10px 26px color-mix(in srgb,var(--nv-gc-hover) 40%,#0008)}
+.nv-gallery[style*="--nv-gc-bg"] .nv-gallery-card:not(#nv-x):hover strong{color:var(--nv-gc-hover-ink)!important}
+.nv-gallery[style*="--nv-gc-bg"] .nv-gallery-card:not(#nv-x):active{background-color:var(--nv-gc-pressed)!important;border-color:color-mix(in srgb,var(--nv-gc-pressed) 60%,#000)!important}
+.nv-gallery[style*="--nv-gc-bg"] .nv-gallery-card:not(#nv-x):active strong{color:var(--nv-gc-pressed-ink)!important}
+.nv-gallery[style*="--nv-gc-bg"] .nv-gallery-card.is-current:not(#nv-x):not(:hover):not(:active){box-shadow:0 0 0 2px var(--nv-gc-pressed)}
+.nv-gc-presets{display:flex;flex-wrap:wrap;gap:6px}
+.nv-gc-preset{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:9px;font-size:12px}
+.nv-gc-preset i{width:14px;height:14px;border-radius:4px;border:1px solid #0006;display:inline-block}
+.nv-gc-colors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.nv-gc-colors label{display:flex;flex-direction:column;gap:3px;font-size:12px}
+.nv-gc-colors input[type=color]{width:100%;height:34px;padding:2px}

@@ -6,6 +6,14 @@ import {reorderItems,useGripSort} from './gripSort';
 import type {BottomBarItem,GalleryItem,Scene,StudioProject} from './storage';
 import {XMark} from './XMark';
 
+const CARD_THEMES:{name:string;normal:string;hover:string;pressed:string}[]=[
+  {name:'Or',normal:'#d3a43e',hover:'#f2c14e',pressed:'#4a2c15'},
+  {name:'Océan',normal:'#1f6f8b',hover:'#2fa4c7',pressed:'#0e3a4b'},
+  {name:'Forêt',normal:'#3f7d58',hover:'#5fb27f',pressed:'#1d3d2b'},
+  {name:'Anthracite',normal:'#3a424d',hover:'#5b6674',pressed:'#14181d'},
+  {name:'Bordeaux',normal:'#8c2f3c',hover:'#c0485a',pressed:'#46141c'},
+  {name:'Blanc',normal:'#f2f4f7',hover:'#ffffff',pressed:'#b9c2cd'},
+];
 export type BarGalleryTab='panoramas'|'spaces';
 
 /** A button can open one panel containing both panorama and space shortcuts. */
@@ -40,6 +48,15 @@ export function BarGalleryEditor({item,scenes,spaces,thumbs,tab,onTabChange,onCh
   const thumb=(id:string)=><button type="button" aria-label={"Aperçu de "+(scenes.find(sc=>sc.id===id)?.name??id)} onClick={()=>setSelectedId(id)} className="gallery-thumb">{thumbs[id]&&<img src={thumbs[id]} alt="" draggable={false}/>}</button>;
   const content=<div className="gallery-editor">
     <label>Titre du panneau<input value={item.galleryTitle??''} placeholder={item.title||'Espaces et panoramas'} onChange={event=>onChange({galleryTitle:event.target.value})}/></label>
+    <div className="nv-gc-box">
+      <div className="section-title">COULEURS DES CARTES (normal · survol · pressé)</div>
+      <div className="nv-gc-presets">{CARD_THEMES.map(t=><button type="button" key={t.name} className="nv-gc-preset" onClick={()=>onChange({galleryCardTheme:{normal:t.normal,hover:t.hover,pressed:t.pressed}})}><i style={{background:t.normal}}/><i style={{background:t.hover}}/><i style={{background:t.pressed}}/>{t.name}</button>)}</div>
+      {item.galleryCardTheme&&<div className="nv-gc-colors">
+        {([['normal','Normal'],['hover','Survol'],['pressed','Pressé']] as const).map(([k,l])=><label key={k}>{l}<input type="color" value={item.galleryCardTheme![k]} onChange={ev=>onChange({galleryCardTheme:{...item.galleryCardTheme!,[k]:ev.target.value}})}/></label>)}
+      </div>}
+      {item.galleryCardTheme&&<button type="button" onClick={()=>onChange({galleryCardTheme:undefined})}>Revenir aux couleurs de la barre</button>}
+      <small className="hint-inline">Choisis un thème, puis ajuste chaque couleur si besoin. Le texte s’adapte automatiquement.</small>
+    </div>
     <div className="nv-gallery-bg-picker">
       <div className="section-title">PHOTO DE FOND DU PANNEAU</div>
       <div className={'nv-gallery-bg-current nv-pano-import-dropzone'+(bgDragHover?' drag-hover':'')}

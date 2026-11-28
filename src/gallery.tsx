@@ -1,10 +1,16 @@
-import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {useEffect,useRef,useState,type CSSProperties,type ReactNode} from 'react';
 import {overlayClose} from './overlayClose';
 import {X} from 'lucide-react';
 import {renderViewThumb,type ViewSource} from './viewThumbs';
 import type {BottomBarItem,Scene,StudioProject} from './storage';
 
 /** Entrées d'une galerie de panoramas : seulement les panoramas qui existent encore, dans l'ordre choisi. */
+const inkOn=(hex:string)=>{const[r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));return (0.299*r+0.587*g+0.114*b)/255>0.55?'#1b1208':'#ffffff';};
+/** Variables CSS des cartes d'un panneau d'espaces (normal / survol / pressé), lues par windowAnim.css. */
+export function galleryThemeVars(t?:BottomBarItem['galleryCardTheme']):Record<string,string>{
+  if(!t)return {};
+  return {'--nv-gc-bg':t.normal,'--nv-gc-border':t.pressed,'--nv-gc-ink':t.ink||inkOn(t.normal),'--nv-gc-hover':t.hover,'--nv-gc-hover-ink':t.ink||inkOn(t.hover),'--nv-gc-pressed':t.pressed,'--nv-gc-pressed-ink':inkOn(t.pressed)};
+}
 export function galleryEntries(item:BottomBarItem,scenes:Scene[],spaces:StudioProject['spaces']=[]):{sceneId:string;label:string;custom:string;sceneName:string;spaceId?:string;coverDataUrl?:string}[]{
   const out:{sceneId:string;label:string;custom:string;sceneName:string;spaceId?:string;coverDataUrl?:string}[]=[];
   const seen=new Set<string>();
@@ -35,7 +41,7 @@ export function galleryBackgroundSrc(item:BottomBarItem,scenes:Scene[],spaces:St
 }
 export type GalleryCard={sceneId:string;label:string;thumb?:string;spaceId?:string};
 /** Galerie de raccourcis vers les panoramas : un clic sur une vignette emmène directement au panorama. */
-export function PanoramaGallery({title,entries,currentId,background,onPick,onClose,renderPreview,viewSource,onVisibleScenes}:{title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void;renderPreview?:(sceneId:string)=>ReactNode;viewSource?:(sceneId:string)=>ViewSource|undefined;onVisibleScenes?:(ids:string[])=>void}){
+export function PanoramaGallery({title,entries,currentId,background,cardTheme,onPick,onClose,renderPreview,viewSource,onVisibleScenes}:{cardTheme?:BottomBarItem['galleryCardTheme'];title:string;entries:GalleryCard[];currentId?:string;background?:string;onPick:(sceneId:string,spaceId?:string)=>void;onClose:()=>void;renderPreview?:(sceneId:string)=>ReactNode;viewSource?:(sceneId:string)=>ViewSource|undefined;onVisibleScenes?:(ids:string[])=>void}){
   const [views,setViews]=useState<Record<string,string>>({});
   const viewRef=useRef(viewSource),entriesRef=useRef(entries);viewRef.current=viewSource;entriesRef.current=entries;
   const entriesKey=entries.map(e=>e.sceneId).join(',');
@@ -81,7 +87,7 @@ export function PanoramaGallery({title,entries,currentId,background,onPick,onClo
   },[onClose,look]);
   return <div className="nv-gallery-overlay" {...overlayClose(onClose)} role="presentation">
     <section className={'nv-gallery'+(background?' has-bg':'')} role="dialog" aria-label={title} onClick={e=>e.stopPropagation()}
-      style={background?{backgroundImage:'linear-gradient(rgba(4,14,20,.58),rgba(4,14,20,.84)),url("'+background.replace(/"/g,'%22')+'")',backgroundSize:'cover',backgroundPosition:'center'}:undefined}>
+      style={{...galleryThemeVars(cardTheme),...(background?{backgroundImage:'linear-gradient(rgba(4,14,20,.58),rgba(4,14,20,.84)),url("'+background.replace(/"/g,'%22')+'")',backgroundSize:'cover',backgroundPosition:'center'}:{})} as CSSProperties}>
       <header><h2>{title}</h2><button type="button" className="nv-gallery-close" onPointerDown={e=>e.stopPropagation()} onPointerUp={e=>e.stopPropagation()} onClick={e=>{e.preventDefault();e.stopPropagation();onClose();}} aria-label="Fermer la galerie"><X size={20}/></button></header>
       {entries.length?<div className="nv-gallery-grid" ref={grid}>{entries.map(e=><div className="nv-gallery-cell" data-preview-scene={onVisibleScenes?e.sceneId:undefined} key={e.spaceId??e.sceneId}>
         <button type="button" className={'nv-gallery-card'+(e.sceneId===currentId?' is-current':'')} onClick={()=>onPick(e.sceneId,e.spaceId)}>
