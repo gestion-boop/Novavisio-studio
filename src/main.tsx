@@ -2851,6 +2851,7 @@ function App(){
   const visitorLang=effectiveLang(visitorPrefs,activeLanguages);
   const [windowDemo,setWindowDemo]=useState(false);
   useEffect(()=>{applyCloseColor(project.closeIconId?undefined:project.closeButtonColor,project.closeButtonInk);},[project.closeButtonColor,project.closeButtonInk,project.closeIconId]);
+  useEffect(()=>{document.documentElement.toggleAttribute('data-no-frame-halo',!!project.hideFrameHalo);return ()=>document.documentElement.removeAttribute('data-no-frame-halo');},[project.hideFrameHalo]);
   useEffect(()=>{setTransitionMs(project.transitionMs);},[project.transitionMs]);
   useEffect(()=>{document.documentElement.dataset.windowAnim=project.windowAnimation??'fade';document.documentElement.style.setProperty('--nv-win-dur',(project.windowAnimationMs??700)+'ms');},[project.windowAnimation,project.windowAnimationMs]);
   // La langue choisie dans « Paramètres » s'applique d'office à chaque fenêtre d'information qui s'ouvre (comme un clic sur le drapeau).
@@ -5815,6 +5816,10 @@ function App(){
                 {WINDOW_ANIMATIONS.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
               </select>
             </label>
+          </InspectorSection>
+          <InspectorSection title="Cadre doré des photos et vidéos">
+            <p className="hint">Le fin contour doré qui signale les photos et vidéos cliquables dans la visite. Cette case le supprime partout, sur tous les panoramas.</p>
+            <label className="toggle-row"><input type="checkbox" checked={!!project.hideFrameHalo} onChange={e=>setProject(p=>({...p,hideFrameHalo:e.target.checked||undefined}))}/> Supprimer le cadre doré partout</label>
           </InspectorSection>
           <InspectorSection title="Rectangle avec le nom des pièces (en haut)">
             <p className="hint">Le petit cadre qui affiche le nom du panorama en haut de la visite. Ces deux cases le masquent partout, quel que soit le réglage des dossiers ou des panoramas.</p>
