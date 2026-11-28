@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>GT Auto Service – Recyclage</title>
+<style>
+:root{--red:#B43846;--ink:#212725;--cream:#f4efe6;--green:#7fd1a0}
+*{box-sizing:border-box;margin:0;padding:0;min-width:0}
+html,body{min-height:100%;background:var(--ink)}
+body{font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--cream);display:grid;place-items:center;min-height:100vh;min-height:100dvh;overflow-x:clip;position:relative}
+.bg{position:fixed;inset:0;background:radial-gradient(60% 50% at 50% 38%,rgba(127,209,160,.16),transparent 70%),radial-gradient(45% 40% at 85% 8%,rgba(180,56,70,.28),transparent 70%),var(--ink)}
+.panel{position:relative;width:min(900px,100%);padding:clamp(28px,5vw,60px) clamp(20px,5vw,56px);text-align:center;display:flex;flex-direction:column;align-items:center}
+.logo{height:clamp(54px,8vmin,74px);width:auto;background:#fff;border-radius:12px;padding:6px 10px;margin-bottom:clamp(18px,3vmin,30px)}
+.cycle{width:clamp(120px,24vmin,200px);height:auto;color:var(--green);animation:spin 18s linear infinite;filter:drop-shadow(0 0 22px rgba(127,209,160,.35))}
+@keyframes spin{to{transform:rotate(360deg)}}
+.kicker{margin-top:clamp(18px,3vmin,28px);color:#f3b7bf;font-weight:700;letter-spacing:.22em;text-transform:uppercase;font-size:clamp(.72rem,1.6vmin,.9rem)}
+h1{font-family:Georgia,"Times New Roman",serif;font-size:clamp(2rem,6.4vmin,4rem);line-height:1.1;margin:10px 0 0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--green)}
+.phrase{margin-top:clamp(14px,2.6vmin,24px);font-size:clamp(1.05rem,2.6vmin,1.5rem);line-height:1.5;color:#d8ded9;max-width:36em;text-wrap:balance}
+.chips{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:clamp(20px,4vmin,36px)}
+.chips span{padding:10px 20px;border-radius:99px;border:1.5px solid rgba(127,209,160,.55);background:rgba(127,209,160,.1);font-weight:700;font-size:clamp(.9rem,2vmin,1.1rem);letter-spacing:.04em;opacity:0;animation:pop .6s forwards}
+.chips span:nth-child(1){animation-delay:.5s}.chips span:nth-child(2){animation-delay:.85s}.chips span:nth-child(3){animation-delay:1.2s}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.9)}to{opacity:1;transform:none}}
+.sig{margin-top:clamp(20px,4vmin,34px);color:#9aa5a0;font-size:.9rem;letter-spacing:.06em}
+.langs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:clamp(18px,3vmin,28px)}
+.langs button{font:inherit;font-weight:700;font-size:.85rem;padding:7px 13px;border-radius:99px;border:1.5px solid rgba(255,255,255,.28);background:transparent;color:var(--cream);cursor:pointer}
+.langs button[aria-pressed="true"]{background:var(--cream);color:var(--ink);border-color:var(--cream)}
+.langs button:focus-visible{outline:3px solid var(--green);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.cycle{animation:none}.chips span{animation:none;opacity:1}}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<main class="panel">
+  <img class="logo" src="assets/img/logo.png" alt="GT Auto Service">
+  <svg class="cycle" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <g id="a"><path d="M57.1 16.7A34 34 0 0 1 81.5 62.7"/><path d="M77.4 72.9L73.2 59.4L89.9 66.1Z" fill="currentColor" stroke-width="2"/></g>
+    <use href="#a" transform="rotate(120 50 50)"/><use href="#a" transform="rotate(240 50 50)"/>
+  </svg>
+  <div class="kicker" id="k"></div>
+  <h1 id="t"></h1>
+  <p class="phrase" id="p"></p>
+  <div class="chips" id="c"></div>
+  <p class="sig" id="s"></p>
+  <div class="langs" id="l" role="group" aria-label="Langue"></div>
+</main>
+<script>
+{
+  const L={
+    fr:{n:'Français',k:'Notre engagement',t:'Le recyclage est dans notre <em>ADN</em>',p:'Chez GT Auto Service, chaque pièce mérite une seconde vie : réparer, réutiliser, recycler, pour votre voiture et pour la planète.',c:['Réparer','Réutiliser','Recycler'],s:'Garage indépendant · Narbonne'},
+    en:{n:'English',k:'Our commitment',t:'Recycling is in our <em>DNA</em>',p:'At GT Auto Service, every part deserves a second life: repair, reuse, recycle, for your car and for the planet.',c:['Repair','Reuse','Recycle'],s:'Independent garage · Narbonne'},
+    es:{n:'Español',k:'Nuestro compromiso',t:'El reciclaje está en nuestro <em>ADN</em>',p:'En GT Auto Service, cada pieza merece una segunda vida: reparar, reutilizar, reciclar, por su coche y por el planeta.',c:['Reparar','Reutilizar','Reciclar'],s:'Taller independiente · Narbona'},
+    de:{n:'Deutsch',k:'Unser Versprechen',t:'Recycling steckt in unserer <em>DNA</em>',p:'Bei GT Auto Service verdient jedes Teil ein zweites Leben: reparieren, wiederverwenden, recyceln – für Ihr Auto und für den Planeten.',c:['Reparieren','Wiederverwenden','Recyceln'],s:'Unabhängige Werkstatt · Narbonne'},
+    nl:{n:'Nederlands',k:'Onze belofte',t:'Recycling zit in ons <em>DNA</em>',p:'Bij GT Auto Service verdient elk onderdeel een tweede leven: repareren, hergebruiken, recyclen, voor uw auto en voor de planeet.',c:['Repareren','Hergebruiken','Recyclen'],s:'Onafhankelijke garage · Narbonne'},
+    it:{n:'Italiano',k:'Il nostro impegno',t:'Il riciclo è nel nostro <em>DNA</em>',p:'Da GT Auto Service ogni ricambio merita una seconda vita: riparare, riutilizzare, riciclare, per la tua auto e per il pianeta.',c:['Riparare','Riutilizzare','Riciclare'],s:'Officina indipendente · Narbona'}
+  };
+  const q=new URLSearchParams(location.search);
+  // ?langs=fr,en,es,de limite les langues proposées ; ?lang=xx impose la langue de départ (sinon : langue du navigateur).
+  const allowed=(q.get('langs')||'').split(',').map(x=>x.trim().toLowerCase()).filter(x=>L[x]);
+  const list=allowed.length?allowed:Object.keys(L);
+  const nav=(navigator.language||'fr').slice(0,2).toLowerCase();
+  let cur=list.includes(q.get('lang'))?q.get('lang'):list.includes(nav)?nav:list[0];
+  const $=id=>document.getElementById(id),box=$('l');
+  function show(k){
+    cur=k;const d=L[k];document.documentElement.lang=k;
+    $('k').textContent=d.k;$('t').innerHTML=d.t;$('p').textContent=d.p;$('s').textContent=d.s;
+    const c=$('c');c.innerHTML='';d.c.forEach(w=>{const s=document.createElement('span');s.textContent=w;c.appendChild(s)});
+    [...box.children].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===k)));
+  }
+  if(list.length>1)list.forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.k=k;b.textContent=L[k].n;b.onclick=()=>show(k);box.appendChild(b)});
+  show(cur);
+}
+</script>
+</body>
+</html>
