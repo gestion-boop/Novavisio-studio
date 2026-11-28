@@ -81,7 +81,16 @@ export function useEffectiveBarTheme(project:StudioProject|null|undefined,base:B
     return ()=>{alive=false;};
   },[url]);
   const s=sampled&&sampled.url===url?sampled.s:null;
-  return s?{...base,button:s.button,buttonOutline:s.button,icon:s.icon}:base;
+  const theme=s?{...base,button:s.button,buttonOutline:s.button,icon:s.icon}:base;
+  return readableIcon(theme);
+}
+
+/** Garde-fou de lisibilité : si le pictogramme (texte des boutons des panneaux) contraste trop peu avec le disque du bouton, on prend blanc ou noir. */
+function readableIcon(theme:BarStyle):BarStyle{
+  if(!/^#[0-9a-f]{6}$/i.test(theme.button)||!/^#[0-9a-f]{6}$/i.test(theme.icon))return theme;
+  if(contrast(theme.icon,theme.button)>=3.5)return theme;
+  const fix=contrast('#ffffff',theme.button)>=contrast('#111111',theme.button)?'#ffffff':'#111111';
+  return {...theme,icon:fix};
 }
 
 function lum(c:string){
