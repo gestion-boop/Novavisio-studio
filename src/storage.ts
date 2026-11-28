@@ -113,6 +113,8 @@ export type BottomBarItem = {
   galleryBackground?: string;
   /** Photo importée par l'utilisateur comme fond du panneau (image compressée) : prioritaire sur galleryBackground. */
   galleryBackgroundImage?: string;
+  /** Couleurs des cartes du panneau d'espaces : normal, survol, pressé (+ texte facultatif). */
+  galleryCardTheme?: {normal:string;hover:string;pressed:string;ink?:string};
   gallerySpaceIds?:string[];linkMode?:'embed'|'tab';fontFamily?:string;
   target: string;
   text: string;
@@ -421,6 +423,9 @@ export function validateProject(value:unknown):StudioProject {
       (item.fontFamily!==undefined&&(typeof item.fontFamily!=='string'||item.fontFamily.length>50)) ||
       (item.galleryTitle !== undefined && (typeof item.galleryTitle !== 'string' || item.galleryTitle.length > 100)) ||
       (item.galleryBackgroundImage !== undefined && (item.galleryBackgroundImage.length > 3_000_000 || !isSafeFrameImage(item.galleryBackgroundImage))) ||
+      (item.galleryCardTheme !== undefined && (typeof item.galleryCardTheme !== 'object' || item.galleryCardTheme === null ||
+        !(['normal','hover','pressed'] as const).every(k => /^#[0-9a-f]{6}$/i.test(String(item.galleryCardTheme![k]))) ||
+        (item.galleryCardTheme.ink !== undefined && !/^#[0-9a-f]{6}$/i.test(String(item.galleryCardTheme.ink))))) ||
       (item.galleryBackground !== undefined && (typeof item.galleryBackground !== 'string' || item.galleryBackground.length > 120)) ||
       typeof item.target !== 'string' || typeof item.text !== 'string' || typeof item.url !== 'string' ||
       item.url.length > 2048 || item.text.length > 8000 ||

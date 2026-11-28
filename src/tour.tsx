@@ -565,7 +565,7 @@ export function Tour({project:given,onNeedScene,onPreviewScenes}:{project?:Studi
       const raw=project.bottomBar?.find(b=>b.id===galleryId&&b.type==='gallery');
       if(!raw)return null;
       const item=resolveVrGalleryItem({...project,bottomBar:[raw,...(project.bottomBar??[]).filter(b=>b.id!==raw.id)]});
-      return <PanoramaGallery onVisibleScenes={onPreviewScenes} title={item.galleryTitle||pick(item.title,item.titleTranslations,lang)||ui('panoramas',lang)} currentId={current.id} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
+      return <PanoramaGallery cardTheme={item.galleryCardTheme} onVisibleScenes={onPreviewScenes} title={item.galleryTitle||pick(item.title,item.titleTranslations,lang)||ui('panoramas',lang)} currentId={current.id} viewSource={id=>{const sc=project.scenes.find(x=>x.id===id);return sc?{dataUrl:sc.dataUrl,yaw:sc.arrivalYaw,pitch:sc.arrivalPitch}:undefined;}} background={galleryBackgroundSrc(item,project.scenes,project.spaces)}
         entries={galleryEntries(item,project.scenes,project.spaces).map(e=>{const sc=project.scenes.find(x=>x.id===e.sceneId);return {sceneId:e.sceneId,spaceId:e.spaceId,label:sc&&sc.name===e.label?pick(sc.name,sc.nameTranslations,lang):e.label,thumb:e.coverDataUrl??(project.scenes.find(s=>s.id===e.sceneId)?.dataUrl||undefined)};})}
         onPick={(id,spaceId)=>{if(spaceId){onNeedScene?.(id);setGallerySpace(spaceId);setSceneId(id);}else move(id);setGalleryId(null);}} onClose={()=>setGalleryId(null)}/>;
     })()}
