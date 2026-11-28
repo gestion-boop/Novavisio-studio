@@ -142,7 +142,7 @@ export function NotesPanel({projectName,onClose,onOpenCloud,onOpenPanorama}:{pro
         <div className="nv-notes-composer-row">
           <label className={'nv-notes-share'+(mode?.kind!=='cloud'?' is-disabled':'')}>
             <input type="checkbox" checked={shared&&mode?.kind==='cloud'} disabled={mode?.kind!=='cloud'} onChange={e=>setShared(e.target.checked)}/>
-            <span><Users size={15}/> Partager avec l’équipe du projet{mode?.kind!=='cloud'&&<em className="nv-notes-why"> (indisponible tant que la mise à jour de la base n’est pas faite : utilise « Envoyer aussi à » ci-dessous)</em>}</span>
+            <span><Users size={15}/> Partager avec l’équipe du projet{mode?.kind!=='cloud'&&<em className="nv-notes-why">{mode?.kind==='local'&&mode.reason===NOT_ACTIVE?' (indisponible tant que la mise à jour de la base n’est pas faite : utilise « Envoyer aussi à » ci-dessous)':' (disponible quand le projet est enregistré dans le Cloud et que tu es connecté(e) : en attendant, utilise « Envoyer aussi à » ci-dessous)'}</em>}</span>
           </label>
           <button type="button" className="nv-notes-add" disabled={!draft.trim()||busy||!mode} onClick={()=>void add()}>Ajouter</button>
         </div>
